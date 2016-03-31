@@ -27,14 +27,19 @@ activeStore.addListener(render);
 
 render();
 
+getUserMedia({ video: true, audio: false })
+.then(stream => {
+  dispatcher.dispatch({
+    type: 'add-stream',
+    userId: '_me_',
+    stream
+  });
+});
+
 socket.once('connect', () => {
   debug('socket connected');
   getUserMedia({ video: true, audio: true })
   .then(stream => {
-    dispatcher.dispatch('add-stream', {
-      userId: '_me_',
-      stream
-    });
     debug('forwarding stream to handshake');
     handshake.init(socket, 'test', stream);
   })
