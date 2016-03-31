@@ -16,6 +16,7 @@ function app() {
     let url = createObjectURL(stream);
 
     function markActive() {
+      if (activeStore.isActive(userId)) return;
       dispatcher.dispatch({
         type: 'mark-active',
         userId

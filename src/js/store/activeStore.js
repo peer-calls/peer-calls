@@ -10,6 +10,9 @@ const removeListener = cb => emitter.removeListener('change', cb);
 let active;
 
 const handlers = {
+  'add-stream': ({ userId }) => {
+    active = userId;
+  },
   'mark-active': ({ userId }) => {
     debug('mark-active, userId: %s', userId);
     active = userId;
