@@ -1,0 +1,72 @@
+@import "fonts.less";
+
+@color-bg: #086788;
+@color-fg: #07A0C3;
+// @color-btn: #F0C808;
+@color-btn: #FFF1D0;
+@color-active: #F0C808;
+@icon-size: 48px;
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: @color-bg;
+  color: @color-fg;
+  margin: 0 0;
+  font-family: sans-serif;
+}
+
+#container {
+  width: 100%;
+  height: 100%;
+}
+
+.app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  .videos {
+    position: absolute;
+    height: 100px;
+    bottom: 15px;
+    right: 0px;
+    text-align: right;
+
+    .video-container {
+      display: inline-block;
+      margin-right: 10px;
+      width: 150px;
+      height: 100%;
+      z-index: 2;
+
+      video {
+        pointer: cursor;
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    .video-container.active {
+      position: fixed;
+      width: 100%;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 1;
+
+      video {
+        pointer: inherit;
+      }
+    }
+  }
+}

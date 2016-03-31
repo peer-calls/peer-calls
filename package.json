@@ -1,0 +1,54 @@
+{
+  "name": "remote-control-server",
+  "version": "1.3.2",
+  "description": "Remote control your PC from your web browser on your other PC or mobile device",
+  "repository": "https://github.com/jeremija/remote-control-server",
+  "main": "src/index.js",
+  "bin": {
+    "remote-control-server": "./dist/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest --coverage",
+    "testify": "jest --watch",
+    "lint": "eslint ./index.js ./src/js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "babel-jest": "^10.0.1",
+    "babel-preset-es2015": "^6.6.0",
+    "babel-preset-react": "^6.5.0",
+    "babelify": "^7.2.0",
+    "bluebird": "^3.3.4",
+    "express": "^4.13.3",
+    "flux": "^2.1.1",
+    "jade": "^1.11.0",
+    "react": "^0.14.8",
+    "react-dom": "^0.14.8",
+    "simple-peer": "^6.0.3",
+    "socket.io": "^1.3.7",
+    "socket.io-client": "^1.3.7",
+    "underscore": "^1.8.3"
+  },
+  "devDependencies": {
+    "browserify-middleware": "^7.0.0",
+    "eslint": "^2.5.3",
+    "eslint-plugin-react": "^4.2.3",
+    "jest-cli": "^0.10.0",
+    "less-middleware": "^2.0.1",
+    "react-addons-test-utils": "^0.14.8"
+  },
+  "jest": {
+    "scriptPreprocessor": "<rootDir>/node_modules/babel-jest",
+    "unmockedModulePathPatterns": [
+      "<rootDir>/node_modules/react",
+      "<rootDir>/node_modules/react-dom",
+      "<rootDir>/node_modules/react-addons-test-utils",
+      "<rootDir>/node_modules/fbjs"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/node_modules/"
+    ]
+  }
+}
