@@ -1,6 +1,6 @@
 'use strict';
 const EventEmitter = require('events');
-const debug = require('debug')('peercalls:activeStore');
+const debug = require('debug')('peer-calls:activeStore');
 const dispatcher = require('../dispatcher/dispatcher.js');
 
 const emitter = new EventEmitter();

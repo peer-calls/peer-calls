@@ -1,5 +1,5 @@
 'use strict';
-const debug = require('debug')('peercalls:socket');
+const debug = require('debug')('peer-calls:socket');
 const _ = require('underscore');
 
 module.exports = function(socket, io) {

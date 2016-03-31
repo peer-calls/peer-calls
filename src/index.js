@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 if (!process.env.DEBUG) {
-  process.env.DEBUG = 'peercalls:*';
+  process.env.DEBUG = 'peer-calls:*';
 }
 
 const express = require('express');
