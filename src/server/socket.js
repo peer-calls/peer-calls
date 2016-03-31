@@ -1,5 +1,5 @@
 'use strict';
-const debug = require('debug')('video-server:socket');
+const debug = require('debug')('peercalls:socket');
 const _ = require('underscore');
 
 module.exports = function(socket, io) {

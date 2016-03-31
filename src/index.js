@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 if (!process.env.DEBUG) {
-  process.env.DEBUG = 'video-server:*';
+  process.env.DEBUG = 'peercalls:*';
 }
 
 const express = require('express');

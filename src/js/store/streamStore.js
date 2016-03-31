@@ -1,6 +1,6 @@
 'use strict';
 const EventEmitter = require('events');
-const debug = require('debug')('video-client:streamStore');
+const debug = require('debug')('peercalls:streamStore');
 const dispatcher = require('../dispatcher/dispatcher.js');
 
 const emitter = new EventEmitter();

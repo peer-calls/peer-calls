@@ -1,12 +1,9 @@
 {
-  "name": "remote-control-server",
+  "name": "peercalls",
   "version": "1.3.2",
-  "description": "Remote control your PC from your web browser on your other PC or mobile device",
-  "repository": "https://github.com/jeremija/remote-control-server",
+  "description": "Group peer to peer video calls for anybody.",
+  "repository": "https://github.com/jeremija/peer-calls",
   "main": "src/index.js",
-  "bin": {
-    "remote-control-server": "./dist/index.js"
-  },
   "scripts": {
     "start": "node src/index.js",
     "test": "jest --coverage",

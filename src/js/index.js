@@ -1,13 +1,13 @@
 'use strict';
 if (window.localStorage && !window.localStorage.debug) {
-  window.localStorage.debug = 'video-client:*';
+  window.localStorage.debug = 'peercalls:*';
 }
 
 const App = require('./components/app.js');
 const React = require('react');
 const ReactDom = require('react-dom');
 const activeStore = require('./store/activeStore.js');
-const debug = require('debug')('video-client:index');
+const debug = require('debug')('peercalls:index');
 const dispatcher = require('./dispatcher/dispatcher.js');
 const getUserMedia = require('./browser/getUserMedia.js');
 const handshake = require('./peer/handshake.js');

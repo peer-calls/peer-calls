@@ -1,6 +1,6 @@
 'use strict';
 const Peer = require('./Peer.js');
-const debug = require('debug')('video-client:peer');
+const debug = require('debug')('peercalls:peer');
 const dispatcher = require('../dispatcher/dispatcher.js');
 const _ = require('underscore');
 
