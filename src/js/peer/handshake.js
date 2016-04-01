@@ -39,6 +39,7 @@ function init(socket, roomName, stream) {
 
     peer.once('connect', () => {
       debug('peer: %s, connect', user.id);
+      dispatcher.dispatch({ type: 'play' });
     });
 
     peer.on('stream', stream => {

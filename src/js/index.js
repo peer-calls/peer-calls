@@ -14,9 +14,22 @@ const handshake = require('./peer/handshake.js');
 const socket = require('./socket.js');
 const streamStore = require('./store/streamStore.js');
 
+function play() {
+  let videos = window.document.querySelectorAll('video');
+  Array.prototype.forEach.call(videos, (video, index) => {
+    debug('playing video: %s', index);
+    video.play();
+  });
+}
+
 function render() {
   ReactDom.render(<App />, document.querySelector('#container'));
+  play();
 }
+
+dispatcher.register(action => {
+  if (action.type === 'play') play();
+});
 
 streamStore.addListener(() => () => {
   debug('streamStore - change');

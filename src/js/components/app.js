@@ -15,7 +15,8 @@ function app() {
   let videos = _.map(streams, (stream, userId) => {
     let url = createObjectURL(stream);
 
-    function markActive() {
+    function markActive(event) {
+      event.target.play();
       if (activeStore.isActive(userId)) return;
       dispatcher.dispatch({
         type: 'mark-active',
