@@ -1,16 +1,32 @@
 doctype html
 html
   head
-    title Peer Call
+    title Peer Calls - Video calls to anybody in the world with a private direct connection
+    meta(charset="utf-8")
+    meta(name="description" content="Make video calls to anybody in the world with a private connection. Share the conversation by url.")
     meta(name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
     meta(name="mobile-web-app-capable" content="yes")
     meta(name="apple-mobile-web-app-capable" content="yes")
     link(rel="apple-touch-icon" href="res/icon.png")
     link(rel="icon" sizes="256x256" href="res/icon.png")
-  link(rel="stylesheet" type="text/css" href="less/main.css")
+    link(rel="stylesheet" type="text/css" href="less/main.css")
 
   body
 
     div#container
 
-    script(src='js/index.js')
+
+      form#form
+        h1 Peer Calls
+        input#callId(name="callId" placeholder="Enter your call ID")
+        input(type="submit" value="Join")
+
+    script.
+      (function() {
+        var form = document.getElementById('form');
+        form.onsubmit = function(event) {
+          var callId = document.getElementById('callId').value;
+          window.location = 'call/' + (callId || '');
+          return false;
+        }
+      }());

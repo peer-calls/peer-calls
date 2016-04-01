@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 'use strict';
-if (!process.env.DEBUG) {
-  process.env.DEBUG = 'peer-calls:*';
-}
-
 const express = require('express');
+const handleSocket = require('./socket.js');
+const os = require('os');
+const path = require('path');
+const uuid = require('uuid');
+
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
-const path = require('path');
-const os = require('os');
-
-const handleSocket = require('./socket.js');
 
 app.set('view engine', 'jade');
 app.set('views', path.join(__dirname, '../views'));
@@ -37,7 +34,17 @@ if (__dirname.indexOf('/dist/') >= 0 || __dirname.indexOf('\\dist\\') >= 0) {
 }
 
 app.get('/', (req, res) => res.render('index'));
+app.get('/call/', (req, res) => {
+  let prefix = 'call/';
+  if (req.url.charAt(req.url.length - 1) === '/') prefix = '';
+  res.redirect(prefix + uuid.v4());
+});
+app.get('/call/:callId', (req, res) => {
+  res.render('call', {
+    callId: req.params.callId
+  });
+});
 
 io.on('connection', socket => handleSocket(socket, io));
 
-module.exports = app;
+module.exports = { http, app };

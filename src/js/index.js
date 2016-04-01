@@ -27,6 +27,8 @@ activeStore.addListener(render);
 
 render();
 
+const callId = window.document.getElementById('callId').value;
+
 getUserMedia({ video: true, audio: false })
 .then(stream => {
   dispatcher.dispatch({
@@ -41,7 +43,7 @@ socket.once('connect', () => {
   getUserMedia({ video: true, audio: true })
   .then(stream => {
     debug('forwarding stream to handshake');
-    handshake.init(socket, 'test', stream);
+    handshake.init(socket, callId, stream);
   })
   .catch(err => {
     debug('error getting media: %s %s', err.name, err.message);

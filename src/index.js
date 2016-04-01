@@ -5,13 +5,12 @@ if (!process.env.DEBUG) {
 }
 
 const app = require('./server/app.js');
-const http = require('http').Server(app);
 const os = require('os');
 
 let port = process.env.PORT || 3000;
 let ifaces = os.networkInterfaces();
 
-http.listen(port, function() {
+app.http.listen(port, function() {
   Object.keys(ifaces).forEach(ifname =>
     ifaces[ifname].forEach(iface =>
       console.log('listening on', iface.address, 'and port', port)));

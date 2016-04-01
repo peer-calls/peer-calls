@@ -28,6 +28,46 @@ body {
   height: 100%;
 }
 
+#form {
+  text-align: center;
+  width: 300px;
+  margin: 0 auto;
+
+  input {
+    width: 100%;
+    border: 1px solid @color-fg;
+    background-color: @color-bg;
+    border-radius: 5px;
+    padding: 1em 2em;
+    margin-bottom: 1em;
+    color: @color-active;
+  }
+
+  input:focus {
+    outline: none;
+  }
+
+  ::-webkit-input-placeholder {
+    color: @color-fg;
+    text-align: center;
+  }
+
+  :-moz-placeholder { /* Firefox 18- */
+    color: @color-fg;
+    text-align: center;
+  }
+
+  ::-moz-placeholder {  /* Firefox 19+ */
+    color: @color-fg;
+    text-align: center;
+  }
+
+  :-ms-input-placeholder {
+    color: @color-fg;
+    text-align: center;
+  }
+}
+
 .app {
   width: 100%;
   height: 100%;
