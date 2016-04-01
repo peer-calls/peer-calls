@@ -2,7 +2,8 @@
 
 [![Build Status](https://travis-ci.org/jeremija/peer-calls.svg?branch=master)](https://travis-ci.org/jeremija/peer-calls)
 
-WebRTC peer to peer calls for anybody.
+WebRTC peer to peer calls for everyone. See it live in action at
+[peercalls.com](https://peercalls.com).
 
 Work in progress.
 
