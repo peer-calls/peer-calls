@@ -1,7 +1,7 @@
 const React = require('react');
 const _ = require('underscore');
 const activeStore = require('../store/activeStore.js');
-const createObjectURL = require('../browser/createObjectURL');
+const debug = require('debug')('peer-calls:app');
 const dispatcher = require('../dispatcher/dispatcher.js');
 const streamStore = require('../store/streamStore.js');
 
@@ -9,18 +9,21 @@ function app() {
   let streams = streamStore.getStreams();
 
   function play(event) {
-    event.target.play();
+    try {
+      event.target.play();
+    } catch (e) {
+      debug('error starting video: %s', e.name);
+    }
   }
 
   let videos = _.map(streams, (stream, userId) => {
-    let url = createObjectURL(stream);
+    let url = stream.url;
 
     function markActive(event) {
-      event.target.play();
-      if (activeStore.isActive(userId)) return;
+      play(event);
       dispatcher.dispatch({
         type: 'mark-active',
-        userId
+        userId: activeStore.isActive(userId) ? undefined : userId
       });
     }
 

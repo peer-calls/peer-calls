@@ -1,5 +1,6 @@
 'use strict';
 const EventEmitter = require('events');
+const createObjectURL = require('../browser/createObjectURL');
 const debug = require('debug')('peer-calls:streamStore');
 const dispatcher = require('../dispatcher/dispatcher.js');
 
@@ -12,7 +13,10 @@ const streams = {};
 const handlers = {
   'add-stream': ({ userId, stream }) => {
     debug('add-stream, user: %s', userId);
-    streams[userId] = stream;
+    streams[userId] = {
+      stream,
+      url: createObjectURL(stream)
+    };
   },
   'remove-stream': ({ userId }) => {
     debug('remove-stream, user: %s', userId);

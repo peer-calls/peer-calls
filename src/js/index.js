@@ -2,6 +2,7 @@
 if (window.localStorage && !window.localStorage.debug) {
   window.localStorage.debug = 'peer-calls:*';
 }
+window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {};
 
 const App = require('./components/app.js');
 const React = require('react');
@@ -18,7 +19,11 @@ function play() {
   let videos = window.document.querySelectorAll('video');
   Array.prototype.forEach.call(videos, (video, index) => {
     debug('playing video: %s', index);
-    video.play();
+    try {
+      video.play();
+    } catch (e) {
+      debug('error playing video: %s', e.name);
+    }
   });
 }
 

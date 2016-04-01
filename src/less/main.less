@@ -14,18 +14,18 @@
 html, body {
   width: 100%;
   height: 100%;
+  z-index: -99;
 }
 
 body {
   background-color: @color-bg;
+  background-image: url('/res/peer-calls.svg');
+  background-size: 200px;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
   color: @color-fg;
   margin: 0 0;
   font-family: sans-serif;
-}
-
-#container {
-  width: 100%;
-  height: 100%;
 }
 
 #form {
@@ -88,12 +88,9 @@ body {
 }
 
 .app {
-  width: 100%;
-  height: 100%;
-  position: relative;
 
   .videos {
-    position: absolute;
+    position: fixed;
     height: 100px;
     bottom: 15px;
     right: 0px;
@@ -101,17 +98,17 @@ body {
 
     .video-container {
       background-color: black;
-      box-shadow: 0px 0px 5px #333;
-      border-radius: 30px;
+      box-shadow: 0px 0px 5px black;
+      border-radius: 50px;
       display: inline-block;
       margin-right: 10px;
-      width: 150px;
+      width: 100px;
       height: 100%;
       z-index: 2;
 
       video {
-        border-radius: 30px;
-        pointer: cursor;
+        border-radius: 50px;
+        cursor: pointer;
         object-fit: cover;
         width: 100%;
         height: 100%;
@@ -132,7 +129,7 @@ body {
 
       video {
         border-radius: 0;
-        pointer: inherit;
+        cursor: inherit;
       }
     }
   }

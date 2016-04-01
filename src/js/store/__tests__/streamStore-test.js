@@ -1,6 +1,7 @@
 jest.dontMock('../streamStore.js');
 jest.dontMock('debug');
 
+const createObjectUrl = require('../../browser/createObjectURL.js');
 const dispatcher = require('../../dispatcher/dispatcher.js');
 const streamStore = require('../streamStore.js');
 
@@ -20,9 +21,16 @@ describe('streamStore', () => {
     it('should add a stream', () => {
       let stream = {};
 
+      createObjectUrl.mockImplementation(str => {
+        if (str === stream) return 'url1';
+      });
+
       handleAction({ type: 'add-stream', userId: 'user1', stream });
 
-      expect(streamStore.getStream('user1')).toBe(stream);
+      expect(streamStore.getStream('user1')).toEqual({
+        stream,
+        url: 'url1'
+      });
       expect(onChange.mock.calls.length).toEqual(1);
     });
 
@@ -30,14 +38,31 @@ describe('streamStore', () => {
       let stream1 = {};
       let stream2 = {};
 
+      createObjectUrl.mockImplementation(stream => {
+        if (stream === stream1) return 'url1';
+        if (stream === stream2) return 'url2';
+      });
+
       handleAction({ type: 'add-stream', userId: 'user1', stream: stream1 });
       handleAction({ type: 'add-stream', userId: 'user2', stream: stream2 });
 
-      expect(streamStore.getStream('user1')).toBe(stream1);
-      expect(streamStore.getStream('user2')).toBe(stream2);
+      expect(streamStore.getStream('user1')).toEqual({
+        stream: stream1,
+        url: 'url1'
+      });
+      expect(streamStore.getStream('user2')).toEqual({
+        stream: stream2,
+        url: 'url2'
+      });
       expect(streamStore.getStreams()).toEqual({
-        user1: stream1,
-        user2: stream2
+        user1: {
+          stream: stream1,
+          url: 'url1'
+        },
+        user2: {
+          stream: stream2,
+          url: 'url2'
+        }
       });
       expect(onChange.mock.calls.length).toEqual(2);
     });
