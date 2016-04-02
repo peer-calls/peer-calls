@@ -1,5 +1,4 @@
-jest.dontMock('../streamStore.js');
-jest.dontMock('debug');
+jest.unmock('../streamStore.js');
 
 const createObjectUrl = require('../../browser/createObjectURL.js');
 const dispatcher = require('../../dispatcher/dispatcher.js');

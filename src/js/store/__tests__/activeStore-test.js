@@ -1,5 +1,4 @@
-jest.dontMock('../activeStore.js');
-jest.dontMock('debug');
+jest.unmock('../activeStore.js');
 
 const dispatcher = require('../../dispatcher/dispatcher.js');
 const activeStore = require('../activeStore.js');

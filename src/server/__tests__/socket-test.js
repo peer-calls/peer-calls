@@ -1,8 +1,7 @@
 'use strict';
-jest.dontMock('../socket.js');
-jest.dontMock('events');
-jest.dontMock('debug');
-jest.dontMock('underscore');
+jest.unmock('../socket.js');
+jest.unmock('events');
+jest.unmock('underscore');
 
 const EventEmitter = require('events').EventEmitter;
 const handleSocket = require('../socket.js');

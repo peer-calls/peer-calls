@@ -1,7 +1,6 @@
-jest.dontMock('../handshake.js');
-jest.dontMock('events');
-jest.dontMock('debug');
-jest.dontMock('underscore');
+jest.unmock('../handshake.js');
+jest.unmock('events');
+jest.unmock('underscore');
 
 const dispatcher = require('../../dispatcher/dispatcher.js');
 const handshake = require('../handshake.js');

@@ -1,5 +1,5 @@
-jest.dontMock('../app.js');
-jest.dontMock('underscore');
+jest.unmock('../app.js');
+jest.unmock('underscore');
 
 const React = require('react');
 const ReactDOM = require('react-dom');
