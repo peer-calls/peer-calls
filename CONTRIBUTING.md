@@ -30,7 +30,7 @@ pull request will be rejected.
    - Remember that you can also [close][close] the issue with this message.
 8. Submit a pull request.
 
-  [style]: STYLE_GUIDE.md
+  [style]: STYLE.md
   [commit]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
   [reference]: https://help.github.com/articles/autolinked-references-and-urls/#issues-and-pull-requests
   [close]: https://help.github.com/articles/closing-issues-via-commit-messages/

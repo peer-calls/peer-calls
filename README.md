@@ -1,4 +1,4 @@
-# peer-calls
+# Peer Calls
 
 [![Build Status](https://travis-ci.org/jeremija/peer-calls.svg?branch=master)](https://travis-ci.org/jeremija/peer-calls)
 
@@ -28,11 +28,15 @@ http://192.168.0.10:3000
 
 ```bash
 npm install
-make test
+npm test
 ```
 
 Replace `192.168.0.10` with the LAN IP address of your server.
 
-# license
+# Contributing
+
+See [contributing][CONTRIBUTING.md].
+
+# License
 
 MIT
