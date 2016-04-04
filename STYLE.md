@@ -24,6 +24,7 @@ your files.
 * [Use lowerCamelCase for variables, properties and function names](#use-lowercamelcase-for-variables-properties-and-function-names)
 * [Use UpperCamelCase for class names](#use-uppercamelcase-for-class-names)
 * [Use UPPERCASE for Constants](#use-uppercase-for-constants)
+* [Use let instead of var](#use-let-instead-of-var)
 
 ### Variables
 * [Object / Array creation](#object--array-creation)
@@ -205,13 +206,18 @@ function bank_Account() {
 
 ## Use UPPERCASE for Constants
 
-Constants should be declared as regular variables or static class properties,
-using all uppercase letters.
+Constant `Strings` and `Numbers` should be declared with `const`, using
+uppercase letters.
+
+Required modules and other static objects should also be defined using `const`
+keyword, however they do not need to be uppercase to make the code more
+readable.
 
 *Right:*
 
 ```js
-var SECOND = 1 * 1000;
+const myModule = require('my-module');
+const SECOND = 1 * 1000;
 
 function File() {
 }
@@ -221,14 +227,17 @@ File.FULL_PERMISSIONS = 0777;
 *Wrong:*
 
 ```js
-const SECOND = 1 * 1000;
+var myModule = require('my-module');
+var SECOND = 1 * 1000;
 
 function File() {
 }
 File.fullPermissions = 0777;
 ```
 
-[const]: https://developer.mozilla.org/en/JavaScript/Reference/Statements/const
+## Use let instead of var
+
+Use `let` instead of `var` where possible.
 
 ## Variables
 
