@@ -10,7 +10,7 @@ function init(socket, roomName, stream) {
 
   function createPeer(user, initiator) {
     debug('create peer: %s', user.id);
-    notify.warn('Initializing new peer connection');
+    notify.warn('Connecting to peer...');
 
     let peer = peers[user.id] = Peer.init({
       initiator: '/#' + socket.id === initiator,

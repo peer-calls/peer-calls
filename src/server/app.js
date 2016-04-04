@@ -41,7 +41,7 @@ app.get('/call/', (req, res) => {
 });
 app.get('/call/:callId', (req, res) => {
   res.render('call', {
-    callId: req.params.callId
+    callId: encodeURIComponent(req.params.callId)
   });
 });
 
