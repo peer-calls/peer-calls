@@ -35,7 +35,7 @@ Replace `192.168.0.10` with the LAN IP address of your server.
 
 # Contributing
 
-See [contributing][CONTRIBUTING.md].
+See [Contributing](CONTRIBUTING.md) section.
 
 # License
 
