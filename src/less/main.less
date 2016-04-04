@@ -1,11 +1,18 @@
 @import "fonts.less";
 
+@font-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
+@font-monospace: Menlo, Monaco, Consolas, "Courier New", monospace;
+
 @color-bg: #086788;
 @color-fg: #07A0C3;
 // @color-btn: #F0C808;
 @color-btn: #FFF1D0;
 @color-active: #F0C808;
 @icon-size: 48px;
+
+@color-info: white;
+@color-warning: @color-active;
+@color-error: #FF4400;
 
 * {
   box-sizing: border-box;
@@ -19,13 +26,16 @@ html, body {
 
 body {
   background-color: @color-bg;
+  color: @color-fg;
+  margin: 0 0;
+  font-family: @font-sans-serif;
+}
+
+body.call {
   background-image: url('/res/peer-calls.svg');
   background-size: 200px;
   background-position: 50% 50%;
   background-repeat: no-repeat;
-  color: @color-fg;
-  margin: 0 0;
-  font-family: sans-serif;
 }
 
 #form {
@@ -87,7 +97,79 @@ body {
   }
 }
 
+.warning {
+  color: @color-warning;
+}
+
+.error {
+  color: @color-error;
+}
+
+.info {
+  color: @color-info;
+}
+
 .app {
+
+  .alert {
+    background-color: #000;
+    background-color: rgba(0, 0, 0, 0.3);
+    left: 0;
+    opacity: 1;
+    position: fixed;
+    right: 0;
+    text-align: center;
+    top: 0;
+    transition: visibility 100ms ease-in, opacity 100ms ease-in;
+    z-index: 4;
+
+    span {
+      display: inline-block;
+      margin: 1rem 0;
+      padding: 0 1rem;
+    }
+
+    button {
+      line-height: 1.4rem;
+      border: none;
+      border-radius: 0.3rem;
+      color: @color-info;
+      background-color: @color-fg;
+      vertical-align: middle;
+    }
+  }
+
+  .alert.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .notifications {
+    font-family: @font-monospace;
+    font-size: 10px;
+    left: 1rem;
+    position: fixed;
+    right: 1rem;
+    text-align: right;
+    top: 1rem;
+    z-index: 3;
+
+    .notification {
+      color: @color-info;
+      text-shadow: 0 0 0.1rem @color-info;
+    }
+
+    .notification.error {
+      color: @color-error;
+      text-shadow: 0 0 0.1rem @color-error;
+    }
+
+    .notification.warning {
+      color: @color-warning;
+      text-shadow: 0 0 0.1rem @color-warning;
+    }
+
+  }
 
   .videos {
     position: fixed;
@@ -134,3 +216,22 @@ body {
     }
   }
 }
+
+.fade-enter {
+  opacity: 0.01;
+}
+
+.fade-enter.fade-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}
+
+.fade-leave {
+  opacity: 1;
+}
+
+.fade-leave.fade-leave-active {
+  opacity: 0.01;
+  transition: opacity 100ms ease-in;
+}
+

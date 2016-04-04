@@ -5,6 +5,8 @@ const React = require('react');
 const ReactDOM = require('react-dom');
 const TestUtils = require('react-addons-test-utils');
 
+require('../alert.js').mockImplementation(() => <div />);
+require('../notifications.js').mockImplementation(() => <div />);
 const App = require('../app.js');
 const activeStore = require('../../store/activeStore.js');
 const dispatcher = require('../../dispatcher/dispatcher.js');

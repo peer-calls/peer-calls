@@ -2,6 +2,7 @@
 const Peer = require('./Peer.js');
 const debug = require('debug')('peer-calls:peer');
 const dispatcher = require('../dispatcher/dispatcher.js');
+const notify = require('../action/notify.js');
 const _ = require('underscore');
 
 function init(socket, roomName, stream) {
@@ -9,6 +10,7 @@ function init(socket, roomName, stream) {
 
   function createPeer(user, initiator) {
     debug('create peer: %s', user.id);
+    notify.warn('Initializing new peer connection');
 
     let peer = peers[user.id] = Peer.init({
       initiator: '/#' + socket.id === initiator,
@@ -27,6 +29,7 @@ function init(socket, roomName, stream) {
 
     peer.once('error', err => {
       debug('peer: %s, error %s', user.id, err.stack);
+      notify.error('A peer connection error occurred');
       destroyPeer(user.id);
     });
 
@@ -39,6 +42,7 @@ function init(socket, roomName, stream) {
 
     peer.once('connect', () => {
       debug('peer: %s, connect', user.id);
+      notify.warn('Peer connection established');
       dispatcher.dispatch({ type: 'play' });
     });
 
@@ -53,6 +57,7 @@ function init(socket, roomName, stream) {
 
     peer.once('close', () => {
       debug('peer: %s, close', user.id);
+      notify.error('Peer connection closed');
       dispatcher.dispatch({
         type: 'remove-stream',
         userId: user.id
@@ -82,6 +87,7 @@ function init(socket, roomName, stream) {
   socket.on('users', payload => {
     let { initiator, users } = payload;
     debug('socket users: %o', users);
+    notify.info('Connected users: {0}', users.length);
 
     users
     .filter(user => !peers[user.id] && user.id !== '/#' + socket.id)
@@ -96,6 +102,7 @@ function init(socket, roomName, stream) {
 
   debug('socket.id: %s', socket.id);
   debug('emit ready for room: %s', roomName);
+  notify.info('Ready for connections');
   socket.emit('ready', roomName);
 }
 
