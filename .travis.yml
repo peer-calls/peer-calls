@@ -1,6 +1,6 @@
 language: node_js
 node_js:
   - "5.2.0"
-script: make
+script: make lint coverage build
 notifications:
   email: false
