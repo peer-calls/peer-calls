@@ -6,7 +6,7 @@ build:
 
 	mkdir -p dist/client dist/css
 
-	browserify -t babelify ./src/client/index.js -o ./dist/client/index.js
+	browserify -t babelify ./src/client/index.js | uglifyjs --comments -o ./dist/client/index.js
 
 	lessc ./src/less/main.less ./dist/css/main.css
 
@@ -25,6 +25,11 @@ lint:
 test:
 
 	jest
+
+.PHONY: testify
+testify:
+
+	jest --watch
 
 .PHONY: coverage
 coverage:
