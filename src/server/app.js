@@ -27,7 +27,7 @@ if (__dirname.indexOf('/dist/') >= 0 || __dirname.indexOf('\\dist\\') >= 0) {
 
   const tempDir = path.join(os.tmpDir(), 'node-peer-calls-cache');
   app.use('/js', browserify(path.join(__dirname, '../client')));
-  app.use('/less', less(path.join(__dirname, '../less'), { dest: tempDir}));
+  app.use('/css', less(path.join(__dirname, '../less'), { dest: tempDir}));
   app.use('/css', express.static(tempDir));
   app.use('/css/fonts', express.static(
     path.join(__dirname, '../less/fonts')));

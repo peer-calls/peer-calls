@@ -1,18 +1,17 @@
 @import "fonts.less";
 
 @font-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
-@font-monospace: Menlo, Monaco, Consolas, "Courier New", monospace;
+@font-monospace: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
 
 @color-bg: #086788;
 @color-fg: #07A0C3;
-// @color-btn: #F0C808;
 @color-btn: #FFF1D0;
-@color-active: #F0C808;
 @icon-size: 48px;
 
-@color-info: white;
-@color-warning: @color-active;
-@color-error: #FF4400;
+@color-primary: white;
+@color-info: #31EF40;
+@color-warning: #F0C808;
+@color-error: #EE7600;
 
 * {
   box-sizing: border-box;
@@ -38,37 +37,60 @@ body.call {
   background-repeat: no-repeat;
 }
 
+#github-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 0;
+}
+
 #form {
-  padding-top: 3em;
+  padding-top: 50px;
   text-align: center;
   width: 300px;
   margin: 0 auto;
 
   h1 {
     margin: 0;
-  }
 
-  img {
-    margin-bottom: 1em;
+    img {
+    }
   }
 
   p {
-    margin-bottom: 2em;
+    margin: 50px 0;
+    color: @color-primary;
+  }
+
+  .button(@color-fg, @color-bg) {
+    background-color: @color-bg;
+    border: none;
+    border-bottom: 2px solid darken(@color-bg, 10%);
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: @color-fg;
+    // font-size: 1.2rem;
+    text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+    padding: 1rem 1rem;
   }
 
   input {
-    width: 100%;
-    border: 1px solid @color-fg;
-    background-color: @color-bg;
-    border-radius: 5px;
-    padding: 1em 2em;
-    margin-bottom: 1em;
-    color: @color-active;
+    font-family: @font-monospace;
+    .button(@color-primary, @color-warning);
+    font-size: 1.1rem;
+  }
+
+  input:hover {
+    .button(@color-primary, darken(@color-warning, 5%));
+  }
+
+  input:active {
+    transform: translate(0px, 1px);
+    .button(@color-primary, darken(@color-warning, 10%));
   }
 
   input:active,
   input:focus {
-    border: 1px solid @color-active;
     outline: none;
   }
 
@@ -112,7 +134,7 @@ body.call {
 .app {
 
   .alert {
-    background-color: #000;
+    background-color: black;
     background-color: rgba(0, 0, 0, 0.3);
     left: 0;
     opacity: 1;
@@ -178,18 +200,20 @@ body.call {
     right: 0px;
     text-align: right;
 
+    @video-size: 100px;
+
     .video-container {
       background-color: black;
       box-shadow: 0px 0px 5px black;
-      border-radius: 50px;
+      border-radius: @video-size / 2;
       display: inline-block;
       margin-right: 10px;
-      width: 100px;
+      width: @video-size;
       height: 100%;
       z-index: 2;
 
       video {
-        border-radius: 50px;
+        border-radius: @video-size / 2;
         cursor: pointer;
         object-fit: cover;
         width: 100%;

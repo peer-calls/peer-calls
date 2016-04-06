@@ -3,7 +3,7 @@ html
   head
     title Peer Calls - Video calls to anybody in the world with a private direct connection
     meta(charset="utf-8")
-    meta(name="description" content="Make video calls to anybody in the world with a private connection. Share the conversation by url.")
+    meta(name="description" content="Make video calls to anybody in the world with a private connection. Share the conversation by sharing url.")
     meta(name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
     meta(name="mobile-web-app-capable" content="yes")
     meta(name="apple-mobile-web-app-capable" content="yes")
@@ -16,19 +16,8 @@ html
 
     div#container
 
-      form#form
-        img(src="res/peer-calls.svg" width="100%")
+      form#form(method="get" action="call")
+        h1
+          img(src="res/peer-calls.svg" width="100%" alt="Peer Calls")
         p Group peer-to-peer calls for everyone. Enter a name & share the video link.
-
-        input#callId(name="callId" placeholder="Enter your video link ID")
-        input(type="submit" value="Join")
-
-    script.
-      (function() {
-        var form = document.getElementById('form');
-        form.onsubmit = function(event) {
-          var callId = document.getElementById('callId').value;
-          window.location = 'call/' + (callId || '');
-          return false;
-        }
-      }());
+        input(type="submit" value="New Session")
