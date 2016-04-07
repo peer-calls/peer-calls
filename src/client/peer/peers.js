@@ -72,7 +72,10 @@ function create({ socket, user, initiator, stream }) {
       type: 'remove-stream',
       userId: user.id
     });
-    delete peers[user.id];
+
+    // make sure some other peer with different id didn't take place between
+    // calling `destroy()` and `close` event
+    if (peers[user.id] === peer) delete peers[user.id];
   });
 }
 
