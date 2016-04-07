@@ -1,30 +1,34 @@
 jest.unmock('../handshake.js');
+jest.unmock('../peers.js');
 jest.unmock('events');
 jest.unmock('underscore');
 
+const EventEmitter = require('events').EventEmitter;
+const Peer = require('../Peer.js');
 const dispatcher = require('../../dispatcher/dispatcher.js');
 const handshake = require('../handshake.js');
-const Peer = require('../Peer.js');
-const EventEmitter = require('events').EventEmitter;
+const peers = require('../peers.js');
 
 describe('handshake', () => {
 
-  let socket, peers;
+  let socket, peerInstances;
   beforeEach(() => {
     socket = new EventEmitter();
     socket.id = 'a';
-    peers = [];
+    peerInstances = [];
 
     Peer.init = jest.genMockFunction().mockImplementation(() => {
       let peer = new EventEmitter();
       peer.destroy = jest.genMockFunction();
       peer.signal = jest.genMockFunction();
-      peers.push(peer);
+      peerInstances.push(peer);
       return peer;
     });
 
     dispatcher.dispatch.mockClear();
   });
+
+  afterEach(() => peers.clear());
 
   describe('socket events', () => {
 
@@ -39,7 +43,7 @@ describe('handshake', () => {
           initiator: '/#a',
         };
         socket.emit('users', payload);
-        expect(peers.length).toBe(2);
+        expect(peerInstances.length).toBe(2);
 
         // when
         payload = {
@@ -49,10 +53,10 @@ describe('handshake', () => {
         socket.emit('users', payload);
 
         // then
-        expect(peers.length).toBe(3);
-        expect(peers[0].destroy.mock.calls.length).toBe(0);
-        expect(peers[1].destroy.mock.calls.length).toBe(1);
-        expect(peers[2].destroy.mock.calls.length).toBe(0);
+        expect(peerInstances.length).toBe(3);
+        expect(peerInstances[0].destroy.mock.calls.length).toBe(0);
+        expect(peerInstances[1].destroy.mock.calls.length).toBe(1);
+        expect(peerInstances[2].destroy.mock.calls.length).toBe(0);
       });
 
     });
@@ -74,8 +78,8 @@ describe('handshake', () => {
           data
         });
 
-        expect(peers.length).toBe(1);
-        expect(peers[0].signal.mock.calls.length).toBe(1);
+        expect(peerInstances.length).toBe(1);
+        expect(peerInstances[0].signal.mock.calls.length).toBe(1);
       });
 
       it('does nothing if no peer', () => {
@@ -84,8 +88,8 @@ describe('handshake', () => {
           data
         });
 
-        expect(peers.length).toBe(1);
-        expect(peers[0].signal.mock.calls.length).toBe(0);
+        expect(peerInstances.length).toBe(1);
+        expect(peerInstances[0].signal.mock.calls.length).toBe(0);
       });
 
     });
@@ -105,8 +109,8 @@ describe('handshake', () => {
         users: [{ id: 'a' }],
         initiator: '/#a'
       });
-      expect(peers.length).toBe(1);
-      peer = peers[0];
+      expect(peerInstances.length).toBe(1);
+      peer = peerInstances[0];
 
       expect(ready).toBeDefined();
     });

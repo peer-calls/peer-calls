@@ -24,7 +24,7 @@ lint:
 .PHONY: test
 test:
 
-	jest
+	jest --verbose
 
 .PHONY: testify
 testify:
