@@ -4,7 +4,10 @@ const express = require('express');
 const handleSocket = require('./socket.js');
 const os = require('os');
 const path = require('path');
-const uuid = require('uuid');
+
+//Require in express.Router Middleware. 
+const callRouter = require('./routes/call');
+const siteRouter = require('./routes/index');
 
 const app = express();
 const http = require('http').Server(app);
@@ -33,17 +36,11 @@ if (__dirname.indexOf('/dist/') >= 0 || __dirname.indexOf('\\dist\\') >= 0) {
     path.join(__dirname, '../less/fonts')));
 }
 
-app.get('/', (req, res) => res.render('index'));
-app.get('/call/', (req, res) => {
-  let prefix = 'call/';
-  if (req.url.charAt(req.url.length - 1) === '/') prefix = '';
-  res.redirect(prefix + uuid.v4());
-});
-app.get('/call/:callId', (req, res) => {
-  res.render('call', {
-    callId: encodeURIComponent(req.params.callId)
-  });
-});
+//using Express.Router Middleware
+app.use('/call', callRouter);
+app.use('/', siteRouter);
+
+
 
 io.on('connection', socket => handleSocket(socket, io));
 
