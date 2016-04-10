@@ -5,7 +5,7 @@ const handleSocket = require('./socket.js');
 const os = require('os');
 const path = require('path');
 
-//Require in express.Router Middleware. 
+// Require in express.Router Middleware.
 const callRouter = require('./routes/call');
 const siteRouter = require('./routes/index');
 
@@ -36,7 +36,7 @@ if (__dirname.indexOf('/dist/') >= 0 || __dirname.indexOf('\\dist\\') >= 0) {
     path.join(__dirname, '../less/fonts')));
 }
 
-//using Express.Router Middleware
+// using Express.Router Middleware
 app.use('/call', callRouter);
 app.use('/', siteRouter);
 
