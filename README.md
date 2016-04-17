@@ -10,6 +10,9 @@ Work in progress.
 # Install & Run
 REQUIRES Node.js v5.10.1 [https://nodejs.org/en/](https://nodejs.org/en/)
 
+Note: You must have node version 5.1xx installed! 
+If you accidentally entered npm install before upgrading to node version 5.1xx, simply delete the node module folder from your repository, upgrade to your node version, and repeat the npm install step.
+
 From git source:
 
 ```bash
@@ -18,6 +21,10 @@ cd peer-calls
 npm install
 npm start
 ```
+
+If you successfully completed the above steps, your commandline/terminal should show that your node server is listening.
+
+![Alt text](http://imgur.com/wQ8RoVW "npm start")
 
 On your other machine or mobile device open the url:
 
