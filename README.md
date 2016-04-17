@@ -8,6 +8,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 Work in progress.
 
 # Install & Run
+REQUIRES Node.js v5.10.1 [https://nodejs.org/en/](https://nodejs.org/en/)
 
 From git source:
 
@@ -23,6 +24,7 @@ On your other machine or mobile device open the url:
 ```bash
 http://192.168.0.10:3000
 ```
+(Note: On Android you may have to select a notification on the pulldown menu to connect if you are using Chrome)
 
 # Running the tests
 
