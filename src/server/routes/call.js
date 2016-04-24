@@ -9,9 +9,9 @@ router.use((req, res, next) => {
 });
 
 router.get('/', (req, res) => {
-	let prefix = 'call/';
-	if (req.originalUrl.charAt(req.originalUrl.length - 1) === '/') prefix = '';
-	res.redirect(prefix + uuid.v4());
+  let prefix = 'call/';
+  if (req.originalUrl.charAt(req.originalUrl.length - 1) === '/') prefix = '';
+  res.redirect(prefix + uuid.v4());
 });
 
 router.get('/:callId', (req, res) => {
