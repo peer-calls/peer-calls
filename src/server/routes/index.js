@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 'use strict';
-const express = require('express');
-const router = express.Router();
-
-
-router.use((req, res, next) => {
-	next();
-});
+const router = require('express').Router();
 
 router.get('/', (req, res) => {
-	res.render('index');
+  res.render('index');
 });
 
 module.exports = router;

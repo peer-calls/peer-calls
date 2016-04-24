@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const uuid = require('uuid');
-
-router.use((req, res, next) => {
-  next();
-});
 
 router.get('/', (req, res) => {
   let prefix = 'call/';
