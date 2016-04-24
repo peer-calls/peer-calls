@@ -24,12 +24,10 @@ npm start
 
 If you successfully completed the above steps, your commandline/terminal should show that your node server is listening.
 
-![Alt text](http://imgur.com/wQ8RoVW "npm start")
-
 On your other machine or mobile device open the url:
 
 ```bash
-http://192.168.0.10:3000
+http://<your_ip_or_localhost>:3000
 ```
 (Note: On Android you may have to select a notification on the pulldown menu to connect if you are using Chrome)
 
