@@ -34,7 +34,12 @@ function app() {
 
     return (
       <div className={className} key={userId}>
-        <video onClick={markActive} onLoadedMetadata={play} src={url} />
+        <video
+          muted={userId === '_me_'}
+          onClick={markActive}
+          onLoadedMetadata={play}
+          src={url}
+        />
       </div>
     );
   });

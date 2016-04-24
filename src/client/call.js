@@ -35,7 +35,7 @@ function connect() {
 }
 
 function getCameraStream() {
-  return getUserMedia({ video: true, audio: false })
+  return getUserMedia({ video: true, audio: true })
   .then(stream => {
     debug('got our media stream:', stream);
     dispatcher.dispatch({
