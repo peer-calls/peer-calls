@@ -31,6 +31,7 @@ function create({ socket, user, initiator, stream }) {
         urls: 'stun:23.21.150.121'
       }, {
         url: 'turn:numb.viagenie.ca',
+        urls: 'turn:numb.viagenie.ca',
         credential: 'muazkh',
         username: 'webrtc@live.com'
       }]
