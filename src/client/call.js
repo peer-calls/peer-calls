@@ -1,3 +1,4 @@
+const Promise = require('bluebird');
 const debug = require('debug')('peer-calls:call');
 const dispatcher = require('./dispatcher/dispatcher.js');
 const getUserMedia = require('./browser/getUserMedia.js');
@@ -13,37 +14,40 @@ dispatcher.register(action => {
 function init() {
   const callId = window.document.getElementById('callId').value;
 
-  getUserMedia({ video: true, audio: false })
+  Promise.all([connect(), getCameraStream()])
+  .spread((_socket, stream) => {
+    debug('initializing peer connection');
+    handshake.init(_socket, callId, stream);
+  });
+}
+
+function connect() {
+  return new Promise(resolve => {
+    socket.once('connect', () => {
+      notify.warn('Connected to server socket');
+      debug('socket connected');
+      resolve(socket);
+    });
+    socket.on('disconnect', () => {
+      notify.error('Server socket disconnected');
+    });
+  });
+}
+
+function getCameraStream() {
+  return getUserMedia({ video: true, audio: false })
   .then(stream => {
+    debug('got our media stream:', stream);
     dispatcher.dispatch({
       type: 'add-stream',
       userId: '_me_',
       stream
     });
+    return stream;
   })
   .catch(() => {
     notify.alert('Could not get access to microphone & camera');
   });
-
-  socket.once('connect', () => {
-    notify.warn('Connected to server socket');
-    debug('socket connected');
-
-    getUserMedia({ video: true, audio: true })
-    .then(stream => {
-      debug('forwarding stream to handshake');
-      handshake.init(socket, callId, stream);
-    })
-    .catch(err => {
-      notify.alert('Could not get access to camera!', true);
-      debug('error getting media: %s %s', err.name, err.message);
-    });
-  });
-
-  socket.on('disconnect', () => {
-    notify.error('Server socket disconnected');
-  });
-
 }
 
 module.exports = { init };

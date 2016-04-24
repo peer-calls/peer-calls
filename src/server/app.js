@@ -40,8 +40,6 @@ if (__dirname.indexOf('/dist/') >= 0 || __dirname.indexOf('\\dist\\') >= 0) {
 app.use('/call', callRouter);
 app.use('/', siteRouter);
 
-
-
 io.on('connection', socket => handleSocket(socket, io));
 
 module.exports = { http, app };

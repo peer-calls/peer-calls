@@ -10,7 +10,7 @@ router.use((req, res, next) => {
 
 router.get('/', (req, res) => {
 	let prefix = 'call/';
-	if (req.url.charAt(req.url.length - 1) === '/') prefix = '';
+	if (req.url.charAt(req.originalUrl.length - 1) === '/') prefix = '';
 	res.redirect(prefix + uuid.v4());
 });
 
