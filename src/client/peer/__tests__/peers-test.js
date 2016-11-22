@@ -19,7 +19,7 @@ describe('peers', () => {
     dispatcher.dispatch.mockClear();
     notify.warn.mockClear();
 
-    user = { id: '/#user2' };
+    user = { id: 'user2' };
     socket = createSocket();
     peerInstances = [];
     stream = { stream: true };
@@ -38,7 +38,7 @@ describe('peers', () => {
   describe('create', () => {
 
     it('creates a new peer', () => {
-      peers.create({ socket, user, initiator: '/#user2', stream });
+      peers.create({ socket, user, initiator: 'user2', stream });
 
       expect(notify.warn.mock.calls).toEqual([[ 'Connecting to peer...' ]]);
 
@@ -49,7 +49,7 @@ describe('peers', () => {
     });
 
     it('sets initiator correctly', () => {
-      peers.create({ socket, user, initiator: '/#user1', stream });
+      peers.create({ socket, user, initiator: 'user1', stream });
 
       expect(peerInstances.length).toBe(1);
       expect(Peer.init.mock.calls.length).toBe(1);
@@ -58,8 +58,8 @@ describe('peers', () => {
     });
 
     it('destroys old peer before creating new one', () => {
-      peers.create({ socket, user, initiator: '/#user2', stream });
-      peers.create({ socket, user, initiator: '/#user2', stream });
+      peers.create({ socket, user, initiator: 'user2', stream });
+      peers.create({ socket, user, initiator: 'user2', stream });
 
       expect(peerInstances.length).toBe(2);
       expect(Peer.init.mock.calls.length).toBe(2);
@@ -74,7 +74,7 @@ describe('peers', () => {
     let peer;
 
     beforeEach(() => {
-      peers.create({ socket, user, initiator: '/#user1', stream });
+      peers.create({ socket, user, initiator: 'user1', stream });
       notify.warn.mockClear();
       peer = peerInstances[0];
     });
@@ -115,13 +115,13 @@ describe('peers', () => {
 
     it('returns ids of all peers', () => {
       peers.create({
-        socket, user: {id: '/#user2' }, initiator: '/#user2', stream
+        socket, user: {id: 'user2' }, initiator: 'user2', stream
       });
       peers.create({
-        socket, user: {id: '/#user3' }, initiator: '/#user3', stream
+        socket, user: {id: 'user3' }, initiator: 'user3', stream
       });
 
-      expect(peers.getIds()).toEqual([ '/#user2', '/#user3' ]);
+      expect(peers.getIds()).toEqual([ 'user2', 'user3' ]);
     });
 
   });
@@ -146,10 +146,10 @@ describe('peers', () => {
 
     it('destroys all peers and removes them', () => {
       peers.create({
-        socket, user: {id: '/#user2' }, initiator: '/#user2', stream
+        socket, user: {id: 'user2' }, initiator: 'user2', stream
       });
       peers.create({
-        socket, user: {id: '/#user3' }, initiator: '/#user3', stream
+        socket, user: {id: 'user3' }, initiator: 'user3', stream
       });
 
       peers.clear();

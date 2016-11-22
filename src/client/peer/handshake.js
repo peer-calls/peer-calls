@@ -25,7 +25,7 @@ function init(socket, roomName, stream) {
     notify.info('Connected users: {0}', users.length);
 
     users
-    .filter(user => !peers.get(user.id) && user.id !== '/#' + socket.id)
+    .filter(user => !peers.get(user.id) && user.id !== socket.id)
     .forEach(user => createPeer(user, initiator));
 
     let newUsersMap = _.indexBy(users, 'id');

@@ -11,7 +11,7 @@ describe('socket', () => {
   let socket, io, rooms;
   beforeEach(() => {
     socket = new EventEmitter();
-    socket.id = '/#socket0';
+    socket.id = 'socket0';
     socket.join = jest.genMockFunction();
     socket.leave = jest.genMockFunction();
     rooms = {};
@@ -27,16 +27,16 @@ describe('socket', () => {
       adapter: {
         rooms: {
           room1: {
-            '/#socket0': true
+            'socket0': true
           },
           room2: {
-            '/#socket0': true
+            'socket0': true
           },
           room3: {
             sockets: {
-              '/#socket0': true,
-              '/#socket1': true,
-              '/#socket2': true
+              'socket0': true,
+              'socket1': true,
+              'socket2': true
             }
           }
         }
@@ -65,7 +65,7 @@ describe('socket', () => {
         expect(io.to.mock.calls).toEqual([[ 'a' ]]);
         expect(io.to('a').emit.mock.calls).toEqual([[
           'signal', {
-            userId: '/#socket0',
+            userId: 'socket0',
             signal
           }
         ]]);
@@ -94,13 +94,13 @@ describe('socket', () => {
         expect(io.to.mock.calls).toEqual([[ 'room3' ]]);
         expect(io.to('room3').emit.mock.calls).toEqual([[
           'users', {
-            initiator: '/#socket0',
+            initiator: 'socket0',
             users: [{
-              id: '/#socket0',
+              id: 'socket0',
             }, {
-              id: '/#socket1',
+              id: 'socket1',
             }, {
-              id: '/#socket2'
+              id: 'socket2'
             }]
           }
         ]]);

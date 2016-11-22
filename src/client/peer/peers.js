@@ -23,7 +23,7 @@ function create({ socket, user, initiator, stream }) {
   }
 
   let peer = peers[user.id] = Peer.init({
-    initiator: '/#' + socket.id === initiator,
+    initiator: socket.id === initiator,
     stream,
     config: {
       iceServers: [{

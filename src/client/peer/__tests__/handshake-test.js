@@ -40,23 +40,22 @@ describe('handshake', () => {
         // given
         let payload = {
           users: [{ id: 'a'}, { id: 'b' }],
-          initiator: '/#a',
+          initiator: 'a',
         };
         socket.emit('users', payload);
-        expect(peerInstances.length).toBe(2);
+        expect(peerInstances.length).toBe(1);
 
         // when
         payload = {
           users: [{ id: 'a'}, { id: 'c' }],
-          initiator: '/#c',
+          initiator: 'c',
         };
         socket.emit('users', payload);
 
         // then
-        expect(peerInstances.length).toBe(3);
-        expect(peerInstances[0].destroy.mock.calls.length).toBe(0);
-        expect(peerInstances[1].destroy.mock.calls.length).toBe(1);
-        expect(peerInstances[2].destroy.mock.calls.length).toBe(0);
+        expect(peerInstances.length).toBe(2);
+        expect(peerInstances[0].destroy.mock.calls.length).toBe(1);
+        expect(peerInstances[1].destroy.mock.calls.length).toBe(0);
       });
 
     });
@@ -67,14 +66,14 @@ describe('handshake', () => {
         data = {};
         handshake.init(socket, 'bla');
         socket.emit('users', {
-          initiator: '#/a',
-          users: [{ id: 'a' }]
+          initiator: 'a',
+          users: [{ id: 'a' }, { id: 'b' }]
         });
       });
 
       it('should forward signal to peer', () => {
         socket.emit('signal', {
-          userId: 'a',
+          userId: 'b',
           data
         });
 
@@ -84,7 +83,7 @@ describe('handshake', () => {
 
       it('does nothing if no peer', () => {
         socket.emit('signal', {
-          userId: 'b',
+          userId: 'a',
           data
         });
 
@@ -106,8 +105,8 @@ describe('handshake', () => {
       handshake.init(socket, 'bla');
 
       socket.emit('users', {
-        users: [{ id: 'a' }],
-        initiator: '/#a'
+        initiator: 'a',
+        users: [{ id: 'a' }, { id: 'b'}]
       });
       expect(peerInstances.length).toBe(1);
       peer = peerInstances[0];
@@ -130,7 +129,7 @@ describe('handshake', () => {
         let signal = { bla: 'bla' };
 
         socket.once('signal', payload => {
-          expect(payload.userId).toEqual('a');
+          expect(payload.userId).toEqual('b');
           expect(payload.signal).toBe(signal);
           done();
         });
@@ -151,7 +150,7 @@ describe('handshake', () => {
         expect(dispatcher.dispatch.mock.calls.length).toBe(1);
         expect(dispatcher.dispatch.mock.calls).toEqual([[{
           type: 'add-stream',
-          userId: 'a',
+          userId: 'b',
           stream
         }]]);
       });
@@ -166,7 +165,7 @@ describe('handshake', () => {
         expect(dispatcher.dispatch.mock.calls.length).toBe(1);
         expect(dispatcher.dispatch.mock.calls).toEqual([[{
           type: 'remove-stream',
-          userId: 'a'
+          userId: 'b'
         }]]);
       });
 
