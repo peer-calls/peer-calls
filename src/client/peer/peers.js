@@ -2,6 +2,7 @@ const _ = require('underscore');
 const Peer = require('./Peer.js');
 const debug = require('debug')('peer-calls:peer');
 const dispatcher = require('../dispatcher/dispatcher.js');
+const iceServers = require('../iceServers.js');
 const notify = require('../action/notify.js');
 
 let peers = {};
@@ -25,17 +26,7 @@ function create({ socket, user, initiator, stream }) {
   let peer = peers[user.id] = Peer.init({
     initiator: socket.id === initiator,
     stream,
-    config: {
-      iceServers: [{
-        url: 'stun:23.21.150.121',
-        urls: 'stun:23.21.150.121'
-      }, {
-        url: 'turn:numb.viagenie.ca',
-        urls: 'turn:numb.viagenie.ca',
-        credential: 'muazkh',
-        username: 'webrtc@live.com'
-      }]
-    }
+    config: { iceServers }
   });
 
   peer.once('error', err => {

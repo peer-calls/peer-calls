@@ -14,6 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "bluebird": "^3.3.4",
+    "config": "^1.26.1",
     "express": "^4.13.3",
     "flux": "^2.1.1",
     "jade": "^1.11.0",

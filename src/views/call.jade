@@ -12,6 +12,7 @@ html
 
   body.call
     input#callId(type="hidden" value="#{callId}")
+    input#iceServers(type="hidden" value="#{JSON.stringify(iceServers)}")
 
     div#container
 
