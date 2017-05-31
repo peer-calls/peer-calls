@@ -27,7 +27,7 @@ describe('turn', () => {
       username: 'c',
       secret: 'd',
       auth: 'secret'
-    }]
+    }];
 
     it('does not expose secret', () => {
       const s = turn.processServers(servers);
@@ -40,7 +40,7 @@ describe('turn', () => {
         credential: jasmine.any(String)
       });
       expect(s[1].username).toMatch(/^[0-9]+:c$/);
-    })
+    });
 
     it('throws error when unknown auth type', () => {
       expect(() => turn.processServers([{ auth: 'bla' }]))

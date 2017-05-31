@@ -29,7 +29,8 @@
         "expect": true,
         "localStorage": false,
         "window": false,
-        "jest": true
+        "jest": true,
+        "jasmine": true
     },
 
     "rules": {
