@@ -15,7 +15,7 @@ let peers = {};
  * @param {MediaStream} [stream]
  */
 function create({ socket, user, initiator, stream }) {
-  debug('create peer: %s', user.id);
+  debug('create peer: %s, stream:', user.id, stream);
   notify.warn('Connecting to peer...');
 
   if (peers[user.id]) {
@@ -57,6 +57,12 @@ function create({ socket, user, initiator, stream }) {
     });
   });
 
+  peer.on('data', object => {
+    object = JSON.parse(new window.TextDecoder('utf-8').decode(object));
+    debug('peer: %s, message: %o', user.id, object);
+    notify.info('' + user.id + ': ' + object.message);
+  });
+
   peer.once('close', () => {
     debug('peer: %s, close', user.id);
     notify.error('Peer connection closed');
@@ -93,4 +99,9 @@ function destroy(userId) {
   delete peers[userId];
 }
 
-module.exports = { create, get, getIds, destroy, clear };
+function message(message) {
+  message = JSON.stringify({ message });
+  _.each(peers, peer => peer.send(message));
+}
+
+module.exports = { create, get, getIds, destroy, clear, message };

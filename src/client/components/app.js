@@ -1,4 +1,5 @@
 const Alert = require('./alert.js');
+const Input = require('./input.js');
 const Notifications = require('./notifications.js');
 const React = require('react');
 const _ = require('underscore');
@@ -47,6 +48,7 @@ function app() {
   return (<div className="app">
     <Alert />
     <Notifications />
+    <Input />
     <div className="videos">
       {videos}
     </div>
