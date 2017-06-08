@@ -1,5 +1,5 @@
-function getCallId() {
-  return window.document.getElementById('callId').value;
+function getCallId () {
+  return window.document.getElementById('callId').value
 }
 
-module.exports = { getCallId };
+module.exports = { getCallId }

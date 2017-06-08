@@ -1,8 +1,8 @@
-'use strict';
-const Peer = require('simple-peer');
+'use strict'
+const Peer = require('simple-peer')
 
-function init(opts) {
-  return Peer(opts);
+function init (opts) {
+  return Peer(opts)
 }
 
-module.exports = { init };
+module.exports = { init }

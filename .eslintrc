@@ -2,5 +2,14 @@
     "extends": ["standard", "standard-react"],
     "rules": {
         "max-len": [2, 80, 4]
+    },
+    "globals": {
+        "expect": true,
+        "jest": true,
+        "jasmine": true,
+        "it": true,
+        "beforeEach": true,
+        "afterEach": true,
+        "describe": true
     }
 }

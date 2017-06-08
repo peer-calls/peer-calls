@@ -1,37 +1,37 @@
-const Alert = require('./alert.js');
-const Input = require('./input.js');
-const Notifications = require('./notifications.js');
-const React = require('react');
-const _ = require('underscore');
-const activeStore = require('../store/activeStore.js');
-const debug = require('debug')('peer-calls:app');
-const dispatcher = require('../dispatcher/dispatcher.js');
-const streamStore = require('../store/streamStore.js');
+const Alert = require('./alert.js')
+const Input = require('./input.js')
+const Notifications = require('./notifications.js')
+const React = require('react')
+const _ = require('underscore')
+const activeStore = require('../store/activeStore.js')
+const debug = require('debug')('peer-calls:app')
+const dispatcher = require('../dispatcher/dispatcher.js')
+const streamStore = require('../store/streamStore.js')
 
-function app() {
-  let streams = streamStore.getStreams();
+function app () {
+  let streams = streamStore.getStreams()
 
-  function play(event) {
+  function play (event) {
     try {
-      event.target.play();
+      event.target.play()
     } catch (e) {
-      debug('error starting video: %s', e.name);
+      debug('error starting video: %s', e.name)
     }
   }
 
   let videos = _.map(streams, (stream, userId) => {
-    let url = stream.url;
+    let url = stream.url
 
-    function markActive(event) {
-      play(event);
+    function markActive (event) {
+      play(event)
       dispatcher.dispatch({
         type: 'mark-active',
         userId: activeStore.isActive(userId) ? undefined : userId
-      });
+      })
     }
 
-    let className = 'video-container';
-    className += activeStore.isActive(userId) ? ' active' : '';
+    let className = 'video-container'
+    className += activeStore.isActive(userId) ? ' active' : ''
 
     return (
       <div className={className} key={userId}>
@@ -42,17 +42,17 @@ function app() {
           src={url}
         />
       </div>
-    );
-  });
+    )
+  })
 
-  return (<div className="app">
+  return (<div className='app'>
     <Alert />
     <Notifications />
     <Input />
-    <div className="videos">
+    <div className='videos'>
       {videos}
     </div>
-  </div>);
+  </div>)
 }
 
-module.exports = app;
+module.exports = app

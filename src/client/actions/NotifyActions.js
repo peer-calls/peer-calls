@@ -1,5 +1,3 @@
-const dispatcher = require('../dispatcher/dispatcher.js')
-
 function format (string, args) {
   string = args
   .reduce((string, arg, i) => string.replace('{' + i + '}', arg), string)

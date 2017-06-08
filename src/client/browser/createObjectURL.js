@@ -1,2 +1,2 @@
-'use strict';
-module.exports = object => window.URL.createObjectURL(object);
+'use strict'
+module.exports = object => window.URL.createObjectURL(object)

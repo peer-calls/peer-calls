@@ -1,16 +1,14 @@
-jest.unmock('../notify.js');
+jest.unmock('../notify.js')
 
-const dispatcher = require('../../dispatcher/dispatcher.js');
-const notify = require('../notify.js');
+const dispatcher = require('../../dispatcher/dispatcher.js')
+const notify = require('../notify.js')
 
 describe('notify', () => {
-
-  beforeEach(() => dispatcher.dispatch.mockClear());
+  beforeEach(() => dispatcher.dispatch.mockClear())
 
   describe('info', () => {
-
     it('should dispatch info notification', () => {
-      notify.info('test: {0} {1}', 'arg1', 'arg2');
+      notify.info('test: {0} {1}', 'arg1', 'arg2')
 
       expect(dispatcher.dispatch.mock.calls).toEqual([[{
         type: 'notify',
@@ -18,15 +16,13 @@ describe('notify', () => {
           message: 'test: arg1 arg2',
           type: 'info'
         }
-      }]]);
-    });
-
-  });
+      }]])
+    })
+  })
 
   describe('warn', () => {
-
     it('should dispatch warning notification', () => {
-      notify.warn('test: {0} {1}', 'arg1', 'arg2');
+      notify.warn('test: {0} {1}', 'arg1', 'arg2')
 
       expect(dispatcher.dispatch.mock.calls).toEqual([[{
         type: 'notify',
@@ -34,15 +30,13 @@ describe('notify', () => {
           message: 'test: arg1 arg2',
           type: 'warning'
         }
-      }]]);
-    });
-
-  });
+      }]])
+    })
+  })
 
   describe('error', () => {
-
     it('should dispatch error notification', () => {
-      notify.error('test: {0} {1}', 'arg1', 'arg2');
+      notify.error('test: {0} {1}', 'arg1', 'arg2')
 
       expect(dispatcher.dispatch.mock.calls).toEqual([[{
         type: 'notify',
@@ -50,16 +44,13 @@ describe('notify', () => {
           message: 'test: arg1 arg2',
           type: 'error'
         }
-      }]]);
-    });
-
-  });
+      }]])
+    })
+  })
 
   describe('alert', () => {
-
     it('should dispatch an alert', () => {
-
-      notify.alert('alert!', true);
+      notify.alert('alert!', true)
 
       expect(dispatcher.dispatch.mock.calls).toEqual([[{
         type: 'alert',
@@ -69,10 +60,7 @@ describe('notify', () => {
           message: 'alert!',
           type: 'warning'
         }
-      }]]);
-
-    });
-
-  });
-
-});
+      }]])
+    })
+  })
+})

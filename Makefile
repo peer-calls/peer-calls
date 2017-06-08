@@ -21,6 +21,11 @@ lint:
 
 	eslint src/
 
+.PHONY: lint-fix
+lint-fix:
+
+	eslint --fix src/
+
 .PHONY: test
 test:
 

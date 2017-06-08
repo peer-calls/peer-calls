@@ -1,2 +1,2 @@
-'use strict';
-module.exports = window.navigator;
+'use strict'
+module.exports = window.navigator
