@@ -7,34 +7,32 @@ function format (string, args) {
 function _notify (type, args) {
   let string = args[0] || ''
   let message = format(string, Array.prototype.slice.call(args, 1))
-  dispatcher.dispatch({
+  return {
     type: 'notify',
-    notification: { type, message }
-  })
+    payload: { type, message }
+  }
 }
 
-function info () {
-  _notify('info', arguments)
+export function info () {
+  return _notify('info', arguments)
 }
 
-function warn () {
-  _notify('warning', arguments)
+export function warn () {
+  return _notify('warning', arguments)
 }
 
-function error () {
-  _notify('error', arguments)
+export function error () {
+  return _notify('error', arguments)
 }
 
-function alert (message, dismissable) {
-  dispatcher.dispatch({
+export function alert (message, dismissable) {
+  return {
     type: 'alert',
-    alert: {
+    payload: {
       action: dismissable ? 'Dismiss' : '',
       dismissable: !!dismissable,
       message,
       type: 'warning'
     }
-  })
+  }
 }
-
-module.exports = { alert, info, warn, error }

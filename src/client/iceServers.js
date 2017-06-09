@@ -1,3 +1,3 @@
-module.exports = JSON.parse(
+export default JSON.parse(
   window.document.getElementById('iceServers').value
 )

@@ -11,14 +11,21 @@
     "lint": "eslint ./index.js ./src/js"
   },
   "babel": {
-    "presets": ["es2016", "react", "transform-object-rest-spread"]
+    "presets": [
+      "es2016",
+      "react",
+      "transform-object-rest-spread",
+      "transform-class-properties"
+    ]
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "bluebird": "^3.3.4",
+    "classnames": "^2.2.5",
     "config": "^1.26.1",
     "express": "^4.13.3",
+    "prop-types": "^15.5.10",
     "pug": "^2.0.0-rc.2",
     "react": "^15.5.4",
     "react-addons-transition-group": "^15.5.2",
@@ -26,6 +33,7 @@
     "react-redux": "^5.0.5",
     "redux": "^3.6.0",
     "redux-thunk": "^2.2.0",
+    "seamless-immutable": "^7.1.2",
     "simple-peer": "^8.1.0",
     "socket.io": "1.6.0",
     "socket.io-client": "1.6.0",
@@ -33,7 +41,9 @@
     "uuid": "^2.0.1"
   },
   "devDependencies": {
+    "babel-eslint": "^7.2.3",
     "babel-jest": "^20.0.3",
+    "babel-plugin-transform-class-properties": "^6.24.1",
     "babel-plugin-transform-object-rest-spread": "^6.23.0",
     "babel-preset-es2016": "^6.24.1",
     "babel-preset-react": "^6.24.1",

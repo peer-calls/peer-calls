@@ -1,8 +1,7 @@
-'use strict'
-const navigator = require('../browser/navigator.js')
-const Promise = require('bluebird')
+import Promise from 'bluebird'
+import navigator from './navigator.js'
 
-function getUserMedia (constraints) {
+export default function getUserMedia (constraints) {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     return navigator.mediaDevices.getUserMedia(constraints)
   }
@@ -13,5 +12,3 @@ function getUserMedia (constraints) {
     getMedia.call(navigator, constraints, resolve, reject)
   })
 }
-
-module.exports = getUserMedia

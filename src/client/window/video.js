@@ -1,6 +1,6 @@
 const debug = require('debug')('peer-calls:video')
 
-function play () {
+export function play () {
   let videos = window.document.querySelectorAll('video')
   Array.prototype.forEach.call(videos, (video, index) => {
     debug('playing video: %s', index)
@@ -11,5 +11,3 @@ function play () {
     }
   })
 }
-
-module.exports = { play }

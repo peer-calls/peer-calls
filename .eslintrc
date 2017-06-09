@@ -1,7 +1,9 @@
 {
+    "parser": "babel-eslint",
     "extends": ["standard", "standard-react"],
     "rules": {
-        "max-len": [2, 80, 4]
+        "max-len": [2, 80, 4],
+        "jsx-quotes": ["error", "prefer-double"]
     },
     "globals": {
         "expect": true,
