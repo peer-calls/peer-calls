@@ -1,9 +1,8 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import classnames from 'classnames'
-const React = require('react')
 
-const AlertPropType = PropTypes.shape({
+export const AlertPropType = PropTypes.shape({
   dismissable: PropTypes.bool,
   action: PropTypes.string.isRequired,
   message: PropTypes.string.isRequired

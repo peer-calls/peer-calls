@@ -1,6 +1,11 @@
 export PATH := node_modules/.bin:$(PATH)
 SHELL=/bin/bash
 
+.PHONY: start
+start:
+
+	chastifol [ make watchify ] [ make sassify ] [ make server ]
+
 .PHONY: build
 build:
 
@@ -15,6 +20,24 @@ build:
 	cp -rv ./src/less/fonts ./dist/css/
 	cp -rv ./src/views ./dist/
 	cp -rv ./src/res ./dist/
+
+.PHONY: watchify
+watchify:
+
+	mkdir -p build
+	watchify -d -v -t babelify ./src/client/index.js -o ./build/index.js
+
+.PHONY: sass
+sass:
+
+	mkdir -p build
+	node-sass ./src/scss/style.scss -o ./build/
+
+.PHONY: sassify
+sassify: sass
+
+	mkdir -p build
+	node-sass --watch ./src/scss/style.scss -o ./build/
 
 .PHONY: lint
 lint:
@@ -41,10 +64,10 @@ coverage:
 
 	jest --coverage
 
-.PHONY: run
-run:
+.PHONY: server
+server:
 
-	node ./src/index.js
+	nodemon --ignore src/client ./src/index.js
 
 .PHONY: clean
 clean:

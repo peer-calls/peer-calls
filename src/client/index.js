@@ -1,26 +1,16 @@
 'use strict'
-const App = require('./components/app.js')
-const React = require('react')
-const ReactDom = require('react-dom')
-const activeStore = require('./store/activeStore.js')
-const alertStore = require('./store/alertStore.js')
-const call = require('./call.js')
-const debug = require('debug')('peer-calls:index')
-const notificationsStore = require('./store/notificationsStore.js')
-const play = require('./browser/video.js').play
-const streamStore = require('./store/streamStore.js')
+import App from './components/App.js'
+import React from 'react'
+import ReactDOM from 'react-dom'
+import store from './store.js'
+import { Provider } from 'react-redux'
+import { play } from './window/video.js'
 
-function render () {
-  debug('rendering')
-  ReactDom.render(<App />, document.querySelector('#container'))
-  play()
-}
+const component = (
+  <Provider store={store}>
+    <App />
+  </Provider>
+)
 
-activeStore.addListener(render)
-alertStore.addListener(render)
-notificationsStore.addListener(render)
-streamStore.addListener(render)
-
-render()
-
-call.init()
+ReactDOM.render(component, document.querySelector('#container'))
+play()

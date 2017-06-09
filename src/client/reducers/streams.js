@@ -1,6 +1,6 @@
 import * as constants from '../constants.js'
-import createObjectURL from '../browser/createObjectURL'
-import Immutable from 'seamless-imutable'
+import createObjectURL from '../window/createObjectURL'
+import Immutable from 'seamless-immutable'
 
 const defaultState = Immutable({
   active: null,
@@ -28,6 +28,8 @@ export default function stream (state = defaultState, action) {
   switch (action && action.type) {
     case constants.STREAM_ADD:
       return addStream(state, action)
+    case constants.STREAM_ACTIVATE:
+      return state.merge({ active: action.payload.userId })
     case constants.STREAM_REMOVE:
       return removeStream(state, action)
     default:

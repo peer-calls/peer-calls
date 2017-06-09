@@ -2,9 +2,9 @@ import * as NotifyActions from './NotifyActions.js'
 import * as constants from '../constants.js'
 import Promise from 'bluebird'
 import callId from '../callId.js'
-import getUserMedia from './browser/getUserMedia.js'
-import handshake from './peer/handshake.js'
-import socket from './socket.js'
+import getUserMedia from '../window/getUserMedia.js'
+import handshake from '../peer/handshake.js'
+import socket from '../socket.js'
 
 export const init = () => dispatch => {
   return Promise.all([
@@ -31,7 +31,7 @@ export const connect = () => dispatch => {
 export const getCameraStream = () => dispatch => {
   return getUserMedia({ video: true, audio: true })
   .then(stream => {
-    dispatch(addStream(stream))
+    dispatch(addStream({ stream, userId: constants.ME }))
     return stream
   })
   .catch(() => {
@@ -40,10 +40,20 @@ export const getCameraStream = () => dispatch => {
   })
 }
 
-const addStream = stream => ({
+export const addStream = ({ stream, userId }) => ({
   type: constants.STREAM_ADD,
   payload: {
-    userId: '_me_',
+    userId,
     stream
   }
+})
+
+export const removeStream = userId => ({
+  type: constants.STREAM_REMOVE,
+  payload: { userId }
+})
+
+export const activateStream = userId => ({
+  type: constants.STREAM_ACTIVATE,
+  payload: { userId }
 })

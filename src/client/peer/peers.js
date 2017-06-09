@@ -1,9 +1,13 @@
-const _ = require('underscore')
-const Peer = require('./Peer.js')
-const debug = require('debug')('peer-calls:peer')
-const dispatcher = require('../dispatcher/dispatcher.js')
-const iceServers = require('../iceServers.js')
-const notify = require('../action/notify.js')
+import CallActions from '../actions/CallActions.js'
+import NotifyActions from '../actions/NotifyActions.js'
+import Peer from './Peer.js'
+import _ from 'underscore'
+import _debug from 'debug'
+import iceServers from '../iceServers.js'
+import { dispatch } from '../store.js'
+import { play } from '../window/video.js'
+
+const debug = _debug('peercalls')
 
 let peers = {}
 
@@ -16,14 +20,18 @@ let peers = {}
  */
 function create ({ socket, user, initiator, stream }) {
   debug('create peer: %s, stream:', user.id, stream)
-  notify.warn('Connecting to peer...')
+  dispatch(
+    NotifyActions.warn('Connecting to peer...')
+  )
 
   if (peers[user.id]) {
-    notify.info('Cleaning up old connection...')
+    dispatch(
+      NotifyActions.info('Cleaning up old connection...')
+    )
     destroy(user.id)
   }
 
-  let peer = peers[user.id] = Peer.init({
+  const peer = peers[user.id] = Peer.init({
     initiator: socket.id === initiator,
     stream,
     config: { iceServers }
@@ -31,48 +39,54 @@ function create ({ socket, user, initiator, stream }) {
 
   peer.once('error', err => {
     debug('peer: %s, error %s', user.id, err.stack)
-    notify.error('A peer connection error occurred')
+    dispatch(
+      NotifyActions.error('A peer connection error occurred')
+    )
     destroy(user.id)
   })
 
   peer.on('signal', signal => {
     debug('peer: %s, signal: %o', user.id, signal)
 
-    let payload = { userId: user.id, signal }
+    const payload = { userId: user.id, signal }
     socket.emit('signal', payload)
   })
 
   peer.once('connect', () => {
     debug('peer: %s, connect', user.id)
-    notify.warn('Peer connection established')
-    dispatcher.dispatch({ type: 'play' })
+    dispatch(
+      NotifyActions.warn('Peer connection established')
+    )
+    play()
   })
 
   peer.on('stream', stream => {
     debug('peer: %s, stream', user.id)
-    dispatcher.dispatch({
-      type: 'add-stream',
+    dispatch(CallActions.addStream({
       userId: user.id,
       stream
-    })
+    }))
   })
 
   peer.on('data', object => {
     object = JSON.parse(new window.TextDecoder('utf-8').decode(object))
     debug('peer: %s, message: %o', user.id, object)
-    notify.info('' + user.id + ': ' + object.message)
+    dispatch(
+      NotifyActions.info('' + user.id + ': ' + object.message)
+    )
   })
 
   peer.once('close', () => {
     debug('peer: %s, close', user.id)
-    notify.error('Peer connection closed')
-    dispatcher.dispatch({
-      type: 'remove-stream',
-      userId: user.id
-    })
+    dispatch(
+      NotifyActions.error('Peer connection closed')
+    )
+    dispatch(
+      CallActions.removeStream(user.id)
+    )
 
-    // make sure some other peer with different id didn't take place between
-    // calling `destroy()` and `close` event
+    // make sure some other peer with same id didn't take place between calling
+    // `destroy()` and `close` event
     if (peers[user.id] === peer) delete peers[user.id]
   })
 }

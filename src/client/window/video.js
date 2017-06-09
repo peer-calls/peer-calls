@@ -1,4 +1,4 @@
-const debug = require('debug')('peer-calls:video')
+const debug = require('debug')('peercalls')
 
 export function play () {
   let videos = window.document.querySelectorAll('video')

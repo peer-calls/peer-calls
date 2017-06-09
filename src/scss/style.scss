@@ -1,17 +1,17 @@
-@import "fonts.less";
+@import "_fonts";
 
-@font-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
-@font-monospace: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
+$font-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
+$font-monospace: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
 
-@color-bg: #086788;
-@color-fg: #07A0C3;
-@color-btn: #FFF1D0;
-@icon-size: 48px;
+$color-bg: #086788;
+$color-fg: #07A0C3;
+$color-btn: #FFF1D0;
+$icon-size: 48px;
 
-@color-primary: white;
-@color-info: #31EF40;
-@color-warning: #F0C808;
-@color-error: #EE7600;
+$color-primary: white;
+$color-info: #31EF40;
+$color-warning: #F0C808;
+$color-error: #EE7600;
 
 * {
   box-sizing: border-box;
@@ -24,10 +24,10 @@ html, body {
 }
 
 body {
-  background-color: @color-bg;
-  color: @color-fg;
+  background-color: $color-bg;
+  color: $color-fg;
   margin: 0 0;
-  font-family: @font-sans-serif;
+  font-family: $font-sans-serif;
 }
 
 body.call {
@@ -61,34 +61,34 @@ body.call {
 
   p {
     margin: 50px 0;
-    color: @color-primary;
+    color: $color-primary;
   }
 
-  .button(@color-fg, @color-bg) {
-    background-color: @color-bg;
+  @mixin button($color-fg, $color-bg) {
+    background-color: $color-bg;
     border: none;
-    border-bottom: 2px solid darken(@color-bg, 10%);
+    border-bottom: 2px solid darken($color-bg, 10%);
     border-radius: 4px;
     box-sizing: border-box;
-    color: @color-fg;
+    color: $color-fg;
     // font-size: 1.2rem;
     text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
     padding: 1rem 1rem;
   }
 
   input {
-    font-family: @font-monospace;
-    .button(@color-primary, @color-warning);
+    font-family: $font-monospace;
+    @include button($color-primary, $color-warning);
     font-size: 1.1rem;
   }
 
   input:hover {
-    .button(@color-primary, darken(@color-warning, 5%));
+    @include button($color-primary, darken($color-warning, 5%));
   }
 
   input:active {
     transform: translate(0px, 1px);
-    .button(@color-primary, darken(@color-warning, 10%));
+    @include button($color-primary, darken($color-warning, 10%));
   }
 
   input:active,
@@ -101,36 +101,36 @@ body.call {
   }
 
   ::-webkit-input-placeholder {
-    color: @color-fg;
+    color: $color-fg;
     text-align: center;
   }
 
   :-moz-placeholder { /* Firefox 18- */
-    color: @color-fg;
+    color: $color-fg;
     text-align: center;
   }
 
   ::-moz-placeholder {  /* Firefox 19+ */
-    color: @color-fg;
+    color: $color-fg;
     text-align: center;
   }
 
   :-ms-input-placeholder {
-    color: @color-fg;
+    color: $color-fg;
     text-align: center;
   }
 }
 
 .warning {
-  color: @color-warning;
+  color: $color-warning;
 }
 
 .error {
-  color: @color-error;
+  color: $color-error;
 }
 
 .info {
-  color: @color-info;
+  color: $color-info;
 }
 
 .app {
@@ -157,8 +157,8 @@ body.call {
       line-height: 1.4rem;
       border: none;
       border-radius: 0.3rem;
-      color: @color-info;
-      background-color: @color-fg;
+      color: $color-info;
+      background-color: $color-fg;
       vertical-align: middle;
     }
   }
@@ -169,7 +169,7 @@ body.call {
   }
 
   .notifications {
-    font-family: @font-monospace;
+    font-family: $font-monospace;
     font-size: 10px;
     left: 1rem;
     position: fixed;
@@ -179,17 +179,17 @@ body.call {
     z-index: 3;
 
     .notification {
-      color: @color-info;
+      color: $color-info;
       padding: 0.25rem;
       background-color: rgba(0, 0, 0, 0.2);
     }
 
     .notification.error {
-      color: @color-error;
+      color: $color-error;
     }
 
     .notification.warning {
-      color: @color-warning;
+      color: $color-warning;
     }
 
   }
@@ -201,7 +201,7 @@ body.call {
     right: 0px;
     text-align: right;
 
-    @video-size: 100px;
+    $video-size: 100px;
 
     .video-container {
       background-color: black;
@@ -209,7 +209,7 @@ body.call {
       border-radius: 10px;
       display: inline-block;
       margin-right: 10px;
-      width: @video-size;
+      width: $video-size;
       height: 100%;
       z-index: 2;
 
@@ -254,7 +254,7 @@ body.call {
       border: none;
       color: #ccc;
       padding: 0.5rem;
-      font-family: @font-monospace;
+      font-family: $font-monospace;
     }
   }
 
@@ -277,4 +277,3 @@ body.call {
   opacity: 0.01;
   transition: opacity 100ms ease-in;
 }
-

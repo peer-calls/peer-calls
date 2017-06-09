@@ -3,13 +3,15 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
 
+export const NotificationPropTypes = PropTypes.shape({
+  id: PropTypes.string.isRequired,
+  type: PropTypes.string.isRequired,
+  message: PropTypes.string.isRequired
+})
+
 export default class Notifications extends React.PureComponent {
   static propTypes = {
-    notifications: PropTypes.arrayOf(PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      type: PropTypes.string.isRequired,
-      message: PropTypes.string.isRequired
-    })),
+    notifications: PropTypes.arrayOf(NotificationPropTypes).isRequired,
     max: PropTypes.number.isRequired
   }
   static defaultProps = {

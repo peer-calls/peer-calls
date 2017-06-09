@@ -1,8 +1,11 @@
+import PropTypes from 'prop-types'
 import React from 'react'
-import notify from '../action/notify.js'
 import peers from '../peer/peers.js'
 
 export default class Input extends React.PureComponent {
+  static propTypes = {
+    notify: PropTypes.func.isRequired
+  }
   constructor () {
     super()
     this.state = {
@@ -23,9 +26,10 @@ export default class Input extends React.PureComponent {
     e.key === 'Enter' && this.submit()
   }
   submit = () => {
+    const { notify } = this.props
     const { message } = this.state
     peers.message(message)
-    notify.info('You: ' + message)
+    notify('You: ' + message)
     this.setState({ message: '' })
   }
   render () {

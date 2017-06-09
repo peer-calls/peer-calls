@@ -1,0 +1,304 @@
+@charset "UTF-8";
+@font-face {
+  font-family: 'icons';
+  src: url("./fonts/icons.eot?37351711");
+  src: url("./fonts/icons.eot?37351711#iefix") format("embedded-opentype"), url("./fonts/icons.woff?37351711") format("woff"), url("./fonts/icons.ttf?37351711") format("truetype"), url("./fonts/icons.svg?37351711#icons") format("svg");
+  font-weight: normal;
+  font-style: normal; }
+
+[class^="icon-"]:before, [class*=" icon-"]:before {
+  font-family: "icons";
+  font-style: normal;
+  font-weight: normal;
+  speak: none;
+  display: inline-block;
+  text-decoration: inherit;
+  width: 1em;
+  margin-right: .2em;
+  text-align: center;
+  /* opacity: .8; */
+  /* For safety - reset parent styles, that can break glyph codes*/
+  font-variant: normal;
+  text-transform: none;
+  /* fix buttons height, for twitter bootstrap */
+  line-height: 1em;
+  /* Animation center compensation - margins should be symmetric */
+  /* remove if not needed */
+  margin-left: .2em;
+  /* you can be more comfortable with increased icons size */
+  /* font-size: 120%; */
+  /* Font smoothing. That was taken from TWBS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Uncomment for 3D effect */
+  /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */ }
+
+.icon-down-open-big:before {
+  content: '\e800'; }
+
+/* '' */
+.icon-down-open:before {
+  content: '\e801'; }
+
+/* '' */
+.icon-mouse:before {
+  content: '\e802'; }
+
+/* '' */
+.icon-keyboard:before {
+  content: '\e803'; }
+
+/* '' */
+.icon-left-open:before {
+  content: '\e804'; }
+
+/* '' */
+.icon-right-open:before {
+  content: '\e805'; }
+
+/* '' */
+.icon-up-open:before {
+  content: '\e806'; }
+
+/* '' */
+.icon-arrows:before {
+  content: '\e807'; }
+
+/* '' */
+.icon-up-hand:before {
+  content: '\e808'; }
+
+/* '' */
+.icon-check:before {
+  content: '\e80b'; }
+
+/* '' */
+.icon-cancel:before {
+  content: '\e80c'; }
+
+/* '' */
+.icon-level-up:before {
+  content: '\e80d'; }
+
+/* '' */
+.icon-login:before {
+  content: '\e80e'; }
+
+/* '' */
+.icon-left-open-big:before {
+  content: '\e81d'; }
+
+/* '' */
+.icon-right-open-big:before {
+  content: '\e81e'; }
+
+/* '' */
+.icon-up-open-big:before {
+  content: '\e81f'; }
+
+/* '' */
+* {
+  box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  z-index: -99; }
+
+body {
+  background-color: #086788;
+  color: #07A0C3;
+  margin: 0 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+body.call {
+  background-image: url("/res/peer-calls.svg");
+  background-size: 200px;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  background-blend-mode: soft-light; }
+
+#github-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 0; }
+
+#form {
+  padding-top: 50px;
+  text-align: center;
+  width: 300px;
+  margin: 0 auto; }
+  #form h1 {
+    margin: 0;
+    line-height: 0; }
+  #form p {
+    margin: 50px 0;
+    color: white; }
+  #form input {
+    font-family: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
+    background-color: #F0C808;
+    border: none;
+    border-bottom: 2px solid #bf9f06;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: white;
+    text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+    padding: 1rem 1rem;
+    font-size: 1.1rem; }
+  #form input:hover {
+    background-color: #d7b307;
+    border: none;
+    border-bottom: 2px solid #a68a06;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: white;
+    text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+    padding: 1rem 1rem; }
+  #form input:active {
+    transform: translate(0px, 1px);
+    background-color: #bf9f06;
+    border: none;
+    border-bottom: 2px solid #8d7605;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: white;
+    text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+    padding: 1rem 1rem; }
+  #form input:active,
+  #form input:focus {
+    outline: none; }
+  #form input[type="submit"] {
+    cursor: pointer; }
+  #form ::-webkit-input-placeholder {
+    color: #07A0C3;
+    text-align: center; }
+  #form :-moz-placeholder {
+    /* Firefox 18- */
+    color: #07A0C3;
+    text-align: center; }
+  #form ::-moz-placeholder {
+    /* Firefox 19+ */
+    color: #07A0C3;
+    text-align: center; }
+  #form :-ms-input-placeholder {
+    color: #07A0C3;
+    text-align: center; }
+
+.warning {
+  color: #F0C808; }
+
+.error {
+  color: #EE7600; }
+
+.info {
+  color: #31EF40; }
+
+.app .alert {
+  background-color: black;
+  background-color: rgba(0, 0, 0, 0.3);
+  left: 0;
+  opacity: 1;
+  position: fixed;
+  right: 0;
+  text-align: center;
+  top: 0;
+  transition: visibility 100ms ease-in, opacity 100ms ease-in;
+  z-index: 4; }
+  .app .alert span {
+    display: inline-block;
+    margin: 1rem 0;
+    padding: 0 1rem; }
+  .app .alert button {
+    line-height: 1.4rem;
+    border: none;
+    border-radius: 0.3rem;
+    color: #31EF40;
+    background-color: #07A0C3;
+    vertical-align: middle; }
+
+.app .alert.hidden {
+  opacity: 0;
+  visibility: hidden; }
+
+.app .notifications {
+  font-family: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
+  font-size: 10px;
+  left: 1rem;
+  position: fixed;
+  right: 1rem;
+  text-align: right;
+  top: 1rem;
+  z-index: 3; }
+  .app .notifications .notification {
+    color: #31EF40;
+    padding: 0.25rem;
+    background-color: rgba(0, 0, 0, 0.2); }
+  .app .notifications .notification.error {
+    color: #EE7600; }
+  .app .notifications .notification.warning {
+    color: #F0C808; }
+
+.app .videos {
+  position: fixed;
+  height: 100px;
+  bottom: 15px;
+  right: 0px;
+  text-align: right; }
+  .app .videos .video-container {
+    background-color: black;
+    box-shadow: 0px 0px 5px black;
+    border-radius: 10px;
+    display: inline-block;
+    margin-right: 10px;
+    width: 100px;
+    height: 100%;
+    z-index: 2; }
+    .app .videos .video-container video {
+      border-radius: 10px;
+      cursor: pointer;
+      object-fit: cover;
+      width: 100%;
+      height: 100%; }
+  .app .videos .video-container.active {
+    background-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    position: fixed;
+    width: 100%;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: -1; }
+    .app .videos .video-container.active video {
+      border-radius: 0;
+      cursor: inherit; }
+
+.app .input {
+  position: fixed;
+  left: 10pxpx;
+  bottom: 15px;
+  z-index: 3; }
+  .app .input input {
+    box-shadow: 0px 0px 5px black;
+    background-color: black;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: #ccc;
+    padding: 0.5rem;
+    font-family: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace; }
+
+.fade-enter {
+  opacity: 0.01; }
+
+.fade-enter.fade-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-in; }
+
+.fade-leave {
+  opacity: 1; }
+
+.fade-leave.fade-leave-active {
+  opacity: 0.01;
+  transition: opacity 100ms ease-in; }

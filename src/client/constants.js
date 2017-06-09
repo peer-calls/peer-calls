@@ -1,3 +1,5 @@
+export const ME = '_me_'
+
 export const ALERT = 'ALERT'
 export const ALERT_DISMISS = 'ALERT_DISMISS'
 export const ALERT_CLEAR = 'ALERT_CLEAR'

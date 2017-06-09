@@ -12,8 +12,11 @@
   },
   "babel": {
     "presets": [
+      "es2015",
       "es2016",
-      "react",
+      "react"
+    ],
+    "plugins": [
       "transform-object-rest-spread",
       "transform-class-properties"
     ]
@@ -28,10 +31,11 @@
     "prop-types": "^15.5.10",
     "pug": "^2.0.0-rc.2",
     "react": "^15.5.4",
-    "react-addons-transition-group": "^15.5.2",
     "react-dom": "^15.5.4",
     "react-redux": "^5.0.5",
+    "react-transition-group": "^1.1.3",
     "redux": "^3.6.0",
+    "redux-logger": "^3.0.6",
     "redux-thunk": "^2.2.0",
     "seamless-immutable": "^7.1.2",
     "simple-peer": "^8.1.0",
@@ -45,6 +49,7 @@
     "babel-jest": "^20.0.3",
     "babel-plugin-transform-class-properties": "^6.24.1",
     "babel-plugin-transform-object-rest-spread": "^6.23.0",
+    "babel-preset-es2015": "^6.24.1",
     "babel-preset-es2016": "^6.24.1",
     "babel-preset-react": "^6.24.1",
     "babelify": "^7.3.0",
@@ -58,9 +63,9 @@
     "eslint-plugin-react": "^7.0.1",
     "eslint-plugin-standard": "^3.0.1",
     "jest-cli": "^20.0.4",
+    "node-sass": "^4.5.3",
     "nodemon": "^1.11.0",
     "react-addons-test-utils": "^15.5.1",
-    "sassify": "^2.0.0",
     "uglify-js": "^2.6.2",
     "watchify": "^3.9.0"
   },

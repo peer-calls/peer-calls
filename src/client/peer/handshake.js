@@ -1,10 +1,12 @@
-'use strict'
-const _ = require('underscore')
-const debug = require('debug')('peer-calls:peer')
-const notify = require('../action/notify.js')
-const peers = require('./peers.js')
+import NotifyActions from '../actions/NotifyActions.js'
+import _ from 'underscore'
+import _debug from 'debug'
+import peers from './peers.js'
+import { dispatch } from '../store.js'
 
-function init (socket, roomName, stream) {
+const debug = _debug('peercalls')
+
+export function init (socket, roomName, stream) {
   function createPeer (user, initiator) {
     return peers.create({ socket, user, initiator, stream })
   }
@@ -21,7 +23,9 @@ function init (socket, roomName, stream) {
   socket.on('users', payload => {
     let { initiator, users } = payload
     debug('socket users: %o', users)
-    notify.info('Connected users: {0}', users.length)
+    dispatch(
+      NotifyActions.info('Connected users: {0}', users.length)
+    )
 
     users
     .filter(user => !peers.get(user.id) && user.id !== socket.id)
@@ -35,8 +39,8 @@ function init (socket, roomName, stream) {
 
   debug('socket.id: %s', socket.id)
   debug('emit ready for room: %s', roomName)
-  notify.info('Ready for connections')
+  dispatch(
+    NotifyActions.info('Ready for connections')
+  )
   socket.emit('ready', roomName)
 }
-
-module.exports = { init }
