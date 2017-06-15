@@ -8,7 +8,7 @@ export const AlertPropType = PropTypes.shape({
   message: PropTypes.string.isRequired
 })
 
-export class Alert extends React.PureComponent {
+export class Alert extends React.Component {
   static propTypes = {
     alert: AlertPropType,
     dismiss: PropTypes.func.isRequired
@@ -31,7 +31,7 @@ export class Alert extends React.PureComponent {
   }
 }
 
-export default class Alerts extends React.PureComponent {
+export default class Alerts extends React.Component {
   static propTypes = {
     alerts: PropTypes.arrayOf(AlertPropType).isRequired,
     dismiss: PropTypes.func.isRequired

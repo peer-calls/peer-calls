@@ -4,12 +4,12 @@ import Immutable from 'seamless-immutable'
 
 const defaultState = Immutable({
   active: null,
-  streams: {}
+  all: {}
 })
 
 function addStream (state, action) {
   const { userId, stream } = action.payload
-  const streams = state.streams.merge({
+  const streams = state.all.merge({
     [userId]: {
       userId,
       stream,
@@ -20,11 +20,11 @@ function addStream (state, action) {
 }
 
 function removeStream (state, action) {
-  const streams = state.streams.without(action.payload.userId)
+  const streams = state.all.without(action.payload.userId)
   return state.merge({ streams })
 }
 
-export default function stream (state = defaultState, action) {
+export default function streams (state = defaultState, action) {
   switch (action && action.type) {
     case constants.STREAM_ADD:
       return addStream(state, action)

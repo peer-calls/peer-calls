@@ -1,7 +1,7 @@
-import CSSTransitionGroup from 'react-transition-group'
 import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
+import { CSSTransitionGroup } from 'react-transition-group'
 
 export const NotificationPropTypes = PropTypes.shape({
   id: PropTypes.string.isRequired,
@@ -9,7 +9,7 @@ export const NotificationPropTypes = PropTypes.shape({
   message: PropTypes.string.isRequired
 })
 
-export default class Notifications extends React.PureComponent {
+export default class Notifications extends React.Component {
   static propTypes = {
     notifications: PropTypes.arrayOf(NotificationPropTypes).isRequired,
     max: PropTypes.number.isRequired

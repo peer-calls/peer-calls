@@ -9,7 +9,7 @@ export const StreamPropType = PropTypes.shape({
   url: PropTypes.string.isRequired
 })
 
-export default class Video extends React.PureComponent {
+export default class Video extends React.Component {
   static propTypes = {
     activate: PropTypes.func.isRequired,
     active: PropTypes.string.required,

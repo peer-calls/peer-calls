@@ -3,7 +3,7 @@ import Immutable from 'seamless-immutable'
 
 const defaultState = Immutable([])
 
-export default function alert (state = defaultState, action) {
+export default function alerts (state = defaultState, action) {
   switch (action && action.type) {
     case constants.ALERT:
       return Immutable(state.asMutable().push(action.payload))

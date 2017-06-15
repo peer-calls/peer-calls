@@ -2,7 +2,7 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import peers from '../peer/peers.js'
 
-export default class Input extends React.PureComponent {
+export default class Input extends React.Component {
   static propTypes = {
     notify: PropTypes.func.isRequired
   }

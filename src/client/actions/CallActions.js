@@ -6,15 +6,16 @@ import getUserMedia from '../window/getUserMedia.js'
 import handshake from '../peer/handshake.js'
 import socket from '../socket.js'
 
-export const init = () => dispatch => {
-  return Promise.all([
+export const init = () => dispatch => ({
+  type: constants.INIT,
+  payload: Promise.all([
     connect()(dispatch),
     getCameraStream()(dispatch)
   ])
   .spread((socket, stream) => {
     handshake.init({ socket, callId, stream })
   })
-}
+})
 
 export const connect = () => dispatch => {
   return new Promise(resolve => {

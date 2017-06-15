@@ -1,24 +1,18 @@
 import * as constants from '../constants.js'
 import Immutable from 'seamless-immutable'
 
-const defaultState = Immutable({
-  notifications: []
-})
+const defaultState = Immutable([])
 
-export default function notify (state = defaultState, action) {
+export default function notifications (state = defaultState, action) {
   switch (action && action.type) {
     case constants.NOTIFY:
-      const notifications = state.notifications.asMutable()
+      const notifications = state.asMutable()
       notifications.push(action.payload)
-      return state.merge({
-        notifications
-      })
+      return Immutable(notifications)
     case constants.NOTIFY_DISMISS:
-      return state.merge({
-        notifications: state.notifications.filter(n => n !== action.payload)
-      })
+      return state.filter(n => n !== action.payload)
     case constants.NOTIFY_CLEAR:
-      return state.merge({ notifications: [] })
+      return defaultState
     default:
       return state
   }
