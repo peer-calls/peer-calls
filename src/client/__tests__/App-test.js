@@ -12,8 +12,6 @@ import { Provider } from 'react-redux'
 import { init } from '../actions/CallActions.js'
 import { middlewares } from '../store.js'
 
-// jest.useFakeTimers()
-
 describe('App', () => {
 
   let state
@@ -25,7 +23,6 @@ describe('App', () => {
   let component, node, store
   function render() {
     store = configureStore(middlewares)(state)
-    console.log(store.getState())
     component = TestUtils.renderIntoDocument(
       <Provider store={store}>
         <App />
@@ -37,7 +34,6 @@ describe('App', () => {
   describe('render', () => {
     it('renders without issues', () => {
       render()
-      // jest.runAllTimers()
       expect(node).toBeTruthy()
       expect(init.mock.calls.length).toBe(1)
     })

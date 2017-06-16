@@ -1,10 +1,11 @@
-import NotifyActions from '../actions/NotifyActions.js'
+import * as NotifyActions from '../actions/NotifyActions.js'
 import _ from 'underscore'
 import _debug from 'debug'
 import peers from './peers.js'
-import { dispatch } from '../store.js'
+import store from '../store.js'
 
 const debug = _debug('peercalls')
+const { dispatch } = store
 
 export function init (socket, roomName, stream) {
   function createPeer (user, initiator) {

@@ -1,13 +1,14 @@
-import CallActions from '../actions/CallActions.js'
-import NotifyActions from '../actions/NotifyActions.js'
-import Peer from './Peer.js'
+import * as CallActions from '../actions/CallActions.js'
+import * as NotifyActions from '../actions/NotifyActions.js'
+import Peer from 'simple-peer'
 import _ from 'underscore'
 import _debug from 'debug'
 import iceServers from '../iceServers.js'
-import { dispatch } from '../store.js'
+import store from '../store.js'
 import { play } from '../window/video.js'
 
 const debug = _debug('peercalls')
+const { dispatch } = store
 
 let peers = {}
 
@@ -31,7 +32,7 @@ function create ({ socket, user, initiator, stream }) {
     destroy(user.id)
   }
 
-  const peer = peers[user.id] = Peer.init({
+  const peer = peers[user.id] = new Peer({
     initiator: socket.id === initiator,
     stream,
     config: { iceServers }

@@ -24,16 +24,16 @@ const _notify = (type, args) => dispatch => {
   }, TIMEOUT)
 }
 
-export const info = () => dispatch => {
-  _notify('info', arguments)
+export const info = function() {
+  return dispatch => _notify('info', arguments)(dispatch)
 }
 
-export const warn = () => dispatch => {
-  _notify('warning', arguments)
+export const warn = function() {
+  return dispatch => _notify('warning', arguments)(dispatch)
 }
 
-export const error = () => dispatch => {
-  _notify('error', arguments)
+export const error = function() {
+  return dispatch => _notify('error', arguments)(dispatch)
 }
 
 export function alert (message, dismissable) {

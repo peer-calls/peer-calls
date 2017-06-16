@@ -1,30 +1,23 @@
-jest.unmock('../handshake.js')
-jest.unmock('../peers.js')
-jest.unmock('events')
-jest.unmock('underscore')
+jest.mock('simple-peer')
+jest.mock('../../store.js')
+jest.mock('../../callId.js')
+jest.mock('../../iceServers.js')
 
-const EventEmitter = require('events').EventEmitter
-const Peer = require('../Peer.js')
-const dispatcher = require('../../dispatcher/dispatcher.js')
-const handshake = require('../handshake.js')
-const peers = require('../peers.js')
+import * as constants from '../../constants.js'
+import * as handshake from '../handshake.js'
+import Peer from 'simple-peer'
+import peers from '../peers.js'
+import store from '../../store.js'
+import { EventEmitter } from 'events'
 
 describe('handshake', () => {
-  let socket, peerInstances
+  let socket
   beforeEach(() => {
     socket = new EventEmitter()
     socket.id = 'a'
-    peerInstances = []
 
-    Peer.init = jest.genMockFunction().mockImplementation(() => {
-      let peer = new EventEmitter()
-      peer.destroy = jest.genMockFunction()
-      peer.signal = jest.genMockFunction()
-      peerInstances.push(peer)
-      return peer
-    })
-
-    dispatcher.dispatch.mockClear()
+    Peer.instances = []
+    store.clearActions()
   })
 
   afterEach(() => peers.clear())
@@ -40,7 +33,7 @@ describe('handshake', () => {
           initiator: 'a'
         }
         socket.emit('users', payload)
-        expect(peerInstances.length).toBe(1)
+        expect(Peer.instances.length).toBe(1)
 
         // when
         payload = {
@@ -50,9 +43,9 @@ describe('handshake', () => {
         socket.emit('users', payload)
 
         // then
-        expect(peerInstances.length).toBe(2)
-        expect(peerInstances[0].destroy.mock.calls.length).toBe(1)
-        expect(peerInstances[1].destroy.mock.calls.length).toBe(0)
+        expect(Peer.instances.length).toBe(2)
+        expect(Peer.instances[0].destroy.mock.calls.length).toBe(1)
+        expect(Peer.instances[1].destroy.mock.calls.length).toBe(0)
       })
     })
 
@@ -73,8 +66,8 @@ describe('handshake', () => {
           data
         })
 
-        expect(peerInstances.length).toBe(1)
-        expect(peerInstances[0].signal.mock.calls.length).toBe(1)
+        expect(Peer.instances.length).toBe(1)
+        expect(Peer.instances[0].signal.mock.calls.length).toBe(1)
       })
 
       it('does nothing if no peer', () => {
@@ -83,8 +76,8 @@ describe('handshake', () => {
           data
         })
 
-        expect(peerInstances.length).toBe(1)
-        expect(peerInstances[0].signal.mock.calls.length).toBe(0)
+        expect(Peer.instances.length).toBe(1)
+        expect(Peer.instances[0].signal.mock.calls.length).toBe(0)
       })
     })
   })
@@ -101,8 +94,8 @@ describe('handshake', () => {
         initiator: 'a',
         users: [{ id: 'a' }, { id: 'b'}]
       })
-      expect(peerInstances.length).toBe(1)
-      peer = peerInstances[0]
+      expect(Peer.instances.length).toBe(1)
+      peer = Peer.instances[0]
 
       expect(ready).toBeDefined()
     })
@@ -130,29 +123,37 @@ describe('handshake', () => {
 
     describe('stream', () => {
       it('adds a stream to streamStore', () => {
-        expect(dispatcher.dispatch.mock.calls.length).toBe(0)
-
+        store.clearActions()
         let stream = {}
         peer.emit('stream', stream)
 
-        expect(dispatcher.dispatch.mock.calls.length).toBe(1)
-        expect(dispatcher.dispatch.mock.calls).toEqual([[{
-          type: 'add-stream',
-          userId: 'b',
-          stream
-        }]])
+        expect(store.getActions()).toEqual([{
+          type: constants.STREAM_ADD,
+          payload: {
+            stream,
+            userId: 'b'
+          }
+        }])
       })
     })
 
     describe('close', () => {
       it('removes stream from streamStore', () => {
+        store.clearActions()
         peer.emit('close')
 
-        expect(dispatcher.dispatch.mock.calls.length).toBe(1)
-        expect(dispatcher.dispatch.mock.calls).toEqual([[{
-          type: 'remove-stream',
-          userId: 'b'
-        }]])
+        expect(store.getActions()).toEqual([{
+          type: constants.NOTIFY,
+          payload: {
+            message: 'Peer connection closed',
+            type: 'error'
+          }
+        }, {
+          type: constants.STREAM_REMOVE,
+          payload: {
+            userId: 'b'
+          }
+        }])
       })
     })
   })
