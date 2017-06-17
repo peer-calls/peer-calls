@@ -24,8 +24,7 @@ describe('reducers/alerts', () => {
 
   afterEach(() => {
     jest.runAllTimers()
-    socket.removeAllListeners('connect')
-    socket.removeAllListeners('disconnect')
+    socket.removeAllListeners()
   })
 
   describe('init', () => {

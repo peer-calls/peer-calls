@@ -1,6 +1,7 @@
 jest.mock('../actions/CallActions.js')
 jest.mock('../callId.js')
 jest.mock('../iceServers.js')
+jest.mock('../socket.js')
 
 import * as constants from '../constants.js'
 import App from '../containers/App.js'

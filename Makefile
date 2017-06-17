@@ -42,7 +42,7 @@ lint-fix:
 .PHONY: test
 test:
 
-	jest --forceExit
+	jest
 
 .PHONY: testify
 testify:
@@ -52,7 +52,7 @@ testify:
 .PHONY: coverage
 coverage:
 
-	jest --coverage --forceExit
+	jest --coverage
 
 .PHONY: server
 server:
