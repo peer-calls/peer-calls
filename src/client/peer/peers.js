@@ -1,4 +1,3 @@
-import * as CallActions from '../actions/CallActions.js'
 import * as NotifyActions from '../actions/NotifyActions.js'
 import * as StreamActions from '../actions/StreamActions.js'
 import Peer from 'simple-peer'

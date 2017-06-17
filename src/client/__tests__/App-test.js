@@ -24,7 +24,7 @@ describe('App', () => {
   })
 
   let component, node, store
-  function render() {
+  function render () {
     store = configureStore(middlewares)(state)
     component = TestUtils.renderIntoDocument(
       <Provider store={store}>

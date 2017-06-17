@@ -82,7 +82,6 @@ describe('reducers/alerts', () => {
         store.dispatch(NotifyActions[type]())
       })
 
-
     })
 
   })

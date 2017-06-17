@@ -2,12 +2,10 @@ import * as CallActions from '../actions/CallActions.js'
 import * as NotifyActions from '../actions/NotifyActions.js'
 import * as StreamActions from '../actions/StreamActions.js'
 import App from '../components/App.js'
-import React from 'react'
 import { bindActionCreators } from 'redux'
 import { connect } from 'react-redux'
-import peers from '../peer/peers.js'
 
-function mapStateToProps(state) {
+function mapStateToProps (state) {
   return {
     streams: state.streams.all,
     alerts: state.alerts,
@@ -16,7 +14,7 @@ function mapStateToProps(state) {
   }
 }
 
-function mapDispatchToProps(dispatch) {
+function mapDispatchToProps (dispatch) {
   return {
     activate: bindActionCreators(StreamActions.activateStream, dispatch),
     dismissAlert: bindActionCreators(NotifyActions.dismissAlert, dispatch),

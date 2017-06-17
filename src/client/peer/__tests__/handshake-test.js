@@ -29,7 +29,7 @@ describe('handshake', () => {
 
         // given
         let payload = {
-          users: [{ id: 'a'}, { id: 'b' }],
+          users: [{ id: 'a' }, { id: 'b' }],
           initiator: 'a'
         }
         socket.emit('users', payload)
@@ -37,7 +37,7 @@ describe('handshake', () => {
 
         // when
         payload = {
-          users: [{ id: 'a'}, { id: 'c' }],
+          users: [{ id: 'a' }, { id: 'c' }],
           initiator: 'c'
         }
         socket.emit('users', payload)
@@ -92,7 +92,7 @@ describe('handshake', () => {
 
       socket.emit('users', {
         initiator: 'a',
-        users: [{ id: 'a' }, { id: 'b'}]
+        users: [{ id: 'a' }, { id: 'b' }]
       })
       expect(Peer.instances.length).toBe(1)
       peer = Peer.instances[0]

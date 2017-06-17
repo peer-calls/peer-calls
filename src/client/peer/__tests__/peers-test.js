@@ -125,10 +125,10 @@ describe('peers', () => {
 
       beforeEach(() => {
         window.TextDecoder = class TextDecoder {
-          constructor(encoding) {
+          constructor (encoding) {
             this.encoding = encoding
           }
-          decode(object) {
+          decode (object) {
             return object.toString(this.encoding)
           }
         }

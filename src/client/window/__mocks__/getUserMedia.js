@@ -10,4 +10,3 @@ export default function getUserMedia () {
   ? Promise.resolve(stream)
   : Promise.reject(new Error('test'))
 }
-

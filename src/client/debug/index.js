@@ -12,7 +12,7 @@ function checkTURNServer (turnConfig, timeout) {
       promiseResolved = true
     }, timeout || 5000)
 
-    const promiseResolved = false
+    let promiseResolved = false
     const PeerConnection = window.RTCPeerConnection ||
       window.mozRTCPeerConnection ||
       window.webkitRTCPeerConnection

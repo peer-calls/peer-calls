@@ -93,4 +93,3 @@ describe('reducers/alerts', () => {
   })
 
 })
-

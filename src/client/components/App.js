@@ -1,6 +1,6 @@
 import Alerts, { AlertPropType } from './Alerts.js'
 import Input from './Input.js'
-import Notifications from './Notifications.js'
+import Notifications, { NotificationPropTypes } from './Notifications.js'
 import PropTypes from 'prop-types'
 import React from 'react'
 import Video, { StreamPropType } from './Video.js'
@@ -14,7 +14,8 @@ export default class App extends React.Component {
     activate: PropTypes.func.isRequired,
     active: PropTypes.string,
     init: PropTypes.func.isRequired,
-    notify: PropTypes.func.isRequired
+    notify: PropTypes.func.isRequired,
+    notifications: PropTypes.objectOf(NotificationPropTypes).isRequired
   }
   componentDidMount () {
     const { init } = this.props
