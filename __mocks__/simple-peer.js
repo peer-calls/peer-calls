@@ -1,8 +1,9 @@
 import EventEmitter from 'events'
 const Peer = jest.genMockFunction().mockImplementation(() => {
   let peer = new EventEmitter()
-  peer.destroy = jest.genMockFunction()
-  peer.signal = jest.genMockFunction()
+  peer.destroy = jest.fn()
+  peer.signal = jest.fn()
+  peer.send = jest.fn()
   Peer.instances.push(peer)
   return peer
 })

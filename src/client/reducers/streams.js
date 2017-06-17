@@ -9,19 +9,19 @@ const defaultState = Immutable({
 
 function addStream (state, action) {
   const { userId, stream } = action.payload
-  const streams = state.all.merge({
+  const all = state.all.merge({
     [userId]: {
       userId,
       stream,
       url: createObjectURL(stream)
     }
   })
-  return { active: userId, streams }
+  return state.merge({ active: userId, all })
 }
 
 function removeStream (state, action) {
-  const streams = state.all.without(action.payload.userId)
-  return state.merge({ streams })
+  const all = state.all.without(action.payload.userId)
+  return state.merge({ all })
 }
 
 export default function streams (state = defaultState, action) {

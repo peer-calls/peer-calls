@@ -26,8 +26,6 @@ import store from '../../store.js'
 import { EventEmitter } from 'events'
 import { play } from '../../window/video.js'
 
-const { dispatch } = store
-
 describe('peers', () => {
   function createSocket () {
     const socket = new EventEmitter()
@@ -71,7 +69,6 @@ describe('peers', () => {
       peers.create({ socket, user, initiator: 'user2', stream })
 
       expect(store.getActions()).toEqual([actions.connecting])
-      // expect(notify.warn.mock.calls).toEqual([[ 'Connecting to peer...' ]])
 
       expect(Peer.instances.length).toBe(1)
       expect(Peer.mock.calls.length).toBe(1)
@@ -121,6 +118,34 @@ describe('peers', () => {
         expect(play.mock.calls.length).toBe(1)
       })
     })
+
+    describe('data', () => {
+
+      beforeEach(() => {
+        window.TextDecoder = class TextDecoder {
+          constructor(encoding) {
+            this.encoding = encoding
+          }
+          decode(object) {
+            return object.toString(this.encoding)
+          }
+        }
+      })
+
+      it('decodes a message', () => {
+        store.clearActions()
+        const message = 'test'
+        const object = JSON.stringify({ message })
+        peer.emit('data', Buffer.from(object, 'utf-8'))
+        expect(store.getActions()).toEqual([{
+          type: constants.NOTIFY,
+          payload: {
+            type: 'info',
+            message: `${user.id}: ${message}`
+          }
+        }])
+      })
+    })
   })
 
   describe('get', () => {
@@ -138,10 +163,10 @@ describe('peers', () => {
   describe('getIds', () => {
     it('returns ids of all peers', () => {
       peers.create({
-        socket, user: {id: 'user2' }, initiator: 'user2', stream
+        socket, user: { id: 'user2' }, initiator: 'user2', stream
       })
       peers.create({
-        socket, user: {id: 'user3' }, initiator: 'user3', stream
+        socket, user: { id: 'user3' }, initiator: 'user3', stream
       })
 
       expect(peers.getIds()).toEqual([ 'user2', 'user3' ])
@@ -165,10 +190,10 @@ describe('peers', () => {
   describe('clear', () => {
     it('destroys all peers and removes them', () => {
       peers.create({
-        socket, user: {id: 'user2' }, initiator: 'user2', stream
+        socket, user: { id: 'user2' }, initiator: 'user2', stream
       })
       peers.create({
-        socket, user: {id: 'user3' }, initiator: 'user3', stream
+        socket, user: { id: 'user3' }, initiator: 'user3', stream
       })
 
       peers.clear()
@@ -178,5 +203,23 @@ describe('peers', () => {
 
       expect(peers.getIds()).toEqual([])
     })
+  })
+
+  describe('message', () => {
+
+    it('sends a message to all peers', () => {
+      peers.create({
+        socket, user: { id: 'user2' }, initiator: 'user2', stream
+      })
+      peers.create({
+        socket, user: { id: 'user3' }, initiator: 'user3', stream
+      })
+      peers.message('test')
+      expect(peers.get('user2').send.mock.calls)
+      .toEqual([[ '{"message":"test"}' ]])
+      expect(peers.get('user3').send.mock.calls)
+      .toEqual([[ '{"message":"test"}' ]])
+    })
+
   })
 })

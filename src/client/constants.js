@@ -2,9 +2,9 @@ import { PENDING, FULFILLED, REJECTED } from 'redux-promise-middleware'
 export const ME = '_me_'
 
 export const INIT = 'INIT'
-export const INIT_PENDING = `${INIT}${PENDING}`
-export const INIT_FULFILLED = `${INIT}${FULFILLED}`
-export const INIT_REJECTED = `${INIT}${REJECTED}`
+export const INIT_PENDING = `${INIT}_${PENDING}`
+export const INIT_FULFILLED = `${INIT}_${FULFILLED}`
+export const INIT_REJECTED = `${INIT}_${REJECTED}`
 
 export const ALERT = 'ALERT'
 export const ALERT_DISMISS = 'ALERT_DISMISS'

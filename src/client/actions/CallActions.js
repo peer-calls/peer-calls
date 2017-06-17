@@ -6,21 +6,23 @@ import getUserMedia from '../window/getUserMedia.js'
 import handshake from '../peer/handshake.js'
 import socket from '../socket.js'
 
-export const init = () => dispatch => ({
-  type: constants.INIT,
-  payload: Promise.all([
-    connect()(dispatch),
-    getCameraStream()(dispatch)
-  ])
-  .spread((socket, stream) => {
-    handshake.init({ socket, callId, stream })
+export const init = () => dispatch => {
+  return dispatch({
+    type: constants.INIT,
+    payload: Promise.all([
+      connect()(dispatch),
+      getCameraStream()(dispatch)
+    ])
+    .spread((socket, stream) => {
+      handshake({ socket, callId, stream })
+    })
   })
-})
+}
 
 export const connect = () => dispatch => {
   return new Promise(resolve => {
     socket.once('connect', () => {
-      dispatch(NotifyActions.warn('Connected to server socket'))
+      dispatch(NotifyActions.warning('Connected to server socket'))
       resolve(socket)
     })
     socket.on('disconnect', () => {
@@ -35,9 +37,9 @@ export const getCameraStream = () => dispatch => {
     dispatch(addStream({ stream, userId: constants.ME }))
     return stream
   })
-  .catch(() => {
+  .catch(err => {
     dispatch(NotifyActions.alert('Could not get access to microphone & camera'))
-    return null
+    throw err
   })
 }
 

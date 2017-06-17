@@ -8,6 +8,7 @@ import _ from 'underscore'
 
 export default class App extends React.Component {
   static propTypes = {
+    dismissAlert: PropTypes.func.isRequired,
     streams: PropTypes.objectOf(StreamPropType).isRequired,
     alerts: PropTypes.arrayOf(AlertPropType).isRequired,
     activate: PropTypes.func.isRequired,
@@ -21,11 +22,11 @@ export default class App extends React.Component {
   }
   render () {
     const {
-      active, activate, alerts, dismiss, notify, notifications, streams
+      active, activate, alerts, dismissAlert, notify, notifications, streams
     } = this.props
 
     return (<div className="app">
-      <Alerts alerts={alerts} dismiss={dismiss} />
+      <Alerts alerts={alerts} dismiss={dismissAlert} />
       <Notifications notifications={notifications} />
       <Input notify={notify} />
       <div className="videos">

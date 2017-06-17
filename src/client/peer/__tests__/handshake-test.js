@@ -4,7 +4,7 @@ jest.mock('../../callId.js')
 jest.mock('../../iceServers.js')
 
 import * as constants from '../../constants.js'
-import * as handshake from '../handshake.js'
+import handshake from '../handshake.js'
 import Peer from 'simple-peer'
 import peers from '../peers.js'
 import store from '../../store.js'
@@ -25,7 +25,7 @@ describe('handshake', () => {
   describe('socket events', () => {
     describe('users', () => {
       it('add a peer for each new user and destroy peers for missing', () => {
-        handshake.init(socket, 'bla')
+        handshake(socket, 'bla')
 
         // given
         let payload = {
@@ -53,7 +53,7 @@ describe('handshake', () => {
       let data
       beforeEach(() => {
         data = {}
-        handshake.init(socket, 'bla')
+        handshake(socket, 'bla')
         socket.emit('users', {
           initiator: 'a',
           users: [{ id: 'a' }, { id: 'b' }]
@@ -88,7 +88,7 @@ describe('handshake', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      handshake.init(socket, 'bla')
+      handshake(socket, 'bla')
 
       socket.emit('users', {
         initiator: 'a',

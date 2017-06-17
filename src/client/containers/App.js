@@ -18,7 +18,7 @@ function mapStateToProps(state) {
 function mapDispatchToProps(dispatch) {
   return {
     activate: bindActionCreators(CallActions.activateStream, dispatch),
-    dismiss: bindActionCreators(NotifyActions.dismiss, dispatch),
+    dismissAlert: bindActionCreators(NotifyActions.dismissAlert, dispatch),
     init: bindActionCreators(CallActions.init, dispatch),
     notify: bindActionCreators(NotifyActions.info, dispatch)
   }

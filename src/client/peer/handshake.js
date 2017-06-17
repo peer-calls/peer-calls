@@ -7,7 +7,7 @@ import store from '../store.js'
 const debug = _debug('peercalls')
 const { dispatch } = store
 
-export function init (socket, roomName, stream) {
+export default function init (socket, roomName, stream) {
   function createPeer (user, initiator) {
     return peers.create({ socket, user, initiator, stream })
   }

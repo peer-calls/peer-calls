@@ -1,4 +1,5 @@
 import * as constants from '../constants.js'
+import Immutable from 'seamless-immutable'
 
 const TIMEOUT = 5000
 
@@ -11,7 +12,7 @@ function format (string, args) {
 const _notify = (type, args) => dispatch => {
   let string = args[0] || ''
   let message = format(string, Array.prototype.slice.call(args, 1))
-  const payload = { type, message }
+  const payload = Immutable({ type, message })
   dispatch({
     type: constants.NOTIFY,
     payload
@@ -24,17 +25,21 @@ const _notify = (type, args) => dispatch => {
   }, TIMEOUT)
 }
 
-export const info = function() {
+export const info = function () {
   return dispatch => _notify('info', arguments)(dispatch)
 }
 
-export const warn = function() {
+export const warning = function () {
   return dispatch => _notify('warning', arguments)(dispatch)
 }
 
-export const error = function() {
+export const error = function () {
   return dispatch => _notify('error', arguments)(dispatch)
 }
+
+export const clear = () => ({
+  type: constants.NOTIFY_CLEAR
+})
 
 export function alert (message, dismissable) {
   return {
@@ -48,9 +53,15 @@ export function alert (message, dismissable) {
   }
 }
 
-export const dismiss = alert => {
+export const dismissAlert = alert => {
   return {
     type: constants.ALERT_DISMISS,
     payload: alert
+  }
+}
+
+export const clearAlerts = () => {
+  return {
+    type: constants.ALERT_CLEAR
   }
 }

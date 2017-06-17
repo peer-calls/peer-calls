@@ -22,7 +22,7 @@ let peers = {}
 function create ({ socket, user, initiator, stream }) {
   debug('create peer: %s, stream:', user.id, stream)
   dispatch(
-    NotifyActions.warn('Connecting to peer...')
+    NotifyActions.warning('Connecting to peer...')
   )
 
   if (peers[user.id]) {
@@ -56,7 +56,7 @@ function create ({ socket, user, initiator, stream }) {
   peer.once('connect', () => {
     debug('peer: %s, connect', user.id)
     dispatch(
-      NotifyActions.warn('Peer connection established')
+      NotifyActions.warning('Peer connection established')
     )
     play()
   })
@@ -86,9 +86,7 @@ function create ({ socket, user, initiator, stream }) {
       CallActions.removeStream(user.id)
     )
 
-    // make sure some other peer with same id didn't take place between calling
-    // `destroy()` and `close` event
-    if (peers[user.id] === peer) delete peers[user.id]
+    delete peers[user.id]
   })
 }
 

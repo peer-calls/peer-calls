@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "test": "jest --coverage",
+    "test": "jest --coverage --forceExit",
     "testify": "jest --watch",
     "lint": "eslint ./index.js ./src/js"
   },
