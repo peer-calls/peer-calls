@@ -38,6 +38,7 @@ describe('reducers/alerts', () => {
       }, {
         type: constants.NOTIFY,
         payload: {
+          id: jasmine.any(String),
           message: 'Connected to server socket',
           type: 'warning'
         }
@@ -62,12 +63,14 @@ describe('reducers/alerts', () => {
       }, {
         type: constants.NOTIFY,
         payload: {
+          id: jasmine.any(String),
           message: 'Connected to server socket',
           type: 'warning'
         }
       }, {
         type: constants.NOTIFY,
         payload: {
+          id: jasmine.any(String),
           message: 'Server socket disconnected',
           type: 'error'
         }

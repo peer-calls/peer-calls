@@ -49,6 +49,7 @@ describe('peers', () => {
     connecting: {
       type: constants.NOTIFY,
       payload: {
+        id: jasmine.any(String),
         message: 'Connecting to peer...',
         type: 'warning'
       }
@@ -56,6 +57,7 @@ describe('peers', () => {
     established: {
       type: constants.NOTIFY,
       payload: {
+        id: jasmine.any(String),
         message: 'Peer connection established',
         type: 'warning'
       }
@@ -140,6 +142,7 @@ describe('peers', () => {
         expect(store.getActions()).toEqual([{
           type: constants.NOTIFY,
           payload: {
+            id: jasmine.any(String),
             type: 'info',
             message: `${user.id}: ${message}`
           }

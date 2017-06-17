@@ -2,6 +2,7 @@ jest.mock('../actions/CallActions.js')
 jest.mock('../callId.js')
 jest.mock('../iceServers.js')
 
+import * as constants from '../constants.js'
 import App from '../containers/App.js'
 import React from 'react'
 import ReactDOM from 'react-dom'
@@ -14,9 +15,11 @@ import { middlewares } from '../store.js'
 
 describe('App', () => {
 
+  const initAction = { type: 'INIT' }
+
   let state
   beforeEach(() => {
-    init.mockReturnValue({ type: 'INIT' })
+    init.mockReturnValue(initAction)
     state = reducers()
   })
 
@@ -37,6 +40,58 @@ describe('App', () => {
       expect(node).toBeTruthy()
       expect(init.mock.calls.length).toBe(1)
     })
+  })
+
+  describe('state', () => {
+    let alert
+    beforeEach(() => {
+      state.streams = state.streams.setIn(['all'], {
+        'test': {
+          userId: 'test',
+          url: 'blob://'
+        }
+      })
+      state.notifications = state.notifications.merge({
+        'notification1': {
+          id: 'notification1',
+          message: 'test',
+          type: 'warning'
+        }
+      })
+      const alerts = state.alerts.asMutable()
+      alert = {
+        dismissable: true,
+        action: 'Dismiss',
+        message: 'test alert'
+      }
+      alerts.push(alert)
+      state.alerts = alerts
+      render()
+      store.clearActions()
+    })
+
+    describe('alerts', () => {
+      it('can be dismissed', () => {
+        const dismiss = node.querySelector('.action-alert-dismiss')
+        TestUtils.Simulate.click(dismiss)
+        expect(store.getActions()).toEqual([{
+          type: constants.ALERT_DISMISS,
+          payload: alert
+        }])
+      })
+    })
+
+    describe('video', () => {
+      it('can be activated', () => {
+        const video = node.querySelector('video')
+        TestUtils.Simulate.click(video)
+        expect(store.getActions()).toEqual([{
+          type: constants.STREAM_ACTIVATE,
+          payload: { userId: 'test' }
+        }])
+      })
+    })
+
   })
 
 })

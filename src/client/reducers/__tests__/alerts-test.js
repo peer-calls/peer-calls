@@ -1,4 +1,5 @@
 import * as NotifyActions from '../../actions/NotifyActions.js'
+import _ from 'underscore'
 import { applyMiddleware, createStore } from 'redux'
 import { create } from '../../middlewares.js'
 import reducers from '../index.js'
@@ -65,7 +66,8 @@ describe('reducers/alerts', () => {
       })
 
       it('adds a notification', () => {
-        expect(store.getState().notifications).toEqual([{
+        expect(_.values(store.getState().notifications)).toEqual([{
+          id: jasmine.any(String),
           message: 'Hi John!',
           type
         }])
@@ -73,8 +75,13 @@ describe('reducers/alerts', () => {
 
       it('dismisses notification after a timeout', () => {
         jest.runAllTimers()
-        expect(store.getState().notifications).toEqual([])
+        expect(store.getState().notifications).toEqual({})
       })
+
+      it('does not fail when no arguments', () => {
+        store.dispatch(NotifyActions[type]())
+      })
+
 
     })
 
@@ -87,7 +94,7 @@ describe('reducers/alerts', () => {
       store.dispatch(NotifyActions.warning('Hi {0}!', 'John'))
       store.dispatch(NotifyActions.error('Hi {0}!', 'John'))
       store.dispatch(NotifyActions.clear())
-      expect(store.getState().notifications).toEqual([])
+      expect(store.getState().notifications).toEqual({})
     })
 
   })

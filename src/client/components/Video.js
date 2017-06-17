@@ -5,14 +5,13 @@ import { ME } from '../constants.js'
 
 export const StreamPropType = PropTypes.shape({
   userId: PropTypes.string.isRequired,
-  stream: PropTypes.instanceOf(ArrayBuffer).isRequired,
   url: PropTypes.string.isRequired
 })
 
 export default class Video extends React.Component {
   static propTypes = {
     activate: PropTypes.func.isRequired,
-    active: PropTypes.string.required,
+    active: PropTypes.bool.isRequired,
     stream: StreamPropType.isRequired
   }
   activate = e => {

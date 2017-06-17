@@ -34,6 +34,7 @@ export default class App extends React.Component {
           <Video
             activate={activate}
             active={userId === active}
+            key={userId}
             stream={stream}
           />
         ))}

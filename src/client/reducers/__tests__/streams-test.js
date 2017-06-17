@@ -2,7 +2,7 @@ jest.mock('../../callId.js')
 jest.mock('../../iceServers.js')
 jest.mock('../../window/createObjectURL.js')
 
-import * as CallActions from '../../actions/CallActions.js'
+import * as StreamActions from '../../actions/StreamActions.js'
 import { applyMiddleware, createStore } from 'redux'
 import { create } from '../../middlewares.js'
 import reducers from '../index.js'
@@ -31,13 +31,12 @@ describe('reducers/alerts', () => {
 
   describe('addStream', () => {
     it('adds a stream', () => {
-      store.dispatch(CallActions.addStream({ userId, stream }))
+      store.dispatch(StreamActions.addStream({ userId, stream }))
       expect(store.getState().streams).toEqual({
         active: userId,
         all: {
           [userId]: {
             userId,
-            stream,
             url: jasmine.any(String)
           }
         }
@@ -47,8 +46,8 @@ describe('reducers/alerts', () => {
 
   describe('removeStream', () => {
     it('removes a stream', () => {
-      store.dispatch(CallActions.addStream({ userId, stream }))
-      store.dispatch(CallActions.removeStream(userId))
+      store.dispatch(StreamActions.addStream({ userId, stream }))
+      store.dispatch(StreamActions.removeStream(userId))
       expect(store.getState().streams).toEqual({
         active: userId,
         all: {}
@@ -58,7 +57,7 @@ describe('reducers/alerts', () => {
 
   describe('activateStream', () => {
     it('activates a stream', () => {
-      store.dispatch(CallActions.activateStream(userId))
+      store.dispatch(StreamActions.activateStream(userId))
       expect(store.getState().streams).toEqual({
         active: userId,
         all: {}

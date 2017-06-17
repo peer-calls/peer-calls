@@ -1,5 +1,6 @@
 import * as CallActions from '../actions/CallActions.js'
 import * as NotifyActions from '../actions/NotifyActions.js'
+import * as StreamActions from '../actions/StreamActions.js'
 import Peer from 'simple-peer'
 import _ from 'underscore'
 import _debug from 'debug'
@@ -63,7 +64,7 @@ function create ({ socket, user, initiator, stream }) {
 
   peer.on('stream', stream => {
     debug('peer: %s, stream', user.id)
-    dispatch(CallActions.addStream({
+    dispatch(StreamActions.addStream({
       userId: user.id,
       stream
     }))
@@ -83,7 +84,7 @@ function create ({ socket, user, initiator, stream }) {
       NotifyActions.error('Peer connection closed')
     )
     dispatch(
-      CallActions.removeStream(user.id)
+      StreamActions.removeStream(user.id)
     )
 
     delete peers[user.id]

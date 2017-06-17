@@ -18,13 +18,16 @@ export class Alert extends React.Component {
     dismiss(alert)
   }
   render () {
-    const { alert, dismiss } = this.props
+    const { alert } = this.props
 
     return (
       <div className={classnames('alert', alert.type)}>
         <span>{alert.message}</span>
         {alert.dismissable && (
-          <button onClick={dismiss}>{alert.action}</button>
+          <button
+            className="action-alert-dismiss"
+            onClick={this.dismiss}
+          >{alert.action}</button>
         )}
       </div>
     )

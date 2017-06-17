@@ -12,7 +12,6 @@ function addStream (state, action) {
   const all = state.all.merge({
     [userId]: {
       userId,
-      stream,
       url: createObjectURL(stream)
     }
   })

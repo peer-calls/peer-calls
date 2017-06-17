@@ -1,3 +1,4 @@
+import * as StreamActions from './StreamActions.js'
 import * as NotifyActions from './NotifyActions.js'
 import * as constants from '../constants.js'
 import Promise from 'bluebird'
@@ -34,7 +35,7 @@ export const connect = () => dispatch => {
 export const getCameraStream = () => dispatch => {
   return getUserMedia({ video: true, audio: true })
   .then(stream => {
-    dispatch(addStream({ stream, userId: constants.ME }))
+    dispatch(StreamActions.addStream({ stream, userId: constants.ME }))
     return stream
   })
   .catch(err => {
@@ -42,21 +43,3 @@ export const getCameraStream = () => dispatch => {
     throw err
   })
 }
-
-export const addStream = ({ stream, userId }) => ({
-  type: constants.STREAM_ADD,
-  payload: {
-    userId,
-    stream
-  }
-})
-
-export const removeStream = userId => ({
-  type: constants.STREAM_REMOVE,
-  payload: { userId }
-})
-
-export const activateStream = userId => ({
-  type: constants.STREAM_ACTIVATE,
-  payload: { userId }
-})

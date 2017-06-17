@@ -11,7 +11,7 @@ export const NotificationPropTypes = PropTypes.shape({
 
 export default class Notifications extends React.Component {
   static propTypes = {
-    notifications: PropTypes.arrayOf(NotificationPropTypes).isRequired,
+    notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
     max: PropTypes.number.isRequired
   }
   static defaultProps = {
@@ -26,12 +26,12 @@ export default class Notifications extends React.Component {
           transitionLeaveTimeout={100}
           transitionName="fade"
         >
-          {notifications.slice(max).map(notification => (
+          {Object.keys(notifications).slice(-max).map(id => (
             <div
-              className={classnames(notification.type, 'notification')}
-              key={notification.id}
+              className={classnames(notifications[id].type, 'notification')}
+              key={id}
             >
-              {notification.message}
+              {notifications[id].message}
             </div>
           ))}
         </CSSTransitionGroup>

@@ -1,5 +1,5 @@
 import * as constants from '../constants.js'
-import Immutable from 'seamless-immutable'
+import _ from 'underscore'
 
 const TIMEOUT = 5000
 
@@ -12,7 +12,8 @@ function format (string, args) {
 const _notify = (type, args) => dispatch => {
   let string = args[0] || ''
   let message = format(string, Array.prototype.slice.call(args, 1))
-  const payload = Immutable({ type, message })
+  const id = _.uniqueId('notification')
+  const payload = { id, type, message }
   dispatch({
     type: constants.NOTIFY,
     payload
@@ -20,7 +21,7 @@ const _notify = (type, args) => dispatch => {
   setTimeout(() => {
     dispatch({
       type: constants.NOTIFY_DISMISS,
-      payload
+      payload: { id }
     })
   }, TIMEOUT)
 }

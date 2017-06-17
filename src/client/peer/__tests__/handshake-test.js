@@ -145,6 +145,7 @@ describe('handshake', () => {
         expect(store.getActions()).toEqual([{
           type: constants.NOTIFY,
           payload: {
+            id: jasmine.any(String),
             message: 'Peer connection closed',
             type: 'error'
           }
