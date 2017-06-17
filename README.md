@@ -18,9 +18,18 @@ From git source:
 git clone https://github.com/jeremija/peer-calls.git
 cd peer-calls
 npm install
-npm run build
+
+# for production
 npm start
+npm run build
+
+# for development
+npm run start:watch
 ```
+
+To run a development version, type:
+
+
 
 If you successfully completed the above steps, your commandline/terminal should
 show that your node server is listening.

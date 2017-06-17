@@ -1,4 +1,4 @@
-window.localStorage = { debug: true }
+window.localStorage = { log: true }
 import logger from 'redux-logger'
 const store = require('../store.js')
 

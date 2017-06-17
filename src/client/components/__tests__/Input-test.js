@@ -54,6 +54,14 @@ describe('components/Input', () => {
         expect(peers.message.mock.calls).toEqual([[ message ]])
         expect(notify.mock.calls).toEqual([[ `You: ${message}` ]])
       })
+
+      it('does nothing when other key pressed', () => {
+        TestUtils.Simulate.keyPress(input, {
+          key: 'test'
+        })
+        expect(peers.message.mock.calls.length).toBe(0)
+        expect(notify.mock.calls.length).toBe(0)
+      })
     })
 
   })

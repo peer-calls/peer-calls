@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "start:server": "nodemon src/index.js",
+    "start:server": "nodemon src/index.js --ignore build/ --ignore src/client",
     "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "watch": "",
     "build": "npm run css && npm run js",

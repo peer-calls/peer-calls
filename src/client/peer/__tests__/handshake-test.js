@@ -25,7 +25,7 @@ describe('handshake', () => {
   describe('socket events', () => {
     describe('users', () => {
       it('add a peer for each new user and destroy peers for missing', () => {
-        handshake(socket, 'bla')
+        handshake({ socket, roomName: 'bla' })
 
         // given
         let payload = {
@@ -53,7 +53,7 @@ describe('handshake', () => {
       let data
       beforeEach(() => {
         data = {}
-        handshake(socket, 'bla')
+        handshake({ socket, roomName: 'bla' })
         socket.emit('users', {
           initiator: 'a',
           users: [{ id: 'a' }, { id: 'b' }]
@@ -88,7 +88,7 @@ describe('handshake', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      handshake(socket, 'bla')
+      handshake({ socket, roomName: 'bla' })
 
       socket.emit('users', {
         initiator: 'a',

@@ -23,8 +23,10 @@ export const init = () => dispatch => {
 export const connect = () => dispatch => {
   return new Promise(resolve => {
     socket.once('connect', () => {
-      dispatch(NotifyActions.warning('Connected to server socket'))
       resolve(socket)
+    })
+    socket.on('connect', () => {
+      dispatch(NotifyActions.warning('Connected to server socket'))
     })
     socket.on('disconnect', () => {
       dispatch(NotifyActions.error('Server socket disconnected'))

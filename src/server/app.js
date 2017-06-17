@@ -8,7 +8,7 @@ const app = express()
 const http = require('http').Server(app)
 const io = require('socket.io')(http)
 
-app.set('view engine', 'jade')
+app.set('view engine', 'pug')
 app.set('views', path.join(__dirname, '../views'))
 
 app.use('/res', express.static(path.join(__dirname, '../res')))

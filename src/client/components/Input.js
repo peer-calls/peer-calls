@@ -22,8 +22,10 @@ export default class Input extends React.Component {
     this.submit()
   }
   handleKeyPress = e => {
-    e.preventDefault()
-    e.key === 'Enter' && this.submit()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      this.submit()
+    }
   }
   submit = () => {
     const { notify } = this.props
