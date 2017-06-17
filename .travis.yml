@@ -1,6 +1,6 @@
 language: node_js
 node_js:
   - "8.1.2"
-script: make lint coverage build
+script: npm run ci
 notifications:
   email: false

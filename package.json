@@ -6,9 +6,20 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "test": "jest --coverage",
-    "testify": "jest --watch",
-    "lint": "eslint ./index.js ./src/js"
+    "start:server": "nodemon src/index.js",
+    "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
+    "watch": "",
+    "build": "npm run css && npm run js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "js": "browserify -t babelify ./src/client/index.js -o ./build/index.js",
+    "js:watch": "watchify -d -v -t babelify ./src/client/index.js -o ./build/index.js",
+    "css": "node-sass ./src/scss/style.scss -o ./build/",
+    "css:watch": "node-sass --watch ./src/scss/style.scss -o ./build/",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "ci": "npm run lint && npm run test:coverage && npm run build"
   },
   "babel": {
     "presets": [
