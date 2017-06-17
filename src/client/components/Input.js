@@ -38,7 +38,7 @@ export default class Input extends React.Component {
       <form className="input" onSubmit={this.handleSubmit}>
         <input
           onChange={this.handleChange}
-          onKeyPress={this.onKeyPress}
+          onKeyPress={this.handleKeyPress}
           placeholder="Enter your message..."
           type="text"
           value={message}
