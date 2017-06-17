@@ -1,17 +1,11 @@
 #!/usr/bin/env node
 'use strict'
 if (!process.env.DEBUG) {
-  process.env.DEBUG = 'peer-calls:*'
+  process.env.DEBUG = 'peercalls'
 }
 
 const app = require('./server/app.js')
-const os = require('os')
+const debug = require('debug')('peercalls')
 
 let port = process.env.PORT || 3000
-let ifaces = os.networkInterfaces()
-
-app.http.listen(port, function () {
-  Object.keys(ifaces).forEach(ifname =>
-    ifaces[ifname].forEach(iface =>
-      console.log('listening on', iface.address, 'and port', port)))
-})
+app.http.listen(port, () => debug('Listening on: %s', port))

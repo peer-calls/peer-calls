@@ -18,6 +18,7 @@ From git source:
 git clone https://github.com/jeremija/peer-calls.git
 cd peer-calls
 npm install
+npm run build
 npm start
 ```
 
@@ -28,10 +29,6 @@ On your other machine or mobile device open the url:
 
 ```bash
 http://<your_ip_or_localhost>:3000
-```
-
-(Note: On Android you may have to select a notification on the pulldown menu to
-connect if you are using Chrome)
 
 # Testing
 
@@ -39,6 +36,17 @@ connect if you are using Chrome)
 npm install
 npm test
 ```
+
+# Browser Support
+
+Tested on Firefox and Chrome, including mobile versions.
+
+Does not work on iOS 10, but should work on iOS 11 (untested).
+
+For more details, see here:
+
+- http://caniuse.com/#feat=rtcpeerconnection
+- http://caniuse.com/#search=getUserMedia
 
 # Contributing
 
