@@ -8,7 +8,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 Work in progress.
 
 # Requirements
- - Node.js 5 [https://nodejs.org/en/](https://nodejs.org/en/)
+ - Node.js 8 [https://nodejs.org/en/](https://nodejs.org/en/)
 
 # Installation & Running
 
