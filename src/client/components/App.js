@@ -11,7 +11,7 @@ export default class App extends React.Component {
     dismissAlert: PropTypes.func.isRequired,
     streams: PropTypes.objectOf(PropTypes.string).isRequired,
     alerts: PropTypes.arrayOf(AlertPropType).isRequired,
-    setActive: PropTypes.func.isRequired,
+    toggleActive: PropTypes.func.isRequired,
     active: PropTypes.string,
     init: PropTypes.func.isRequired,
     notify: PropTypes.func.isRequired,
@@ -30,7 +30,7 @@ export default class App extends React.Component {
       notifications,
       notify,
       sendMessage,
-      setActive,
+      toggleActive,
       streams
     } = this.props
 
@@ -41,11 +41,11 @@ export default class App extends React.Component {
       <div className="videos">
         {_.map(streams, (stream, userId) => (
           <Video
-            setActive={setActive}
             active={userId === active}
             key={userId}
-            userId={userId}
+            onClick={toggleActive}
             stream={stream}
+            userId={userId}
           />
         ))}
       </div>

@@ -17,3 +17,8 @@ export const setActive = userId => ({
   type: constants.ACTIVE_SET,
   payload: { userId }
 })
+
+export const toggleActive = userId => ({
+  type: constants.ACTIVE_TOGGLE,
+  payload: { userId }
+})

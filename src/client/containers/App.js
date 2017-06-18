@@ -11,13 +11,13 @@ function mapStateToProps (state) {
     streams: state.streams,
     alerts: state.alerts,
     notifications: state.notifications,
-    active: state.streams.active
+    active: state.active
   }
 }
 
 function mapDispatchToProps (dispatch) {
   return {
-    setActive: bindActionCreators(StreamActions.setActive, dispatch),
+    toggleActive: bindActionCreators(StreamActions.toggleActive, dispatch),
     sendMessage: bindActionCreators(PeerActions.sendMessage, dispatch),
     dismissAlert: bindActionCreators(NotifyActions.dismissAlert, dispatch),
     init: bindActionCreators(CallActions.init, dispatch),

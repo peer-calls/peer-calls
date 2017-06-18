@@ -5,15 +5,15 @@ import { ME } from '../constants.js'
 
 export default class Video extends React.Component {
   static propTypes = {
-    setActive: PropTypes.func.isRequired,
+    onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
     stream: PropTypes.string.isRequired,
     userId: PropTypes.string.isRequired
   }
-  setActive = e => {
-    const { setActive, userId } = this.props
+  handleClick = e => {
+    const { onClick, userId } = this.props
     this.play(e)
-    setActive(userId)
+    onClick(userId)
   }
   play = e => {
     e.preventDefault()
@@ -26,7 +26,7 @@ export default class Video extends React.Component {
       <div className={className}>
         <video
           muted={userId === ME}
-          onClick={this.setActive}
+          onClick={this.handleClick}
           onLoadedMetadata={this.play}
           src={stream}
         />

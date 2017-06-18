@@ -82,7 +82,7 @@ describe('App', () => {
         const video = node.querySelector('video')
         TestUtils.Simulate.click(video)
         expect(store.getActions()).toEqual([{
-          type: constants.ACTIVE_SET,
+          type: constants.ACTIVE_TOGGLE,
           payload: { userId: 'test' }
         }])
       })

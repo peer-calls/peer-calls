@@ -9,10 +9,9 @@ import { play, iceServers } from '../window.js'
 const debug = _debug('peercalls')
 
 class PeerHandler {
-  constructor ({ socket, user, stream, dispatch, getState }) {
+  constructor ({ socket, user, dispatch, getState }) {
     this.socket = socket
     this.user = user
-    this.stream = stream
     this.dispatch = dispatch
     this.getState = getState
   }
@@ -91,7 +90,6 @@ export function createPeer ({ socket, user, initiator, stream }) {
     const handler = new PeerHandler({
       socket,
       user,
-      stream,
       dispatch,
       getState
     })
