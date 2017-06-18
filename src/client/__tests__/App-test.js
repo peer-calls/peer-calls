@@ -47,6 +47,9 @@ describe('App', () => {
       state.streams = state.streams.merge({
         test: 'blob://'
       })
+      state.peers = {
+        test: {}
+      }
       state.notifications = state.notifications.merge({
         'notification1': {
           id: 'notification1',
@@ -83,7 +86,7 @@ describe('App', () => {
         TestUtils.Simulate.click(video)
         expect(store.getActions()).toEqual([{
           type: constants.ACTIVE_TOGGLE,
-          payload: { userId: 'test' }
+          payload: { userId: constants.ME }
         }])
       })
     })

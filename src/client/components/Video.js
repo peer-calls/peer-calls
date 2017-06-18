@@ -7,7 +7,7 @@ export default class Video extends React.Component {
   static propTypes = {
     onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
-    stream: PropTypes.string.isRequired,
+    stream: PropTypes.string,
     userId: PropTypes.string.isRequired
   }
   handleClick = e => {

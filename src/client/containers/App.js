@@ -9,6 +9,7 @@ import { connect } from 'react-redux'
 function mapStateToProps (state) {
   return {
     streams: state.streams,
+    peers: state.peers,
     alerts: state.alerts,
     notifications: state.notifications,
     active: state.active

@@ -1,4 +1,5 @@
 import Alerts, { AlertPropType } from './Alerts.js'
+import * as constants from '../constants.js'
 import Input from './Input.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
 import PropTypes from 'prop-types'
@@ -8,15 +9,16 @@ import _ from 'underscore'
 
 export default class App extends React.Component {
   static propTypes = {
-    dismissAlert: PropTypes.func.isRequired,
-    streams: PropTypes.objectOf(PropTypes.string).isRequired,
-    alerts: PropTypes.arrayOf(AlertPropType).isRequired,
-    toggleActive: PropTypes.func.isRequired,
     active: PropTypes.string,
+    alerts: PropTypes.arrayOf(AlertPropType).isRequired,
+    dismissAlert: PropTypes.func.isRequired,
     init: PropTypes.func.isRequired,
-    notify: PropTypes.func.isRequired,
     notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
-    sendMessage: PropTypes.func.isRequired
+    notify: PropTypes.func.isRequired,
+    peers: PropTypes.object.isRequired,
+    sendMessage: PropTypes.func.isRequired,
+    streams: PropTypes.objectOf(PropTypes.string).isRequired,
+    toggleActive: PropTypes.func.isRequired
   }
   componentDidMount () {
     const { init } = this.props
@@ -29,6 +31,7 @@ export default class App extends React.Component {
       dismissAlert,
       notifications,
       notify,
+      peers,
       sendMessage,
       toggleActive,
       streams
@@ -39,12 +42,19 @@ export default class App extends React.Component {
       <Notifications notifications={notifications} />
       <Input notify={notify} sendMessage={sendMessage} />
       <div className="videos">
-        {_.map(streams, (stream, userId) => (
+        <Video
+          active={active === constants.ME}
+          onClick={toggleActive}
+          stream={streams[constants.ME]}
+          userId={constants.ME}
+        />
+
+        {_.map(peers, (_, userId) => (
           <Video
             active={userId === active}
             key={userId}
             onClick={toggleActive}
-            stream={stream}
+            stream={streams[userId]}
             userId={userId}
           />
         ))}
