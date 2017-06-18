@@ -1,7 +1,6 @@
-jest.unmock('../turn.js')
 const turn = require('../turn.js')
 
-describe('turn', () => {
+describe('server/turn', () => {
   describe('getCredentials', () => {
     it('returns username & credential', () => {
       const auth = turn.getCredentials('a', 'b')

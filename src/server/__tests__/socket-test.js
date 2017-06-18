@@ -1,12 +1,9 @@
 'use strict'
-jest.unmock('../socket.js')
-jest.unmock('events')
-jest.unmock('underscore')
 
 const EventEmitter = require('events').EventEmitter
 const handleSocket = require('../socket.js')
 
-describe('socket', () => {
+describe('server/socket', () => {
   let socket, io, rooms
   beforeEach(() => {
     socket = new EventEmitter()

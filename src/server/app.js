@@ -18,4 +18,4 @@ app.use('/', require('./routes/index.js'))
 
 io.on('connection', socket => handleSocket(socket, io))
 
-module.exports = { http, app }
+module.exports = http
