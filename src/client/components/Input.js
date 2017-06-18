@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types'
 import React from 'react'
 
-export default class Input extends React.Component {
+export default class Input extends React.PureComponent {
   static propTypes = {
     notify: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired

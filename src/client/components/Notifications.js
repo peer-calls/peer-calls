@@ -9,7 +9,7 @@ export const NotificationPropTypes = PropTypes.shape({
   message: PropTypes.string.isRequired
 })
 
-export default class Notifications extends React.Component {
+export default class Notifications extends React.PureComponent {
   static propTypes = {
     notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
     max: PropTypes.number.isRequired

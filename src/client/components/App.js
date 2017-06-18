@@ -7,7 +7,7 @@ import React from 'react'
 import Video from './Video.js'
 import _ from 'underscore'
 
-export default class App extends React.Component {
+export default class App extends React.PureComponent {
   static propTypes = {
     active: PropTypes.string,
     alerts: PropTypes.arrayOf(AlertPropType).isRequired,

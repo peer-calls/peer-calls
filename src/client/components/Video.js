@@ -3,7 +3,7 @@ import React from 'react'
 import classnames from 'classnames'
 import { ME } from '../constants.js'
 
-export default class Video extends React.Component {
+export default class Video extends React.PureComponent {
   static propTypes = {
     onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
