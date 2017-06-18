@@ -3,9 +3,8 @@ import * as SocketActions from './SocketActions.js'
 import * as StreamActions from './StreamActions.js'
 import * as constants from '../constants.js'
 import Promise from 'bluebird'
-import callId from '../callId.js'
-import getUserMedia from '../window/getUserMedia.js'
 import socket from '../socket.js'
+import { callId, getUserMedia } from '../window.js'
 
 export const init = () => dispatch => {
   return dispatch({

@@ -1,6 +1,6 @@
 import * as constants from '../constants.js'
-import createObjectURL from '../window/createObjectURL'
 import Immutable from 'seamless-immutable'
+import { createObjectURL } from '../window.js'
 
 const defaultState = Immutable({})
 

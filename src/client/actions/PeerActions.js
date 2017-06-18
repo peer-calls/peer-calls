@@ -4,8 +4,7 @@ import * as constants from '../constants.js'
 import Peer from 'simple-peer'
 import _ from 'underscore'
 import _debug from 'debug'
-import iceServers from '../iceServers.js'
-import { play } from '../window/video.js'
+import { play, iceServers } from '../window.js'
 
 const debug = _debug('peercalls')
 

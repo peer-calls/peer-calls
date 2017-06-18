@@ -1,6 +1,4 @@
-jest.mock('../../callId.js')
-jest.mock('../../iceServers.js')
-jest.mock('../../window/createObjectURL.js')
+jest.mock('../../window.js')
 
 import * as StreamActions from '../../actions/StreamActions.js'
 import { applyMiddleware, createStore } from 'redux'

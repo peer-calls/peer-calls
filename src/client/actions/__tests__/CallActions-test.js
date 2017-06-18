@@ -1,17 +1,14 @@
-jest.mock('../../callId.js')
-jest.mock('../../iceServers.js')
 jest.mock('../../socket.js')
-jest.mock('../../window/getUserMedia.js')
+jest.mock('../../window.js')
 jest.mock('../../store.js')
 jest.mock('../SocketActions.js')
 
 import * as CallActions from '../CallActions.js'
 import * as SocketActions from '../SocketActions.js'
 import * as constants from '../../constants.js'
-import * as getUserMediaMock from '../../window/getUserMedia.js'
-import callId from '../../callId.js'
 import socket from '../../socket.js'
 import store from '../../store.js'
+import { callId, getUserMedia } from '../../window.js'
 
 jest.useFakeTimers()
 
@@ -19,7 +16,7 @@ describe('reducers/alerts', () => {
 
   beforeEach(() => {
     store.clearActions()
-    getUserMediaMock.fail(false)
+    getUserMedia.fail(false)
     SocketActions.handshake.mockReturnValue(jest.fn())
   })
 
@@ -47,7 +44,7 @@ describe('reducers/alerts', () => {
         expect(SocketActions.handshake.mock.calls).toEqual([[{
           socket,
           roomName: callId,
-          stream: getUserMediaMock.stream
+          stream: getUserMedia.stream
         }]])
       })
       .then(done)
@@ -79,7 +76,7 @@ describe('reducers/alerts', () => {
     })
 
     it('dispatches alert when failed to get media stream', done => {
-      getUserMediaMock.fail(true)
+      getUserMedia.fail(true)
       const promise = store.dispatch(CallActions.init())
       socket.emit('connect')
       promise

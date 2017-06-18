@@ -1,6 +1,3 @@
-jest.mock('../../callId.js')
-jest.mock('../../iceServers.js')
-
 import Input from '../Input.js'
 import React from 'react'
 import ReactDOM from 'react-dom'

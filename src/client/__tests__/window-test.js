@@ -1,8 +1,12 @@
 import Promise from 'bluebird'
-import createObjectURL from '../createObjectURL.js'
-import getUserMedia from '../getUserMedia.js'
-import navigator from '../navigator.js'
-import { play } from '../video.js'
+
+import {
+  createObjectURL,
+  getUserMedia,
+  navigator,
+  play,
+  valueOf
+} from '../window.js'
 
 describe('window', () => {
 
@@ -58,8 +62,7 @@ describe('window', () => {
       window.document.body.appendChild(v2)
       v1.play = jest.fn()
       v2.play = jest.fn()
-    })
-
+    }) 
     afterEach(() => {
       window.document.body.removeChild(v1)
       window.document.body.removeChild(v2)
@@ -93,6 +96,29 @@ describe('window', () => {
     it('calls window.URL.createObjectURL', () => {
       window.URL.createObjectURL = jest.fn().mockReturnValue('test')
       expect(createObjectURL()).toBe('test')
+    })
+
+  })
+
+  describe('valueOf', () => {
+
+    let input
+    beforeEach(() => {
+      input = window.document.createElement('input')
+      input.setAttribute('id', 'my-main-id')
+      input.value = 'test'
+      window.document.body.appendChild(input)
+    })
+    afterEach(() => {
+      window.document.body.removeChild(input)
+    })
+
+    it('should return value of input', () => {
+      expect(valueOf('my-main-id')).toEqual('test')
+    })
+
+    it('does not fail when not found', () => {
+      expect(valueOf('my-main-id2')).toEqual(null)
     })
 
   })
