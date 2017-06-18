@@ -4,7 +4,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import store from './store.js'
 import { Provider } from 'react-redux'
-import { play } from './window/video.js'
+import { play } from './window.js'
 
 const component = (
   <Provider store={store}>
@@ -12,5 +12,5 @@ const component = (
   </Provider>
 )
 
-ReactDOM.render(component, document.querySelector('#container'))
+ReactDOM.render(component, document.getElementById('container'))
 play()

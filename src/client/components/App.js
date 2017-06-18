@@ -15,7 +15,8 @@ export default class App extends React.Component {
     active: PropTypes.string,
     init: PropTypes.func.isRequired,
     notify: PropTypes.func.isRequired,
-    notifications: PropTypes.objectOf(NotificationPropTypes).isRequired
+    notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
+    sendMessage: PropTypes.func.isRequired
   }
   componentDidMount () {
     const { init } = this.props

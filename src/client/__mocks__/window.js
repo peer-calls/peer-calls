@@ -20,4 +20,3 @@ export const valueOf = jest.fn()
 export const callId = 'call1234'
 
 export const iceServers = []
-

@@ -4,7 +4,6 @@ jest.mock('../../window.js')
 import * as SocketActions from '../SocketActions.js'
 import * as constants from '../../constants.js'
 import Peer from 'simple-peer'
-import reducers from '../../reducers/index.js'
 import { EventEmitter } from 'events'
 import { createStore } from '../../store.js'
 

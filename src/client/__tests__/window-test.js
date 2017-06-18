@@ -62,7 +62,7 @@ describe('window', () => {
       window.document.body.appendChild(v2)
       v1.play = jest.fn()
       v2.play = jest.fn()
-    }) 
+    })
     afterEach(() => {
       window.document.body.removeChild(v1)
       window.document.body.removeChild(v2)
