@@ -20,9 +20,9 @@ pull request will be rejected.
 
 1. Fork the repo
 2. Install dependencies: `npm install`
-3. Make sure the tests pass: `npm test`
-4. Make your change on a new feature branch, with new passing tests. Follow
-   the [style guide][style].
+3. Make sure the tests pass: `npm run ci`
+4. Make your change on a new feature branch, with new passing tests. We use
+   ESLint to lint the code.
 5. Push to your fork.
 6. Make sure to rebase to master and squash commits to a single commit.
 7. Write a [good commit message][commit].
@@ -30,7 +30,6 @@ pull request will be rejected.
    - Remember that you can also [close][close] the issue with this message.
 8. Submit a pull request.
 
-  [style]: STYLE.md
   [commit]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
   [reference]: https://help.github.com/articles/autolinked-references-and-urls/#issues-and-pull-requests
   [close]: https://help.github.com/articles/closing-issues-via-commit-messages/
@@ -41,5 +40,7 @@ merge the contribution.
 
 ## License
 
-As the project uses the MIT license, you agree that any code you submit to the
+As the project uses the [MIT license][license], you agree that any code you submit to the
 project will also be licensed under the same license.
+
+[license]: LICENSE

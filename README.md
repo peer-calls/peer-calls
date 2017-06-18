@@ -63,4 +63,4 @@ See [Contributing](CONTRIBUTING.md) section.
 
 # License
 
-MIT
+[MIT](LICENSE)

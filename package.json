@@ -32,7 +32,7 @@
       "transform-class-properties"
     ]
   },
-  "author": "",
+  "author": "Jerko Steiner",
   "license": "MIT",
   "dependencies": {
     "bluebird": "3.3.4",
