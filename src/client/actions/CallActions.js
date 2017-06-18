@@ -45,6 +45,6 @@ export const getCameraStream = () => dispatch => {
   })
   .catch(err => {
     dispatch(NotifyActions.alert('Could not get access to microphone & camera'))
-    throw err
+    return null
   })
 }

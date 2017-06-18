@@ -83,8 +83,14 @@ export function createPeer ({ socket, user, initiator, stream }) {
 
     const peer = new Peer({
       initiator: socket.id === initiator,
-      stream,
-      config: { iceServers }
+      config: { iceServers },
+      // Allow the peer to receive video, even if it's not sending stream:
+      // https://github.com/feross/simple-peer/issues/95
+      offerConstraints: {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      },
+      stream
     })
 
     const handler = new PeerHandler({

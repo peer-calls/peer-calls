@@ -80,11 +80,11 @@ describe('reducers/alerts', () => {
       const promise = store.dispatch(CallActions.init())
       socket.emit('connect')
       promise
-      .then(done.fail)
-      .catch(err => {
-        expect(err.message).toEqual('test')
+      .then(result => {
+        expect(result.value).toBe(null)
         done()
       })
+      .catch(done.fail)
     })
 
   })
