@@ -8,6 +8,8 @@ const app = express()
 const http = require('http').Server(app)
 const io = require('socket.io')(http)
 
+app.locals.version = require('../../package.json').version
+
 app.set('view engine', 'pug')
 app.set('views', path.join(__dirname, '../views'))
 

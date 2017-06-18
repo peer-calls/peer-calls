@@ -13,21 +13,37 @@ $color-info: #31EF40;
 $color-warning: #F0C808;
 $color-error: #EE7600;
 
-* {
+*,
+*:before,
+*:after {
   box-sizing: border-box;
 }
 
-html, body {
-  width: 100%;
+html {
   height: 100%;
+}
+
+html, body {
   z-index: -99;
 }
 
 body {
   background-color: $color-bg;
   color: $color-fg;
-  margin: 0 0;
+  margin: 0;
   font-family: $font-sans-serif;
+  min-height: 100%;
+  padding-bottom: 3rem;
+  position: relative;
+}
+
+footer {
+  position: absolute;
+  padding: 1rem 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
 }
 
 body.call {
