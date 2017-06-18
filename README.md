@@ -8,7 +8,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 Work in progress.
 
 # Requirements
- - Node.js 5 [https://nodejs.org/en/](https://nodejs.org/en/)
+ - Node.js 8 [https://nodejs.org/en/](https://nodejs.org/en/)
 
 # Installation & Running
 
@@ -18,8 +18,18 @@ From git source:
 git clone https://github.com/jeremija/peer-calls.git
 cd peer-calls
 npm install
+
+# for production
 npm start
+npm run build
+
+# for development
+npm run start:watch
 ```
+
+To run a development version, type:
+
+
 
 If you successfully completed the above steps, your commandline/terminal should
 show that your node server is listening.
@@ -28,10 +38,6 @@ On your other machine or mobile device open the url:
 
 ```bash
 http://<your_ip_or_localhost>:3000
-```
-
-(Note: On Android you may have to select a notification on the pulldown menu to
-connect if you are using Chrome)
 
 # Testing
 
@@ -39,6 +45,17 @@ connect if you are using Chrome)
 npm install
 npm test
 ```
+
+# Browser Support
+
+Tested on Firefox and Chrome, including mobile versions.
+
+Does not work on iOS 10, but should work on iOS 11 (untested).
+
+For more details, see here:
+
+- http://caniuse.com/#feat=rtcpeerconnection
+- http://caniuse.com/#search=getUserMedia
 
 # Contributing
 
