@@ -1,11 +1,13 @@
 import { create } from './middlewares.js'
 import reducers from './reducers'
-import { applyMiddleware, createStore } from 'redux'
+import { applyMiddleware, createStore as _createStore } from 'redux'
 export const middlewares = create(
   window.localStorage && window.localStorage.log
 )
 
-export default createStore(
+export const createStore = () => _createStore(
   reducers,
   applyMiddleware.apply(null, middlewares)
 )
+
+export default createStore()

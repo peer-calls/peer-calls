@@ -1,20 +1,20 @@
 jest.mock('../../callId.js')
 jest.mock('../../iceServers.js')
-jest.mock('../../peer/peers.js')
 
 import Input from '../Input.js'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import peers from '../../peer/peers.js'
 
 describe('components/Input', () => {
 
-  let component, node, notify
+  let component, node, notify, sendMessage
   function render () {
     notify = jest.fn()
+    sendMessage = jest.fn()
     component = TestUtils.renderIntoDocument(
       <Input
+        sendMessage={sendMessage}
         notify={notify}
       />
     )
@@ -28,7 +28,7 @@ describe('components/Input', () => {
 
     let input
     beforeEach(() => {
-      peers.message.mockClear()
+      sendMessage.mockClear()
       input = node.querySelector('input')
       TestUtils.Simulate.change(input, {
         target: { value: message }
@@ -40,7 +40,7 @@ describe('components/Input', () => {
       it('sends a message', () => {
         TestUtils.Simulate.submit(node)
         expect(input.value).toBe('')
-        expect(peers.message.mock.calls).toEqual([[ message ]])
+        expect(sendMessage.mock.calls).toEqual([[ message ]])
         expect(notify.mock.calls).toEqual([[ `You: ${message}` ]])
       })
     })
@@ -51,7 +51,7 @@ describe('components/Input', () => {
           key: 'Enter'
         })
         expect(input.value).toBe('')
-        expect(peers.message.mock.calls).toEqual([[ message ]])
+        expect(sendMessage.mock.calls).toEqual([[ message ]])
         expect(notify.mock.calls).toEqual([[ `You: ${message}` ]])
       })
 
@@ -59,7 +59,7 @@ describe('components/Input', () => {
         TestUtils.Simulate.keyPress(input, {
           key: 'test'
         })
-        expect(peers.message.mock.calls.length).toBe(0)
+        expect(sendMessage.mock.calls.length).toBe(0)
         expect(notify.mock.calls.length).toBe(0)
       })
     })

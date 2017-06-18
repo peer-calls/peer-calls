@@ -1,10 +1,10 @@
-import * as StreamActions from './StreamActions.js'
 import * as NotifyActions from './NotifyActions.js'
+import * as SocketActions from './SocketActions.js'
+import * as StreamActions from './StreamActions.js'
 import * as constants from '../constants.js'
 import Promise from 'bluebird'
 import callId from '../callId.js'
 import getUserMedia from '../window/getUserMedia.js'
-import handshake from '../peer/handshake.js'
 import socket from '../socket.js'
 
 export const init = () => dispatch => {
@@ -15,7 +15,11 @@ export const init = () => dispatch => {
       getCameraStream()(dispatch)
     ])
     .spread((socket, stream) => {
-      handshake({ socket, callId, stream })
+      dispatch(SocketActions.handshake({
+        socket,
+        roomName: callId,
+        stream
+      }))
     })
   })
 }

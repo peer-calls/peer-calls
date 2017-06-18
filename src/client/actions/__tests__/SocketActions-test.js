@@ -1,46 +1,46 @@
 jest.mock('simple-peer')
-jest.mock('../../store.js')
 jest.mock('../../callId.js')
 jest.mock('../../iceServers.js')
+jest.mock('../../window/createObjectURL.js')
 
+import * as SocketActions from '../SocketActions.js'
 import * as constants from '../../constants.js'
-import handshake from '../handshake.js'
 import Peer from 'simple-peer'
-import peers from '../peers.js'
-import store from '../../store.js'
+import reducers from '../../reducers/index.js'
 import { EventEmitter } from 'events'
+import { createStore } from '../../store.js'
 
-describe('handshake', () => {
-  let socket
+describe('SocketActions', () => {
+  const roomName = 'bla'
+
+  let socket, store
   beforeEach(() => {
     socket = new EventEmitter()
     socket.id = 'a'
 
+    store = createStore()
+
     Peer.instances = []
-    store.clearActions()
   })
 
-  afterEach(() => peers.clear())
-
-  describe('socket events', () => {
+  describe('handshake', () => {
     describe('users', () => {
-      it('add a peer for each new user and destroy peers for missing', () => {
-        handshake({ socket, roomName: 'bla' })
-
-        // given
-        let payload = {
+      beforeEach(() => {
+        store.dispatch(SocketActions.handshake({ socket, roomName }))
+        const payload = {
           users: [{ id: 'a' }, { id: 'b' }],
           initiator: 'a'
         }
         socket.emit('users', payload)
         expect(Peer.instances.length).toBe(1)
+      })
 
-        // when
-        payload = {
+      it('adds a peer for each new user and destroys peers for missing', () => {
+        const payload = {
           users: [{ id: 'a' }, { id: 'c' }],
           initiator: 'c'
         }
-        socket.emit('users', payload)
+        socket.emit(constants.SOCKET_EVENT_USERS, payload)
 
         // then
         expect(Peer.instances.length).toBe(2)
@@ -53,7 +53,7 @@ describe('handshake', () => {
       let data
       beforeEach(() => {
         data = {}
-        handshake({ socket, roomName: 'bla' })
+        store.dispatch(SocketActions.handshake({ socket, roomName }))
         socket.emit('users', {
           initiator: 'a',
           users: [{ id: 'a' }, { id: 'b' }]
@@ -88,7 +88,7 @@ describe('handshake', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      handshake({ socket, roomName: 'bla' })
+      store.dispatch(SocketActions.handshake({ socket, roomName }))
 
       socket.emit('users', {
         initiator: 'a',
@@ -102,7 +102,7 @@ describe('handshake', () => {
 
     describe('error', () => {
       it('destroys peer', () => {
-        peer.emit('error', new Error('bla'))
+        peer.emit(constants.PEER_EVENT_ERROR, new Error('bla'))
         expect(peer.destroy.mock.calls.length).toBe(1)
       })
     })
@@ -123,38 +123,29 @@ describe('handshake', () => {
 
     describe('stream', () => {
       it('adds a stream to streamStore', () => {
-        store.clearActions()
-        let stream = {}
-        peer.emit('stream', stream)
+        const stream = {}
+        peer.emit(constants.PEER_EVENT_STREAM, stream)
 
-        expect(store.getActions()).toEqual([{
-          type: constants.STREAM_ADD,
-          payload: {
-            stream,
-            userId: 'b'
-          }
-        }])
+        expect(store.getState().streams).toEqual({
+          b: jasmine.any(String)
+        })
       })
     })
 
     describe('close', () => {
-      it('removes stream from streamStore', () => {
-        store.clearActions()
-        peer.emit('close')
+      beforeEach(() => {
+        const stream = {}
+        peer.emit(constants.PEER_EVENT_STREAM, stream)
+        expect(store.getState().streams).toEqual({
+          b: jasmine.any(String)
+        })
+      })
 
-        expect(store.getActions()).toEqual([{
-          type: constants.NOTIFY,
-          payload: {
-            id: jasmine.any(String),
-            message: 'Peer connection closed',
-            type: 'error'
-          }
-        }, {
-          type: constants.STREAM_REMOVE,
-          payload: {
-            userId: 'b'
-          }
-        }])
+      it('removes stream & peer from store', () => {
+        expect(store.getState().peers).toEqual({ b: peer })
+        peer.emit('close')
+        expect(store.getState().streams).toEqual({})
+        expect(store.getState().peers).toEqual({})
       })
     })
   })

@@ -13,7 +13,7 @@ export const removeStream = userId => ({
   payload: { userId }
 })
 
-export const activateStream = userId => ({
-  type: constants.STREAM_ACTIVATE,
+export const setActive = userId => ({
+  type: constants.ACTIVE_SET,
   payload: { userId }
 })

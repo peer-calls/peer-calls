@@ -1,10 +1,10 @@
 import PropTypes from 'prop-types'
 import React from 'react'
-import peers from '../peer/peers.js'
 
 export default class Input extends React.Component {
   static propTypes = {
-    notify: PropTypes.func.isRequired
+    notify: PropTypes.func.isRequired,
+    sendMessage: PropTypes.func.isRequired,
   }
   constructor () {
     super()
@@ -28,10 +28,10 @@ export default class Input extends React.Component {
     }
   }
   submit = () => {
-    const { notify } = this.props
+    const { notify, sendMessage } = this.props
     const { message } = this.state
-    peers.message(message)
     notify('You: ' + message)
+    sendMessage(message)
     this.setState({ message: '' })
   }
   render () {

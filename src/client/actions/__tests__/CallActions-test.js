@@ -1,15 +1,15 @@
 jest.mock('../../callId.js')
 jest.mock('../../iceServers.js')
-jest.mock('../../peer/handshake.js')
 jest.mock('../../socket.js')
 jest.mock('../../window/getUserMedia.js')
 jest.mock('../../store.js')
+jest.mock('../SocketActions.js')
 
 import * as CallActions from '../CallActions.js'
+import * as SocketActions from '../SocketActions.js'
 import * as constants from '../../constants.js'
 import * as getUserMediaMock from '../../window/getUserMedia.js'
 import callId from '../../callId.js'
-import handshake from '../../peer/handshake.js'
 import socket from '../../socket.js'
 import store from '../../store.js'
 
@@ -20,6 +20,7 @@ describe('reducers/alerts', () => {
   beforeEach(() => {
     store.clearActions()
     getUserMediaMock.fail(false)
+    SocketActions.handshake.mockReturnValue(jest.fn())
   })
 
   afterEach(() => {
@@ -43,9 +44,9 @@ describe('reducers/alerts', () => {
         }
       }])
       promise.then(() => {
-        expect(handshake.mock.calls).toEqual([[{
+        expect(SocketActions.handshake.mock.calls).toEqual([[{
           socket,
-          callId,
+          roomName: callId,
           stream: getUserMediaMock.stream
         }]])
       })

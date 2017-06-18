@@ -22,10 +22,7 @@ describe('reducers/alerts', () => {
 
   describe('defaultState', () => {
     it('should have default state set', () => {
-      expect(store.getState().streams).toEqual({
-        active: null,
-        all: {}
-      })
+      expect(store.getState().streams).toEqual({})
     })
   })
 
@@ -33,13 +30,7 @@ describe('reducers/alerts', () => {
     it('adds a stream', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
       expect(store.getState().streams).toEqual({
-        active: userId,
-        all: {
-          [userId]: {
-            userId,
-            url: jasmine.any(String)
-          }
-        }
+        [userId]: jasmine.any(String)
       })
     })
   })
@@ -48,20 +39,7 @@ describe('reducers/alerts', () => {
     it('removes a stream', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
       store.dispatch(StreamActions.removeStream(userId))
-      expect(store.getState().streams).toEqual({
-        active: userId,
-        all: {}
-      })
-    })
-  })
-
-  describe('activateStream', () => {
-    it('activates a stream', () => {
-      store.dispatch(StreamActions.activateStream(userId))
-      expect(store.getState().streams).toEqual({
-        active: userId,
-        all: {}
-      })
+      expect(store.getState().streams).toEqual({})
     })
   })
 

@@ -3,36 +3,32 @@ import React from 'react'
 import classnames from 'classnames'
 import { ME } from '../constants.js'
 
-export const StreamPropType = PropTypes.shape({
-  userId: PropTypes.string.isRequired,
-  url: PropTypes.string.isRequired
-})
-
 export default class Video extends React.Component {
   static propTypes = {
-    activate: PropTypes.func.isRequired,
+    setActive: PropTypes.func.isRequired,
     active: PropTypes.bool.isRequired,
-    stream: StreamPropType.isRequired
+    stream: PropTypes.string.isRequired,
+    userId: PropTypes.string.isRequired
   }
-  activate = e => {
-    const { activate, stream: { userId } } = this.props
+  setActive = e => {
+    const { setActive, userId } = this.props
     this.play(e)
-    activate(userId)
+    setActive(userId)
   }
   play = e => {
     e.preventDefault()
     e.target.play()
   }
   render () {
-    const { active, stream: { userId, url } } = this.props
+    const { active, stream, userId } = this.props
     const className = classnames('video-container', { active })
     return (
       <div className={className}>
         <video
           muted={userId === ME}
-          onClick={this.activate}
+          onClick={this.setActive}
           onLoadedMetadata={this.play}
-          src={url}
+          src={stream}
         />
       </div>
     )

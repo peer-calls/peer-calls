@@ -46,11 +46,8 @@ describe('App', () => {
   describe('state', () => {
     let alert
     beforeEach(() => {
-      state.streams = state.streams.setIn(['all'], {
-        'test': {
-          userId: 'test',
-          url: 'blob://'
-        }
+      state.streams = state.streams.merge({
+        test: 'blob://'
       })
       state.notifications = state.notifications.merge({
         'notification1': {
@@ -87,7 +84,7 @@ describe('App', () => {
         const video = node.querySelector('video')
         TestUtils.Simulate.click(video)
         expect(store.getActions()).toEqual([{
-          type: constants.STREAM_ACTIVATE,
+          type: constants.ACTIVE_SET,
           payload: { userId: 'test' }
         }])
       })
