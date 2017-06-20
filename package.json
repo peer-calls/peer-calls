@@ -16,7 +16,7 @@
     "js": "browserify -t babelify ./src/client/index.js -o ./build/index.js",
     "js:watch": "watchify -d -v -t babelify ./src/client/index.js -o ./build/index.js",
     "css": "node-sass ./src/scss/style.scss -o ./build/",
-    "css:watch": "node-sass --watch ./src/scss/style.scss -o ./build/",
+    "css:watch": "npm run css && node-sass --watch ./src/scss/style.scss -o ./build/",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "ci": "npm run lint && npm run test:coverage && npm run build"

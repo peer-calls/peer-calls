@@ -1,8 +1,10 @@
 import Promise from 'bluebird'
 
-export const createObjectURL = object => 'blob://' + String(object)
+export const createObjectURL = jest.fn()
+.mockImplementation(object => 'blob://' + String(object))
+export const revokeObjectURL = jest.fn()
 
-class MediaStream {}
+export class MediaStream {}
 export function getUserMedia () {
   return !getUserMedia.shouldFail
   ? Promise.resolve(getUserMedia.stream)

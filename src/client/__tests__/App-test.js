@@ -1,5 +1,6 @@
 jest.mock('../actions/CallActions.js')
 jest.mock('../socket.js')
+jest.mock('../window.js')
 
 import * as constants from '../constants.js'
 import App from '../containers/App.js'
@@ -8,6 +9,7 @@ import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
 import configureStore from 'redux-mock-store'
 import reducers from '../reducers'
+import { MediaStream } from '../window.js'
 import { Provider } from 'react-redux'
 import { init } from '../actions/CallActions.js'
 import { middlewares } from '../store.js'
@@ -44,9 +46,12 @@ describe('App', () => {
   describe('state', () => {
     let alert
     beforeEach(() => {
-      state.streams = state.streams.merge({
-        test: 'blob://'
-      })
+      state.streams = {
+        test: {
+          mediaStream: new MediaStream(),
+          url: 'blob://'
+        }
+      }
       state.peers = {
         test: {}
       }

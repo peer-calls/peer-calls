@@ -124,7 +124,10 @@ describe('SocketActions', () => {
         peer.emit(constants.PEER_EVENT_STREAM, stream)
 
         expect(store.getState().streams).toEqual({
-          b: jasmine.any(String)
+          b: {
+            mediaStream: stream,
+            url: jasmine.any(String)
+          }
         })
       })
     })
@@ -134,7 +137,10 @@ describe('SocketActions', () => {
         const stream = {}
         peer.emit(constants.PEER_EVENT_STREAM, stream)
         expect(store.getState().streams).toEqual({
-          b: jasmine.any(String)
+          b: {
+            mediaStream: stream,
+            url: jasmine.any(String)
+          }
         })
       })
 

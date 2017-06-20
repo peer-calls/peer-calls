@@ -4,7 +4,7 @@ import Input from './Input.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
 import PropTypes from 'prop-types'
 import React from 'react'
-import Video from './Video.js'
+import Video, { StreamPropType } from './Video.js'
 import _ from 'underscore'
 
 export default class App extends React.PureComponent {
@@ -17,7 +17,7 @@ export default class App extends React.PureComponent {
     notify: PropTypes.func.isRequired,
     peers: PropTypes.object.isRequired,
     sendMessage: PropTypes.func.isRequired,
-    streams: PropTypes.objectOf(PropTypes.string).isRequired,
+    streams: PropTypes.objectOf(StreamPropType).isRequired,
     toggleActive: PropTypes.func.isRequired
   }
   componentDidMount () {

@@ -16,6 +16,7 @@ export function getUserMedia (constraints) {
 }
 
 export const createObjectURL = object => window.URL.createObjectURL(object)
+export const revokeObjectURL = url => window.URL.revokeObjectURL(url)
 
 export const navigator = window.navigator
 
@@ -38,3 +39,5 @@ export const valueOf = id => {
 
 export const callId = valueOf('callId')
 export const iceServers = JSON.parse(valueOf('iceServers'))
+
+export const MediaStream = window.MediaStream

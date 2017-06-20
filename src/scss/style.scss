@@ -265,12 +265,16 @@ body.call {
 
     input {
       box-shadow: 0px 0px 5px black;
-      background-color: black;
-      background-color: rgba(0, 0, 0, 0.5);
+      // background-color: black;
+      background-color: #333;
       border: none;
       color: #ccc;
       padding: 0.5rem;
       font-family: $font-monospace;
+    }
+
+    input[type="submit"] {
+
     }
   }
 

@@ -2,6 +2,7 @@ import Promise from 'bluebird'
 
 import {
   createObjectURL,
+  revokeObjectURL,
   getUserMedia,
   navigator,
   play,
@@ -96,6 +97,15 @@ describe('window', () => {
     it('calls window.URL.createObjectURL', () => {
       window.URL.createObjectURL = jest.fn().mockReturnValue('test')
       expect(createObjectURL()).toBe('test')
+    })
+
+  })
+
+  describe('createObjectURL', () => {
+
+    it('calls window.URL.revokeObjectURL', () => {
+      window.URL.revokeObjectURL = jest.fn()
+      expect(revokeObjectURL()).toBe(undefined)
     })
 
   })

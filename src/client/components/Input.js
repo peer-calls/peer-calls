@@ -45,6 +45,7 @@ export default class Input extends React.PureComponent {
           type="text"
           value={message}
         />
+        <input type="submit" value="Send"/>
       </form>
     )
   }
