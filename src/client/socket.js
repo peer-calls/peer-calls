@@ -1,2 +1,3 @@
 import SocketIOClient from 'socket.io-client'
-export default new SocketIOClient()
+import { baseUrl } from './window.js'
+export default new SocketIOClient('', { path: baseUrl + '/ws' })

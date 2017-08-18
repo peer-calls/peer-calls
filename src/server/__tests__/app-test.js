@@ -5,9 +5,12 @@ jest.mock('socket.io', () => {
 jest.mock('../socket.js')
 
 const app = require('../app.js')
+const config = require('config')
 const handleSocket = require('../socket.js')
 const io = require('socket.io')()
 const request = require('supertest')
+
+const BASE_URL = config.get('baseUrl')
 
 describe('server/app', () => {
 
@@ -27,14 +30,7 @@ describe('server/app', () => {
       return request(app)
       .get('/call')
       .expect(302)
-      .expect('location', /^call\/[0-9a-f-]{36}$/)
-    })
-
-    it('redirects to relative url when slash', () => {
-      return request(app)
-      .get('/call/')
-      .expect(302)
-      .expect('location', /[0-9a-f-]{36}$/)
+      .expect('location', new RegExp(`^${BASE_URL}/call/[0-9a-f-]{36}$`))
     })
 
   })

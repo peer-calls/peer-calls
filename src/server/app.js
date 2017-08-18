@@ -1,22 +1,32 @@
 #!/usr/bin/env node
 'use strict'
+const config = require('config')
+const debug = require('debug')('peercalls')
 const express = require('express')
 const handleSocket = require('./socket.js')
 const path = require('path')
 
+const BASE_URL = config.get('baseUrl')
+const SOCKET_URL = `${BASE_URL}/ws`
+
+debug(`WebSocket URL: ${SOCKET_URL}`)
+
 const app = express()
 const http = require('http').Server(app)
-const io = require('socket.io')(http)
+const io = require('socket.io')(http, { path: SOCKET_URL })
 
 app.locals.version = require('../../package.json').version
+app.locals.baseUrl = BASE_URL
 
 app.set('view engine', 'pug')
 app.set('views', path.join(__dirname, '../views'))
 
-app.use('/res', express.static(path.join(__dirname, '../res')))
-app.use('/static', express.static(path.join(__dirname, '../../build')))
-app.use('/call', require('./routes/call.js'))
-app.use('/', require('./routes/index.js'))
+const router = express.Router()
+router.use('/res', express.static(path.join(__dirname, '../res')))
+router.use('/static', express.static(path.join(__dirname, '../../build')))
+router.use('/call', require('./routes/call.js'))
+router.use('/', require('./routes/index.js'))
+app.use(BASE_URL, router)
 
 io.on('connection', socket => handleSocket(socket, io))
 

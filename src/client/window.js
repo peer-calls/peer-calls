@@ -37,6 +37,7 @@ export const valueOf = id => {
   return el && el.value
 }
 
+export const baseUrl = valueOf('baseUrl')
 export const callId = valueOf('callId')
 export const iceServers = JSON.parse(valueOf('iceServers'))
 

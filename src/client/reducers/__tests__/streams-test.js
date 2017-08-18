@@ -2,10 +2,9 @@ jest.mock('../../window.js')
 
 import * as StreamActions from '../../actions/StreamActions.js'
 import reducers from '../index.js'
-import { MediaStream } from '../../window.js'
+import { createObjectURL, MediaStream } from '../../window.js'
 import { applyMiddleware, createStore } from 'redux'
 import { create } from '../../middlewares.js'
-import { createObjectURL } from '../../window.js'
 
 describe('reducers/alerts', () => {
 
