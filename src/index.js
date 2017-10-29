@@ -7,5 +7,16 @@ if (!process.env.DEBUG) {
 const app = require('./server/app.js')
 const debug = require('debug')('peercalls')
 
-let port = process.env.PORT || 3000
-app.listen(port, () => debug('Listening on: %s', port))
+const port = process.env.PORT || 3000
+const server = app.listen(port, () => debug('Listening on: %s', port))
+
+function close () {
+  debug('Closing server...')
+  server.close(() => {
+    debug('Bye!')
+    process.exit()
+  })
+}
+
+process.on('SIGINT', close)
+process.on('SIGTERM', close)

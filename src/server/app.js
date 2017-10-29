@@ -5,6 +5,7 @@ const debug = require('debug')('peercalls')
 const express = require('express')
 const handleSocket = require('./socket.js')
 const path = require('path')
+const { createServer } = require('./server.js')
 
 const BASE_URL = config.get('baseUrl')
 const SOCKET_URL = `${BASE_URL}/ws`
@@ -12,8 +13,8 @@ const SOCKET_URL = `${BASE_URL}/ws`
 debug(`WebSocket URL: ${SOCKET_URL}`)
 
 const app = express()
-const http = require('http').Server(app)
-const io = require('socket.io')(http, { path: SOCKET_URL })
+const server = createServer(config, app)
+const io = require('socket.io')(server, { path: SOCKET_URL })
 
 app.locals.version = require('../../package.json').version
 app.locals.baseUrl = BASE_URL
@@ -30,4 +31,4 @@ app.use(BASE_URL, router)
 
 io.on('connection', socket => handleSocket(socket, io))
 
-module.exports = http
+module.exports = server
