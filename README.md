@@ -20,8 +20,8 @@ cd peer-calls
 npm install
 
 # for production
-npm start
 npm run build
+npm start
 
 # for development
 npm run start:watch
