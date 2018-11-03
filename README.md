@@ -12,7 +12,17 @@ Work in progress.
 
 # Installation & Running
 
-From git source:
+## From npm
+
+create directory `./peer-calls` and copy [config/default.json](https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json) into it.
+
+```bash
+npm install --global peer-calls
+
+env NODE_CONFIG_DIR=./peer-calls peercalls
+```
+
+## From git source
 
 ```bash
 git clone https://github.com/jeremija/peer-calls.git
