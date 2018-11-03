@@ -4,7 +4,9 @@
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/jeremija/peer-calls",
   "main": "src/index.js",
-  "bin": { "peercalls": "./src/index.js" },
+  "bin": {
+    "peercalls": "./src/index.js"
+  },
   "scripts": {
     "start": "node src/index.js",
     "start:server": "nodemon src/index.js --ignore build/ --ignore src/client",
