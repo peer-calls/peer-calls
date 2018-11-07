@@ -2,6 +2,7 @@
 *.swo
 dist/
 build/
+!build/.gitkeep
 node_modules/
 config.js
 coverage/
