@@ -54,7 +54,7 @@ describe('components/Video', () => {
         component.setState({
           stream: { url: 'test', mediaStream }
         })
-        expect(video.refs.video.src).toBe('test')
+        expect(video.refs.video.src).toBe('http://localhost/test')
         component.setState({
           stream: { url: 'test', mediaStream }
         })

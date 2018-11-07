@@ -27,7 +27,7 @@ describe('reducers/alerts', () => {
 
   describe('init', () => {
 
-    it('calls handshake.init when connected & got camera stream', done => {
+    it('calls handshake.init when connected & got camera stream', async () => {
       const promise = store.dispatch(CallActions.init())
       socket.emit('connect')
       expect(store.getActions()).toEqual([{
@@ -40,18 +40,16 @@ describe('reducers/alerts', () => {
           type: 'warning'
         }
       }])
-      promise.then(() => {
-        expect(SocketActions.handshake.mock.calls).toEqual([[{
-          socket,
-          roomName: callId,
-          stream: getUserMedia.stream
-        }]])
-      })
-      .then(done)
-      .catch(done.fail)
+      await promise
+      expect(SocketActions.handshake.mock.calls).toEqual([[{
+        socket,
+        roomName: callId,
+        stream: getUserMedia.stream
+      }]])
     })
 
-    it('calls dispatches disconnect message on disconnect', done => {
+    it('calls dispatches disconnect message on disconnect', async () => {
+
       const promise = store.dispatch(CallActions.init())
       socket.emit('connect')
       socket.emit('disconnect')
@@ -72,19 +70,15 @@ describe('reducers/alerts', () => {
           type: 'error'
         }
       }])
-      promise.then(done).catch(done.fail)
+      await promise
     })
 
-    it('dispatches alert when failed to get media stream', done => {
+    it('dispatches alert when failed to get media stream', async () => {
       getUserMedia.fail(true)
       const promise = store.dispatch(CallActions.init())
       socket.emit('connect')
-      promise
-      .then(result => {
-        expect(result.value).toBe(null)
-        done()
-      })
-      .catch(done.fail)
+      const result = await promise
+      expect(result.value).toBe(null)
     })
 
   })
