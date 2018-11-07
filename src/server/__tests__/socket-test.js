@@ -8,14 +8,14 @@ describe('server/socket', () => {
   beforeEach(() => {
     socket = new EventEmitter()
     socket.id = 'socket0'
-    socket.join = jest.genMockFunction()
-    socket.leave = jest.genMockFunction()
+    socket.join = jest.fn()
+    socket.leave = jest.fn()
     rooms = {}
 
     io = {}
-    io.in = io.to = jest.genMockFunction().mockImplementation(room => {
+    io.in = io.to = jest.fn().mockImplementation(room => {
       return (rooms[room] = rooms[room] || {
-        emit: jest.genMockFunction()
+        emit: jest.fn()
       })
     })
 
@@ -39,8 +39,8 @@ describe('server/socket', () => {
       }
     }
 
-    socket.leave = jest.genMockFunction()
-    socket.join = jest.genMockFunction()
+    socket.leave = jest.fn()
+    socket.join = jest.fn()
   })
 
   it('should be a function', () => {

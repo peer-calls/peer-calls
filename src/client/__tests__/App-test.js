@@ -22,6 +22,7 @@ describe('App', () => {
   beforeEach(() => {
     init.mockReturnValue(initAction)
     state = reducers()
+    window.HTMLMediaElement.prototype.play = jest.fn()
   })
 
   let component, node, store
