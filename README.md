@@ -22,6 +22,8 @@ npm install --global peer-calls
 env NODE_CONFIG_DIR=./peer-calls peercalls
 ```
 
+> :warning: Using `--global` is not advised in server environments. [*](https://github.com/jeremija/peer-calls/pull/48)
+
 ## From git source
 
 ```bash
