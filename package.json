@@ -4,11 +4,15 @@
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/jeremija/peer-calls",
   "main": "src/index.js",
+  "bin": {
+    "peercalls": "./src/index.js"
+  },
   "scripts": {
     "start": "node src/index.js",
     "start:server": "nodemon src/index.js --ignore build/ --ignore src/client",
     "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "watch": "",
+    "prepublishOnly": "npm run build",
     "build": "npm run css && npm run js",
     "test": "jest",
     "test:coverage": "jest --coverage",
