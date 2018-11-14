@@ -1,0 +1,9 @@
+stages:
+  - test
+
+test:
+  image: node:8
+  stage: test
+  script:
+    - npm install
+    - npm run ci
