@@ -50,7 +50,7 @@ export default class Video extends React.PureComponent {
       <div className={className}>
         <video
           autoPlay
-          muted={userId === ME}
+          //muted={userId === ME}
           onClick={this.handleClick}
           onLoadedMetadata={this.play}
           playsInline

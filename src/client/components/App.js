@@ -1,5 +1,6 @@
 import Alerts, { AlertPropType } from './Alerts.js'
 import * as constants from '../constants.js'
+import Toolbar from './Toolbar.js'
 import Input from './Input.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
 import PropTypes from 'prop-types'
@@ -38,6 +39,7 @@ export default class App extends React.PureComponent {
     } = this.props
 
     return (<div className="app">
+      <Toolbar stream={streams[constants.ME]} />
       <Alerts alerts={alerts} dismiss={dismissAlert} />
       <Notifications notifications={notifications} />
       <Input notify={notify} sendMessage={sendMessage} />
