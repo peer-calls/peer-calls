@@ -1,5 +1,5 @@
 import React from 'react'
-import { StreamPropType } from './video.js'
+import { StreamPropType } from './Video.js'
 
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
