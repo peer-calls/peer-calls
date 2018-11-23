@@ -1,4 +1,4 @@
-@import "_fonts";
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
 
 $font-sans-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
 $font-monospace: Menlo, Monaco, Consolas, "Ubuntu Mono", monospace;
@@ -284,32 +284,27 @@ body.call {
     position: absolute;
     z-index: 1;
 
-    circle {
-      fill: #666;
-      fill-opacity: 0.6;
-    }
-
-    svg.on circle {
-      fill-opacity: 0;
-    }
-
     /* on icons are hidden by default */
 
-    path {
+    .material-icons {
       &.on {
         display: none;
       }
       &.off {
         display: block;
       }
+      color: #fff;
+      position: absolute;
+      top: 12px;
+      left: 12px;
     }
 
     /* off icons are displayed by default */
 
     /* on icons are displayed when parent svg has class 'on' */
 
-    svg {
-      &.on path {
+    .button {
+      &.on .material-icons {
         &.on {
           display: block;
         }
@@ -317,7 +312,8 @@ body.call {
           display: none;
         }
       }
-      //background-color: #333;
+      width: 48px;
+      height: 48px;
       border-radius: 48px;
       box-shadow: 2px 2px 24px #444;
       display: block;
@@ -332,57 +328,31 @@ body.call {
 
     /* off icons are hidden when parent svg has class 'on' */
 
-    &.active svg {
+    &.active .button {
       transform: translateX(0);
     }
 
-    .chat {
-      transition: 200ms;
-      &:hover {
-        background: #407cf7;
-        circle {
-          fill: #407cf7;
-        }
-      }
-    }
-
     .mute-audio {
-      transition: 40ms;
       &:hover, &.on {
         background: #407cf7;
-      }
-      &:hover circle {
-        fill: #407cf7;
       }
     }
 
     .mute-video {
-      transition: 120ms;
       &:hover, &.on {
         background: #407cf7;
-      }
-      &:hover circle {
-        fill: #407cf7;
       }
     }
 
     .fullscreen {
-      transition: 280ms;
       &:hover, &.on {
         background: #407cf7;
-      }
-      &:hover circle {
-        fill: #407cf7;
       }
     }
 
     .hangup {
-      transition: 360ms;
       &:hover {
         background: #dd2c00;
-        circle {
-          fill: #dd2c00;
-        }
       }
     }
   }
