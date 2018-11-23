@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
-import { ME } from '../constants.js'
 import { MediaStream } from '../window.js'
 
 export const StreamPropType = PropTypes.shape({
@@ -44,13 +43,12 @@ export default class Video extends React.PureComponent {
     }
   }
   render () {
-    const { active, userId } = this.props
+    const { active } = this.props
     const className = classnames('video-container', { active })
     return (
       <div className={className}>
         <video
           autoPlay
-          //muted={userId === ME}
           onClick={this.handleClick}
           onLoadedMetadata={this.play}
           playsInline
