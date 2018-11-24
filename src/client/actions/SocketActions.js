@@ -42,7 +42,7 @@ class SocketHandler {
     .filter(id => !newUsersMap[id])
     .forEach(id => peers[id].destroy())
   }
-  handleMessages = ({ messages }) => {
+  handleMessages = (messages) => {
     const { dispatch } = this
     debug('socket messages: %o', messages)
     dispatch(ChatActions.loadHistory(messages))

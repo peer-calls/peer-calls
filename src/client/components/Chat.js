@@ -12,7 +12,7 @@ export default class Chat extends React.PureComponent {
   static propTypes = {
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired
   }
-  hideChat = e => {
+  handleCloseChat = e => {
     document.getElementById('chat').classList.remove('show')
     document.querySelector('.toolbar .chat').classList.remove('on')
   }
@@ -21,7 +21,7 @@ export default class Chat extends React.PureComponent {
     return (
       <div>
         <div className="chat-header">
-          <div className="chat-close" onClick={this.hideChat}>
+          <div className="chat-close" onClick={this.handleCloseChat}>
             <div className="button button-icon">
               <span className="material-icons">arrow_back</span>
             </div>
@@ -32,13 +32,19 @@ export default class Chat extends React.PureComponent {
 
           {messages.length ? (
             messages.map((message, i) => (
-              <div className={message.userId === socket.id ? 'chat-bubble alt' : 'chat-bubble'} key={i}>
+              <div key={i}
+                className={
+                  message.userId === socket.id
+                    ? 'chat-bubble alt'
+                    : 'chat-bubble'
+                }
+              >
                 <div className="txt">
                   <p className="name">{message.userId}</p>
                   <p className="message">{message.message}</p>
                   <span className="timestamp">{message.timestamp}</span>
                 </div>
-                <div className="arrow"></div>
+                <div className="arrow" />
               </div>
             ))
           ) : (

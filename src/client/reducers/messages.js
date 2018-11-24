@@ -10,7 +10,7 @@ export default function messages (state = defaultState, action) {
       messages.push(action.payload)
       return Immutable(messages)
     case constants.MESSAGES_HISTORY:
-      return Immutable(action.messages);
+      return Immutable(action.messages)
     default:
       return state
   }

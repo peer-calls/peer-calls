@@ -36,8 +36,8 @@ export default class Input extends React.PureComponent {
       notify('You: ' + message)
       sendMessage(message)
 
-      const userId = socket.id;
-      const timestamp = moment().format('ddd, D MMM HH:mm a');
+      const userId = socket.id
+      const timestamp = moment().format('ddd, D MMM HH:mm a')
       const payload = { userId, message, timestamp }
       socket.emit('new_message', payload)
     }
