@@ -1,13 +1,28 @@
+import PropTypes from 'prop-types'
 import React from 'react'
+import { MessagePropTypes } from './Chat.js'
 import { StreamPropType } from './Video.js'
 
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
+    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     stream: StreamPropType
   }
+  constructor () {
+    super()
+    this.state = {
+      isChatOpen: false,
+      totalMessages: 0
+    }
+  }
   handleChatClick = e => {
+    const { messages } = this.props
     document.getElementById('chat').classList.toggle('show')
     e.currentTarget.classList.toggle('on')
+    this.setState({
+      isChatOpen: document.getElementById('chat').classList.contains('show'),
+      totalMessages: messages.length
+    })
   }
   handleMicClick = e => {
     const { stream } = this.props
@@ -58,12 +73,14 @@ export default class Toolbar extends React.PureComponent {
     window.location.href = '/'
   }
   render () {
-    const { stream } = this.props
+    const { messages, stream } = this.props
+    const { isChatOpen, totalMessages } = this.state
 
     return (
       <div className="toolbar active">
         <div onClick={this.handleChatClick}
           className="button chat"
+          data-blink={messages.length !== totalMessages && !isChatOpen}
           title="Chat"
         >
           <span className="material-icons">chat</span>

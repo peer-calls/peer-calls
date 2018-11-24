@@ -43,7 +43,7 @@ export default class App extends React.PureComponent {
 
     return (
       <div className="app">
-        <Toolbar stream={streams[constants.ME]} />
+        <Toolbar messages={messages} stream={streams[constants.ME]} />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
         <div id="chat">

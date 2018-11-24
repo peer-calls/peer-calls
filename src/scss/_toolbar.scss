@@ -54,6 +54,11 @@
   }
 
   .chat {
+    &[data-blink="true"] {
+      -webkit-animation: bg-blink 1s infinite;
+      -moz-animation: bg-blink 1s infinite;
+      animation: bg-blink 1s infinite;
+    }
     &:hover, &.on {
       background: #407cf7;
     }
@@ -81,5 +86,35 @@
     &:hover {
       background: #dd2c00;
     }
+  }
+}
+
+@-webkit-keyframes bg_blink {
+  50% {
+    background-color: #407cf7;
+  }
+
+  99% {
+    background-color: #407cf7;
+  }
+}
+
+@-moz-keyframes bg-blink {
+  50% {
+    background-color: #407cf7;
+  }
+
+  99% {
+    background-color: #407cf7;
+  }
+}
+
+@keyframes bg-blink {
+  50% {
+    background-color: #407cf7;
+  }
+
+  99% {
+    background-color: #407cf7;
   }
 }

@@ -23,7 +23,7 @@ export default class Chat extends React.PureComponent {
         <div className="chat-header">
           <div className="chat-close" onClick={this.handleCloseChat}>
             <div className="button button-icon">
-              <span className="material-icons">arrow_back</span>
+              <span className="material-icons">arrow_forward</span>
             </div>
           </div>
           <div className="chat-title">Chat</div>
