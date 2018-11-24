@@ -5,6 +5,10 @@ export default class Toolbar extends React.PureComponent {
   static propTypes = {
     stream: StreamPropType
   }
+  handleChatClick = e => {
+    document.getElementById('chat').classList.toggle('show')
+    e.currentTarget.classList.toggle('on')
+  }
   handleMicClick = e => {
     const { stream } = this.props
     stream.mediaStream.getAudioTracks().forEach(track => {
@@ -58,6 +62,12 @@ export default class Toolbar extends React.PureComponent {
 
     return (
       <div className="toolbar active">
+        <div onClick={this.handleChatClick}
+          className="button chat"
+          title="Chat"
+        >
+          <span className="material-icons">chat</span>
+        </div>
 
         {stream && (
           <div onClick={this.handleMicClick}

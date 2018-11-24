@@ -1,5 +1,4 @@
 .DS_Store
-yarn.lock
 *.swp
 *.swo
 dist/

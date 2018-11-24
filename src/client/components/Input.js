@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types'
 import React from 'react'
+import moment from 'moment'
+import socket from '../socket.js'
 
 export default class Input extends React.PureComponent {
   static propTypes = {
@@ -30,8 +32,15 @@ export default class Input extends React.PureComponent {
   submit = () => {
     const { notify, sendMessage } = this.props
     const { message } = this.state
-    notify('You: ' + message)
-    sendMessage(message)
+    if (message) {
+      notify('You: ' + message)
+      sendMessage(message)
+
+      const userId = socket.id;
+      const timestamp = moment().format('ddd, D MMM HH:mm a');
+      const payload = { userId, message, timestamp }
+      socket.emit('new_message', payload)
+    }
     this.setState({ message: '' })
   }
   render () {

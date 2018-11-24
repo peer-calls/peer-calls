@@ -1,8 +1,9 @@
 import Alerts, { AlertPropType } from './Alerts.js'
 import * as constants from '../constants.js'
 import Toolbar from './Toolbar.js'
-import Input from './Input.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
+import Chat, { MessagePropTypes } from './Chat.js'
+import Input from './Input.js'
 import PropTypes from 'prop-types'
 import React from 'react'
 import Video, { StreamPropType } from './Video.js'
@@ -16,6 +17,7 @@ export default class App extends React.PureComponent {
     init: PropTypes.func.isRequired,
     notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
     notify: PropTypes.func.isRequired,
+    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     peers: PropTypes.object.isRequired,
     sendMessage: PropTypes.func.isRequired,
     streams: PropTypes.objectOf(StreamPropType).isRequired,
@@ -32,35 +34,41 @@ export default class App extends React.PureComponent {
       dismissAlert,
       notifications,
       notify,
+      messages,
       peers,
       sendMessage,
       toggleActive,
       streams
     } = this.props
 
-    return (<div className="app">
-      <Toolbar stream={streams[constants.ME]} />
-      <Alerts alerts={alerts} dismiss={dismissAlert} />
-      <Notifications notifications={notifications} />
-      <Input notify={notify} sendMessage={sendMessage} />
-      <div className="videos">
-        <Video
-          active={active === constants.ME}
-          onClick={toggleActive}
-          stream={streams[constants.ME]}
-          userId={constants.ME}
-        />
-
-        {_.map(peers, (_, userId) => (
+    return (
+      <div className="app">
+        <Toolbar stream={streams[constants.ME]} />
+        <Alerts alerts={alerts} dismiss={dismissAlert} />
+        <Notifications notifications={notifications} />
+        <div id="chat">
+          <Chat messages={messages} />
+          <Input notify={notify} sendMessage={sendMessage} />
+        </div>
+        <div className="videos">
           <Video
-            active={userId === active}
-            key={userId}
+            active={active === constants.ME}
             onClick={toggleActive}
-            stream={streams[userId]}
-            userId={userId}
+            stream={streams[constants.ME]}
+            userId={constants.ME}
           />
-        ))}
+
+          {_.map(peers, (_, userId) => (
+            <Video
+              active={userId === active}
+              key={userId}
+              onClick={toggleActive}
+              stream={streams[userId]}
+              userId={userId}
+            />
+          ))}
+        </div>
       </div>
-    </div>)
+    )
   }
 }

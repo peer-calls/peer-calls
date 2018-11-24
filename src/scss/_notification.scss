@@ -1,0 +1,24 @@
+.notifications {
+  font-family: $font-monospace;
+  font-size: 10px;
+  left: 1rem;
+  position: fixed;
+  right: 1rem;
+  text-align: right;
+  top: 1rem;
+  z-index: 3;
+
+  .notification {
+    color: $color-info;
+    padding: 0.25rem;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  .notification.error {
+    color: $color-error;
+  }
+
+  .notification.warning {
+    color: $color-warning;
+  }
+}
