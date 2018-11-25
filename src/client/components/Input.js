@@ -68,7 +68,7 @@ export default class Input extends React.PureComponent {
           value={message}
         />
         <button type="submit" className="send">
-          <span className="material-icons">send</span>
+          <span className="icon icon-send" />
         </button>
       </form>
     )

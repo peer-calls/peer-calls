@@ -60,7 +60,7 @@ export default class Chat extends React.PureComponent {
         <div className="chat-header">
           <div className="chat-close" onClick={this.handleCloseChat}>
             <div className="button button-icon">
-              <span className="material-icons">arrow_forward</span>
+              <span className="icon icon-arrow_forward" />
             </div>
           </div>
           <div className="chat-title">Chat</div>
@@ -95,7 +95,7 @@ export default class Chat extends React.PureComponent {
             ))
           ) : (
             <div className="chat-empty">
-              <div className="chat-empty-icon material-icons">chat</div>
+              <span className="chat-empty-icon icon icon-question_answer" />
               <div className="chat-empty-message">No Notifications</div>
             </div>
           )}

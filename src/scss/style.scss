@@ -1,5 +1,5 @@
-@import './variables';
-@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
+@import '_fonts';
+@import '_variables';
 
 *,
 *:before,
@@ -138,11 +138,11 @@ body.call {
 }
 
 .app {
-  @import './alert';
-  @import './notification';
-  @import './video';
-  @import './chat';
-  @import './toolbar';
+  @import '_alert';
+  @import '_notification';
+  @import '_video';
+  @import '_chat';
+  @import '_toolbar';
 }
 
 .fade-enter {

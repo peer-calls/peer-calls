@@ -6,7 +6,7 @@
 
   /* on icons are hidden by default */
 
-  .material-icons {
+  .icon {
     &.on {
       display: none;
     }
@@ -24,7 +24,7 @@
   /* on icons are displayed when parent svg has class 'on' */
 
   .button {
-    &.on .material-icons {
+    &.on .icon {
       &.on {
         display: block;
       }

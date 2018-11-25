@@ -59,7 +59,7 @@ export default class Toolbar extends React.PureComponent {
           data-blink={messages.length !== totalMessages && !isChatOpen}
           title="Chat"
         >
-          <span className="material-icons">chat</span>
+          <span className="icon icon-question_answer" />
         </div>
 
         {stream && (
@@ -67,8 +67,8 @@ export default class Toolbar extends React.PureComponent {
             className="button mute-audio"
             title="Mute audio"
           >
-            <span className="on material-icons">mic_off</span>
-            <span className="off material-icons">mic</span>
+            <span className="on icon icon-mic_off" />
+            <span className="off icon icon-mic" />
           </div>
         )}
 
@@ -77,8 +77,8 @@ export default class Toolbar extends React.PureComponent {
             className="button mute-video"
             title="Mute video"
           >
-            <span className="on material-icons">videocam_off</span>
-            <span className="off material-icons">videocam</span>
+            <span className="on icon icon-videocam_off" />
+            <span className="off icon icon-videocam" />
           </div>
         )}
 
@@ -86,15 +86,15 @@ export default class Toolbar extends React.PureComponent {
           className="button fullscreen"
           title="Enter fullscreen"
         >
-          <span className="on material-icons">fullscreen_exit</span>
-          <span className="off material-icons">fullscreen</span>
+          <span className="on icon icon-fullscreen_exit" />
+          <span className="off icon icon-fullscreen" />
         </div>
 
         <div onClick={this.handleHangoutClick}
           className="button hangup"
           title="Hangup"
         >
-          <span className="material-icons">call_end</span>
+          <span className="icon icon-call_end" />
         </div>
       </div>
     )
