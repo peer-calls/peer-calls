@@ -1,26 +1,4 @@
-.input {
-  position: absolute;
-  right: 10px;
-  bottom: 30px;
-  z-index: 2;
-  width: calc(100% - 30px);
-
-  input {
-    box-shadow: 0px 0px 5px black;
-    background-color: #333;
-    border: none;
-    color: #ccc;
-    padding: 0.5rem;
-    font-family: $font-monospace;
-  }
-
-  input[type="text"] {
-    width: 85%;
-  }
-}
-
 #chat {
-  background-color: #f2f2f2;
   position: fixed;
   top: 0;
   bottom: 0;
@@ -80,14 +58,14 @@
   }
 
   .chat-content {
-    background-color: #999;
+    background-color: #f2f2f2;
     bottom: 0;
     left: 0;
     overflow-y: auto;
     position: absolute;
     right: 0;
     top: 52px;
-    padding: 20px;
+    bottom: 52px;
   }
 
   .chat-empty {
@@ -100,98 +78,202 @@
     -ms-transform: translateY(-50%);
     -webkit-transform: translateY(-50%);
     transform: translateY(-50%);
+
+    .chat-empty-icon {
+      font-size: 88px;
+    }
+
+    .chat-empty-message {
+      font-size: 15px;
+      font-weight: bold;
+    }
   }
 
-  .chat-empty-icon {
-    font-size: 88px;
-  }
-
-  .chat-empty-message {
-    font-size: 15px;
-    font-weight: bold;
-  }
-
-  .chat-bubble {
-    max-width: 240px;
-    height: auto;
-    display: block;
-    background: #f5f5f5;
-    border-radius: 4px;
-    box-shadow: 0px 0px 5px black;
+  .chat-item {
+    background-color: #fff;
+    box-shadow: 0 1px 1.5px 0 rgba(0, 0, 0, 0.12), 0 1px 6px rgba(0, 0, 0, 0.12);
+    line-height: 20px;
+    min-height: 80px;
+    padding: 15px 15px 15px 80px;
     position: relative;
-    margin: 0 0 25px;
+    border-top: 1px solid #e9e9e9;
 
-    &.alt {
-      margin: 0 0 25px 60px;
+    .chat-item-label {
+      display: none;
     }
 
-    &:last-child {
-      margin-bottom: 80px;
-    }
-
-    .txt {
-      padding: 8px 55px 8px 14px;
-
-      .name {
-        font-weight: 600;
-        font-size: 12px;
-        margin: 0 0 4px;
-        color: #3498db;
-
-        span {
-          font-weight: normal;
-          color: #b3b3b3;
-        }
-
-        &.alt {
-          color: #2ecc71;
-        }
-      }
-
-      .message {
-        font-size: 12px;
-        margin: 0;
-        color: #2b2b2b;
-      }
-
-      .timestamp {
-        font-size: 11px;
-        position: absolute;
-        bottom: 8px;
-        right: 10px;
-        text-transform: uppercase; color: #999
-      }
-    }
-
-    .arrow {
+    .chat-item-icon {
+      height: 50px;
+      left: 15px;
       position: absolute;
-      width: 0;
-      bottom:42px;
-      left: -16px;
-      height: 0;
+      top: 15px;
+      width: 50px;
+    }
 
-      &:after {
-        content: "";
-        position: absolute;
-        border: 0 solid transparent;
-        border-top: 9px solid #f5f5f5;
-        border-radius: 0 20px 0;
-        width: 15px;
-        height: 30px;
-        transform: rotate(145deg);
+    .chat-item-details {
+      float: right;
+      text-align: right;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 0 0 0 10px;
+
+      .chat-item-date {
+        color: #888;
+        font-size: 12px;
       }
     }
 
-    &.alt {
-      .arrow {
-        right: -2px;
-        bottom: 40px;
-        left: auto;
+    .chat-item-content {
+      color: #363636;
+      font-size: 13px;
+      font-weight: 400;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-wrap: break-word;
 
-        &:after {
-          transform: rotate(45deg) scaleY(-1);
+      > {
+        a, span a {
+          color: #363636;
+          font-weight: 700;
+          text-decoration: none;
         }
       }
+    }
+
+    &.is-clickable {
+      cursor: pointer;
+
+      &:hover {
+        background-color: #ebf2fe;
+      }
+    }
+
+    &.is-labeled {
+      border-top: none;
+      margin-top: 40px;
+
+      .chat-item-label {
+        color: #888;
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        left: 0;
+        line-height: 20px;
+        padding: 10px;
+        position: absolute;
+        top: -40px;
+      }
+    }
+  }
+
+  .chat-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    background: #fff;
+    box-shadow: 0 1px 1.5px 0 rgba(0, 0, 0, 0.12), 0 1px 6px rgba(0, 0, 0, 0.12);
+    border-top: 1px solid #e9e9e9;
+
+    .input {
+      height: 52px;
+      background: #fff;
+      border: none;
+      width: calc(100% - 52px);
+      position: absolute;
+      left: 0;
+      top: 0;
+      padding: 10px;
+      resize: none;
+      overflow: scroll;
+      font-weight: 300;
+
+      &:focus {
+        outline: none;
+      }
+
+      -ms-overflow-style: none;
+      overflow: -moz-scrollbars-none;
+      //gotta hide windows scrollbars
+
+      &::-webkit-scrollbar {
+        width: 0 !important
+      }
+    }
+
+    .send {
+      position: absolute;
+      height: 32px;
+      width: 32px;
+      border-radius: 50%;
+      border: 0;
+      background: #000;
+      color: #fff;
+      bottom: 8px;
+      right: 8px;
+      padding: 4px 6px 0;
+
+      &:focus {
+        outline: none;
+      }
+      &:hover {
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.profile-image-component {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  text-align: center;
+  background-color: #ccc;
+  color: #fff;
+  position: relative;
+  font-size: 0;
+  line-height: 0;
+
+  .profile-image-component-icon, .profile-image-component-initials {
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    -ms-transform: translateY(-50%);
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
+  }
+
+  .profile-image-component-icon {
+    font-size: 22px;
+    font-weight: 400;
+  }
+
+  .profile-image-component-initials {
+    font-size: 16px;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+
+  .profile-image-component-image {
+    height: 100%;
+    left: 0;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    width: 100%;
+
+    > img {
+      height: 100%;
+    }
+  }
+
+  &.profile-image-component-circle {
+    border-radius: 50%;
+
+    .profile-image-component-image {
+      border-radius: 50%;
     }
   }
 }

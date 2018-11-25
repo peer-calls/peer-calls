@@ -1,6 +1,5 @@
 import PropTypes from 'prop-types'
 import React from 'react'
-import moment from 'moment'
 import socket from '../socket.js'
 
 export default class Input extends React.PureComponent {
@@ -24,7 +23,7 @@ export default class Input extends React.PureComponent {
     this.submit()
   }
   handleKeyPress = e => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       this.submit()
     }
@@ -37,8 +36,21 @@ export default class Input extends React.PureComponent {
       sendMessage(message)
 
       const userId = socket.id
-      const timestamp = moment().format('ddd, D MMM HH:mm a')
-      const payload = { userId, message, timestamp }
+      const timestamp = new Date()
+      let image = null
+
+      // take snapshoot
+      try {
+        const video = document.getElementById(`video-${userId}`)
+        const canvas = document.createElement('canvas')
+        canvas.height = video.videoHeight
+        canvas.width = video.videoWidth
+        const avatar = canvas.getContext('2d')
+        avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
+        image = canvas.toDataURL()
+      } catch (e) {}
+
+      const payload = { userId, message, timestamp, image }
       socket.emit('new_message', payload)
     }
     this.setState({ message: '' })
@@ -46,15 +58,18 @@ export default class Input extends React.PureComponent {
   render () {
     const { message } = this.state
     return (
-      <form className="input" onSubmit={this.handleSubmit}>
-        <input
+      <form className="chat-footer" onSubmit={this.handleSubmit}>
+        <textarea
+          className="input"
           onChange={this.handleChange}
           onKeyPress={this.handleKeyPress}
           placeholder="Enter your message..."
           type="text"
           value={message}
         />
-        <input type="submit" value="Send" />
+        <button type="submit" className="send">
+          <span className="material-icons">send</span>
+        </button>
       </form>
     )
   }

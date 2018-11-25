@@ -2,6 +2,7 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
 import { MediaStream } from '../window.js'
+import socket from '../socket.js'
 
 export const StreamPropType = PropTypes.shape({
   mediaStream: PropTypes.instanceOf(MediaStream).isRequired,
@@ -48,6 +49,7 @@ export default class Video extends React.PureComponent {
     return (
       <div className={className}>
         <video
+          id={`video-${socket.id}`}
           autoPlay
           onClick={this.handleClick}
           onLoadedMetadata={this.play}

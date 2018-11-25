@@ -26,7 +26,7 @@ describe('components/Input', () => {
     let input
     beforeEach(() => {
       sendMessage.mockClear()
-      input = node.querySelector('input')
+      input = node.querySelector('textarea')
       TestUtils.Simulate.change(input, {
         target: { value: message }
       })
