@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types'
 import React from 'react'
+import screenfull from 'screenfull'
 import { MessagePropTypes } from './Chat.js'
 import { StreamPropType } from './Video.js'
 
@@ -39,35 +40,10 @@ export default class Toolbar extends React.PureComponent {
     e.currentTarget.classList.toggle('on')
   }
   handleFullscreenClick = e => {
-    const document = window.document
-    const fs = document.getElementById('container')
-    if (
-      !document.fullscreenElement &&
-      !document.mozFullScreenElement &&
-      !document.webkitFullscreenElement &&
-      !document.msFullscreenElement
-    ) {
-      if (fs.requestFullscreen) {
-        fs.requestFullscreen()
-      } else if (fs.msRequestFullscreen) {
-        fs.msRequestFullscreen()
-      } else if (fs.mozRequestFullScreen) {
-        fs.mozRequestFullScreen()
-      } else if (fs.webkitRequestFullscreen) {
-        fs.webkitRequestFullscreen()
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen()
-      } else if (document.msExitFullscreen) {
-        document.msExitFullscreen()
-      } else if (document.mozCancelFullScreen) {
-        document.mozCancelFullScreen()
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen()
-      }
+    if (screenfull.enabled) {
+      screenfull.toggle(e.target)
+      e.currentTarget.classList.toggle('on')
     }
-    e.currentTarget.classList.toggle('on')
   }
   handleHangoutClick = e => {
     window.location.href = '/'
