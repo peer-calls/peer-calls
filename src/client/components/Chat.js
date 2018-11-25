@@ -1,6 +1,5 @@
 import PropTypes from 'prop-types'
 import React from 'react'
-import moment from 'moment'
 
 export const MessagePropTypes = PropTypes.shape({
   userId: PropTypes.string.isRequired,
@@ -88,11 +87,6 @@ export default class Chat extends React.PureComponent {
                       </div>
                     </div>
                   )}
-                </div>
-                <div className="chat-item-details">
-                  <div className="chat-item-date">
-                    {moment(message.timestamp).fromNow()}
-                  </div>
                 </div>
                 <div className="chat-item-content">
                   {message.message}

@@ -43,7 +43,6 @@
     "classnames": "^2.2.5",
     "config": "^1.26.1",
     "express": "^4.13.3",
-    "moment": "^2.22.2",
     "prop-types": "^15.5.10",
     "pug": "^2.0.0-rc.2",
     "react": "^15.5.4",
