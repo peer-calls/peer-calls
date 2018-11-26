@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'icons';
-  src: url('./fonts/icons.eot?ij9tsv');
-  src: url('./fonts/icons.eot?ij9tsv#iefix') format('embedded-opentype'),
-       url('./fonts/icons.woff?ij9tsv') format('woff'),
-       url('./fonts/icons.ttf?ij9tsv') format('truetype'),
-       url('./fonts/icons.svg?ij9tsv#icons') format('svg');
+  src: url('../res/fonts/icons.eot?ij9tsv');
+  src: url('../res/fonts/icons.eot?ij9tsv#iefix') format('embedded-opentype'),
+       url('../res/fonts/icons.woff?ij9tsv') format('woff'),
+       url('../res/fonts/icons.ttf?ij9tsv') format('truetype'),
+       url('../res/fonts/icons.svg?ij9tsv#icons') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -26,8 +26,6 @@
 
   display: inline-block;
   text-decoration: inherit;
-  width: 1em;
-  margin-right: .2em;
   text-align: center;
   /* opacity: .8; */
 
@@ -37,10 +35,6 @@
 
   /* fix buttons height, for twitter bootstrap */
   line-height: 1em;
-
-  /* Animation center compensation - margins should be symmetric */
-  /* remove if not needed */
-  margin-left: .2em;
 
   /* you can be more comfortable with increased icons size */
   /* font-size: 120%; */

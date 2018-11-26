@@ -45,6 +45,7 @@
   .chat-button {
     float: right;
     a {
+      font-size: 24px;
       color: #fff;
     }
   }
@@ -69,7 +70,7 @@
   }
 
   .chat-empty {
-    color: #eee;
+    color: #999;
     left: 0;
     position: absolute;
     right: 0;
@@ -199,7 +200,11 @@
       color: #fff;
       bottom: 8px;
       right: 8px;
-      padding: 4px 6px 0;
+      padding: 0 6px;
+
+      .icon {
+        font-size: 24px;
+      }
 
       &:focus {
         outline: none;
