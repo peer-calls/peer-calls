@@ -9,7 +9,7 @@
   -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1);
   transition: transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1);
   width: 360px;
-  z-index: 2;
+  z-index: 3;
 
   &.show {
     -ms-transform: none;
@@ -19,7 +19,7 @@
   }
 
   @media (max-width: 575.98px) {
-    .chat {
+    &.show {
       width: 100% !important;
     }
   }
