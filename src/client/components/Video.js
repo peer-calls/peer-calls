@@ -37,10 +37,8 @@ export default class Video extends React.PureComponent {
       if (video.srcObject !== mediaStream) {
         this.refs.video.srcObject = mediaStream
       }
-    } else {
-      if (video.src !== url) {
-        video.src = url
-      }
+    } else if (video.src !== url) {
+      video.src = url
     }
   }
   render () {

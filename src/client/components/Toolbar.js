@@ -63,22 +63,21 @@ export default class Toolbar extends React.PureComponent {
         </div>
 
         {stream && (
-          <div onClick={this.handleMicClick}
-            className="button mute-audio"
-            title="Mute audio"
-          >
-            <span className="on icon icon-mic_off" />
-            <span className="off icon icon-mic" />
-          </div>
-        )}
-
-        {stream && (
-          <div onClick={this.handleCamClick}
-            className="button mute-video"
-            title="Mute video"
-          >
-            <span className="on icon icon-videocam_off" />
-            <span className="off icon icon-videocam" />
+          <div>
+            <div onClick={this.handleMicClick}
+              className="button mute-audio"
+              title="Mute audio"
+            >
+              <span className="on icon icon-mic_off" />
+              <span className="off icon icon-mic" />
+            </div>
+            <div onClick={this.handleCamClick}
+              className="button mute-video"
+              title="Mute video"
+            >
+              <span className="on icon icon-videocam_off" />
+              <span className="off icon icon-videocam" />
+            </div>
           </div>
         )}
 

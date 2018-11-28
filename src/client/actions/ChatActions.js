@@ -1,22 +1,16 @@
 import * as constants from '../constants.js'
-import _ from 'underscore'
 
-export function addMessage ({ userId, message, timestamp, image }) {
-  return {
-    type: constants.MESSAGE_ADD,
-    payload: {
-      id: _.uniqueId('chat'),
-      userId,
-      message,
-      timestamp,
-      image
-    }
+export const addMessage = ({ userId, message, timestamp, image }) => ({
+  type: constants.MESSAGE_ADD,
+  payload: {
+    userId,
+    message,
+    timestamp,
+    image
   }
-}
+})
 
-export function loadHistory (messages) {
-  return {
-    type: constants.MESSAGES_HISTORY,
-    messages
-  }
-}
+export const loadHistory = messages => ({
+  type: constants.MESSAGES_HISTORY,
+  messages
+})

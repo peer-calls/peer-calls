@@ -72,21 +72,18 @@ export default class Chat extends React.PureComponent {
               <div key={i} className="chat-item">
                 <div className="chat-item-label" />
                 <div className="chat-item-icon">
-                  {message.image ? (
-                    <div className="profile-image-component
-                      profile-image-component-circle">
+                  <div className="profile-image-component
+                    profile-image-component-circle">
+                    {message.image ? (
                       <div className="profile-image-component-image">
                         <img src={message.image} />
                       </div>
-                    </div>
-                  ) : (
-                    <div className="profile-image-component
-                      profile-image-component-circle">
+                    ) : (
                       <div className="profile-image-component-initials">
                         {message.userId.substr(0, 2).toUpperCase()}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 <div className="chat-item-content">
                   {message.message}
