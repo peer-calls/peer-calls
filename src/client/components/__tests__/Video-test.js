@@ -14,6 +14,7 @@ describe('components/Video', () => {
     }
     render () {
       return <Video
+        videos={this.props.videos}
         active={this.props.active}
         stream={this.state.stream || this.props.stream}
         onClick={this.props.onClick}
@@ -22,12 +23,14 @@ describe('components/Video', () => {
     }
   }
 
-  let component, video, onClick, mediaStream, url
+  let component, videos, video, onClick, mediaStream, url
   function render () {
+    videos = {}
     onClick = jest.fn()
     mediaStream = new MediaStream()
     component = TestUtils.renderIntoDocument(
       <VideoWrapper
+        videos={videos}
         active
         stream={{ mediaStream, url }}
         onClick={onClick}

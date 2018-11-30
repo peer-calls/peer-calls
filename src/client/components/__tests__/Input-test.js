@@ -5,12 +5,14 @@ import TestUtils from 'react-dom/test-utils'
 
 describe('components/Input', () => {
 
-  let component, node, notify, sendMessage
+  let component, node, videos, notify, sendMessage
   function render () {
+    videos = {}
     notify = jest.fn()
     sendMessage = jest.fn()
     component = TestUtils.renderIntoDocument(
       <Input
+        videos={videos}
         sendMessage={sendMessage}
         notify={notify}
       />

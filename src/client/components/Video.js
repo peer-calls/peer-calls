@@ -11,6 +11,7 @@ export const StreamPropType = PropTypes.shape({
 
 export default class Video extends React.PureComponent {
   static propTypes = {
+    videos: PropTypes.object.isRequired,
     onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
     stream: StreamPropType,
@@ -29,7 +30,7 @@ export default class Video extends React.PureComponent {
     this.componentDidUpdate()
   }
   componentDidUpdate () {
-    const { stream } = this.props
+    const { videos, stream } = this.props
     const { video } = this.refs
     const mediaStream = stream && stream.mediaStream
     const url = stream && stream.url
@@ -39,6 +40,9 @@ export default class Video extends React.PureComponent {
       }
     } else if (video.src !== url) {
       video.src = url
+    }
+    if (socket.id) {
+      videos[socket.id] = video
     }
   }
   render () {

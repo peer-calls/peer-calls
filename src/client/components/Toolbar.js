@@ -6,6 +6,7 @@ import { StreamPropType } from './Video.js'
 
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
+    chatRef: PropTypes.object.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     stream: StreamPropType
   }
@@ -16,36 +17,36 @@ export default class Toolbar extends React.PureComponent {
       totalMessages: 0
     }
   }
-  handleChatClick = e => {
-    const { messages } = this.props
-    document.getElementById('chat').classList.toggle('show')
-    e.currentTarget.classList.toggle('on')
+  handleChatClick = () => {
+    const { chatRef, messages } = this.props
+    chatRef.classList.toggle('show')
+    this.chatButton.classList.toggle('on')
     this.setState({
-      isChatOpen: document.getElementById('chat').classList.contains('show'),
+      isChatOpen: chatRef.classList.contains('show'),
       totalMessages: messages.length
     })
   }
-  handleMicClick = e => {
+  handleMicClick = () => {
     const { stream } = this.props
     stream.mediaStream.getAudioTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    e.currentTarget.classList.toggle('on')
+    this.mixButton.classList.toggle('on')
   }
-  handleCamClick = e => {
+  handleCamClick = () => {
     const { stream } = this.props
     stream.mediaStream.getVideoTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    e.currentTarget.classList.toggle('on')
+    this.camButton.classList.toggle('on')
   }
-  handleFullscreenClick = e => {
+  handleFullscreenClick = () => {
     if (screenfull.enabled) {
-      screenfull.toggle(e.target)
-      e.currentTarget.classList.toggle('on')
+      screenfull.toggle(this.fullscreenButton)
+      this.fullscreenButton.classList.toggle('on')
     }
   }
-  handleHangoutClick = e => {
+  handleHangoutClick = () => {
     window.location.href = '/'
   }
   render () {
@@ -55,6 +56,7 @@ export default class Toolbar extends React.PureComponent {
     return (
       <div className="toolbar active">
         <div onClick={this.handleChatClick}
+          ref={node => { this.chatButton = node }}
           className="button chat"
           data-blink={messages.length !== totalMessages && !isChatOpen}
           title="Chat"
@@ -65,6 +67,7 @@ export default class Toolbar extends React.PureComponent {
         {stream && (
           <div>
             <div onClick={this.handleMicClick}
+              ref={node => { this.mixButton = node }}
               className="button mute-audio"
               title="Mute audio"
             >
@@ -72,6 +75,7 @@ export default class Toolbar extends React.PureComponent {
               <span className="off icon icon-mic" />
             </div>
             <div onClick={this.handleCamClick}
+              ref={node => { this.camButton = node }}
               className="button mute-video"
               title="Mute video"
             >
@@ -82,6 +86,7 @@ export default class Toolbar extends React.PureComponent {
         )}
 
         <div onClick={this.handleFullscreenClick}
+          ref={node => { this.fullscreenButton = node }}
           className="button fullscreen"
           title="Enter fullscreen"
         >

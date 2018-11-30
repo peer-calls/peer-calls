@@ -23,6 +23,12 @@ export default class App extends React.PureComponent {
     streams: PropTypes.objectOf(StreamPropType).isRequired,
     toggleActive: PropTypes.func.isRequired
   }
+  constructor () {
+    super()
+    this.state = {
+      videos: {}
+    }
+  }
   componentDidMount () {
     const { init } = this.props
     init()
@@ -41,17 +47,29 @@ export default class App extends React.PureComponent {
       streams
     } = this.props
 
+    const { videos } = this.state
+
     return (
       <div className="app">
-        <Toolbar messages={messages} stream={streams[constants.ME]} />
+        <Toolbar
+          chatRef={this.chatRef}
+          messages={messages}
+          stream={streams[constants.ME]}
+          ref={node => { this.toolbarRef = node }}
+        />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
-        <div id="chat">
-          <Chat messages={messages} />
-          <Input notify={notify} sendMessage={sendMessage} />
+        <div id="chat" ref={node => { this.chatRef = node }}>
+          <Chat toolbarRef={this.toolbarRef} messages={messages} />
+          <Input
+            videos={videos}
+            notify={notify}
+            sendMessage={sendMessage}
+          />
         </div>
         <div className="videos">
           <Video
+            videos={videos}
             active={active === constants.ME}
             onClick={toggleActive}
             stream={streams[constants.ME]}

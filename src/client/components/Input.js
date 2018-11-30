@@ -4,6 +4,7 @@ import socket from '../socket.js'
 
 export default class Input extends React.PureComponent {
   static propTypes = {
+    videos: PropTypes.object.isRequired,
     notify: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired
   }
@@ -29,7 +30,7 @@ export default class Input extends React.PureComponent {
     }
   }
   submit = () => {
-    const { notify, sendMessage } = this.props
+    const { videos, notify, sendMessage } = this.props
     const { message } = this.state
     if (message) {
       notify('You: ' + message)
@@ -41,13 +42,15 @@ export default class Input extends React.PureComponent {
 
       // take snapshoot
       try {
-        const video = document.getElementById(`video-${userId}`)
-        const canvas = document.createElement('canvas')
-        canvas.height = video.videoHeight
-        canvas.width = video.videoWidth
-        const avatar = canvas.getContext('2d')
-        avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
-        image = canvas.toDataURL()
+        const video = videos[userId]
+        if (video) {
+          const canvas = document.createElement('canvas')
+          canvas.height = video.videoHeight
+          canvas.width = video.videoWidth
+          const avatar = canvas.getContext('2d')
+          avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
+          image = canvas.toDataURL()
+        }
       } catch (e) {}
 
       const payload = { userId, message, timestamp, image }

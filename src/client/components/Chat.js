@@ -10,42 +10,15 @@ export const MessagePropTypes = PropTypes.shape({
 
 export default class Chat extends React.PureComponent {
   static propTypes = {
+    toolbarRef: PropTypes.object.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired
   }
   handleCloseChat = e => {
-    document.getElementById('chat').classList.remove('show')
-    document.querySelector('.toolbar .chat').classList.remove('on')
+    const { toolbarRef } = this.props
+    toolbarRef.chatButton.click()
   }
   scrollToBottom = () => {
-    // this.chatScroll.scrollTop = this.chatScroll.scrollHeight
-
-    const duration = 300
-    const start = this.chatScroll.scrollTop
-    const end = this.chatScroll.scrollHeight
-    const change = end - start
-    const increment = 20
-
-    const easeInOut = (currentTime, start, change, duration) => {
-      currentTime /= duration / 2
-      if (currentTime < 1) {
-        return change / 2 * currentTime * currentTime + start
-      }
-      currentTime -= 1
-      return -change / 2 * (currentTime * (currentTime - 2) - 1) + start
-    }
-
-    const animate = elapsedTime => {
-      elapsedTime += increment
-      const position = easeInOut(elapsedTime, start, change, duration)
-      this.chatScroll.scrollTop = position
-      if (elapsedTime < duration) {
-        setTimeout(() => {
-          animate(elapsedTime)
-        }, increment)
-      }
-    }
-
-    animate(0)
+    this.chatScroll.scrollTop = this.chatScroll.scrollHeight
   }
   componentDidMount () {
     this.scrollToBottom()
