@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types'
 import React from 'react'
+import socket from '../socket.js'
+import Input from './Input.js'
 
 export const MessagePropTypes = PropTypes.shape({
   userId: PropTypes.string.isRequired,
@@ -10,8 +12,11 @@ export const MessagePropTypes = PropTypes.shape({
 
 export default class Chat extends React.PureComponent {
   static propTypes = {
-    toolbarRef: PropTypes.object.isRequired,
-    messages: PropTypes.arrayOf(MessagePropTypes).isRequired
+    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
+    videos: PropTypes.object.isRequired,
+    notify: PropTypes.func.isRequired,
+    sendMessage: PropTypes.func.isRequired,
+    toolbarRef: PropTypes.object.isRequired
   }
   handleCloseChat = e => {
     const { toolbarRef } = this.props
@@ -27,7 +32,7 @@ export default class Chat extends React.PureComponent {
     this.scrollToBottom()
   }
   render () {
-    const { messages } = this.props
+    const { messages, videos, notify, sendMessage } = this.props
     return (
       <div>
         <div className="chat-header">
@@ -38,29 +43,36 @@ export default class Chat extends React.PureComponent {
           </div>
           <div className="chat-title">Chat</div>
         </div>
-        <div className="chat-content" ref={div => { this.chatScroll = div }}>
+        <div className="chat-history" ref={div => { this.chatScroll = div }}>
 
           {messages.length ? (
             messages.map((message, i) => (
-              <div key={i} className="chat-item">
-                <div className="chat-item-label" />
-                <div className="chat-item-icon">
-                  <div className="profile-image-component
-                    profile-image-component-circle">
-                    {message.image ? (
-                      <div className="profile-image-component-image">
-                        <img src={message.image} />
-                      </div>
-                    ) : (
-                      <div className="profile-image-component-initials">
-                        {message.userId.substr(0, 2).toUpperCase()}
-                      </div>
-                    )}
+              <div key={i}>
+                {message.userId === socket.id ? (
+                  <div className="chat-item chat-item-me">
+                    <div className="message">
+                      <span className="message-user-name">
+                        {message.userId}
+                      </span>
+                      <span className="icon icon-schedule" />
+                      <time className="message-time">{message.timestamp}</time>
+                      <p className="message-text">{message.message}</p>
+                    </div>
+                    <img className="chat-item-img" src={message.image} />
                   </div>
-                </div>
-                <div className="chat-item-content">
-                  {message.message}
-                </div>
+                ) : (
+                  <div className="chat-item chat-item-other">
+                    <img className="chat-item-img" src={message.image} />
+                    <div className="message">
+                      <span className="message-user-name">
+                        {message.userId}
+                      </span>
+                      <span className="icon icon-schedule" />
+                      <time className="message-time">{message.timestamp}</time>
+                      <p className="message-text">{message.message}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           ) : (
@@ -71,6 +83,12 @@ export default class Chat extends React.PureComponent {
           )}
 
         </div>
+
+        <Input
+          videos={videos}
+          notify={notify}
+          sendMessage={sendMessage}
+        />
       </div>
     )
   }

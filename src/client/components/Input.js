@@ -37,7 +37,11 @@ export default class Input extends React.PureComponent {
       sendMessage(message)
 
       const userId = socket.id
-      const timestamp = new Date()
+      const timestamp = new Date().toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      })
       let image = null
 
       // take snapshoot
@@ -61,18 +65,19 @@ export default class Input extends React.PureComponent {
   render () {
     const { message } = this.state
     return (
-      <form className="chat-footer" onSubmit={this.handleSubmit}>
+      <form className="chat-controls" onSubmit={this.handleSubmit}>
         <textarea
-          className="input"
+          className="chat-controls-textarea"
           onChange={this.handleChange}
           onKeyPress={this.handleKeyPress}
-          placeholder="Enter your message..."
-          type="text"
+          placeholder="Type a message"
           value={message}
         />
-        <button type="submit" className="send">
-          <span className="icon icon-send" />
-        </button>
+        <div className="chat-controls-buttons">
+          <input type="submit" value="Send"
+            className="chat-controls-buttons-send" />
+          <div className="chat-controls-buttons-wrapper" />
+        </div>
       </form>
     )
   }

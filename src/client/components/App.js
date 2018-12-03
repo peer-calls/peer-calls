@@ -3,7 +3,6 @@ import * as constants from '../constants.js'
 import Toolbar from './Toolbar.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
 import Chat, { MessagePropTypes } from './Chat.js'
-import Input from './Input.js'
 import PropTypes from 'prop-types'
 import React from 'react'
 import Video, { StreamPropType } from './Video.js'
@@ -59,12 +58,13 @@ export default class App extends React.PureComponent {
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
-        <div id="chat" ref={node => { this.chatRef = node }}>
-          <Chat toolbarRef={this.toolbarRef} messages={messages} />
-          <Input
+        <div className="chat-container" ref={node => { this.chatRef = node }}>
+          <Chat
+            messages={messages}
             videos={videos}
             notify={notify}
             sendMessage={sendMessage}
+            toolbarRef={this.toolbarRef}
           />
         </div>
         <div className="videos">
