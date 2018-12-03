@@ -101,7 +101,11 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: #75b1e8;
+
+      &.icon {
+        font-size: 36px;
+        color: #777;
+      }
     }
 
     .message {

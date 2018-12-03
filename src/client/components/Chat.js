@@ -58,11 +58,19 @@ export default class Chat extends React.PureComponent {
                       <time className="message-time">{message.timestamp}</time>
                       <p className="message-text">{message.message}</p>
                     </div>
-                    <img className="chat-item-img" src={message.image} />
+                    {message.image ? (
+                      <img className="chat-item-img" src={message.image} />
+                    ) : (
+                      <span className="chat-item-img icon icon-face" />
+                    )}
                   </div>
                 ) : (
                   <div className="chat-item chat-item-other">
-                    <img className="chat-item-img" src={message.image} />
+                    {message.image ? (
+                      <img className="chat-item-img" src={message.image} />
+                    ) : (
+                      <span className="chat-item-img icon icon-face" />
+                    )}
                     <div className="message">
                       <span className="message-user-name">
                         {message.userId}
