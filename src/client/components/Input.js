@@ -29,6 +29,11 @@ export default class Input extends React.PureComponent {
       this.submit()
     }
   }
+  handleSmileClick = e => {
+    this.setState({
+      message: this.textArea.value + e.currentTarget.innerHTML
+    })
+  }
   submit = () => {
     const { videos, notify, sendMessage } = this.props
     const { message } = this.state
@@ -72,11 +77,31 @@ export default class Input extends React.PureComponent {
           onKeyPress={this.handleKeyPress}
           placeholder="Type a message"
           value={message}
+          ref={node => { this.textArea = node }}
         />
         <div className="chat-controls-buttons">
           <input type="submit" value="Send"
             className="chat-controls-buttons-send" />
-          <div className="chat-controls-buttons-wrapper" />
+
+          <div className="chat-controls-buttons-wrapper">
+            <div className="emoji">
+              <div className="chat-controls-buttons-smiles">
+                <span className="icon icon-sentiment_satisfied" />
+                <div className="chat-controls-buttons-smiles-menu">
+                  <div className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😑</div>
+                  <div className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😕</div>
+                  <div className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😊</div>
+                  <div className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😎</div>
+                  <div className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>💪</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </form>
     )

@@ -63,6 +63,14 @@ describe('components/Input', () => {
       })
     })
 
+    describe('handleSmileClick', () => {
+      it('adds smile to message', () => {
+        const div = node.querySelector('.chat-controls-buttons-smile')
+        TestUtils.Simulate.click(div)
+        expect(input.value).toBe('test message😑')
+      })
+    })
+
   })
 
 })

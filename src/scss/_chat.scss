@@ -123,7 +123,7 @@
         color: #000;
       }
 
-      .icon-schedule:before {
+      .icon:before {
         color: #999;
         font-size: 11px;
         margin: 0 2px;
@@ -213,10 +213,6 @@
     display: flex;
     justify-content: space-between;
 
-    .chat-controls-buttons-wrapper {
-      display: flex;
-    }
-
     .chat-controls-buttons-send {
       padding: 0 15px;
       background: #407cf7;
@@ -230,6 +226,46 @@
 
       &:focus {
         outline: none;
+      }
+    }
+
+    .chat-controls-buttons-wrapper {
+      display: flex;
+    }
+  }
+}
+
+.emoji {
+  display: flex;
+
+  .chat-controls-buttons-smiles {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    position: relative;
+
+    .icon {
+      color: #777;
+      z-index: 1;
+    }
+
+    .chat-controls-buttons-smiles-menu {
+      background-color: #fff;
+      display: none;
+      position: absolute;
+      width: 140px;
+      height: 50px;
+      line-height: 50px;
+
+      .chat-controls-buttons-smile {
+        margin-left: 5px;
+      }
+    }
+
+    &:hover {
+      .chat-controls-buttons-smiles-menu {
+        display: flex;
+        right: 10px;
       }
     }
   }
