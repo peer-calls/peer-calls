@@ -1,8 +1,8 @@
 import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
-import { ME } from '../constants.js'
 import { MediaStream } from '../window.js'
+import socket from '../socket.js'
 
 export const StreamPropType = PropTypes.shape({
   mediaStream: PropTypes.instanceOf(MediaStream).isRequired,
@@ -11,6 +11,7 @@ export const StreamPropType = PropTypes.shape({
 
 export default class Video extends React.PureComponent {
   static propTypes = {
+    videos: PropTypes.object.isRequired,
     onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
     stream: StreamPropType,
@@ -29,7 +30,7 @@ export default class Video extends React.PureComponent {
     this.componentDidUpdate()
   }
   componentDidUpdate () {
-    const { stream } = this.props
+    const { videos, stream } = this.props
     const { video } = this.refs
     const mediaStream = stream && stream.mediaStream
     const url = stream && stream.url
@@ -37,20 +38,21 @@ export default class Video extends React.PureComponent {
       if (video.srcObject !== mediaStream) {
         this.refs.video.srcObject = mediaStream
       }
-    } else {
-      if (video.src !== url) {
-        video.src = url
-      }
+    } else if (video.src !== url) {
+      video.src = url
+    }
+    if (socket.id) {
+      videos[socket.id] = video
     }
   }
   render () {
-    const { active, userId } = this.props
+    const { active } = this.props
     const className = classnames('video-container', { active })
     return (
       <div className={className}>
         <video
+          id={`video-${socket.id}`}
           autoPlay
-          muted={userId === ME}
           onClick={this.handleClick}
           onLoadedMetadata={this.play}
           playsInline

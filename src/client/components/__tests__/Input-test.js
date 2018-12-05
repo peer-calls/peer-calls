@@ -5,12 +5,14 @@ import TestUtils from 'react-dom/test-utils'
 
 describe('components/Input', () => {
 
-  let component, node, notify, sendMessage
+  let component, node, videos, notify, sendMessage
   function render () {
+    videos = {}
     notify = jest.fn()
     sendMessage = jest.fn()
     component = TestUtils.renderIntoDocument(
       <Input
+        videos={videos}
         sendMessage={sendMessage}
         notify={notify}
       />
@@ -26,7 +28,7 @@ describe('components/Input', () => {
     let input
     beforeEach(() => {
       sendMessage.mockClear()
-      input = node.querySelector('input')
+      input = node.querySelector('textarea')
       TestUtils.Simulate.change(input, {
         target: { value: message }
       })
@@ -58,6 +60,14 @@ describe('components/Input', () => {
         })
         expect(sendMessage.mock.calls.length).toBe(0)
         expect(notify.mock.calls.length).toBe(0)
+      })
+    })
+
+    describe('handleSmileClick', () => {
+      it('adds smile to message', () => {
+        const div = node.querySelector('.chat-controls-buttons-smile')
+        TestUtils.Simulate.click(div)
+        expect(input.value).toBe('test message😑')
       })
     })
 

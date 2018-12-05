@@ -4,7 +4,18 @@ export const createObjectURL = jest.fn()
 .mockImplementation(object => 'blob://' + String(object))
 export const revokeObjectURL = jest.fn()
 
-export class MediaStream {}
+export class MediaStream {
+  getVideoTracks () {
+    return [{
+      enabled: true
+    }]
+  }
+  getAudioTracks () {
+    return [{
+      enabled: true
+    }]
+  }
+}
 export function getUserMedia () {
   return !getUserMedia.shouldFail
   ? Promise.resolve(getUserMedia.stream)
