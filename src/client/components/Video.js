@@ -15,7 +15,11 @@ export default class Video extends React.PureComponent {
     onClick: PropTypes.func,
     active: PropTypes.bool.isRequired,
     stream: StreamPropType,
-    userId: PropTypes.string.isRequired
+    userId: PropTypes.string.isRequired,
+    muted: PropTypes.bool.isRequired
+  }
+  static defaultProps = {
+    muted: false
   }
   handleClick = e => {
     const { onClick, userId } = this.props
@@ -41,12 +45,10 @@ export default class Video extends React.PureComponent {
     } else if (video.src !== url) {
       video.src = url
     }
-    if (socket.id) {
-      videos[socket.id] = video
-    }
+    videos[socket.id] = video
   }
   render () {
-    const { active } = this.props
+    const { active, muted } = this.props
     const className = classnames('video-container', { active })
     return (
       <div className={className}>
@@ -57,6 +59,7 @@ export default class Video extends React.PureComponent {
           onLoadedMetadata={this.play}
           playsInline
           ref="video"
+          muted={muted}
         />
       </div>
     )
