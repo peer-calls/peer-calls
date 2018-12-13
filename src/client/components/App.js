@@ -74,6 +74,7 @@ export default class App extends React.PureComponent {
             onClick={toggleActive}
             stream={streams[constants.ME]}
             userId={constants.ME}
+            muted
           />
 
           {_.map(peers, (_, userId) => (
@@ -83,6 +84,7 @@ export default class App extends React.PureComponent {
               onClick={toggleActive}
               stream={streams[userId]}
               userId={userId}
+              videos={videos}
             />
           ))}
         </div>

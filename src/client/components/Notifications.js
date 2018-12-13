@@ -1,7 +1,7 @@
+import CSSTransitionGroup from 'react-transition-group/CSSTransitionGroup'
 import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
-import { CSSTransitionGroup } from 'react-transition-group'
 
 export const NotificationPropTypes = PropTypes.shape({
   id: PropTypes.string.isRequired,

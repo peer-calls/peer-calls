@@ -6,7 +6,8 @@
         "jsx-quotes": ["error", "prefer-double"],
         "padded-blocks": 0,
         "import/first": 0,
-        "no-return-assign": 0
+        "no-return-assign": 0,
+        "indent": ["error", 2, { "MemberExpression": 0, "SwitchCase": 1, "flatTernaryExpressions": true }],
     },
     "globals": {
         "expect": true,

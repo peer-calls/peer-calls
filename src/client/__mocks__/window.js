@@ -18,8 +18,8 @@ export class MediaStream {
 }
 export function getUserMedia () {
   return !getUserMedia.shouldFail
-  ? Promise.resolve(getUserMedia.stream)
-  : Promise.reject(new Error('test'))
+    ? Promise.resolve(getUserMedia.stream)
+    : Promise.reject(new Error('test'))
 }
 getUserMedia.fail = shouldFail => getUserMedia.shouldFail = shouldFail
 getUserMedia.stream = new MediaStream()
