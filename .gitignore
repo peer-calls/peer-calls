@@ -8,3 +8,5 @@ node_modules/
 config.js
 coverage/
 config/local.json
+yarn.lock
+packge-lock.json
