@@ -3,7 +3,7 @@
 const config = require('config')
 const turn = require('../turn.js')
 const router = require('express').Router()
-const shortid = require('shortid');
+const shortid = require('shortid')
 
 const BASE_URL = config.get('baseUrl')
 const cfgIceServers = config.get('iceServers')
