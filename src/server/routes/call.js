@@ -3,13 +3,13 @@
 const config = require('config')
 const turn = require('../turn.js')
 const router = require('express').Router()
-const uuid = require('uuid')
+const shortid = require('shortid');
 
 const BASE_URL = config.get('baseUrl')
 const cfgIceServers = config.get('iceServers')
 
 router.get('/', (req, res) => {
-  res.redirect(`${BASE_URL}/call/${uuid.v4()}`)
+  res.redirect(`${BASE_URL}/call/${shortid.generate()}`)
 })
 
 router.get('/:callId', (req, res) => {

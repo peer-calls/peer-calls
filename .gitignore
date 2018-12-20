@@ -9,4 +9,4 @@ config.js
 coverage/
 config/local.json
 yarn.lock
-packge-lock.json
+package-lock.json

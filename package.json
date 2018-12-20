@@ -65,11 +65,11 @@
     "redux-thunk": "^2.2.0",
     "screenfull": "^3.3.3",
     "seamless-immutable": "^7.1.2",
+    "shortid": "^2.2.14",
     "simple-peer": "^9.1.2",
     "socket.io": "^2.2.0",
     "socket.io-client": "^2.2.0",
-    "underscore": "^1.8.3",
-    "uuid": "^3.3.2"
+    "underscore": "^1.8.3"
   },
   "devDependencies": {
     "@babel/core": "^7.2.0",
