@@ -13,4 +13,5 @@ const component = (
 )
 
 ReactDOM.render(component, document.getElementById('container'))
+
 play()

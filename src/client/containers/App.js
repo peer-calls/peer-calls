@@ -13,6 +13,7 @@ function mapStateToProps (state) {
     alerts: state.alerts,
     notifications: state.notifications,
     messages: state.messages,
+    positions: state.positions,
     active: state.active
   }
 }

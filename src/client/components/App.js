@@ -1,12 +1,13 @@
-import Alerts, { AlertPropType } from './Alerts.js'
+import PropTypes from 'prop-types'
+import React from 'react'
+import _ from 'underscore'
 import * as constants from '../constants.js'
+import Alerts, { AlertPropType } from './Alerts.js'
 import Toolbar from './Toolbar.js'
 import Notifications, { NotificationPropTypes } from './Notifications.js'
 import Chat, { MessagePropTypes } from './Chat.js'
-import PropTypes from 'prop-types'
-import React from 'react'
+import Map from './Map.js'
 import Video, { StreamPropType } from './Video.js'
-import _ from 'underscore'
 
 export default class App extends React.PureComponent {
   static propTypes = {
@@ -25,8 +26,20 @@ export default class App extends React.PureComponent {
   constructor () {
     super()
     this.state = {
-      videos: {}
+      videos: {},
+      isOpenChat: true,
+      isOpenMap: false
     }
+
+    this.drawerRef = React.createRef()
+  }
+  handleCloseDrawer = e => {
+    this.toolbarRef.drawerButton.click()
+  }
+  handleToggleDrawer = e => {
+    const { isOpenChat, isOpenMap } = this.state
+    this.setState({ isOpenChat: !isOpenChat })
+    this.setState({ isOpenMap: !isOpenMap })
   }
   componentDidMount () {
     const { init } = this.props
@@ -40,32 +53,64 @@ export default class App extends React.PureComponent {
       notifications,
       notify,
       messages,
+      positions,
       peers,
       sendMessage,
       toggleActive,
       streams
     } = this.props
 
-    const { videos } = this.state
+    const { videos, isOpenChat, isOpenMap } = this.state
 
     return (
       <div className="app">
         <Toolbar
-          chatRef={this.chatRef}
+          drawerRef={this.drawerRef}
           messages={messages}
           stream={streams[constants.ME]}
           ref={node => { this.toolbarRef = node }}
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
-        <div className="chat-container" ref={node => { this.chatRef = node }}>
-          <Chat
-            messages={messages}
-            videos={videos}
-            notify={notify}
-            sendMessage={sendMessage}
-            toolbarRef={this.toolbarRef}
-          />
+        <div className="drawer-container"
+          ref={node => { this.drawerRef = node }}
+        >
+          {!constants.GOOGLE_MAPS_API_KEY || isOpenChat ? (
+            <div>
+              <div className="drawer-header">
+                <div className="drawer-close" onClick={this.handleCloseDrawer}>
+                  <span className="icon icon-arrow_forward" />
+                </div>
+                {constants.GOOGLE_MAPS_API_KEY && (
+                  <div className="drawer-button" onClick={this.handleToggleDrawer}>
+                    <span className="icon icon-room" />
+                  </div>
+                )}
+                <div className="drawer-title">Chat</div>
+              </div>
+
+              <Chat
+                messages={messages}
+                videos={videos}
+                notify={notify}
+                sendMessage={sendMessage}
+              />
+            </div>
+          ) : isOpenMap ? (
+            <div>
+              <div className="drawer-header">
+                <div className="drawer-close" onClick={this.handleCloseDrawer}>
+                  <span className="icon icon-arrow_forward" />
+                </div>
+                <div className="drawer-button" onClick={this.handleToggleDrawer}>
+                  <span className="icon icon-question_answer" />
+                </div>
+                <div className="drawer-title">Map</div>
+              </div>
+
+              <Map positions={positions} />
+            </div>
+          ) : null}
         </div>
         <div className="videos">
           <Video

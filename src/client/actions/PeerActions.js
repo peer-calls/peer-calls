@@ -1,5 +1,6 @@
 import * as NotifyActions from '../actions/NotifyActions.js'
 import * as StreamActions from '../actions/StreamActions.js'
+import * as PositionActions from '../actions/PositionActions.js'
 import * as constants from '../constants.js'
 import Peer from 'simple-peer'
 import _ from 'underscore'
@@ -56,6 +57,7 @@ class PeerHandler {
     debug('peer: %s, close', user.id)
     dispatch(NotifyActions.error('Peer connection closed'))
     dispatch(StreamActions.removeStream(user.id))
+    dispatch(PositionActions.removePosition(user.id))
     dispatch(removePeer(user.id))
   }
 }

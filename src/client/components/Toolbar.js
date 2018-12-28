@@ -6,23 +6,23 @@ import { StreamPropType } from './Video.js'
 
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
-    chatRef: PropTypes.object.isRequired,
+    drawerRef: PropTypes.object.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     stream: StreamPropType
   }
   constructor () {
     super()
     this.state = {
-      isChatOpen: false,
+      isDrawerOpen: false,
       totalMessages: 0
     }
   }
-  handleChatClick = () => {
-    const { chatRef, messages } = this.props
-    chatRef.classList.toggle('show')
-    this.chatButton.classList.toggle('on')
+  handleDrawerClick = () => {
+    const { drawerRef, messages } = this.props
+    drawerRef.classList.toggle('show')
+    this.drawerButton.classList.toggle('on')
     this.setState({
-      isChatOpen: chatRef.classList.contains('show'),
+      isDrawerOpen: drawerRef.classList.contains('show'),
       totalMessages: messages.length
     })
   }
@@ -31,7 +31,7 @@ export default class Toolbar extends React.PureComponent {
     stream.mediaStream.getAudioTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    this.mixButton.classList.toggle('on')
+    this.micButton.classList.toggle('on')
   }
   handleCamClick = () => {
     const { stream } = this.props
@@ -51,15 +51,15 @@ export default class Toolbar extends React.PureComponent {
   }
   render () {
     const { messages, stream } = this.props
-    const { isChatOpen, totalMessages } = this.state
+    const { isDrawerOpen, totalMessages } = this.state
 
     return (
       <div className="toolbar active">
-        <div onClick={this.handleChatClick}
-          ref={node => { this.chatButton = node }}
-          className="button chat"
-          data-blink={messages.length !== totalMessages && !isChatOpen}
-          title="Chat"
+        <div onClick={this.handleDrawerClick}
+          ref={node => { this.drawerButton = node }}
+          className="button drawer"
+          data-blink={messages.length !== totalMessages && !isDrawerOpen}
+          title="Drawer"
         >
           <span className="icon icon-question_answer" />
         </div>
@@ -67,7 +67,7 @@ export default class Toolbar extends React.PureComponent {
         {stream && (
           <div>
             <div onClick={this.handleMicClick}
-              ref={node => { this.mixButton = node }}
+              ref={node => { this.micButton = node }}
               className="button mute-audio"
               title="Mute audio"
             >

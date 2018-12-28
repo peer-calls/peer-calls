@@ -1,5 +1,6 @@
 import * as ChatActions from '../actions/ChatActions.js'
 import * as NotifyActions from '../actions/NotifyActions.js'
+import * as PositionActions from '../actions/PositionActions.js'
 import * as PeerActions from '../actions/PeerActions.js'
 import * as constants from '../constants.js'
 import _ from 'underscore'
@@ -42,15 +43,17 @@ class SocketHandler {
     .filter(id => !newUsersMap[id])
     .forEach(id => peers[id].destroy())
   }
-  handleMessages = (messages) => {
+  handleMessages = messages => {
     const { dispatch } = this
-    debug('socket messages: %o', messages)
     dispatch(ChatActions.loadHistory(messages))
   }
-  handleNewMessage = (payload) => {
+  handleNewMessage = payload => {
     const { dispatch } = this
-    debug('socket message: %o', payload)
     dispatch(ChatActions.addMessage(payload))
+  }
+  handlePositionUpdate = payload => {
+    const { dispatch } = this
+    dispatch(PositionActions.setPosition(payload))
   }
 }
 
@@ -68,6 +71,7 @@ export function handshake ({ socket, roomName, stream }) {
     socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
     socket.on(constants.SOCKET_EVENT_MESSAGES, handler.handleMessages)
     socket.on(constants.SOCKET_EVENT_NEW_MESSAGE, handler.handleNewMessage)
+    socket.on(constants.SOCKET_EVENT_POSITION, handler.handlePositionUpdate)
 
     debug('socket.id: %s', socket.id)
     debug('emit ready for room: %s', roomName)

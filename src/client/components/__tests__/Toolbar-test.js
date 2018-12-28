@@ -15,22 +15,22 @@ describe('components/Video', () => {
     }
     render () {
       return <Toolbar
-        chatRef={this.props.chatRef}
+        drawerRef={this.props.drawerRef}
         messages={this.props.messages}
         stream={this.state.stream || this.props.stream}
       />
     }
   }
 
-  let component, node, chatRef, mediaStream, url
+  let component, node, drawerRef, mediaStream, url
   function render () {
     mediaStream = new MediaStream()
-    chatRef = ReactDOM.findDOMNode(
+    drawerRef = ReactDOM.findDOMNode(
       TestUtils.renderIntoDocument(<div />)
     )
     component = TestUtils.renderIntoDocument(
       <ToolbarWrapper
-        chatRef={chatRef}
+        drawerRef={drawerRef}
         messages={[]}
         stream={{ mediaStream, url }}
       />
@@ -44,9 +44,9 @@ describe('components/Video', () => {
     })
   })
 
-  describe('handleChatClick', () => {
-    it('toggle chat', () => {
-      const button = node.querySelector('.chat')
+  describe('handleDrawerClick', () => {
+    it('toggle drawer', () => {
+      const button = node.querySelector('.drawer')
       TestUtils.Simulate.click(button)
       expect(button.classList.contains('on')).toBe(true)
     })

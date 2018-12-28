@@ -16,11 +16,6 @@ export default class Chat extends React.PureComponent {
     videos: PropTypes.object.isRequired,
     notify: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired,
-    toolbarRef: PropTypes.object.isRequired
-  }
-  handleCloseChat = e => {
-    const { toolbarRef } = this.props
-    toolbarRef.chatButton.click()
   }
   scrollToBottom = () => {
     this.chatScroll.scrollTop = this.chatScroll.scrollHeight
@@ -35,15 +30,8 @@ export default class Chat extends React.PureComponent {
     const { messages, videos, notify, sendMessage } = this.props
     return (
       <div>
-        <div className="chat-header">
-          <div className="chat-close" onClick={this.handleCloseChat}>
-            <div className="button button-icon">
-              <span className="icon icon-arrow_forward" />
-            </div>
-          </div>
-          <div className="chat-title">Chat</div>
-        </div>
-        <div className="chat-history" ref={div => { this.chatScroll = div }}>
+        <div className="drawer-content chat-history"
+          ref={div => { this.chatScroll = div }}>
 
           {messages.length ? (
             messages.map((message, i) => (
@@ -84,9 +72,9 @@ export default class Chat extends React.PureComponent {
               </div>
             ))
           ) : (
-            <div className="chat-empty">
-              <span className="chat-empty-icon icon icon-question_answer" />
-              <div className="chat-empty-message">No Notifications</div>
+            <div className="drawer-empty">
+              <span className="drawer-empty-icon icon icon-question_answer" />
+              <div className="drawer-empty-message">No Notifications</div>
             </div>
           )}
 

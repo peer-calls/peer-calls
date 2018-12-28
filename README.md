@@ -39,9 +39,9 @@ npm start
 npm run start:watch
 ```
 
+> :warning: Set `env APP_GOOGLE_MAPS_API_KEY` to be able to see map view.
+
 To run a development version, type:
-
-
 
 If you successfully completed the above steps, your commandline/terminal should
 show that your node server is listening.

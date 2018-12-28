@@ -141,8 +141,9 @@ body.call {
   @import '_alert';
   @import '_notification';
   @import '_video';
-  @import '_chat';
   @import '_toolbar';
+  @import '_drawer';
+  @import '_chat';
 }
 
 .fade-enter {

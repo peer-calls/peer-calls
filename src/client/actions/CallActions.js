@@ -14,6 +14,8 @@ export const init = () => dispatch => {
       getCameraStream()(dispatch)
     ])
     .spread((socket, stream) => {
+      startLocationTracking(socket)(dispatch)
+
       dispatch(SocketActions.handshake({
         socket,
         roomName: callId,
@@ -47,4 +49,30 @@ export const getCameraStream = () => dispatch => {
     dispatch(NotifyActions.alert('Could not get access to microphone & camera'))
     return null
   })
+}
+
+export const startLocationTracking = socket => dispatch => {
+  if (!constants.GOOGLE_MAPS_API_KEY) {
+    return null
+  }
+  navigator.geolocation.watchPosition(
+    position => {
+      socket.emit('position', {
+        userId: socket.id,
+        position: {
+          coords: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          },
+          timestamp: position.timestamp
+        }
+      })
+    },
+    error => dispatch(NotifyActions.alert(error.message)),
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 1000
+    }
+  )
 }

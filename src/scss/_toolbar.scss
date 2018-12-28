@@ -54,7 +54,7 @@
     transform: translateX(0);
   }
 
-  .chat {
+  .drawer {
     &[data-blink="true"] {
       -webkit-animation: bg-blink 1s infinite;
       -moz-animation: bg-blink 1s infinite;

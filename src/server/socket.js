@@ -18,6 +18,11 @@ module.exports = function (socket, io) {
     io.to(socket.room).emit('new_message', payload)
   })
 
+  socket.on('position', payload => {
+    debug('payload: %o', payload)
+    io.to(socket.room).emit('position', payload)
+  })
+
   socket.on('ready', roomName => {
     debug('ready: %s, room: %s', socket.id, roomName)
     if (socket.room) socket.leave(socket.room)
