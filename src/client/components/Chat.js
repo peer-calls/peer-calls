@@ -15,7 +15,7 @@ export default class Chat extends React.PureComponent {
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     videos: PropTypes.object.isRequired,
     notify: PropTypes.func.isRequired,
-    sendMessage: PropTypes.func.isRequired,
+    sendMessage: PropTypes.func.isRequired
   }
   scrollToBottom = () => {
     this.chatScroll.scrollTop = this.chatScroll.scrollHeight

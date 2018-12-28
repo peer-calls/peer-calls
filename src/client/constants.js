@@ -1,7 +1,7 @@
 export const GOOGLE_MAPS_API_KEY = process.env.APP_GOOGLE_MAPS_API_KEY
-export const GOOGLE_MAPS_API_URL = 'https://maps.googleapis.com/maps/api/js?'
-  + `key=${GOOGLE_MAPS_API_KEY}`
-  + '&v=3.exp&libraries=geometry,drawing,places'
+export const GOOGLE_MAPS_API_URL = 'https://maps.googleapis.com/maps/api/js?' +
+  `key=${GOOGLE_MAPS_API_KEY}` +
+  '&v=3.exp&libraries=geometry,drawing,places'
 
 export const ACTIVE_SET = 'ACTIVE_SET'
 export const ACTIVE_TOGGLE = 'ACTIVE_TOGGLE'

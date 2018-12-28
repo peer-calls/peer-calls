@@ -18,6 +18,7 @@ export default class App extends React.PureComponent {
     notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
     notify: PropTypes.func.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
+    positions: PropTypes.object.isRequired,
     peers: PropTypes.object.isRequired,
     sendMessage: PropTypes.func.isRequired,
     streams: PropTypes.objectOf(StreamPropType).isRequired,
@@ -82,7 +83,8 @@ export default class App extends React.PureComponent {
                   <span className="icon icon-arrow_forward" />
                 </div>
                 {constants.GOOGLE_MAPS_API_KEY && (
-                  <div className="drawer-button" onClick={this.handleToggleDrawer}>
+                  <div className="drawer-button"
+                    onClick={this.handleToggleDrawer}>
                     <span className="icon icon-room" />
                   </div>
                 )}
@@ -102,7 +104,8 @@ export default class App extends React.PureComponent {
                 <div className="drawer-close" onClick={this.handleCloseDrawer}>
                   <span className="icon icon-arrow_forward" />
                 </div>
-                <div className="drawer-button" onClick={this.handleToggleDrawer}>
+                <div className="drawer-button"
+                  onClick={this.handleToggleDrawer}>
                   <span className="icon icon-question_answer" />
                 </div>
                 <div className="drawer-title">Map</div>

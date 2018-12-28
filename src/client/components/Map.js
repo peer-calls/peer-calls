@@ -19,7 +19,9 @@ import {
 
 const screen = Dimensions.get('window')
 
-const GoogleMapContainer = withScriptjs(withGoogleMap(props => <GoogleMap {...props} />));
+const GoogleMapContainer = withScriptjs(withGoogleMap(
+  props => <GoogleMap {...props} />
+))
 
 export default class Map extends React.PureComponent {
   static propTypes = {
@@ -69,7 +71,7 @@ export default class Map extends React.PureComponent {
     )
   }
 
-  createMarkers() {
+  createMarkers () {
     const { positions } = this.props
     const members = Object.keys(positions)
     return Object.values(positions).map((position, index) => {
@@ -80,13 +82,15 @@ export default class Map extends React.PureComponent {
           key={id}
           title={id}
           position={{ lat: coords.latitude, lng: coords.longitude }}
-          icon={{ url: `http://maps.google.com/mapfiles/kml/pal3/icon${index}.png` }}
+          icon={{
+            url: `http://maps.google.com/mapfiles/kml/pal3/icon${index}.png`
+          }}
         />
       )
     })
   }
 
-  createMembers() {
+  createMembers () {
     const { positions } = this.props
     const members = Object.keys(positions)
     return members.map((id, index) => {
@@ -103,28 +107,14 @@ export default class Map extends React.PureComponent {
   }
 }
 
-const colors = [
-  '#e6194b', '#3cb44b', '#ffe119', '#0082c8',
-  '#f58231', '#911eb4', '#46f0f0', '#f032e6',
-  '#d2f53c', '#fabebe', '#008080', '#e6beff',
-  '#aa6e28', '#fffac8', '#800000', '#aaffc3',
-  '#808000', '#ffd8b1', '#000080'
-]
-
-const getColor = function(index = 0) {
-  const color = colors[index]
-  index = ++index % colors.length
-  return color
-}
-
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFillObject
   },
   bubble: {
     flex: 1,
@@ -132,29 +122,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 20,
-    marginRight: 20,
+    marginRight: 20
   },
   latlng: {
     width: 200,
-    alignItems: 'stretch',
+    alignItems: 'stretch'
   },
   button: {
     width: 80,
     paddingHorizontal: 12,
     alignItems: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: 10
   },
   buttonContainer: {
     flexDirection: 'row',
     marginVertical: 20,
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent'
   },
   members: {
     flexDirection: 'column',
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     width: '100%',
-    paddingHorizontal: 10,
+    paddingHorizontal: 10
   },
   member: {
     flexDirection: 'row',
@@ -163,14 +153,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,1)',
     borderRadius: 20,
     height: 30,
-    marginBottom: 10,
+    marginBottom: 10
   },
   memberName: {
-    marginHorizontal: 10,
+    marginHorizontal: 10
   },
   avatar: {
     height: 30,
     width: 30,
-    borderRadius: 15,
+    borderRadius: 15
   }
 })
