@@ -7,9 +7,9 @@ html
     meta(name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
     meta(name="mobile-web-app-capable" content="yes")
     meta(name="apple-mobile-web-app-capable" content="yes")
-    link(rel="apple-touch-icon" href=baseUrl + "res/icon.png")
-    link(rel="icon" sizes="256x256" href=baseUrl + "res/icon.png")
-    link(rel="stylesheet" type="text/css" href=baseUrl + "/static/style.css")
+    link(rel="apple-touch-icon" href=baseUrl + "/images/icon.png")
+    link(rel="icon" sizes="256x256" href=baseUrl + "/images/icon.png")
+    link(rel="stylesheet" type="text/css" href=baseUrl + "/css/style.css")
 
   body
     include ./_fork.pug
@@ -18,7 +18,7 @@ html
 
       form#form(method="get" action=baseUrl + "/call")
         h1
-          img(src=baseUrl + "/res/peer-calls.svg" width="100%" alt="Peer Calls")
+          img(src=baseUrl + "/images/peer-calls.svg" width="100%" alt="Peer Calls")
         p Group peer-to-peer calls for everyone. Create a private room. Share the link.
         input(type="submit" value="New Session")
 

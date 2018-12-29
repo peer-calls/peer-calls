@@ -21,10 +21,9 @@ app.locals.baseUrl = BASE_URL
 
 app.set('view engine', 'pug')
 app.set('views', path.join(__dirname, '../views'))
+app.use(express.static(path.join(__dirname, '../../build')))
 
 const router = express.Router()
-router.use('/res', express.static(path.join(__dirname, '../res')))
-router.use('/static', express.static(path.join(__dirname, '../../build')))
 router.use('/call', require('./routes/call.js'))
 router.use('/', require('./routes/index.js'))
 app.use(BASE_URL, router)
