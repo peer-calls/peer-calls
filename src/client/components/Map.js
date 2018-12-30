@@ -6,7 +6,6 @@ import {
   StyleSheet,
   View,
   Text,
-  Image,
   Dimensions
 } from 'react-native'
 
@@ -83,7 +82,8 @@ export default class Map extends React.PureComponent {
           title={id}
           position={{ lat: coords.latitude, lng: coords.longitude }}
           icon={{
-            url: `http://maps.google.com/mapfiles/kml/pal3/icon${index}.png`
+            url: 'https://chart.apis.google.com/chart?chst=d_map_pin_letter' +
+              `&chld=%E2%80%A2|${getColor(index)}`
           }}
         />
       )
@@ -96,15 +96,29 @@ export default class Map extends React.PureComponent {
     return members.map((id, index) => {
       return (
         <View key={id} style={styles.member}>
-          <Image
-            source={`http://maps.google.com/mapfiles/kml/pal3/icon${index}.png`}
-            style={styles.avatar}
-          />
+          <View style={[
+            styles.avatar,
+            { backgroundColor: `#${getColor(index)}` }
+          ]} />
           <Text style={styles.memberName}>{id}</Text>
         </View>
       )
     })
   }
+}
+
+const colors = [
+  'e6194b', '3cb44b', 'ffe119', '0082c8',
+  'f58231', '911eb4', '46f0f0', 'f032e6',
+  'd2f53c', 'fabebe', '008080', 'e6beff',
+  'aa6e28', 'fffac8', '800000', 'aaffc3',
+  '808000', 'ffd8b1', '000080'
+]
+
+const getColor = index => {
+  const color = colors[index]
+  index = ++index % colors.length
+  return color
 }
 
 const styles = StyleSheet.create({
