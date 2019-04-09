@@ -27,7 +27,7 @@ describe('components/Video', () => {
   }
 
   let component, videos, video, onClick, mediaStream, url, wrapper
-  function render (flags={}) {
+  function render (flags = {}) {
     videos = {}
     onClick = jest.fn()
     mediaStream = new MediaStream()
