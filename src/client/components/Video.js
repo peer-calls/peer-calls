@@ -16,10 +16,12 @@ export default class Video extends React.PureComponent {
     active: PropTypes.bool.isRequired,
     stream: StreamPropType,
     userId: PropTypes.string.isRequired,
-    muted: PropTypes.bool.isRequired
+    muted: PropTypes.bool.isRequired,
+    mirrored: PropTypes.bool
   }
   static defaultProps = {
-    muted: false
+    muted: false,
+    mirrored: false
   }
   handleClick = e => {
     const { onClick, userId } = this.props
@@ -48,8 +50,8 @@ export default class Video extends React.PureComponent {
     videos[socket.id] = video
   }
   render () {
-    const { active, muted } = this.props
-    const className = classnames('video-container', { active })
+    const { active, mirrored, muted } = this.props
+    const className = classnames('video-container', { active, mirrored })
     return (
       <div className={className}>
         <video

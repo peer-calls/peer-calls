@@ -75,6 +75,7 @@ export default class App extends React.PureComponent {
             stream={streams[constants.ME]}
             userId={constants.ME}
             muted
+            mirrored
           />
 
           {_.map(peers, (_, userId) => (
