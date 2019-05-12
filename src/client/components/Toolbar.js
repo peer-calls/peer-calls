@@ -42,7 +42,7 @@ export default class Toolbar extends React.PureComponent {
   }
   handleFullscreenClick = () => {
     if (screenfull.enabled) {
-      screenfull.toggle(this.fullscreenButton)
+      screenfull.toggle()
       this.fullscreenButton.classList.toggle('on')
     }
   }
