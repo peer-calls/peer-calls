@@ -16,6 +16,28 @@ already assigned to the issue. It is recommended to *ask* or create an issue
 before implementing changes - this way you'll have a lower chance that your
 pull request will be rejected.
 
+## Rules
+
+ 1. Do not include libraries or fonts from a CDN. All libraries must be bundled
+    with the app, preferrably installed via NPM.
+ 2. Do not use APIs from third-party servers, like Google Maps or Slack.
+ 3. If a permission is needed, do not ask for it before explaining the need for
+    it to the user. From [Google Web Fundamentals][gwf]:
+    > Make sure that users understand why you’re asking for their location, and
+    > what the benefit to them will be. Asking for it immediately on the
+    > homepage as the site loads results in a poor user experience.
+    One exception is the camera/microphone access, because this application is
+    useless without it.
+ 4. Write tests! A lot of work has been put to have a high test code coverage,
+    and pull requests that decrease test coverage will be rejected.
+ 5. Do not include your personal development environment settings in this
+    repository. Different people use different environments, and only generic
+    settings like `.editorconfig` will be allowed.
+ 6. In order to accept a pull request, the CI must pass, and that includes
+    the linter, all tests, and the build process.
+
+  [gwf]: https://developers.google.com/web/fundamentals/native-hardware/user-location/
+
 ## Contributing Code
 
 1. Fork the repo
