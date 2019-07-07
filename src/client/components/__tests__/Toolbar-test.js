@@ -5,7 +5,7 @@ import TestUtils from 'react-dom/test-utils'
 import Toolbar from '../Toolbar.js'
 import { MediaStream } from '../../window.js'
 
-describe('components/Video', () => {
+describe('components/Toolbar', () => {
 
   class ToolbarWrapper extends React.PureComponent {
     static propTypes = Toolbar.propTypes
@@ -15,22 +15,22 @@ describe('components/Video', () => {
     }
     render () {
       return <Toolbar
-        chatRef={this.props.chatRef}
+        chatVisible={this.props.chatVisible}
+        onToggleChat={this.props.onToggleChat}
         messages={this.props.messages}
         stream={this.state.stream || this.props.stream}
       />
     }
   }
 
-  let component, node, chatRef, mediaStream, url
+  let component, node, mediaStream, url, onToggleChat
   function render () {
     mediaStream = new MediaStream()
-    chatRef = ReactDOM.findDOMNode(
-      TestUtils.renderIntoDocument(<div />)
-    )
+    onToggleChat = jest.fn()
     component = TestUtils.renderIntoDocument(
       <ToolbarWrapper
-        chatRef={chatRef}
+        chatVisible
+        onToggleChat={onToggleChat}
         messages={[]}
         stream={{ mediaStream, url }}
       />
@@ -46,9 +46,10 @@ describe('components/Video', () => {
 
   describe('handleChatClick', () => {
     it('toggle chat', () => {
+      expect(onToggleChat.mock.calls.length).toBe(0)
       const button = node.querySelector('.chat')
       TestUtils.Simulate.click(button)
-      expect(button.classList.contains('on')).toBe(true)
+      expect(onToggleChat.mock.calls.length).toBe(1)
     })
   })
 

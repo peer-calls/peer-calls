@@ -1,10 +1,10 @@
-import Alerts, { AlertPropType } from './Alerts.js'
 import * as constants from '../constants.js'
-import Toolbar from './Toolbar.js'
-import Notifications, { NotificationPropTypes } from './Notifications.js'
+import Alerts, { AlertPropType } from './Alerts.js'
 import Chat, { MessagePropTypes } from './Chat.js'
+import Notifications, { NotificationPropTypes } from './Notifications.js'
 import PropTypes from 'prop-types'
 import React from 'react'
+import Toolbar from './Toolbar.js'
 import Video, { StreamPropType } from './Video.js'
 import _ from 'underscore'
 
@@ -25,10 +25,24 @@ export default class App extends React.PureComponent {
   constructor () {
     super()
     this.state = {
-      videos: {}
+      videos: {},
+      chatVisible: false
     }
-    this.chatRef = React.createRef()
-    this.toolbarRef = React.createRef()
+  }
+  handleShowChat = () => {
+    this.setState({
+      chatVisible: true
+    })
+  }
+  handleHideChat = () => {
+    this.setState({
+      chatVisible: false
+    })
+  }
+  handleToggleChat = () => {
+    return this.state.chatVisible
+      ? this.handleHideChat()
+      : this.handleShowChat()
   }
   componentDidMount () {
     const { init } = this.props
@@ -53,22 +67,21 @@ export default class App extends React.PureComponent {
     return (
       <div className="app">
         <Toolbar
-          chatRef={this.chatRef}
+          chatVisible={this.state.chatVisible}
           messages={messages}
+          onToggleChat={this.handleToggleChat}
           stream={streams[constants.ME]}
-          ref={this.toolbarRef}
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
-        <div className="chat-container" ref={this.chatRef}>
-          <Chat
-            messages={messages}
-            videos={videos}
-            notify={notify}
-            sendMessage={sendMessage}
-            toolbarRef={this.toolbarRef}
-          />
-        </div>
+        <Chat
+          messages={messages}
+          notify={notify}
+          onClose={this.handleHideChat}
+          sendMessage={sendMessage}
+          videos={videos}
+          visible={this.state.chatVisible}
+        />
         <div className="videos">
           <Video
             videos={videos}

@@ -1,30 +1,16 @@
 import PropTypes from 'prop-types'
 import React from 'react'
+import classnames from 'classnames'
 import screenfull from 'screenfull'
 import { MessagePropTypes } from './Chat.js'
 import { StreamPropType } from './Video.js'
 
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
-    chatRef: PropTypes.object.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    stream: StreamPropType
-  }
-  constructor () {
-    super()
-    this.state = {
-      isChatOpen: false,
-      totalMessages: 0
-    }
-  }
-  handleChatClick = () => {
-    const { chatRef, messages } = this.props
-    chatRef.classList.toggle('show')
-    this.chatButton.classList.toggle('on')
-    this.setState({
-      isChatOpen: chatRef.classList.contains('show'),
-      totalMessages: messages.length
-    })
+    stream: StreamPropType,
+    onToggleChat: PropTypes.func.isRequired,
+    chatVisible: PropTypes.bool.isRequired
   }
   handleMicClick = () => {
     const { stream } = this.props
@@ -51,14 +37,14 @@ export default class Toolbar extends React.PureComponent {
   }
   render () {
     const { messages, stream } = this.props
-    const { isChatOpen, totalMessages } = this.state
 
     return (
       <div className="toolbar active">
-        <div onClick={this.handleChatClick}
-          ref={node => { this.chatButton = node }}
-          className="button chat"
-          data-blink={messages.length !== totalMessages && !isChatOpen}
+        <div onClick={this.props.onToggleChat}
+          className={classnames('button chat', {
+            on: this.props.chatVisible
+          })}
+          data-blink={this.props.chatVisible && messages.length}
           title="Chat"
         >
           <span className="icon icon-question_answer" />

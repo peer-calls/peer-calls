@@ -1,7 +1,8 @@
+import Input from './Input.js'
 import PropTypes from 'prop-types'
 import React from 'react'
+import classnames from 'classnames'
 import socket from '../socket.js'
-import Input from './Input.js'
 
 export const MessagePropTypes = PropTypes.shape({
   userId: PropTypes.string.isRequired,
@@ -12,18 +13,20 @@ export const MessagePropTypes = PropTypes.shape({
 
 export default class Chat extends React.PureComponent {
   static propTypes = {
+    visible: PropTypes.bool.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    videos: PropTypes.object.isRequired,
     notify: PropTypes.func.isRequired,
+    onClose: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired,
-    toolbarRef: PropTypes.object.isRequired
+    videos: PropTypes.object.isRequired
   }
-  handleCloseChat = e => {
-    const { toolbarRef } = this.props
-    toolbarRef.chatButton.click()
+  constructor () {
+    super()
+    this.chatHistoryRef = React.createRef()
   }
   scrollToBottom = () => {
-    this.chatScroll.scrollTop = this.chatScroll.scrollHeight
+    const chatHistoryRef = this.chatHistoryRef.current
+    chatHistoryRef.scrollTop = chatHistoryRef.scrollHeight
   }
   componentDidMount () {
     this.scrollToBottom()
@@ -34,16 +37,18 @@ export default class Chat extends React.PureComponent {
   render () {
     const { messages, videos, notify, sendMessage } = this.props
     return (
-      <div>
+      <div className={classnames('chat-container', {
+        show: this.props.visible
+      })}>
         <div className="chat-header">
-          <div className="chat-close" onClick={this.handleCloseChat}>
+          <div className="chat-close" onClick={this.props.onClose}>
             <div className="button button-icon">
               <span className="icon icon-arrow_forward" />
             </div>
           </div>
           <div className="chat-title">Chat</div>
         </div>
-        <div className="chat-history" ref={div => { this.chatScroll = div }}>
+        <div className="chat-history" ref={this.chatHistoryRef}>
 
           {messages.length ? (
             messages.map((message, i) => (
