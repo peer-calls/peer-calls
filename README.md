@@ -41,15 +41,10 @@ npm run start:watch
 
 To run a development version, type:
 
-
-
 If you successfully completed the above steps, your commandline/terminal should
 show that your node server is listening.
 
-On your other machine or mobile device open the url:
-
-```bash
-http://<your_ip_or_localhost>:3000
+On your other machine or mobile device open the url: http://<your_ip_or_localhost>:3000
 
 # Testing
 
@@ -62,7 +57,7 @@ npm test
 
 Tested on Firefox and Chrome, including mobile versions.
 
-Does not work on iOS 10, but should work on iOS 11 (untested).
+Does not work on iOS 10, but should work on iOS 11 - would appreciate feedback!
 
 For more details, see here:
 
