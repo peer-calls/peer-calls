@@ -7,7 +7,7 @@ import {
   navigator,
   play,
   valueOf
-} from '../window.js'
+} from './window.js'
 
 describe('window', () => {
 

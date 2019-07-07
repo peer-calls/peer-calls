@@ -2,11 +2,11 @@ jest.mock('socket.io', () => {
   const { EventEmitter } = require('events')
   return jest.fn().mockReturnValue(new EventEmitter())
 })
-jest.mock('../socket.js')
+jest.mock('./socket.js')
 
-const app = require('../app.js')
+const app = require('./app.js')
 const config = require('config')
-const handleSocket = require('../socket.js')
+const handleSocket = require('./socket.js')
 const io = require('socket.io')()
 const request = require('supertest')
 

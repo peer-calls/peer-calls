@@ -3,7 +3,7 @@ jest.mock('../socket.js')
 jest.mock('../window.js')
 
 import * as constants from '../constants.js'
-import App from '../containers/App.js'
+import App from './App.js'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'

@@ -1,11 +1,11 @@
-jest.mock('../../window.js')
+jest.mock('../window.js')
 jest.mock('simple-peer')
 
-import * as PeerActions from '../PeerActions.js'
+import * as PeerActions from './PeerActions.js'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore } from '../../store.js'
-import { play } from '../../window.js'
+import { createStore } from '../store.js'
+import { play } from '../window.js'
 
 describe('PeerActions', () => {
   function createSocket () {

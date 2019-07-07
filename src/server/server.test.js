@@ -1,7 +1,7 @@
 const express = require('express')
 const http = require('http')
 const https = require('https')
-const { createServer } = require('../server.js')
+const { createServer } = require('./server.js')
 
 describe('server', () => {
 

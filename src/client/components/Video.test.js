@@ -1,9 +1,9 @@
-jest.mock('../../window.js')
+jest.mock('../window.js')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import Video from '../Video.js'
-import { MediaStream } from '../../window.js'
+import Video from './Video.js'
+import { MediaStream } from '../window.js'
 
 describe('components/Video', () => {
 

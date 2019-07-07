@@ -1,5 +1,5 @@
-import * as ChatActions from '../../actions/ChatActions.js'
-import messages from '../messages.js'
+import * as ChatActions from '../actions/ChatActions.js'
+import messages from './messages.js'
 
 describe('reducers/messages', () => {
 

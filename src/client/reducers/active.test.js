@@ -1,5 +1,5 @@
-import * as StreamActions from '../../actions/StreamActions.js'
-import active from '../active.js'
+import * as StreamActions from '../actions/StreamActions.js'
+import active from './active.js'
 
 describe('reducers/active', () => {
 

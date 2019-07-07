@@ -1,4 +1,4 @@
-const turn = require('../turn.js')
+const turn = require('./turn.js')
 
 describe('server/turn', () => {
   describe('getCredentials', () => {

@@ -1,14 +1,14 @@
-jest.mock('../../socket.js')
-jest.mock('../../window.js')
-jest.mock('../../store.js')
-jest.mock('../SocketActions.js')
+jest.mock('../socket.js')
+jest.mock('../window.js')
+jest.mock('../store.js')
+jest.mock('./SocketActions.js')
 
-import * as CallActions from '../CallActions.js'
-import * as SocketActions from '../SocketActions.js'
-import * as constants from '../../constants.js'
-import socket from '../../socket.js'
-import store from '../../store.js'
-import { callId, getUserMedia } from '../../window.js'
+import * as CallActions from './CallActions.js'
+import * as SocketActions from './SocketActions.js'
+import * as constants from '../constants.js'
+import socket from '../socket.js'
+import store from '../store.js'
+import { callId, getUserMedia } from '../window.js'
 
 jest.useFakeTimers()
 

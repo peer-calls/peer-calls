@@ -104,7 +104,7 @@
       "^.+\\.[t|j]sx?$": "<rootDir>/node_modules/babel-jest"
     },
     "setupFiles": [
-      "./jest.setup.js"
+      "<rootDir>/jest.setup.js"
     ],
     "modulePathIgnorePatterns": [
       "<rootDir>/node_modules/"

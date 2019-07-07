@@ -1,7 +1,7 @@
 'use strict'
 
 const EventEmitter = require('events').EventEmitter
-const handleSocket = require('../socket.js')
+const handleSocket = require('./socket.js')
 
 describe('server/socket', () => {
   let socket, io, rooms

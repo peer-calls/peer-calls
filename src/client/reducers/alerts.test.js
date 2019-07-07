@@ -1,8 +1,8 @@
-import * as NotifyActions from '../../actions/NotifyActions.js'
+import * as NotifyActions from '../actions/NotifyActions.js'
 import _ from 'underscore'
 import { applyMiddleware, createStore } from 'redux'
-import { create } from '../../middlewares.js'
-import reducers from '../index.js'
+import { create } from '../middlewares.js'
+import reducers from './index.js'
 
 jest.useFakeTimers()
 

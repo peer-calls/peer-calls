@@ -1,5 +1,5 @@
 import logger from 'redux-logger'
-import { create } from '../middlewares.js'
+import { create } from './middlewares.js'
 
 describe('store', () => {
 
