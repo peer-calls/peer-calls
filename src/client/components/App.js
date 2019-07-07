@@ -27,6 +27,8 @@ export default class App extends React.PureComponent {
     this.state = {
       videos: {}
     }
+    this.chatRef = React.createRef()
+    this.toolbarRef = React.createRef()
   }
   componentDidMount () {
     const { init } = this.props
@@ -54,11 +56,11 @@ export default class App extends React.PureComponent {
           chatRef={this.chatRef}
           messages={messages}
           stream={streams[constants.ME]}
-          ref={node => { this.toolbarRef = node }}
+          ref={this.toolbarRef}
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
-        <div className="chat-container" ref={node => { this.chatRef = node }}>
+        <div className="chat-container" ref={this.chatRef}>
           <Chat
             messages={messages}
             videos={videos}
