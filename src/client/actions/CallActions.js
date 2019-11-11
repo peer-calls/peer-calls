@@ -38,7 +38,7 @@ export const connect = () => dispatch => {
 }
 
 export const getCameraStream = () => dispatch => {
-  return getUserMedia({ video: true, audio: true })
+  return getUserMedia({ video: { facingMode: 'user' }, audio: true })
   .then(stream => {
     dispatch(StreamActions.addStream({ stream, userId: constants.ME }))
     return stream
