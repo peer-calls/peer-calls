@@ -10,7 +10,7 @@ function safeCreateObjectURL (stream) {
   try {
     return createObjectURL(stream)
   } catch (err) {
-    debug('Error using createObjectURL: %s', err.message)
+    debug('Error using createObjectURL: %s', err)
     return null
   }
 }
