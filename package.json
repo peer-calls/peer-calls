@@ -1,6 +1,6 @@
 {
   "name": "peer-calls",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/jeremija/peer-calls",
   "main": "src/index.js",
