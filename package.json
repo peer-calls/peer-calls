@@ -92,7 +92,7 @@
     "eslint-plugin-react": "^7.0.1",
     "eslint-plugin-standard": "^4.0.0",
     "jest-cli": "^24.8.0",
-    "node-sass": "^4.11.0",
+    "node-sass": "^4.13.0",
     "nodemon": "^1.18.8",
     "redux-mock-store": "^1.2.3",
     "supertest": "^3.0.0",
