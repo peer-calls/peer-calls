@@ -20,6 +20,9 @@ export default class Toolbar extends React.PureComponent {
   constructor (props) {
     super(props)
     this.file = React.createRef()
+    this.state = {
+      readMessages: props.messages.length
+    }
   }
   handleMicClick = () => {
     const { stream } = this.props
@@ -52,16 +55,23 @@ export default class Toolbar extends React.PureComponent {
     .from(event.target.files)
     .forEach(file => this.props.onSendFile(file))
   }
+  handleToggleChat = () => {
+    this.setState({
+      readMessages: this.props.messages.length
+    })
+    this.props.onToggleChat()
+  }
   render () {
     const { messages, stream } = this.props
 
     return (
       <div className="toolbar active">
-        <div onClick={this.props.onToggleChat}
+        <div onClick={this.handleToggleChat}
           className={classnames('button chat', {
             on: this.props.chatVisible
           })}
-          data-blink={this.props.chatVisible && messages.length}
+          data-blink={!this.props.chatVisible &&
+            messages.length > this.state.readMessages}
           title="Chat"
         >
           <span className="icon icon-question_answer" />
