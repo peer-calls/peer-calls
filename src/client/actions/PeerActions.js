@@ -53,7 +53,7 @@ class PeerHandler {
       case 'file':
         dispatch(ChatActions.addMessage({
           userId: user.id,
-          message: 'Sent a file: "' + message.payload.name,
+          message: message.payload.name,
           timestamp: new Date().toLocaleString(),
           image: message.payload.data
         }))
