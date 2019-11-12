@@ -9,6 +9,7 @@
   top: 0;
   transition: visibility 100ms ease-in, opacity 100ms ease-in;
   z-index: 4;
+  pointer-events: none;
 
   span {
     display: inline-block;
