@@ -1,4 +1,5 @@
 import * as constants from '../constants.js'
+import * as ChatActions from './ChatActions.js'
 import _ from 'underscore'
 
 const TIMEOUT = 5000
@@ -18,6 +19,12 @@ const _notify = (type, args) => dispatch => {
     type: constants.NOTIFY,
     payload
   })
+  dispatch(ChatActions.addMessage({
+    userId: '[PeerCalls]',
+    message,
+    timestamp: new Date().toLocaleString(),
+    image: null
+  }))
   setTimeout(() => {
     dispatch({
       type: constants.NOTIFY_DISMISS,
