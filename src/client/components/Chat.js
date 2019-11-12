@@ -2,7 +2,6 @@ import Input from './Input.js'
 import PropTypes from 'prop-types'
 import React from 'react'
 import classnames from 'classnames'
-import socket from '../socket.js'
 
 export const MessagePropTypes = PropTypes.shape({
   userId: PropTypes.string.isRequired,
@@ -11,11 +10,26 @@ export const MessagePropTypes = PropTypes.shape({
   image: PropTypes.string
 })
 
+function Message (props) {
+  const { message } = props
+  return (
+    <p className="message-text">
+      {message.image && (
+        <img src={message.image} width="100%" />
+      )}
+      {message.message}
+    </p>
+  )
+}
+
+Message.propTypes = {
+  message: MessagePropTypes
+}
+
 export default class Chat extends React.PureComponent {
   static propTypes = {
     visible: PropTypes.bool.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    notify: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired,
     videos: PropTypes.object.isRequired
@@ -35,7 +49,7 @@ export default class Chat extends React.PureComponent {
     this.scrollToBottom()
   }
   render () {
-    const { messages, videos, notify, sendMessage } = this.props
+    const { messages, videos, sendMessage } = this.props
     return (
       <div className={classnames('chat-container', {
         show: this.props.visible
@@ -53,7 +67,7 @@ export default class Chat extends React.PureComponent {
           {messages.length ? (
             messages.map((message, i) => (
               <div key={i}>
-                {message.userId === socket.id ? (
+                {message.userId === 'You' ? (
                   <div className="chat-item chat-item-me">
                     <div className="message">
                       <span className="message-user-name">
@@ -61,7 +75,7 @@ export default class Chat extends React.PureComponent {
                       </span>
                       <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
-                      <p className="message-text">{message.message}</p>
+                      <Message message={message} />
                     </div>
                     {message.image ? (
                       <img className="chat-item-img" src={message.image} />
@@ -82,12 +96,7 @@ export default class Chat extends React.PureComponent {
                       </span>
                       <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
-                      <p className="message-text">
-                        {message.image && (
-                          <img src={message.image} width="100%" />
-                        )}
-                        {message.message}
-                      </p>
+                      <Message message={message} />
                     </div>
                   </div>
                 )}
@@ -104,7 +113,6 @@ export default class Chat extends React.PureComponent {
 
         <Input
           videos={videos}
-          notify={notify}
           sendMessage={sendMessage}
         />
       </div>

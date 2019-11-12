@@ -18,7 +18,6 @@ export const NOTIFY_DISMISS = 'NOTIFY_DISMISS'
 export const NOTIFY_CLEAR = 'NOTIFY_CLEAR'
 
 export const MESSAGE_ADD = 'MESSAGE_ADD'
-export const MESSAGES_HISTORY = 'MESSAGES_HISTORY'
 
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'
@@ -33,8 +32,6 @@ export const PEER_EVENT_DATA = 'data'
 
 export const SOCKET_EVENT_SIGNAL = 'signal'
 export const SOCKET_EVENT_USERS = 'users'
-export const SOCKET_EVENT_MESSAGES = 'messages'
-export const SOCKET_EVENT_NEW_MESSAGE = 'new_message'
 
 export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'

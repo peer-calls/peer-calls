@@ -47,9 +47,9 @@ export default class Toolbar extends React.PureComponent {
   handleSendFile = () => {
     this.file.current.click()
   }
-  handleSelectFiles = () => {
+  handleSelectFiles = (event) => {
     Array
-    .from(this.file.current.files)
+    .from(event.target.files)
     .forEach(file => this.props.onSendFile(file))
   }
   render () {

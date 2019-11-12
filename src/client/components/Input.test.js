@@ -39,8 +39,8 @@ describe('components/Input', () => {
       it('sends a message', () => {
         TestUtils.Simulate.submit(node)
         expect(input.value).toBe('')
-        expect(sendMessage.mock.calls).toEqual([[ message ]])
-        expect(notify.mock.calls).toEqual([[ `You: ${message}` ]])
+        expect(sendMessage.mock.calls)
+        .toEqual([[ { payload: message, type: 'text' } ]])
       })
     })
 
@@ -50,8 +50,8 @@ describe('components/Input', () => {
           key: 'Enter'
         })
         expect(input.value).toBe('')
-        expect(sendMessage.mock.calls).toEqual([[ message ]])
-        expect(notify.mock.calls).toEqual([[ `You: ${message}` ]])
+        expect(sendMessage.mock.calls)
+        .toEqual([[ { payload: message, type: 'text' } ]])
       })
 
       it('does nothing when other key pressed', () => {
@@ -59,7 +59,6 @@ describe('components/Input', () => {
           key: 'test'
         })
         expect(sendMessage.mock.calls.length).toBe(0)
-        expect(notify.mock.calls.length).toBe(0)
       })
     })
 

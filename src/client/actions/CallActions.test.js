@@ -39,6 +39,14 @@ describe('reducers/alerts', () => {
           message: 'Connected to server socket',
           type: 'warning'
         }
+      }, {
+        type: constants.MESSAGE_ADD,
+        payload: {
+          image: null,
+          message: 'Connected to server socket',
+          timestamp: jasmine.any(String),
+          userId: '[PeerCalls]'
+        }
       }])
       await promise
       expect(SocketActions.handshake.mock.calls).toEqual([[{
@@ -63,11 +71,27 @@ describe('reducers/alerts', () => {
           type: 'warning'
         }
       }, {
+        type: constants.MESSAGE_ADD,
+        payload: {
+          image: null,
+          message: 'Connected to server socket',
+          timestamp: jasmine.any(String),
+          userId: '[PeerCalls]'
+        }
+      }, {
         type: constants.NOTIFY,
         payload: {
           id: jasmine.any(String),
           message: 'Server socket disconnected',
           type: 'error'
+        }
+      }, {
+        type: constants.MESSAGE_ADD,
+        payload: {
+          image: null,
+          message: 'Server socket disconnected',
+          timestamp: jasmine.any(String),
+          userId: '[PeerCalls]'
         }
       }])
       await promise

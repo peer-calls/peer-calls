@@ -15,7 +15,6 @@ export default class App extends React.PureComponent {
     dismissAlert: PropTypes.func.isRequired,
     init: PropTypes.func.isRequired,
     notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
-    notify: PropTypes.func.isRequired,
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     peers: PropTypes.object.isRequired,
     sendMessage: PropTypes.func.isRequired,
@@ -55,7 +54,6 @@ export default class App extends React.PureComponent {
       alerts,
       dismissAlert,
       notifications,
-      notify,
       messages,
       onSendFile,
       peers,
@@ -79,7 +77,6 @@ export default class App extends React.PureComponent {
         <Notifications notifications={notifications} />
         <Chat
           messages={messages}
-          notify={notify}
           onClose={this.handleHideChat}
           sendMessage={sendMessage}
           videos={videos}

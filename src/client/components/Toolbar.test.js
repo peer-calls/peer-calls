@@ -17,20 +17,23 @@ describe('components/Toolbar', () => {
       return <Toolbar
         chatVisible={this.props.chatVisible}
         onToggleChat={this.props.onToggleChat}
+        onSendFile={this.props.onSendFile}
         messages={this.props.messages}
         stream={this.state.stream || this.props.stream}
       />
     }
   }
 
-  let component, node, mediaStream, url, onToggleChat
+  let component, node, mediaStream, url, onToggleChat, onSendFile
   function render () {
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
+    onSendFile = jest.fn()
     component = TestUtils.renderIntoDocument(
       <ToolbarWrapper
         chatVisible
         onToggleChat={onToggleChat}
+        onSendFile={onSendFile}
         messages={[]}
         stream={{ mediaStream, url }}
       />
@@ -38,10 +41,8 @@ describe('components/Toolbar', () => {
     node = ReactDOM.findDOMNode(component)
   }
 
-  describe('render', () => {
-    it('should not fail', () => {
-      render()
-    })
+  beforeEach(() => {
+    render()
   })
 
   describe('handleChatClick', () => {
@@ -82,6 +83,30 @@ describe('components/Toolbar', () => {
       const button = node.querySelector('.hangup')
       TestUtils.Simulate.click(button)
       expect(window.location.href).toBe('http://localhost/')
+    })
+  })
+
+  describe('handleSendFile', () => {
+    it('triggers input dialog', () => {
+      const sendFileButton = node.querySelector('.send-file')
+      const click = jest.fn()
+      const file = node.querySelector('input[type=file]')
+      file.click = click
+      TestUtils.Simulate.click(sendFileButton)
+      expect(click.mock.calls.length).toBe(1)
+    })
+  })
+
+  describe('handleSelectFiles', () => {
+    it('iterates through files and calls onSendFile for each', () => {
+      const file = node.querySelector('input[type=file]')
+      const files = [{ name: 'first' }]
+      TestUtils.Simulate.change(file, {
+        target: {
+          files
+        }
+      })
+      expect(onSendFile.mock.calls).toEqual([[ files[0] ]])
     })
   })
 

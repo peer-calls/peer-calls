@@ -9,8 +9,3 @@ export const addMessage = ({ userId, message, timestamp, image }) => ({
     image
   }
 })
-
-export const loadHistory = messages => ({
-  type: constants.MESSAGES_HISTORY,
-  messages
-})

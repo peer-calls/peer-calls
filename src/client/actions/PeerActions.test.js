@@ -96,16 +96,15 @@ describe('PeerActions', () => {
       })
 
       it('decodes a message', () => {
-        const message = 'test'
-        const object = JSON.stringify({ message })
+        const payload = 'test'
+        const object = JSON.stringify({ payload })
         peer.emit('data', Buffer.from(object, 'utf-8'))
-        const { notifications } = store.getState()
-        const keys = Object.keys(notifications)
-        const n = notifications[keys[keys.length - 1]]
-        expect(n).toEqual({
-          id: jasmine.any(String),
-          type: 'info',
-          message: `${user.id}: ${message}`
+        const { messages } = store.getState()
+        expect(messages[messages.length - 1]).toEqual({
+          userId: 'user2',
+          timestamp: jasmine.any(String),
+          image: null,
+          message: 'test'
         })
       })
     })
@@ -158,12 +157,12 @@ describe('PeerActions', () => {
     })
 
     it('sends a message to all peers', () => {
-      store.dispatch(PeerActions.sendMessage('test'))
+      store.dispatch(PeerActions.sendMessage({ payload: 'test', type: 'text' }))
       const { peers } = store.getState()
       expect(peers['user2'].send.mock.calls)
-      .toEqual([[ '{"message":"test"}' ]])
+      .toEqual([[ '{"payload":"test","type":"text"}' ]])
       expect(peers['user3'].send.mock.calls)
-      .toEqual([[ '{"message":"test"}' ]])
+      .toEqual([[ '{"payload":"test","type":"text"}' ]])
     })
 
   })

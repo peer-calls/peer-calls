@@ -1,11 +1,8 @@
 import PropTypes from 'prop-types'
 import React from 'react'
-import socket from '../socket.js'
 
 export default class Input extends React.PureComponent {
   static propTypes = {
-    videos: PropTypes.object.isRequired,
-    notify: PropTypes.func.isRequired,
     sendMessage: PropTypes.func.isRequired
   }
   constructor () {
@@ -35,35 +32,27 @@ export default class Input extends React.PureComponent {
     })
   }
   submit = () => {
-    const { videos, notify, sendMessage } = this.props
+    const { sendMessage } = this.props
     const { message } = this.state
     if (message) {
-      notify('You: ' + message)
-      sendMessage(message)
-
-      const userId = socket.id
-      const timestamp = new Date().toLocaleString('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
+      sendMessage({
+        payload: message,
+        type: 'text'
       })
-      let image = null
+      // let image = null
 
-      // take snapshoot
-      try {
-        const video = videos[userId]
-        if (video) {
-          const canvas = document.createElement('canvas')
-          canvas.height = video.videoHeight
-          canvas.width = video.videoWidth
-          const avatar = canvas.getContext('2d')
-          avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
-          image = canvas.toDataURL()
-        }
-      } catch (e) {}
-
-      const payload = { userId, message, timestamp, image }
-      socket.emit('new_message', payload)
+      // // take snapshoot
+      // try {
+      //   const video = videos[userId]
+      //   if (video) {
+      //     const canvas = document.createElement('canvas')
+      //     canvas.height = video.videoHeight
+      //     canvas.width = video.videoWidth
+      //     const avatar = canvas.getContext('2d')
+      //     avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
+      //     image = canvas.toDataURL()
+      //   }
+      // } catch (e) {}
     }
     this.setState({ message: '' })
   }

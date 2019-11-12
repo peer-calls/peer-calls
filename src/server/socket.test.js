@@ -83,7 +83,7 @@ describe('server/socket', () => {
       it('should emit users', () => {
         socket.emit('ready', 'room3')
 
-        expect(io.to.mock.calls).toEqual([[ 'room3' ], [ 'room3' ]])
+        expect(io.to.mock.calls).toEqual([[ 'room3' ]])
         expect(io.to('room3').emit.mock.calls).toEqual([
           [
             'users', {
@@ -96,8 +96,7 @@ describe('server/socket', () => {
                 id: 'socket2'
               }]
             }
-          ],
-          ['messages', []]
+          ]
         ])
       })
     })

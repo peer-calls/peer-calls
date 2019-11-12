@@ -49,7 +49,7 @@ class PeerHandler {
     const { dispatch, user } = this
     const message = JSON.parse(new window.TextDecoder('utf-8').decode(object))
     debug('peer: %s, message: %o', user.id, object)
-    switch (object.type) {
+    switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({
           userId: user.id,
@@ -143,17 +143,25 @@ export const destroyPeers = () => ({
 
 export const sendMessage = message => (dispatch, getState) => {
   const { peers } = getState()
-  dispatch(NotifyActions.info('Sending message type: {0} to {1} peers.',
-    message.type, Object.keys(peers).length))
-  _.each(peers, peer => {
+  debug('Sending message type: %s to %s peers.',
+    message.type, Object.keys(peers).length)
+  _.each(peers, (peer, userId) => {
     switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({
           userId: 'You',
           message: 'Send file: "' +
-            message.payload.name + '" to peer: ' + peer._id,
+            message.payload.name + '" to peer: ' + userId,
           timestamp: new Date().toLocaleString(),
           image: message.payload.data
+        }))
+        break
+      default:
+        dispatch(ChatActions.addMessage({
+          userId: 'You',
+          message: message.payload,
+          timestamp: new Date().toLocaleString(),
+          image: null
         }))
     }
     peer.send(JSON.stringify(message))

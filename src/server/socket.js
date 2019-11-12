@@ -2,8 +2,6 @@
 const debug = require('debug')('peer-calls:socket')
 const _ = require('underscore')
 
-const messages = {}
-
 module.exports = function (socket, io) {
   socket.on('signal', payload => {
     // debug('signal: %s, payload: %o', socket.id, payload)
@@ -11,11 +9,6 @@ module.exports = function (socket, io) {
       userId: socket.id,
       signal: payload.signal
     })
-  })
-
-  socket.on('new_message', payload => {
-    addMesssage(socket.room, payload)
-    io.to(socket.room).emit('new_message', payload)
   })
 
   socket.on('ready', roomName => {
@@ -26,17 +19,13 @@ module.exports = function (socket, io) {
     socket.room = roomName
 
     let users = getUsers(roomName)
-    let messages = getMesssages(roomName)
 
-    debug('ready: %s, room: %s, users: %o, messages: %o',
-      socket.id, roomName, users, messages)
+    debug('ready: %s, room: %s, users: %o', socket.id, roomName, users)
 
     io.to(roomName).emit('users', {
       initiator: socket.id,
       users
     })
-
-    io.to(roomName).emit('messages', messages)
   })
 
   function getUsers (roomName) {
@@ -45,14 +34,4 @@ module.exports = function (socket, io) {
     })
   }
 
-  function getMesssages (roomName) {
-    if (_.isUndefined(messages[roomName])) {
-      messages[roomName] = []
-    }
-    return messages[roomName]
-  }
-
-  function addMesssage (roomName, payload) {
-    getMesssages(roomName).push(payload)
-  }
 }

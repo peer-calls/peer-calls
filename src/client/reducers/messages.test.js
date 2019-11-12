@@ -17,12 +17,4 @@ describe('reducers/messages', () => {
     })
   })
 
-  describe('messageHistory', () => {
-    it('get chat message hisotry', () => {
-      let state = messages()
-      state = messages(state, ChatActions.loadHistory([]))
-      expect(state).toEqual([])
-    })
-  })
-
 })

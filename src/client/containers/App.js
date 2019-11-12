@@ -23,7 +23,6 @@ function mapDispatchToProps (dispatch) {
     sendMessage: bindActionCreators(PeerActions.sendMessage, dispatch),
     dismissAlert: bindActionCreators(NotifyActions.dismissAlert, dispatch),
     init: bindActionCreators(CallActions.init, dispatch),
-    notify: bindActionCreators(NotifyActions.info, dispatch),
     onSendFile: bindActionCreators(PeerActions.sendFile, dispatch)
   }
 }
