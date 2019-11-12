@@ -5,12 +5,21 @@ import screenfull from 'screenfull'
 import { MessagePropTypes } from './Chat.js'
 import { StreamPropType } from './Video.js'
 
+const hidden = {
+  display: 'none'
+}
+
 export default class Toolbar extends React.PureComponent {
   static propTypes = {
     messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
     stream: StreamPropType,
     onToggleChat: PropTypes.func.isRequired,
+    onSendFile: PropTypes.func.isRequired,
     chatVisible: PropTypes.bool.isRequired
+  }
+  constructor (props) {
+    super(props)
+    this.file = React.createRef()
   }
   handleMicClick = () => {
     const { stream } = this.props
@@ -35,6 +44,14 @@ export default class Toolbar extends React.PureComponent {
   handleHangoutClick = () => {
     window.location.href = '/'
   }
+  handleSendFile = () => {
+    this.file.current.click()
+  }
+  handleSelectFiles = () => {
+    Array
+    .from(this.file.current.files)
+    .forEach(file => this.props.onSendFile(file))
+  }
   render () {
     const { messages, stream } = this.props
 
@@ -48,6 +65,20 @@ export default class Toolbar extends React.PureComponent {
           title="Chat"
         >
           <span className="icon icon-question_answer" />
+        </div>
+        <div
+          className="button send-file"
+          onClick={this.handleSendFile}
+          title="Send file"
+        >
+          <input
+            style={hidden}
+            type="file"
+            multiple
+            ref={this.file}
+            onChange={this.handleSelectFiles}
+          />
+          <span className="icon icon-file-text2" />
         </div>
 
         {stream && (

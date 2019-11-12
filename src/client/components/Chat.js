@@ -82,7 +82,12 @@ export default class Chat extends React.PureComponent {
                       </span>
                       <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
-                      <p className="message-text">{message.message}</p>
+                      <p className="message-text">
+                        {message.image && (
+                          <img src={message.image} width="100%" />
+                        )}
+                        {message.message}
+                      </p>
                     </div>
                   </div>
                 )}

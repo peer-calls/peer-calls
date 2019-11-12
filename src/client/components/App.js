@@ -20,6 +20,7 @@ export default class App extends React.PureComponent {
     peers: PropTypes.object.isRequired,
     sendMessage: PropTypes.func.isRequired,
     streams: PropTypes.objectOf(StreamPropType).isRequired,
+    onSendFile: PropTypes.func.isRequired,
     toggleActive: PropTypes.func.isRequired
   }
   constructor () {
@@ -56,6 +57,7 @@ export default class App extends React.PureComponent {
       notifications,
       notify,
       messages,
+      onSendFile,
       peers,
       sendMessage,
       toggleActive,
@@ -70,6 +72,7 @@ export default class App extends React.PureComponent {
           chatVisible={this.state.chatVisible}
           messages={messages}
           onToggleChat={this.handleToggleChat}
+          onSendFile={onSendFile}
           stream={streams[constants.ME]}
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />

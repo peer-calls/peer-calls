@@ -1,3 +1,4 @@
+import * as ChatActions from '../actions/ChatActions.js'
 import * as NotifyActions from '../actions/NotifyActions.js'
 import * as StreamActions from '../actions/StreamActions.js'
 import * as constants from '../constants.js'
@@ -46,10 +47,25 @@ class PeerHandler {
   }
   handleData = object => {
     const { dispatch, user } = this
-    object = JSON.parse(new window.TextDecoder('utf-8').decode(object))
+    const message = JSON.parse(new window.TextDecoder('utf-8').decode(object))
     debug('peer: %s, message: %o', user.id, object)
-    const message = user.id + ': ' + object.message
-    dispatch(NotifyActions.info(message))
+    switch (object.type) {
+      case 'file':
+        dispatch(ChatActions.addMessage({
+          userId: user.id,
+          message: 'Sent a file: "' + message.payload.name,
+          timestamp: new Date().toLocaleString(),
+          image: message.payload.data
+        }))
+        break
+      default:
+        dispatch(ChatActions.addMessage({
+          userId: user.id,
+          message: message.payload,
+          timestamp: new Date().toLocaleString(),
+          image: null
+        }))
+    }
   }
   handleClose = () => {
     const { dispatch, user } = this
@@ -126,7 +142,42 @@ export const destroyPeers = () => ({
 })
 
 export const sendMessage = message => (dispatch, getState) => {
-  message = JSON.stringify({ message })
   const { peers } = getState()
-  _.each(peers, peer => peer.send(message))
+  dispatch(NotifyActions.info('Sending message type: {0} to {1} peers.',
+    message.type, Object.keys(peers).length))
+  _.each(peers, peer => {
+    switch (message.type) {
+      case 'file':
+        dispatch(ChatActions.addMessage({
+          userId: 'You',
+          message: 'Send file: "' +
+            message.payload.name + '" to peer: ' + peer._id,
+          timestamp: new Date().toLocaleString(),
+          image: message.payload.data
+        }))
+    }
+    peer.send(JSON.stringify(message))
+  })
+}
+
+export const sendFile = file => async (dispatch, getState) => {
+  const { name, size, type } = file
+  if (!window.FileReader) {
+    dispatch(NotifyActions.error('File API is not supported by your browser'))
+    return
+  }
+  const reader = new window.FileReader()
+  const base64File = await new Promise(resolve => {
+    reader.addEventListener('load', () => {
+      resolve({
+        name,
+        size,
+        type,
+        data: reader.result
+      })
+    })
+    reader.readAsDataURL(file)
+  })
+
+  sendMessage({ payload: base64File, type: 'file' })(dispatch, getState)
 }
