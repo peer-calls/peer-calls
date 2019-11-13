@@ -1,6 +1,12 @@
-import * as constants from '../constants.js'
+import * as constants from '../constants'
+import { StreamAction } from '../actions/StreamActions'
 
-export default function active (state = null, action: Action) {
+export type ActiveState = null | string
+
+export default function active (
+  state: ActiveState = null,
+  action: StreamAction,
+): ActiveState {
   switch (action && action.type) {
     case constants.ACTIVE_SET:
     case constants.STREAM_ADD:

@@ -1,11 +1,11 @@
-import * as NotifyActions from './NotifyActions.js'
-import * as SocketActions from './SocketActions.js'
-import * as StreamActions from './StreamActions.js'
-import * as constants from '../constants.js'
-import socket from '../socket.js'
-import { callId, getUserMedia } from '../window.js'
+import * as NotifyActions from './NotifyActions'
+import * as SocketActions from './SocketActions'
+import * as StreamActions from './StreamActions'
+import * as constants from '../constants'
+import socket from '../socket'
+import { callId, getUserMedia } from '../window'
 import { Dispatch } from 'redux'
-import { GetState } from '../store.js'
+import { GetState } from '../store'
 
 export interface InitAction {
   type: 'INIT'

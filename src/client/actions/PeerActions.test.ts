@@ -1,11 +1,11 @@
-jest.mock('../window.js')
+jest.mock('../window')
 jest.mock('simple-peer')
 
-import * as PeerActions from './PeerActions.js'
+import * as PeerActions from './PeerActions'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore, Store, GetState } from '../store.js'
-import { play } from '../window.js'
+import { createStore, Store, GetState } from '../store'
+import { play } from '../window'
 import { Dispatch } from 'redux'
 
 describe('PeerActions', () => {

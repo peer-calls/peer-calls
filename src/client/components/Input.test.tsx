@@ -1,36 +1,39 @@
-import Input from './Input.js'
+import Input from './Input'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
+import { TextMessage } from '../actions/PeerActions'
 
 describe('components/Input', () => {
 
-  let component, node, videos, notify, sendMessage
-  function render () {
-    videos = {}
-    notify = jest.fn()
+  let node: Element
+  let sendMessage: jest.Mock<(message: TextMessage) => void>
+  async function render () {
     sendMessage = jest.fn()
-    component = TestUtils.renderIntoDocument(
-      <Input
-        videos={videos}
-        sendMessage={sendMessage}
-        notify={notify}
-      />
-    )
-    node = ReactDOM.findDOMNode(component)
+    const div = document.createElement('div')
+    await new Promise<Input>(resolve => {
+      ReactDOM.render(
+        <Input
+          ref={input => resolve(input!)}
+          sendMessage={sendMessage}
+        />,
+        div,
+      )
+    })
+    node = div.children[0]
   }
-  let message = 'test message'
+  const message = 'test message'
 
   beforeEach(() => render())
 
   describe('send message', () => {
 
-    let input
+    let input: HTMLTextAreaElement
     beforeEach(() => {
       sendMessage.mockClear()
-      input = node.querySelector('textarea')
+      input = node.querySelector('textarea')!
       TestUtils.Simulate.change(input, {
-        target: { value: message }
+        target: { value: message } as any,
       })
       expect(input.value).toBe(message)
     })
@@ -47,7 +50,7 @@ describe('components/Input', () => {
     describe('handleKeyPress', () => {
       it('sends a message', () => {
         TestUtils.Simulate.keyPress(input, {
-          key: 'Enter'
+          key: 'Enter',
         })
         expect(input.value).toBe('')
         expect(sendMessage.mock.calls)
@@ -56,7 +59,7 @@ describe('components/Input', () => {
 
       it('does nothing when other key pressed', () => {
         TestUtils.Simulate.keyPress(input, {
-          key: 'test'
+          key: 'test',
         })
         expect(sendMessage.mock.calls.length).toBe(0)
       })
@@ -64,7 +67,7 @@ describe('components/Input', () => {
 
     describe('handleSmileClick', () => {
       it('adds smile to message', () => {
-        const div = node.querySelector('.chat-controls-buttons-smile')
+        const div = node.querySelector('.chat-controls-buttons-smile')!
         TestUtils.Simulate.click(div)
         expect(input.value).toBe('test message😑')
       })

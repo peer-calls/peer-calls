@@ -1,49 +1,48 @@
-const iceServers = require('./iceServers.js')
+import { config, ICEServer } from '../../server/config'
 
-function noop () {}
-
-function checkTURNServer (turnConfig, timeout) {
+async function checkTURNServer (turnConfig: ICEServer, timeoutDuration = 5000) {
   console.log('checking turn server', turnConfig)
 
-  return new Promise(function (resolve, reject) {
+  const timeout = new Promise<unknown>((resolve, reject) => {
     setTimeout(function () {
-      if (promiseResolved) return
-      resolve(false)
-      promiseResolved = true
-    }, timeout || 5000)
+      reject(new Error('timed out'))
+    }, timeoutDuration)
+  })
 
-    let promiseResolved = false
+  async function start() {
     const PeerConnection = window.RTCPeerConnection ||
-      window.mozRTCPeerConnection ||
+      (
+        window as unknown as { mozRTCPeerConnection: RTCPeerConnection }
+      ).mozRTCPeerConnection||
       window.webkitRTCPeerConnection
 
     const pc = new PeerConnection({ iceServers: [turnConfig] })
 
     // create a bogus data channel
     pc.createDataChannel('')
-    pc.createOffer(function (sdp) {
-      // sometimes sdp contains the ice candidates...
-      if (sdp.sdp.indexOf('typ relay') > -1) {
-        promiseResolved = true
+    const sdp = await pc.createOffer()
+    // sometimes sdp contains the ice candidates...
+    if (sdp.sdp!.indexOf('typ relay') > -1) {
+      return true
+    }
+    pc.setLocalDescription(sdp)
+
+    return new Promise(resolve => {
+      pc.onicecandidate = function (ice) {
+        if (!ice ||
+            !ice.candidate ||
+            !ice.candidate.candidate ||
+            !(ice.candidate.candidate.indexOf('typ relay') > -1)) {
+          return
+        }
         resolve(true)
       }
-      pc.setLocalDescription(sdp, noop, noop)
-    }, noop)
+    })
+  }
 
-    pc.onicecandidate = function (ice) {
-      if (promiseResolved ||
-          !ice ||
-          !ice.candidate ||
-          !ice.candidate.candidate ||
-          !(ice.candidate.candidate.indexOf('typ relay') > -1)) {
-        return
-      }
-      promiseResolved = true
-      resolve(true)
-    }
-  })
+  return Promise.race([ timeout, start() ])
 }
 
-checkTURNServer(iceServers[0], 10000)
+checkTURNServer(config.iceServers[0], 10000)
 .then(console.log.bind(console))
 .catch(console.error.bind(console))

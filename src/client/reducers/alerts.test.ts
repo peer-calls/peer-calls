@@ -1,38 +1,34 @@
-import * as NotifyActions from '../actions/NotifyActions.js'
+import * as NotifyActions from '../actions/NotifyActions'
 import _ from 'underscore'
-import { applyMiddleware, createStore } from 'redux'
-import { create } from '../middlewares.js'
-import reducers from './index.js'
+import { applyMiddleware, createStore, Store } from 'redux'
+import { create } from '../middlewares'
+import reducers from './index'
 
 jest.useFakeTimers()
 
 describe('reducers/alerts', () => {
 
-  let store
+  let store: Store
   beforeEach(() => {
     store = createStore(
       reducers,
-      applyMiddleware.apply(null, create())
+      applyMiddleware(...create()),
     )
   })
 
   describe('clearAlert', () => {
 
-    const actions = {
-      true: 'Dismiss',
-      false: ''
-    }
-    ;[true, false].forEach(dismissable => {
+    [true, false].forEach(dismissable => {
       beforeEach(() => {
         store.dispatch(NotifyActions.clearAlerts())
       })
       it('adds alert to store', () => {
         store.dispatch(NotifyActions.alert('test', dismissable))
         expect(store.getState().alerts).toEqual([{
-          action: actions[dismissable],
+          action: dismissable ? 'Dismiss' : undefined,
           dismissable,
           message: 'test',
-          type: 'warning'
+          type: 'warning',
         }])
       })
     })
@@ -51,25 +47,36 @@ describe('reducers/alerts', () => {
     it('does not remove an alert when not found', () => {
       store.dispatch(NotifyActions.alert('test', true))
       expect(store.getState().alerts.length).toBe(1)
-      store.dispatch(NotifyActions.dismissAlert({}))
+      store.dispatch(NotifyActions.dismissAlert({
+        action: undefined,
+        dismissable: false,
+        message: 'bla',
+        type: 'error',
+      }))
       expect(store.getState().alerts.length).toBe(1)
     })
 
   })
 
-  ;['info', 'warning', 'error'].forEach(type => {
+  const methods: Array<'info' | 'warning' | 'error'> = [
+    'info',
+    'warning',
+    'error',
+  ]
+
+  methods.forEach(type => {
 
     describe(type, () => {
 
       beforeEach(() => {
-        store.dispatch(NotifyActions[type]('Hi {0}!', 'John'))
+        NotifyActions[type]('Hi {0}!', 'John')(store.dispatch)
       })
 
       it('adds a notification', () => {
         expect(_.values(store.getState().notifications)).toEqual([{
           id: jasmine.any(String),
           message: 'Hi John!',
-          type
+          type,
         }])
       })
 
@@ -79,7 +86,7 @@ describe('reducers/alerts', () => {
       })
 
       it('does not fail when no arguments', () => {
-        store.dispatch(NotifyActions[type]())
+        NotifyActions[type]()(store.dispatch)
       })
 
     })
@@ -89,9 +96,9 @@ describe('reducers/alerts', () => {
   describe('clear', () => {
 
     it('clears all alerts', () => {
-      store.dispatch(NotifyActions.info('Hi {0}!', 'John'))
-      store.dispatch(NotifyActions.warning('Hi {0}!', 'John'))
-      store.dispatch(NotifyActions.error('Hi {0}!', 'John'))
+      NotifyActions.info('Hi {0}!', 'John')(store.dispatch)
+      NotifyActions.warning('Hi {0}!', 'John')(store.dispatch)
+      NotifyActions.error('Hi {0}!', 'John')(store.dispatch)
       store.dispatch(NotifyActions.clear())
       expect(store.getState().notifications).toEqual({})
     })

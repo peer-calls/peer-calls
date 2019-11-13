@@ -1,4 +1,4 @@
-import * as constants from '../constants.js'
+import * as constants from '../constants'
 
 export interface AddStreamPayload {
   userId: string
@@ -56,6 +56,6 @@ export const toggleActive = (userId: string): ToggleActiveStreamAction => ({
 
 export type StreamAction =
   AddStreamAction |
-  RemoveStreamAction
-  // SetActiveStreamAction |
-  // ToggleActiveStreamAction
+  RemoveStreamAction |
+  SetActiveStreamAction |
+  ToggleActiveStreamAction

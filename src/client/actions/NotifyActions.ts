@@ -1,5 +1,5 @@
-import * as constants from '../constants.js'
-import * as ChatActions from './ChatActions.js'
+import * as constants from '../constants'
+import * as ChatActions from './ChatActions'
 import { Dispatch } from 'redux'
 import _ from 'underscore'
 

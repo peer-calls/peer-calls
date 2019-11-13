@@ -1,16 +1,14 @@
-import Input from './Input.js'
-import PropTypes from 'prop-types'
-import React from 'react'
 import classnames from 'classnames'
+import React from 'react'
+import { Message as MessageType } from '../actions/ChatActions'
+import { TextMessage } from '../actions/PeerActions'
+import Input from './Input'
 
-export const MessagePropTypes = PropTypes.shape({
-  userId: PropTypes.string.isRequired,
-  message: PropTypes.string.isRequired,
-  timestamp: PropTypes.string.isRequired,
-  image: PropTypes.string
-})
+export interface MessageProps {
+  message: MessageType
+}
 
-function Message (props) {
+function Message (props: MessageProps) {
   const { message } = props
   return (
     <p className="message-text">
@@ -22,24 +20,18 @@ function Message (props) {
   )
 }
 
-Message.propTypes = {
-  message: MessagePropTypes
+export interface ChatProps {
+  visible: boolean
+  messages: MessageType[]
+  onClose: () => void
+  sendMessage: (message: TextMessage) => void
 }
 
-export default class Chat extends React.PureComponent {
-  static propTypes = {
-    visible: PropTypes.bool.isRequired,
-    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    onClose: PropTypes.func.isRequired,
-    sendMessage: PropTypes.func.isRequired,
-    videos: PropTypes.object.isRequired
-  }
-  constructor () {
-    super()
-    this.chatHistoryRef = React.createRef()
-  }
+export default class Chat extends React.PureComponent<ChatProps> {
+  chatHistoryRef = React.createRef<HTMLDivElement>()
+
   scrollToBottom = () => {
-    const chatHistoryRef = this.chatHistoryRef.current
+    const chatHistoryRef = this.chatHistoryRef.current!
     chatHistoryRef.scrollTop = chatHistoryRef.scrollHeight
   }
   componentDidMount () {
@@ -49,10 +41,10 @@ export default class Chat extends React.PureComponent {
     this.scrollToBottom()
   }
   render () {
-    const { messages, videos, sendMessage } = this.props
+    const { messages, sendMessage } = this.props
     return (
       <div className={classnames('chat-container', {
-        show: this.props.visible
+        show: this.props.visible,
       })}>
         <div className="chat-header">
           <div className="chat-close" onClick={this.props.onClose}>
@@ -111,10 +103,7 @@ export default class Chat extends React.PureComponent {
 
         </div>
 
-        <Input
-          videos={videos}
-          sendMessage={sendMessage}
-        />
+        <Input sendMessage={sendMessage} />
       </div>
     )
   }

@@ -1,42 +1,49 @@
-import * as constants from '../constants.js'
-import Alerts, { AlertPropType } from './Alerts.js'
-import Chat, { MessagePropTypes } from './Chat.js'
-import Notifications, { NotificationPropTypes } from './Notifications.js'
-import PropTypes from 'prop-types'
 import React from 'react'
-import Toolbar from './Toolbar.js'
-import Video, { StreamPropType } from './Video.js'
+import Peer from 'simple-peer'
 import _ from 'underscore'
+import { Message } from '../actions/ChatActions'
+import { Alert, Notification } from '../actions/NotifyActions'
+import { TextMessage } from '../actions/PeerActions'
+import { AddStreamPayload } from '../actions/StreamActions'
+import * as constants from '../constants'
+import Alerts from './Alerts'
+import Chat from './Chat'
+import Notifications from './Notifications'
+import Toolbar from './Toolbar'
+import Video from './Video'
 
-export default class App extends React.PureComponent {
-  static propTypes = {
-    active: PropTypes.string,
-    alerts: PropTypes.arrayOf(AlertPropType).isRequired,
-    dismissAlert: PropTypes.func.isRequired,
-    init: PropTypes.func.isRequired,
-    notifications: PropTypes.objectOf(NotificationPropTypes).isRequired,
-    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    peers: PropTypes.object.isRequired,
-    sendMessage: PropTypes.func.isRequired,
-    streams: PropTypes.objectOf(StreamPropType).isRequired,
-    onSendFile: PropTypes.func.isRequired,
-    toggleActive: PropTypes.func.isRequired
-  }
-  constructor () {
-    super()
-    this.state = {
-      videos: {},
-      chatVisible: false
-    }
+export interface AppProps {
+  active: string | null
+  alerts: Alert[]
+  dismissAlert: (alert: Alert) => void
+  init: () => void
+  notifications: Record<string, Notification>
+  messages: Message[]
+  peers: Record<string, Peer.Instance>
+  sendMessage: (message: TextMessage) => void
+  streams: Record<string, AddStreamPayload>
+  onSendFile: (file: File) => void
+  toggleActive: (userId: string) => void
+}
+
+export interface AppState {
+  videos: Record<string, unknown>
+  chatVisible: boolean
+}
+
+export default class App extends React.PureComponent<AppProps, AppState> {
+  state: AppState = {
+    videos: {},
+    chatVisible: false,
   }
   handleShowChat = () => {
     this.setState({
-      chatVisible: true
+      chatVisible: true,
     })
   }
   handleHideChat = () => {
     this.setState({
-      chatVisible: false
+      chatVisible: false,
     })
   }
   handleToggleChat = () => {
@@ -59,7 +66,7 @@ export default class App extends React.PureComponent {
       peers,
       sendMessage,
       toggleActive,
-      streams
+      streams,
     } = this.props
 
     const { videos } = this.state
@@ -79,7 +86,6 @@ export default class App extends React.PureComponent {
           messages={messages}
           onClose={this.handleHideChat}
           sendMessage={sendMessage}
-          videos={videos}
           visible={this.state.chatVisible}
         />
         <div className="videos">

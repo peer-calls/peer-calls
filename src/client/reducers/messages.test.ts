@@ -1,17 +1,16 @@
-import * as ChatActions from '../actions/ChatActions.js'
-import messages from './messages.js'
+import * as ChatActions from '../actions/ChatActions'
+import messages from './messages'
 
 describe('reducers/messages', () => {
 
   describe('addMessage', () => {
     it('add message to chat', () => {
-      const payload = {
+      const payload: ChatActions.Message = {
         userId: 'test',
         message: 'hello',
-        timestamp: new Date(),
-        image: null
+        timestamp: new Date().toLocaleString(),
       }
-      let state = messages()
+      let state = messages(undefined, {type: 'test'} as any)
       state = messages(state, ChatActions.addMessage(payload))
       expect(state).toEqual([payload])
     })

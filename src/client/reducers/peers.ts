@@ -1,4 +1,4 @@
-import * as constants from '../constants.js'
+import * as constants from '../constants'
 import _ from 'underscore'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'

@@ -1,4 +1,4 @@
-import { MESSAGE_ADD } from '../constants.js'
+import { MESSAGE_ADD } from '../constants'
 
 export interface MessageAddAction {
   type: 'MESSAGE_ADD'

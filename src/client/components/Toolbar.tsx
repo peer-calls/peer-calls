@@ -1,63 +1,85 @@
-import PropTypes from 'prop-types'
-import React from 'react'
+import React, { ReactEventHandler } from 'react'
 import classnames from 'classnames'
 import screenfull from 'screenfull'
-import { MessagePropTypes } from './Chat.js'
-import { StreamPropType } from './Video.js'
+import { Message } from '../actions/ChatActions'
+import { AddStreamPayload } from '../actions/StreamActions'
 
 const hidden = {
-  display: 'none'
+  display: 'none',
 }
 
-export default class Toolbar extends React.PureComponent {
-  static propTypes = {
-    messages: PropTypes.arrayOf(MessagePropTypes).isRequired,
-    stream: StreamPropType,
-    onToggleChat: PropTypes.func.isRequired,
-    onSendFile: PropTypes.func.isRequired,
-    chatVisible: PropTypes.bool.isRequired
-  }
-  constructor (props) {
+export interface ToolbarProps {
+  messages: Message[]
+  stream: AddStreamPayload
+  onToggleChat: () => void
+  onSendFile: (file: File) => void
+  chatVisible: boolean
+}
+
+export interface ToolbarState {
+  readMessages: number
+  camDisabled: boolean
+  micMuted: boolean
+  fullScreenEnabled: boolean
+}
+
+export default class Toolbar
+extends React.PureComponent<ToolbarProps, ToolbarState> {
+  file = React.createRef<HTMLInputElement>()
+
+  constructor(props: ToolbarProps) {
     super(props)
-    this.file = React.createRef()
     this.state = {
-      readMessages: props.messages.length
+      readMessages: props.messages.length,
+      camDisabled: false,
+      micMuted: false,
+      fullScreenEnabled: false,
     }
   }
+
   handleMicClick = () => {
     const { stream } = this.props
-    stream.mediaStream.getAudioTracks().forEach(track => {
+    stream.stream.getAudioTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    this.mixButton.classList.toggle('on')
+    this.setState({
+      ...this.state,
+      micMuted: !this.state.micMuted,
+    })
   }
   handleCamClick = () => {
     const { stream } = this.props
-    stream.mediaStream.getVideoTracks().forEach(track => {
+    stream.stream.getVideoTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    this.camButton.classList.toggle('on')
+    this.setState({
+      ...this.state,
+      camDisabled: !this.state.camDisabled,
+    })
   }
   handleFullscreenClick = () => {
     if (screenfull.enabled) {
       screenfull.toggle()
-      this.fullscreenButton.classList.toggle('on')
+      this.setState({
+        ...this.state,
+        fullScreenEnabled: !this.state.fullScreenEnabled,
+      })
     }
   }
   handleHangoutClick = () => {
     window.location.href = '/'
   }
   handleSendFile = () => {
-    this.file.current.click()
+    this.file.current!.click()
   }
-  handleSelectFiles = (event) => {
+  handleSelectFiles: ReactEventHandler<HTMLInputElement> = event => {
     Array
-    .from(event.target.files)
+    .from(this.file.current!.files!)
     .forEach(file => this.props.onSendFile(file))
   }
   handleToggleChat = () => {
     this.setState({
-      readMessages: this.props.messages.length
+      readMessages: this.props.messages.length,
     })
     this.props.onToggleChat()
   }
@@ -68,7 +90,7 @@ export default class Toolbar extends React.PureComponent {
       <div className="toolbar active">
         <div onClick={this.handleToggleChat}
           className={classnames('button chat', {
-            on: this.props.chatVisible
+            on: this.props.chatVisible,
           })}
           data-blink={!this.props.chatVisible &&
             messages.length > this.state.readMessages}
@@ -93,17 +115,20 @@ export default class Toolbar extends React.PureComponent {
 
         {stream && (
           <div>
-            <div onClick={this.handleMicClick}
-              ref={node => { this.mixButton = node }}
-              className="button mute-audio"
+            <div
+              onClick={this.handleMicClick}
+              className={classnames('button mute-audio', {
+                on: this.state.micMuted,
+              })}
               title="Mute audio"
             >
               <span className="on icon icon-mic_off" />
               <span className="off icon icon-mic" />
             </div>
             <div onClick={this.handleCamClick}
-              ref={node => { this.camButton = node }}
-              className="button mute-video"
+              className={classnames('button mute-video', {
+                on: this.state.camDisabled,
+              })}
               title="Mute video"
             >
               <span className="on icon icon-videocam_off" />
@@ -113,8 +138,9 @@ export default class Toolbar extends React.PureComponent {
         )}
 
         <div onClick={this.handleFullscreenClick}
-          ref={node => { this.fullscreenButton = node }}
-          className="button fullscreen"
+          className={classnames('button fullscreen', {
+            on: this.state.fullScreenEnabled,
+          })}
           title="Enter fullscreen"
         >
           <span className="on icon icon-fullscreen_exit" />

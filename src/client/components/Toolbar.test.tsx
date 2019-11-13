@@ -1,17 +1,20 @@
-jest.mock('../window.js')
+jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import Toolbar from './Toolbar.js'
-import { MediaStream } from '../window.js'
+import Toolbar, { ToolbarProps } from './Toolbar'
+import { MediaStream } from '../window'
+import { AddStreamPayload } from '../actions/StreamActions'
 
 describe('components/Toolbar', () => {
 
-  class ToolbarWrapper extends React.PureComponent {
-    static propTypes = Toolbar.propTypes
-    constructor () {
-      super()
-      this.state = {}
+  interface StreamState {
+    stream: AddStreamPayload | null
+  }
+
+  class ToolbarWrapper extends React.PureComponent<ToolbarProps, StreamState> {
+    state = {
+      stream: null,
     }
     render () {
       return <Toolbar
@@ -24,31 +27,40 @@ describe('components/Toolbar', () => {
     }
   }
 
-  let component, node, mediaStream, url, onToggleChat, onSendFile
-  function render () {
+  let node: Element
+  let mediaStream: MediaStream
+  let url: string
+  let onToggleChat: jest.Mock<() => void>
+  let onSendFile: jest.Mock<(file: File) => void>
+  async function render () {
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
     onSendFile = jest.fn()
-    component = TestUtils.renderIntoDocument(
-      <ToolbarWrapper
-        chatVisible
-        onToggleChat={onToggleChat}
-        onSendFile={onSendFile}
-        messages={[]}
-        stream={{ mediaStream, url }}
-      />
-    )
-    node = ReactDOM.findDOMNode(component)
+    const div = document.createElement('div')
+    await new Promise<ToolbarWrapper>(resolve => {
+      ReactDOM.render(
+        <ToolbarWrapper
+          ref={instance => resolve(instance!)}
+          chatVisible
+          onToggleChat={onToggleChat}
+          onSendFile={onSendFile}
+          messages={[]}
+          stream={{ userId: '', stream: mediaStream, url }}
+        />,
+        div,
+      )
+    })
+    node = div.children[0]
   }
 
-  beforeEach(() => {
-    render()
+  beforeEach(async () => {
+    await render()
   })
 
   describe('handleChatClick', () => {
     it('toggle chat', () => {
       expect(onToggleChat.mock.calls.length).toBe(0)
-      const button = node.querySelector('.chat')
+      const button = node.querySelector('.chat')!
       TestUtils.Simulate.click(button)
       expect(onToggleChat.mock.calls.length).toBe(1)
     })
@@ -56,7 +68,7 @@ describe('components/Toolbar', () => {
 
   describe('handleMicClick', () => {
     it('toggle mic', () => {
-      const button = node.querySelector('.mute-audio')
+      const button = node.querySelector('.mute-audio')!
       TestUtils.Simulate.click(button)
       expect(button.classList.contains('on')).toBe(true)
     })
@@ -64,7 +76,7 @@ describe('components/Toolbar', () => {
 
   describe('handleCamClick', () => {
     it('toggle cam', () => {
-      const button = node.querySelector('.mute-video')
+      const button = node.querySelector('.mute-video')!
       TestUtils.Simulate.click(button)
       expect(button.classList.contains('on')).toBe(true)
     })
@@ -72,7 +84,7 @@ describe('components/Toolbar', () => {
 
   describe('handleFullscreenClick', () => {
     it('toggle fullscreen', () => {
-      const button = node.querySelector('.fullscreen')
+      const button = node.querySelector('.fullscreen')!
       TestUtils.Simulate.click(button)
       expect(button.classList.contains('on')).toBe(false)
     })
@@ -80,7 +92,7 @@ describe('components/Toolbar', () => {
 
   describe('handleHangoutClick', () => {
     it('hangout', () => {
-      const button = node.querySelector('.hangup')
+      const button = node.querySelector('.hangup')!
       TestUtils.Simulate.click(button)
       expect(window.location.href).toBe('http://localhost/')
     })
@@ -88,10 +100,10 @@ describe('components/Toolbar', () => {
 
   describe('handleSendFile', () => {
     it('triggers input dialog', () => {
-      const sendFileButton = node.querySelector('.send-file')
+      const sendFileButton = node.querySelector('.send-file')!
       const click = jest.fn()
-      const file = node.querySelector('input[type=file]')
-      file.click = click
+      const file = node.querySelector('input[type=file]')!;
+      (file as any).click = click
       TestUtils.Simulate.click(sendFileButton)
       expect(click.mock.calls.length).toBe(1)
     })
@@ -99,12 +111,12 @@ describe('components/Toolbar', () => {
 
   describe('handleSelectFiles', () => {
     it('iterates through files and calls onSendFile for each', () => {
-      const file = node.querySelector('input[type=file]')
-      const files = [{ name: 'first' }]
+      const file = node.querySelector('input[type=file]')!
+      const files = [{ name: 'first' }] as any
       TestUtils.Simulate.change(file, {
         target: {
-          files
-        }
+          files,
+        } as any,
       })
       expect(onSendFile.mock.calls).toEqual([[ files[0] ]])
     })

@@ -1,9 +1,9 @@
-import active from './active.js'
-import alerts from './alerts.js'
-import notifications from './notifications.js'
-import messages from './messages.js'
-import peers from './peers.js'
-import streams from './streams.js'
+import active from './active'
+import alerts from './alerts'
+import notifications from './notifications'
+import messages from './messages'
+import peers from './peers'
+import streams from './streams'
 import { combineReducers } from 'redux'
 
 export default combineReducers({
@@ -12,5 +12,5 @@ export default combineReducers({
   notifications,
   messages,
   peers,
-  streams
+  streams,
 })

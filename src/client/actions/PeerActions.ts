@@ -1,11 +1,11 @@
-import * as ChatActions from '../actions/ChatActions.js'
-import * as NotifyActions from '../actions/NotifyActions.js'
-import * as StreamActions from '../actions/StreamActions.js'
-import * as constants from '../constants.js'
+import * as ChatActions from '../actions/ChatActions'
+import * as NotifyActions from '../actions/NotifyActions'
+import * as StreamActions from '../actions/StreamActions'
+import * as constants from '../constants'
 import Peer from 'simple-peer'
 import _ from 'underscore'
 import _debug from 'debug'
-import { play, iceServers } from '../window.js'
+import { play, iceServers } from '../window'
 import { Dispatch } from 'redux'
 
 const debug = _debug('peercalls')

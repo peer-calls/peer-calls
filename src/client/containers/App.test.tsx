@@ -1,18 +1,18 @@
-jest.mock('../actions/CallActions.js')
-jest.mock('../socket.js')
-jest.mock('../window.js')
+jest.mock('../actions/CallActions')
+jest.mock('../socket')
+jest.mock('../window')
 
-import * as constants from '../constants.js'
-import App from './App.js'
+import * as constants from '../constants'
+import App from './App'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
 import configureStore from 'redux-mock-store'
 import reducers from '../reducers'
-import { MediaStream } from '../window.js'
+import { MediaStream } from '../window'
 import { Provider } from 'react-redux'
-import { init } from '../actions/CallActions.js'
-import { middlewares } from '../store.js'
+import { init } from '../actions/CallActions'
+import { middlewares } from '../store'
 
 describe('App', () => {
 

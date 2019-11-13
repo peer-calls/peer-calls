@@ -1,4 +1,4 @@
-import { create } from './middlewares.js'
+import { create } from './middlewares'
 import reducers from './reducers'
 import { applyMiddleware, createStore as _createStore, Store as ReduxStore } from 'redux'
 export const middlewares = create(

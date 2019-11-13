@@ -1,8 +1,8 @@
 import _ from 'underscore'
-import { createObjectURL, revokeObjectURL } from '../window.js'
+import { createObjectURL, revokeObjectURL } from '../window'
 import _debug from 'debug'
-import { AddStreamPayload, AddStreamAction, RemoveStreamAction, StreamAction } from '../actions/StreamActions.js'
-import { STREAM_ADD, STREAM_REMOVE } from '../constants.js'
+import { AddStreamPayload, AddStreamAction, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
+import { STREAM_ADD, STREAM_REMOVE } from '../constants'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})

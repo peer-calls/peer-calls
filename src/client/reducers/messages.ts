@@ -1,5 +1,5 @@
-import * as constants from '../constants.js'
-import { Message, MessageAddAction } from '../actions/ChatActions.js'
+import * as constants from '../constants'
+import { Message, MessageAddAction } from '../actions/ChatActions'
 
 export type MessagesState = Message[]
 

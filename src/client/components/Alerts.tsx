@@ -1,18 +1,13 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import classnames from 'classnames'
+import { Alert as AlertType } from '../actions/NotifyActions'
 
-export const AlertPropType = PropTypes.shape({
-  dismissable: PropTypes.bool,
-  action: PropTypes.string.isRequired,
-  message: PropTypes.string.isRequired
-})
+export interface AlertProps {
+  alert: AlertType
+  dismiss: (alert: AlertType) => void
+}
 
-export class Alert extends React.PureComponent {
-  static propTypes = {
-    alert: AlertPropType,
-    dismiss: PropTypes.func.isRequired
-  }
+export class Alert extends React.PureComponent<AlertProps> {
   dismiss = () => {
     const { alert, dismiss } = this.props
     dismiss(alert)
@@ -34,11 +29,12 @@ export class Alert extends React.PureComponent {
   }
 }
 
-export default class Alerts extends React.PureComponent {
-  static propTypes = {
-    alerts: PropTypes.arrayOf(AlertPropType).isRequired,
-    dismiss: PropTypes.func.isRequired
-  }
+export interface AlertsProps {
+  alerts: AlertType[]
+  dismiss: (alert: AlertType) => void
+}
+
+export default class Alerts extends React.PureComponent<AlertsProps> {
   render () {
     const { alerts, dismiss } = this.props
     return (

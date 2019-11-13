@@ -1,34 +1,37 @@
-import PropTypes from 'prop-types'
-import React from 'react'
+import React, { ReactEventHandler, ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react'
+import { TextMessage } from '../actions/PeerActions'
 
-export default class Input extends React.PureComponent {
-  static propTypes = {
-    sendMessage: PropTypes.func.isRequired
+export interface InputProps {
+  sendMessage: (message: TextMessage) => void
+}
+
+export interface InputState {
+  message: string
+}
+
+export default class Input extends React.PureComponent<InputProps, InputState> {
+  textArea = React.createRef<HTMLTextAreaElement>()
+  state = {
+    message: '',
   }
-  constructor () {
-    super()
-    this.state = {
-      message: ''
-    }
-  }
-  handleChange = e => {
+  handleChange: ChangeEventHandler<HTMLTextAreaElement> = event => {
     this.setState({
-      message: e.target.value
+      message: event.target.value,
     })
   }
-  handleSubmit = e => {
+  handleSubmit: ReactEventHandler<HTMLFormElement> = e => {
     e.preventDefault()
     this.submit()
   }
-  handleKeyPress = e => {
+  handleKeyPress: KeyboardEventHandler<HTMLTextAreaElement> = e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       this.submit()
     }
   }
-  handleSmileClick = e => {
+  handleSmileClick: MouseEventHandler<HTMLElement> = event => {
     this.setState({
-      message: this.textArea.value + e.currentTarget.innerHTML
+      message: this.textArea.current!.value + event.currentTarget.innerHTML,
     })
   }
   submit = () => {
@@ -37,7 +40,7 @@ export default class Input extends React.PureComponent {
     if (message) {
       sendMessage({
         payload: message,
-        type: 'text'
+        type: 'text',
       })
       // let image = null
 
@@ -66,7 +69,7 @@ export default class Input extends React.PureComponent {
           onKeyPress={this.handleKeyPress}
           placeholder="Type a message"
           value={message}
-          ref={node => { this.textArea = node }}
+          ref={this.textArea}
         />
         <div className="chat-controls-buttons">
           <input type="submit" value="Send"

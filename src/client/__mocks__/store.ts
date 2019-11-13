@@ -1,3 +1,3 @@
 import configureStore from 'redux-mock-store'
-import { middlewares } from '../middlewares.js'
+import { middlewares } from '../middlewares'
 export default configureStore(middlewares)({})

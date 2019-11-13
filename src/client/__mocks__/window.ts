@@ -1,5 +1,3 @@
-import Promise from 'bluebird'
-
 export const createObjectURL = jest.fn()
 .mockImplementation(object => 'blob://' + String(object))
 export const revokeObjectURL = jest.fn()

@@ -1,14 +1,14 @@
-import * as constants from '../constants.js'
-import Immutable from 'seamless-immutable'
+import * as constants from '../constants'
+import { AlertActionType, Alert } from '../actions/NotifyActions'
 
-const defaultState = Immutable([])
+export type AlertState = Alert[]
 
-export default function alerts (state = defaultState, action) {
-  switch (action && action.type) {
+const defaultState: AlertState = []
+
+export default function alerts (state = defaultState, action: AlertActionType) {
+  switch (action.type) {
     case constants.ALERT:
-      const alerts = state.asMutable()
-      alerts.push(action.payload)
-      return Immutable(alerts)
+      return [...state, action.payload]
     case constants.ALERT_DISMISS:
       return state.filter(a => a !== action.payload)
     case constants.ALERT_CLEAR:
