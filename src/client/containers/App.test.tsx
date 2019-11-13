@@ -26,13 +26,14 @@ describe('App', () => {
     state = {};
     (init as jest.Mock).mockReturnValue(initAction)
 
-    dispatchSpy = jest.spyOn(store, 'dispatch')
     window.HTMLMediaElement.prototype.play = jest.fn()
   })
 
   afterEach(() => {
-    dispatchSpy.mockReset()
-    dispatchSpy.mockRestore()
+    if (dispatchSpy) {
+      dispatchSpy.mockReset()
+      dispatchSpy.mockRestore()
+    }
   })
 
   let node: Element
@@ -42,11 +43,12 @@ describe('App', () => {
       state,
       applyMiddleware(...middlewares),
     )
+    dispatchSpy = jest.spyOn(store, 'dispatch')
     const div = document.createElement('div')
-    await new Promise<HTMLDivElement>(resolve => {
+    node = await new Promise<HTMLDivElement>(resolve => {
       ReactDOM.render(
         <Provider store={store}>
-          <div ref={app => resolve(app!)}>
+          <div ref={div => resolve(div!)}>
             <App />
           </div>
         </Provider>,
@@ -56,8 +58,8 @@ describe('App', () => {
   }
 
   describe('render', () => {
-    it('renders without issues', () => {
-      render()
+    it('renders without issues', async () => {
+      await render()
       expect(node).toBeTruthy()
       expect((init as jest.Mock).mock.calls.length).toBe(1)
     })
@@ -65,7 +67,7 @@ describe('App', () => {
 
   describe('state', () => {
     let alert: Alert
-    beforeEach(() => {
+    beforeEach(async () => {
       state.streams = {
         test: {
           mediaStream: new MediaStream(),
@@ -82,18 +84,20 @@ describe('App', () => {
           type: 'warning',
         },
       }
-      state.alerts = [{
+      alert = {
         dismissable: true,
         action: 'Dismiss',
         message: 'test alert',
         type: 'info',
-      }]
-      render()
+      }
+      state.alerts = [alert]
+      await render()
     })
 
     describe('alerts', () => {
       it('can be dismissed', () => {
         const dismiss = node.querySelector('.action-alert-dismiss')!
+        dispatchSpy.mockReset()
         TestUtils.Simulate.click(dismiss)
         expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.ALERT_DISMISS,
@@ -104,6 +108,7 @@ describe('App', () => {
 
     describe('video', () => {
       it('can be activated', () => {
+        dispatchSpy.mockReset()
         const video = node.querySelector('video')!
         TestUtils.Simulate.click(video)
         expect(dispatchSpy.mock.calls).toEqual([[{

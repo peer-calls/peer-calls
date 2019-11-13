@@ -22,19 +22,19 @@ extends React.PureComponent<NotificationProps> {
     const { notifications, max } = this.props
     return (
       <div className="notifications">
-        <CSSTransition
-          classNames='fade'
-          timeout={transitionTimeout}
-        >
-          {Object.keys(notifications).slice(-max).map(id => (
+        {Object.keys(notifications).slice(-max).map(id => (
+          <CSSTransition
+            key={id}
+            classNames='fade'
+            timeout={transitionTimeout}
+          >
             <div
               className={classnames(notifications[id].type, 'notification')}
-              key={id}
             >
               {notifications[id].message}
             </div>
-          ))}
-        </CSSTransition>
+          </CSSTransition>
+        ))}
       </div>
     )
   }
