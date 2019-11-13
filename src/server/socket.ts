@@ -1,13 +1,18 @@
 'use strict'
-const debug = require('debug')('peer-calls:socket')
-const _ = require('underscore')
+import _debug from 'debug'
+import _ from 'underscore'
+import { Socket, Server } from 'socket.io'
 
-module.exports = function (socket, io) {
+const debug = _debug('peercalls:socket')
+
+type SocketWithRoom = Socket & { room?: string }
+
+export default function handleSocket(socket: SocketWithRoom, io: Server) {
   socket.on('signal', payload => {
     // debug('signal: %s, payload: %o', socket.id, payload)
     io.to(payload.userId).emit('signal', {
       userId: socket.id,
-      signal: payload.signal
+      signal: payload.signal,
     })
   })
 
@@ -18,17 +23,17 @@ module.exports = function (socket, io) {
     socket.join(roomName)
     socket.room = roomName
 
-    let users = getUsers(roomName)
+    const users = getUsers(roomName)
 
     debug('ready: %s, room: %s, users: %o', socket.id, roomName, users)
 
     io.to(roomName).emit('users', {
       initiator: socket.id,
-      users
+      users,
     })
   })
 
-  function getUsers (roomName) {
+  function getUsers (roomName: string) {
     return _.map(io.sockets.adapter.rooms[roomName].sockets, (_, id) => {
       return { id }
     })

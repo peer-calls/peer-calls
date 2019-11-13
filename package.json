@@ -3,27 +3,29 @@
   "version": "2.0.12",
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/jeremija/peer-calls",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "bin": {
-    "peercalls": "./src/index.js"
+    "peercalls": "./lib/index.js"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "start:server": "nodemon src/index.js --ignore build/ --ignore src/client",
-    "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
+    "start": "node lib/index.js",
+    "start:server": "nodemon -ignore build/ --ignore lib/client lib/index.js",
+    "start:watch": "chastifol [ npm run ts:watch ] [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "watch": "",
     "prepublishOnly": "npm run build",
     "build": "npm run css && npm run js",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "js": "browserify -t babelify ./src/client/index.js -o ./build/index.js",
-    "js:watch": "watchify -d -v -t babelify ./src/client/index.js -o ./build/index.js",
+    "js": "browserify -t babelify ./lib/client/index.js -o ./build/index.js",
+    "js:watch": "watchify -d -v -t babelify ./lib/client/index.js -o ./build/index.js",
     "css": "node-sass ./src/scss/style.scss -o ./build/",
     "css:watch": "npm run css && node-sass --watch ./src/scss/style.scss -o ./build/",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "ci": "npm run lint && npm run test:coverage && npm run build"
+    "ci": "npm run lint && npm run test:coverage && npm run build",
+    "ts:watch": "tsc --build . --watch --preserveWatchOutput",
+    "ts": "tsc --build ."
   },
   "babel": {
     "presets": [
@@ -78,36 +80,41 @@
     "@babel/polyfill": "^7.4.4",
     "@babel/preset-env": "^7.5.0",
     "@babel/preset-react": "^7.0.0",
+    "@types/config": "0.0.36",
+    "@types/debug": "^4.1.5",
+    "@types/express": "^4.17.2",
+    "@types/jest": "^24.0.23",
+    "@types/node": "^12.12.7",
+    "@types/socket.io": "^2.1.4",
+    "@types/socket.io-client": "^1.4.32",
+    "@types/supertest": "^2.0.8",
+    "@types/underscore": "^1.9.3",
+    "@types/uuid": "^3.4.6",
+    "@typescript-eslint/eslint-plugin": "^2.7.0",
+    "@typescript-eslint/parser": "^2.7.0",
     "babel-core": "^7.0.0-bridge.0",
     "babel-eslint": "^10.0.1",
     "babel-jest": "^24.8.0",
     "babelify": "^10.0.0",
     "chastifol": "^4.1.0",
-    "eslint": "^5.10.0",
+    "eslint": "^6.6.0",
     "eslint-config-standard": "^12.0.0",
     "eslint-config-standard-react": "^7.0.2",
-    "eslint-plugin-import": "^2.3.0",
+    "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-node": "^8.0.0",
     "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-react": "^7.0.1",
+    "eslint-plugin-react": "^7.16.0",
     "eslint-plugin-standard": "^4.0.0",
+    "jest": "^24.9.0",
     "jest-cli": "^24.8.0",
     "node-sass": "^4.13.0",
     "nodemon": "^1.18.8",
     "redux-mock-store": "^1.2.3",
     "supertest": "^3.0.0",
+    "ts-jest": "^24.1.0",
+    "ts-node": "^8.5.0",
+    "typescript": "^3.6.4",
     "uglify-js": "^3.4.9",
     "watchify": "^3.11.1"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.[t|j]sx?$": "<rootDir>/node_modules/babel-jest"
-    },
-    "setupFiles": [
-      "<rootDir>/jest.setup.js"
-    ],
-    "modulePathIgnorePatterns": [
-      "<rootDir>/node_modules/"
-    ]
   }
 }

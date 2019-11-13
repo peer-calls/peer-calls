@@ -1,16 +1,19 @@
 jest.mock('socket.io', () => {
+  // eslint-disable-next-line
   const { EventEmitter } = require('events')
   return jest.fn().mockReturnValue(new EventEmitter())
 })
-jest.mock('./socket.js')
+jest.mock('./socket')
 
-const app = require('./app.js')
-const config = require('config')
-const handleSocket = require('./socket.js')
-const io = require('socket.io')()
-const request = require('supertest')
+import app from './app'
+import { config } from './config'
+import handleSocket from './socket'
+import SocketIO from 'socket.io'
+import request from 'supertest'
 
-const BASE_URL = config.get('baseUrl')
+const io = SocketIO()
+
+const BASE_URL: string = config.get('baseUrl')
 
 describe('server/app', () => {
 
@@ -50,7 +53,7 @@ describe('server/app', () => {
     it('calls handleSocket with socket', () => {
       const socket = { hi: 'me socket' }
       io.emit('connection', socket)
-      expect(handleSocket.mock.calls).toEqual([[ socket, io ]])
+      expect((handleSocket as jest.Mock).mock.calls).toEqual([[ socket, io ]])
     })
 
   })

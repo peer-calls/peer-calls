@@ -1,21 +1,33 @@
-'use strict'
-
-const EventEmitter = require('events').EventEmitter
-const handleSocket = require('./socket.js')
+import { EventEmitter } from 'events'
+import handleSocket from './socket'
+import { Socket, Server } from 'socket.io'
 
 describe('server/socket', () => {
-  let socket, io, rooms
+  type SocketMock = Socket & {
+    id: string
+    room?: string
+    join: jest.Mock
+    leave: jest.Mock
+    emit: jest.Mock
+  }
+
+  let socket: SocketMock
+  let io: Server & {
+    in: jest.Mock<(room: string) => SocketMock>
+    to: jest.Mock<(room: string) => SocketMock>
+  }
+  let rooms: Record<string, {emit: any}>
   beforeEach(() => {
-    socket = new EventEmitter()
+    socket = new EventEmitter() as SocketMock
     socket.id = 'socket0'
     socket.join = jest.fn()
     socket.leave = jest.fn()
     rooms = {}
 
-    io = {}
+    io = {} as any
     io.in = io.to = jest.fn().mockImplementation(room => {
       return (rooms[room] = rooms[room] || {
-        emit: jest.fn()
+        emit: jest.fn(),
       })
     })
 
@@ -23,21 +35,21 @@ describe('server/socket', () => {
       adapter: {
         rooms: {
           room1: {
-            'socket0': true
-          },
+            socket0: true,
+          } as any,
           room2: {
-            'socket0': true
-          },
+            socket0: true,
+          } as any,
           room3: {
             sockets: {
               'socket0': true,
               'socket1': true,
-              'socket2': true
-            }
-          }
-        }
-      }
-    }
+              'socket2': true,
+            },
+          } as any,
+        },
+      } as any,
+    } as any
 
     socket.leave = jest.fn()
     socket.join = jest.fn()
@@ -52,16 +64,16 @@ describe('server/socket', () => {
 
     describe('signal', () => {
       it('should broadcast signal to specific user', () => {
-        let signal = { type: 'signal' }
+        const signal = { type: 'signal' }
 
         socket.emit('signal', { userId: 'a', signal })
 
         expect(io.to.mock.calls).toEqual([[ 'a' ]])
-        expect(io.to('a').emit.mock.calls).toEqual([[
+        expect((io.to('a').emit as jest.Mock).mock.calls).toEqual([[
           'signal', {
             userId: 'socket0',
-            signal
-          }
+            signal,
+          },
         ]])
       })
     })
@@ -84,19 +96,19 @@ describe('server/socket', () => {
         socket.emit('ready', 'room3')
 
         expect(io.to.mock.calls).toEqual([[ 'room3' ]])
-        expect(io.to('room3').emit.mock.calls).toEqual([
+        expect((io.to('room3').emit as jest.Mock).mock.calls).toEqual([
           [
             'users', {
               initiator: 'socket0',
               users: [{
-                id: 'socket0'
+                id: 'socket0',
               }, {
-                id: 'socket1'
+                id: 'socket1',
               }, {
-                id: 'socket2'
-              }]
-            }
-          ]
+                id: 'socket2',
+              }],
+            },
+          ],
         ])
       })
     })

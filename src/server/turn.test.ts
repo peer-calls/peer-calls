@@ -1,4 +1,5 @@
-const turn = require('./turn.js')
+import * as turn from './turn'
+import { ICEServer } from './config'
 
 describe('server/turn', () => {
   describe('getCredentials', () => {
@@ -11,17 +12,18 @@ describe('server/turn', () => {
   })
 
   describe('processServers', () => {
-    const servers = [{
+    const servers: ICEServer[] = [{
       url: 'server1',
       urls: 'server1',
+      auth: undefined,
       username: 'a',
-      credential: 'b'
+      credential: 'b',
     }, {
       url: 'server2',
       urls: 'server2',
       username: 'c',
       secret: 'd',
-      auth: 'secret'
+      auth: 'secret',
     }]
 
     it('does not expose secret', () => {
@@ -32,13 +34,13 @@ describe('server/turn', () => {
         url: 'server2',
         urls: 'server2',
         username: jasmine.any(String),
-        credential: jasmine.any(String)
+        credential: jasmine.any(String),
       })
       expect(s[1].username).toMatch(/^[0-9]+:c$/)
     })
 
     it('throws error when unknown auth type', () => {
-      expect(() => turn.processServers([{ auth: 'bla' }]))
+      expect(() => turn.processServers([{ auth: 'bla' } as any]))
       .toThrowError(/not implemented/)
     })
   })

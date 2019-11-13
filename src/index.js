@@ -4,8 +4,10 @@ if (!process.env.DEBUG) {
   process.env.DEBUG = 'peercalls'
 }
 
-const app = require('./server/app.js')
-const debug = require('debug')('peercalls')
+import app from './server/app'
+import _debug from 'debug'
+
+const debug = _debug('peercalls')
 
 const port = process.env.PORT || 3000
 const server = app.listen(port, () => debug('Listening on: %s', port))
