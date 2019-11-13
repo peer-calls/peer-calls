@@ -1,14 +1,20 @@
 import * as constants from '../constants.js'
 import _ from 'underscore'
+import Peer from 'simple-peer'
+import { PeerAction } from '../actions/PeerActions'
 
-const defaultState = {}
+export interface PeersState {
+  [userId: string]: Peer.Instance
+}
 
-export default function peers (state = defaultState, action) {
-  switch (action && action.type) {
+const defaultState: PeersState = {}
+
+export default function peers (state = defaultState, action: PeerAction) {
+  switch (action.type) {
     case constants.PEER_ADD:
       return {
         ...state,
-        [action.payload.userId]: action.payload.peer
+        [action.payload.userId]: action.payload.peer,
       }
     case constants.PEER_REMOVE:
       return _.omit(state, [action.payload.userId])

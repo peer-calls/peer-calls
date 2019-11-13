@@ -7,21 +7,21 @@ export const revokeObjectURL = jest.fn()
 export class MediaStream {
   getVideoTracks () {
     return [{
-      enabled: true
+      enabled: true,
     }]
   }
   getAudioTracks () {
     return [{
-      enabled: true
+      enabled: true,
     }]
   }
 }
 export function getUserMedia () {
-  return !getUserMedia.shouldFail
+  return !(getUserMedia as any).shouldFail
     ? Promise.resolve(getUserMedia.stream)
     : Promise.reject(new Error('test'))
 }
-getUserMedia.fail = shouldFail => getUserMedia.shouldFail = shouldFail
+getUserMedia.fail = (shouldFail: boolean) => (getUserMedia as any).shouldFail = shouldFail
 getUserMedia.stream = new MediaStream()
 
 export const navigator = window.navigator

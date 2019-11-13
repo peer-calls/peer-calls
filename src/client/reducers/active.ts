@@ -1,6 +1,6 @@
 import * as constants from '../constants.js'
 
-export default function active (state = null, action) {
+export default function active (state = null, action: Action) {
   switch (action && action.type) {
     case constants.ACTIVE_SET:
     case constants.STREAM_ADD:

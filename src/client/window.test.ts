@@ -1,12 +1,10 @@
-import Promise from 'bluebird'
-
 import {
   createObjectURL,
   revokeObjectURL,
   getUserMedia,
   navigator,
   play,
-  valueOf
+  valueOf,
 } from './window.js'
 
 describe('window', () => {
@@ -18,47 +16,50 @@ describe('window', () => {
     const constraints = { video: true }
 
     afterEach(() => {
-      delete navigator.mediaDevices
+      delete (navigator as any).mediaDevices
       delete navigator.getUserMedia
-      delete navigator.webkitGetUserMedia
+      delete (navigator as any).webkitGetUserMedia
     })
 
     it('calls navigator.mediaDevices.getUserMedia', () => {
-      const promise = Promise.resolve(stream)
-      navigator.mediaDevices = {
-        getUserMedia: jest.fn().mockReturnValue(promise)
+      const promise = Promise.resolve(stream);
+      (navigator as any).mediaDevices = {
+        getUserMedia: jest.fn().mockReturnValue(promise),
       }
       expect(getUserMedia(constraints)).toBe(promise)
     })
 
     ;['getUserMedia', 'webkitGetUserMedia'].forEach((method) => {
       it(`it calls navigator.${method} as a fallback`, () => {
-        navigator[method] = jest.fn()
+        (navigator as any)[method] = jest.fn()
         .mockImplementation(
-          (constraints, onSuccess, onError) => onSuccess(stream)
+          (constraints, onSuccess, onError) => onSuccess(stream),
         )
         return getUserMedia(constraints)
         .then(s => expect(s).toBe(stream))
       })
     })
 
-    it('throws error when no supported method', done => {
-      getUserMedia(constraints)
-      .asCallback(err => {
-        expect(err).toBeTruthy()
-        expect(err.message).toBe('Browser unsupported')
-        done()
-      })
+    it('throws error when no supported method', async () => {
+      let error: Error
+      try {
+        await getUserMedia(constraints)
+      } catch (err) {
+        error = err
+      }
+      expect(error!).toBeTruthy()
+      expect(error!.message).toBe('Browser unsupported')
     })
 
   })
 
   describe('play', () => {
 
-    let v1, v2
+    let v1: HTMLVideoElement & { play: jest.Mock }
+    let v2: HTMLVideoElement & { play: jest.Mock }
     beforeEach(() => {
-      v1 = window.document.createElement('video')
-      v2 = window.document.createElement('video')
+      v1 = window.document.createElement('video') as any
+      v2 = window.document.createElement('video') as any
       window.document.body.appendChild(v1)
       window.document.body.appendChild(v2)
       v1.play = jest.fn()
@@ -96,7 +97,7 @@ describe('window', () => {
 
     it('calls window.URL.createObjectURL', () => {
       window.URL.createObjectURL = jest.fn().mockReturnValue('test')
-      expect(createObjectURL()).toBe('test')
+      expect(createObjectURL('bla')).toBe('test')
     })
 
   })
@@ -105,14 +106,14 @@ describe('window', () => {
 
     it('calls window.URL.revokeObjectURL', () => {
       window.URL.revokeObjectURL = jest.fn()
-      expect(revokeObjectURL()).toBe(undefined)
+      expect(revokeObjectURL('bla')).toBe(undefined)
     })
 
   })
 
   describe('valueOf', () => {
 
-    let input
+    let input: HTMLInputElement
     beforeEach(() => {
       input = window.document.createElement('input')
       input.setAttribute('id', 'my-main-id')

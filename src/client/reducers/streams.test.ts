@@ -3,23 +3,23 @@ jest.mock('../window.js')
 import * as StreamActions from '../actions/StreamActions.js'
 import reducers from './index.js'
 import { createObjectURL, MediaStream } from '../window.js'
-import { applyMiddleware, createStore } from 'redux'
+import { applyMiddleware, createStore, Store } from 'redux'
 import { create } from '../middlewares.js'
 
 describe('reducers/alerts', () => {
 
-  let store, stream, userId
+  let store: Store, stream: MediaStream, userId: string
   beforeEach(() => {
     store = createStore(
       reducers,
-      applyMiddleware.apply(null, create())
+      applyMiddleware(...create()),
     )
     userId = 'test id'
     stream = new MediaStream()
   })
 
   afterEach(() => {
-    createObjectURL
+    (createObjectURL as jest.Mock)
     .mockImplementation(object => 'blob://' + String(object))
   })
 
@@ -35,19 +35,19 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         [userId]: {
           mediaStream: stream,
-          url: jasmine.any(String)
-        }
+          url: jasmine.any(String),
+        },
       })
     })
     it('does not fail when createObjectURL fails', () => {
-      createObjectURL
+      (createObjectURL as jest.Mock)
       .mockImplementation(() => { throw new Error('test') })
       store.dispatch(StreamActions.addStream({ userId, stream }))
       expect(store.getState().streams).toEqual({
         [userId]: {
           mediaStream: stream,
-          url: null
-        }
+          url: null,
+        },
       })
     })
   })

@@ -3,7 +3,7 @@ import promiseMiddleware from 'redux-promise-middleware'
 import thunk from 'redux-thunk'
 
 export const middlewares = [thunk, promiseMiddleware()]
-export const create = log => {
+export const create = (log = false) => {
   const m = middlewares.slice()
   log && m.push(logger)
   return m

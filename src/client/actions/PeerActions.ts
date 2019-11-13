@@ -6,25 +6,44 @@ import Peer from 'simple-peer'
 import _ from 'underscore'
 import _debug from 'debug'
 import { play, iceServers } from '../window.js'
+import { Dispatch } from 'redux'
 
 const debug = _debug('peercalls')
 
+export interface Peers {
+  [id: string]: Peer.Instance
+}
+
+export type GetState = () => { peers: Peers }
+
+export interface PeerHandlerOptions {
+  socket: SocketIOClient.Socket
+  user: { id: string }
+  dispatch: Dispatch
+  getState: GetState
+}
+
 class PeerHandler {
-  constructor ({ socket, user, dispatch, getState }) {
-    this.socket = socket
-    this.user = user
-    this.dispatch = dispatch
-    this.getState = getState
+  socket: SocketIOClient.Socket
+  user: { id: string }
+  dispatch: Dispatch
+  getState: GetState
+
+  constructor (readonly options: PeerHandlerOptions) {
+    this.socket = options.socket
+    this.user = options.user
+    this.dispatch = options.dispatch
+    this.getState = options.getState
   }
-  handleError = err => {
+  handleError = (err: Error) => {
     const { dispatch, getState, user } = this
     debug('peer: %s, error %s', user.id, err.stack)
-    dispatch(NotifyActions.error('A peer connection error occurred'))
+    NotifyActions.error('A peer connection error occurred')(dispatch)
     const peer = getState().peers[user.id]
     peer && peer.destroy()
     dispatch(removePeer(user.id))
   }
-  handleSignal = signal => {
+  handleSignal = (signal: unknown) => {
     const { socket, user } = this
     debug('peer: %s, signal: %o', user.id, signal)
 
@@ -34,18 +53,18 @@ class PeerHandler {
   handleConnect = () => {
     const { dispatch, user } = this
     debug('peer: %s, connect', user.id)
-    dispatch(NotifyActions.warning('Peer connection established'))
+    NotifyActions.warning('Peer connection established')(dispatch)
     play()
   }
-  handleStream = stream => {
+  handleStream = (stream: MediaStream) => {
     const { user, dispatch } = this
     debug('peer: %s, stream', user.id)
     dispatch(StreamActions.addStream({
       userId: user.id,
-      stream
+      stream,
     }))
   }
-  handleData = object => {
+  handleData = (object: any) => {
     const { dispatch, user } = this
     const message = JSON.parse(new window.TextDecoder('utf-8').decode(object))
     debug('peer: %s, message: %o', user.id, object)
@@ -55,7 +74,7 @@ class PeerHandler {
           userId: user.id,
           message: message.payload.name,
           timestamp: new Date().toLocaleString(),
-          image: message.payload.data
+          image: message.payload.data,
         }))
         break
       default:
@@ -63,17 +82,24 @@ class PeerHandler {
           userId: user.id,
           message: message.payload,
           timestamp: new Date().toLocaleString(),
-          image: null
+          image: undefined,
         }))
     }
   }
   handleClose = () => {
     const { dispatch, user } = this
     debug('peer: %s, close', user.id)
-    dispatch(NotifyActions.error('Peer connection closed'))
+    NotifyActions.error('Peer connection closed')(dispatch)
     dispatch(StreamActions.removeStream(user.id))
     dispatch(removePeer(user.id))
   }
+}
+
+export interface CreatePeerOptions {
+  socket: SocketIOClient.Socket
+  user: { id: string }
+  initiator: string
+  stream?: MediaStream
 }
 
 /**
@@ -84,15 +110,17 @@ class PeerHandler {
  * @param {Boolean} [options.initiator=false]
  * @param {MediaStream} [options.stream]
  */
-export function createPeer ({ socket, user, initiator, stream }) {
-  return (dispatch, getState) => {
+export function createPeer (options: CreatePeerOptions) {
+  const { socket, user, initiator, stream } = options
+
+  return (dispatch: Dispatch, getState: GetState) => {
     const userId = user.id
     debug('create peer: %s, stream:', userId, stream)
-    dispatch(NotifyActions.warning('Connecting to peer...'))
+    NotifyActions.warning('Connecting to peer...')(dispatch)
 
     const oldPeer = getState().peers[userId]
     if (oldPeer) {
-      dispatch(NotifyActions.info('Cleaning up old connection...'))
+      NotifyActions.info('Cleaning up old connection...')(dispatch)
       oldPeer.destroy()
       dispatch(removePeer(userId))
     }
@@ -104,16 +132,16 @@ export function createPeer ({ socket, user, initiator, stream }) {
       // https://github.com/feross/simple-peer/issues/95
       offerConstraints: {
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveVideo: true,
       },
-      stream
+      stream,
     })
 
     const handler = new PeerHandler({
       socket,
       user,
       dispatch,
-      getState
+      getState,
     })
 
     peer.once(constants.PEER_EVENT_ERROR, handler.handleError)
@@ -127,21 +155,65 @@ export function createPeer ({ socket, user, initiator, stream }) {
   }
 }
 
-export const addPeer = ({ peer, userId }) => ({
+export interface AddPeerParams {
+  peer: Peer.Instance
+  userId: string
+}
+
+export interface AddPeerAction {
+  type: 'PEER_ADD'
+  payload: AddPeerParams
+}
+
+export const addPeer = (payload: AddPeerParams): AddPeerAction => ({
   type: constants.PEER_ADD,
-  payload: { peer, userId }
+  payload,
 })
 
-export const removePeer = userId => ({
+export interface RemovePeerAction {
+  type: 'PEER_REMOVE'
+  payload: { userId: string }
+}
+
+export const removePeer = (userId: string): RemovePeerAction => ({
   type: constants.PEER_REMOVE,
-  payload: { userId }
+  payload: { userId },
 })
 
-export const destroyPeers = () => ({
-  type: constants.PEERS_DESTROY
+export interface DestroyPeersAction {
+  type: 'PEERS_DESTROY'
+}
+
+export const destroyPeers = (): DestroyPeersAction => ({
+  type: constants.PEERS_DESTROY,
 })
 
-export const sendMessage = message => (dispatch, getState) => {
+export type PeerAction =
+  AddPeerAction |
+  RemovePeerAction |
+  DestroyPeersAction
+
+export interface TextMessage {
+  type: 'text'
+  payload: string
+}
+
+export interface Base64File {
+  name: string
+  size: number
+  type: string
+  data: string
+}
+
+export interface FileMessage {
+  type: 'file'
+  payload: Base64File
+}
+
+export type Message = TextMessage | FileMessage
+
+export const sendMessage = (message: Message) =>
+(dispatch: Dispatch, getState: GetState) => {
   const { peers } = getState()
   debug('Sending message type: %s to %s peers.',
     message.type, Object.keys(peers).length)
@@ -153,7 +225,7 @@ export const sendMessage = message => (dispatch, getState) => {
           message: 'Send file: "' +
             message.payload.name + '" to peer: ' + userId,
           timestamp: new Date().toLocaleString(),
-          image: message.payload.data
+          image: message.payload.data,
         }))
         break
       default:
@@ -161,27 +233,28 @@ export const sendMessage = message => (dispatch, getState) => {
           userId: 'You',
           message: message.payload,
           timestamp: new Date().toLocaleString(),
-          image: null
+          image: undefined,
         }))
     }
     peer.send(JSON.stringify(message))
   })
 }
 
-export const sendFile = file => async (dispatch, getState) => {
+export const sendFile = (file: File) =>
+async (dispatch: Dispatch, getState: GetState) => {
   const { name, size, type } = file
   if (!window.FileReader) {
-    dispatch(NotifyActions.error('File API is not supported by your browser'))
+    NotifyActions.error('File API is not supported by your browser')(dispatch)
     return
   }
   const reader = new window.FileReader()
-  const base64File = await new Promise(resolve => {
+  const base64File = await new Promise<Base64File>(resolve => {
     reader.addEventListener('load', () => {
       resolve({
         name,
         size,
         type,
-        data: reader.result
+        data: reader.result as string,
       })
     })
     reader.readAsDataURL(file)

@@ -1,6 +1,5 @@
-'use strict'
 import '@babel/polyfill'
-import App from './containers/App.js'
+import App from './containers/App'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import store from './store.js'

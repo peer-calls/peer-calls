@@ -5,94 +5,101 @@ import * as SocketActions from './SocketActions.js'
 import * as constants from '../constants.js'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore } from '../store.js'
+import { createStore, Store, GetState } from '../store.js'
+import { Dispatch } from 'redux'
 
 describe('SocketActions', () => {
   const roomName = 'bla'
 
-  let socket, store
+  let socket: SocketIOClient.Socket
+  let store: Store
+  let dispatch: Dispatch
+  let getState: GetState
+  let instances: Peer.Instance[]
   beforeEach(() => {
-    socket = new EventEmitter()
-    socket.id = 'a'
+    socket = new EventEmitter() as any;
+    (socket as any).id = 'a'
 
     store = createStore()
+    getState = store.getState
+    dispatch = store.dispatch
 
-    Peer.instances = []
+    instances = (Peer as any).instances = []
   })
 
   describe('handshake', () => {
     describe('users', () => {
       beforeEach(() => {
-        store.dispatch(SocketActions.handshake({ socket, roomName }))
+        SocketActions.handshake({ socket, roomName })(dispatch, getState)
         const payload = {
           users: [{ id: 'a' }, { id: 'b' }],
-          initiator: 'a'
+          initiator: 'a',
         }
         socket.emit('users', payload)
-        expect(Peer.instances.length).toBe(1)
+        expect(instances.length).toBe(1)
       })
 
       it('adds a peer for each new user and destroys peers for missing', () => {
         const payload = {
           users: [{ id: 'a' }, { id: 'c' }],
-          initiator: 'c'
+          initiator: 'c',
         }
         socket.emit(constants.SOCKET_EVENT_USERS, payload)
 
         // then
-        expect(Peer.instances.length).toBe(2)
-        expect(Peer.instances[0].destroy.mock.calls.length).toBe(1)
-        expect(Peer.instances[1].destroy.mock.calls.length).toBe(0)
+        expect(instances.length).toBe(2)
+        expect((instances[0].destroy as jest.Mock).mock.calls.length).toBe(1)
+        expect((instances[1].destroy as jest.Mock).mock.calls.length).toBe(0)
       })
     })
 
     describe('signal', () => {
-      let data
+      let data: Peer.SignalData
       beforeEach(() => {
-        data = {}
-        store.dispatch(SocketActions.handshake({ socket, roomName }))
+        data = {} as any
+        SocketActions.handshake({ socket, roomName })(dispatch, getState)
         socket.emit('users', {
           initiator: 'a',
-          users: [{ id: 'a' }, { id: 'b' }]
+          users: [{ id: 'a' }, { id: 'b' }],
         })
       })
 
       it('should forward signal to peer', () => {
         socket.emit('signal', {
           userId: 'b',
-          data
+          data,
         })
 
-        expect(Peer.instances.length).toBe(1)
-        expect(Peer.instances[0].signal.mock.calls.length).toBe(1)
+        expect(instances.length).toBe(1)
+        expect((instances[0].signal as jest.Mock).mock.calls.length).toBe(1)
       })
 
       it('does nothing if no peer', () => {
         socket.emit('signal', {
           userId: 'a',
-          data
+          data,
         })
 
-        expect(Peer.instances.length).toBe(1)
-        expect(Peer.instances[0].signal.mock.calls.length).toBe(0)
+        expect(instances.length).toBe(1)
+        expect((instances[0].signal as jest.Mock).mock.calls.length).toBe(0)
       })
     })
   })
 
   describe('peer events', () => {
-    let peer
+    let peer: Peer.Instance
     beforeEach(() => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      store.dispatch(SocketActions.handshake({ socket, roomName }))
+      SocketActions.handshake({ socket, roomName })(dispatch, getState)
 
       socket.emit('users', {
         initiator: 'a',
-        users: [{ id: 'a' }, { id: 'b' }]
+        users: [{ id: 'a' }, { id: 'b' }],
       })
-      expect(Peer.instances.length).toBe(1)
-      peer = Peer.instances[0]
+      expect(instances.length).toBe(1)
+      peer = instances[0]
 
       expect(ready).toBeDefined()
     })
@@ -100,15 +107,15 @@ describe('SocketActions', () => {
     describe('error', () => {
       it('destroys peer', () => {
         peer.emit(constants.PEER_EVENT_ERROR, new Error('bla'))
-        expect(peer.destroy.mock.calls.length).toBe(1)
+        expect((peer.destroy as jest.Mock).mock.calls.length).toBe(1)
       })
     })
 
     describe('signal', () => {
       it('emits socket signal with user id', done => {
-        let signal = { bla: 'bla' }
+        const signal = { bla: 'bla' }
 
-        socket.once('signal', payload => {
+        socket.once('signal', (payload: SocketActions.SignalOptions) => {
           expect(payload.userId).toEqual('b')
           expect(payload.signal).toBe(signal)
           done()
@@ -126,8 +133,8 @@ describe('SocketActions', () => {
         expect(store.getState().streams).toEqual({
           b: {
             mediaStream: stream,
-            url: jasmine.any(String)
-          }
+            url: jasmine.any(String),
+          },
         })
       })
     })
@@ -139,8 +146,8 @@ describe('SocketActions', () => {
         expect(store.getState().streams).toEqual({
           b: {
             mediaStream: stream,
-            url: jasmine.any(String)
-          }
+            url: jasmine.any(String),
+          },
         })
       })
 

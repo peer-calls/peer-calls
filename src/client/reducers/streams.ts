@@ -1,12 +1,13 @@
-import * as constants from '../constants.js'
 import _ from 'underscore'
 import { createObjectURL, revokeObjectURL } from '../window.js'
 import _debug from 'debug'
+import { AddStreamPayload, AddStreamAction, RemoveStreamAction, StreamAction } from '../actions/StreamActions.js'
+import { STREAM_ADD, STREAM_REMOVE } from '../constants.js'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
 
-function safeCreateObjectURL (stream) {
+function safeCreateObjectURL (stream: MediaStream) {
   try {
     return createObjectURL(stream)
   } catch (err) {
@@ -15,18 +16,22 @@ function safeCreateObjectURL (stream) {
   }
 }
 
-function addStream (state, action) {
+export interface StreamsState {
+  [userId: string]: AddStreamPayload
+}
+
+function addStream (state: StreamsState, action: AddStreamAction) {
   const { userId, stream } = action.payload
   return Object.freeze({
     ...state,
     [userId]: Object.freeze({
       mediaStream: stream,
-      url: safeCreateObjectURL(stream)
-    })
+      url: safeCreateObjectURL(stream),
+    }),
   })
 }
 
-function removeStream (state, action) {
+function removeStream (state: StreamsState, action: RemoveStreamAction) {
   const { userId } = action.payload
   const stream = state[userId]
   if (stream && stream.url) {
@@ -35,11 +40,11 @@ function removeStream (state, action) {
   return Object.freeze(_.omit(state, [userId]))
 }
 
-export default function streams (state = defaultState, action) {
-  switch (action && action.type) {
-    case constants.STREAM_ADD:
+export default function streams (state = defaultState, action: StreamAction) {
+  switch (action.type) {
+    case STREAM_ADD:
       return addStream(state, action)
-    case constants.STREAM_REMOVE:
+    case STREAM_REMOVE:
       return removeStream(state, action)
     default:
       return state

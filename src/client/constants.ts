@@ -1,4 +1,3 @@
-
 export const ACTIVE_SET = 'ACTIVE_SET'
 export const ACTIVE_TOGGLE = 'ACTIVE_TOGGLE'
 
