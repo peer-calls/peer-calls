@@ -10,12 +10,14 @@ import socket from '../socket'
 import storeMock from '../store'
 import { callId, getUserMedia } from '../window'
 import { MockStore } from 'redux-mock-store'
+import { bindActionCreators } from 'redux'
 
 jest.useFakeTimers()
 
 describe('reducers/alerts', () => {
 
   const store: MockStore = storeMock as any
+  const callActions = bindActionCreators(CallActions, store.dispatch)
 
   beforeEach(() => {
     store.clearActions();
@@ -31,7 +33,7 @@ describe('reducers/alerts', () => {
   describe('init', () => {
 
     it('calls handshake.init when connected & got camera stream', async () => {
-      const promise = CallActions.init(store.dispatch, store.getState)
+      const promise = callActions.init()
       socket.emit('connect')
       expect(store.getActions()).toEqual([{
         type: constants.INIT_PENDING,
@@ -60,8 +62,7 @@ describe('reducers/alerts', () => {
     })
 
     it('calls dispatches disconnect message on disconnect', async () => {
-
-      const promise = CallActions.init(store.dispatch, store.getState)
+      const promise = callActions.init()
       socket.emit('connect')
       socket.emit('disconnect')
       expect(store.getActions()).toEqual([{
@@ -102,7 +103,7 @@ describe('reducers/alerts', () => {
 
     it('dispatches alert when failed to get media stream', async () => {
       (getUserMedia as any).fail(true)
-      const promise = CallActions.init(store.dispatch, store.getState)
+      const promise = callActions.init()
       socket.emit('connect')
       await promise
     })

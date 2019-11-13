@@ -2,98 +2,114 @@ jest.mock('../actions/CallActions')
 jest.mock('../socket')
 jest.mock('../window')
 
-import * as constants from '../constants'
-import App from './App'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import configureStore from 'redux-mock-store'
-import reducers from '../reducers'
-import { MediaStream } from '../window'
 import { Provider } from 'react-redux'
+import { AnyAction, applyMiddleware, createStore } from 'redux'
 import { init } from '../actions/CallActions'
-import { middlewares } from '../store'
+import { Alert } from '../actions/NotifyActions'
+import * as constants from '../constants'
+import reducers from '../reducers'
+import { middlewares, State, Store } from '../store'
+import { MediaStream } from '../window'
+import App from './App'
 
 describe('App', () => {
 
   const initAction = { type: 'INIT' }
 
-  let state
+  let store: Store
+  let state: Partial<State>
+  let dispatchSpy: jest.SpyInstance<AnyAction, AnyAction[]>
   beforeEach(() => {
-    init.mockReturnValue(initAction)
-    state = reducers()
+    state = {};
+    (init as jest.Mock).mockReturnValue(initAction)
+
+    dispatchSpy = jest.spyOn(store, 'dispatch')
     window.HTMLMediaElement.prototype.play = jest.fn()
   })
 
-  let component, node, store
-  function render () {
-    store = configureStore(middlewares)(state)
-    component = TestUtils.renderIntoDocument(
-      <Provider store={store}>
-        <App />
-      </Provider>
+  afterEach(() => {
+    dispatchSpy.mockReset()
+    dispatchSpy.mockRestore()
+  })
+
+  let node: Element
+  async function render () {
+    store = createStore(
+      reducers,
+      state,
+      applyMiddleware(...middlewares),
     )
-    node = ReactDOM.findDOMNode(component)
+    const div = document.createElement('div')
+    await new Promise<HTMLDivElement>(resolve => {
+      ReactDOM.render(
+        <Provider store={store}>
+          <div ref={app => resolve(app!)}>
+            <App />
+          </div>
+        </Provider>,
+        div,
+      )
+    })
   }
 
   describe('render', () => {
     it('renders without issues', () => {
       render()
       expect(node).toBeTruthy()
-      expect(init.mock.calls.length).toBe(1)
+      expect((init as jest.Mock).mock.calls.length).toBe(1)
     })
   })
 
   describe('state', () => {
-    let alert
+    let alert: Alert
     beforeEach(() => {
       state.streams = {
         test: {
           mediaStream: new MediaStream(),
-          url: 'blob://'
-        }
+          url: 'blob://',
+        },
       }
       state.peers = {
-        test: {}
+        test: {} as any,
       }
-      state.notifications = state.notifications.merge({
+      state.notifications = {
         'notification1': {
           id: 'notification1',
           message: 'test',
-          type: 'warning'
-        }
-      })
-      const alerts = state.alerts.asMutable()
-      alert = {
+          type: 'warning',
+        },
+      }
+      state.alerts = [{
         dismissable: true,
         action: 'Dismiss',
-        message: 'test alert'
-      }
-      alerts.push(alert)
-      state.alerts = alerts
+        message: 'test alert',
+        type: 'info',
+      }]
       render()
-      store.clearActions()
     })
 
     describe('alerts', () => {
       it('can be dismissed', () => {
-        const dismiss = node.querySelector('.action-alert-dismiss')
+        const dismiss = node.querySelector('.action-alert-dismiss')!
         TestUtils.Simulate.click(dismiss)
-        expect(store.getActions()).toEqual([{
+        expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.ALERT_DISMISS,
-          payload: alert
-        }])
+          payload: alert,
+        }]])
       })
     })
 
     describe('video', () => {
       it('can be activated', () => {
-        const video = node.querySelector('video')
+        const video = node.querySelector('video')!
         TestUtils.Simulate.click(video)
-        expect(store.getActions()).toEqual([{
+        expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
-          payload: { userId: constants.ME }
-        }])
+          payload: { userId: constants.ME },
+        }]])
       })
     })
 

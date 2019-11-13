@@ -4,8 +4,7 @@ import * as StreamActions from './StreamActions'
 import * as constants from '../constants'
 import socket from '../socket'
 import { callId, getUserMedia } from '../window'
-import { Dispatch } from 'redux'
-import { GetState } from '../store'
+import { Dispatch, GetState } from '../store'
 
 export interface InitAction {
   type: 'INIT'
@@ -20,7 +19,7 @@ const initialize = (): InitializeAction => ({
   type: 'INIT',
 })
 
-export const init = async (dispatch: Dispatch, getState: GetState) => {
+export const init = () => async (dispatch: Dispatch, getState: GetState) => {
   dispatch(initialize())
 
   const socket = await connect(dispatch)
@@ -39,10 +38,10 @@ export async function connect (dispatch: Dispatch) {
       resolve(socket)
     })
     socket.on('connect', () => {
-      NotifyActions.warning('Connected to server socket')(dispatch)
+      dispatch(NotifyActions.warning('Connected to server socket'))
     })
     socket.on('disconnect', () => {
-      NotifyActions.error('Server socket disconnected')(dispatch)
+      dispatch(NotifyActions.error('Server socket disconnected'))
     })
   })
 }

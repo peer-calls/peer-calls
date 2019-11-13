@@ -1,6 +1,7 @@
+/* eslint-disable */
 import EventEmitter from 'events'
 const Peer = jest.fn().mockImplementation(() => {
-  let peer = new EventEmitter()
+  const peer = new EventEmitter()
   peer.destroy = jest.fn()
   peer.signal = jest.fn()
   peer.send = jest.fn()

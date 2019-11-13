@@ -1,7 +1,7 @@
 import * as constants from '../constants'
-import * as ChatActions from './ChatActions'
-import { Dispatch } from 'redux'
+import { Dispatch  } from 'redux'
 import _ from 'underscore'
+import { ThunkResult } from '../store'
 
 const TIMEOUT = 5000
 
@@ -13,21 +13,29 @@ function format (string: string, args: string[]) {
 
 export type NotifyType = 'info' | 'warning' | 'error'
 
-const _notify = (type: NotifyType, args: string[]) => (dispatch: Dispatch) => {
+function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
   const string = args[0] || ''
   const message = format(string, Array.prototype.slice.call(args, 1))
   const id = _.uniqueId('notification')
   const payload: Notification = { id, type, message }
-  dispatch(addNotification(payload))
-  dispatch(ChatActions.addMessage({
-    userId: '[PeerCalls]',
-    message,
-    timestamp: new Date().toLocaleString(),
-    image: undefined,
-  }))
+
   setTimeout(() => {
     dispatch(dismissNotification(id))
   }, TIMEOUT)
+
+  return addNotification(payload)
+}
+
+export const info = (...args: any[]): ThunkResult<NotificationAddAction> => {
+  return dispatch => notify(dispatch, 'info', args)
+}
+
+export const warning = (...args: any[]): ThunkResult<NotificationAddAction> => {
+  return dispatch => notify(dispatch, 'warning', args)
+}
+
+export const error = (...args: any[]): ThunkResult<NotificationAddAction> => {
+  return dispatch => notify(dispatch, 'error', args)
 }
 
 function addNotification(payload: Notification): NotificationAddAction {
@@ -58,18 +66,6 @@ export interface NotificationAddAction {
 export interface NotificationDismissAction {
   type: 'NOTIFY_DISMISS'
   payload: { id: string }
-}
-
-export function info (...args: any[]) {
-  return (dispatch: Dispatch) => _notify('info', args)(dispatch)
-}
-
-export function warning (...args: any[]) {
-  return (dispatch: Dispatch) => _notify('warning', args)(dispatch)
-}
-
-export function error (...args: any[]) {
-  return (dispatch: Dispatch) => _notify('error', args)(dispatch)
 }
 
 export interface NotificationClearAction {

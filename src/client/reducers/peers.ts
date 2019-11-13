@@ -3,13 +3,14 @@ import _ from 'underscore'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
 
-export interface PeersState {
-  [userId: string]: Peer.Instance
-}
+export type PeersState = Record<string, Peer.Instance>
 
 const defaultState: PeersState = {}
 
-export default function peers (state = defaultState, action: PeerAction) {
+export default function peers(
+  state = defaultState,
+  action: PeerAction,
+): PeersState {
   switch (action.type) {
     case constants.PEER_ADD:
       return {

@@ -3,8 +3,8 @@ import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
 import _ from 'underscore'
 import _debug from 'debug'
-import { Dispatch } from 'redux'
 import { SignalData } from 'simple-peer'
+import { Dispatch, GetState } from '../store'
 
 const debug = _debug('peercalls')
 
@@ -13,7 +13,7 @@ export interface SocketHandlerOptions {
   roomName: string
   stream?: MediaStream
   dispatch: Dispatch
-  getState: PeerActions.GetState
+  getState: GetState
 }
 
 export interface SignalOptions {
@@ -31,7 +31,7 @@ class SocketHandler {
   roomName: string
   stream?: MediaStream
   dispatch: Dispatch
-  getState: PeerActions.GetState
+  getState: GetState
 
   constructor (options: SocketHandlerOptions) {
     this.socket = options.socket
@@ -50,8 +50,8 @@ class SocketHandler {
   handleUsers = ({ initiator, users }: UsersOptions) => {
     const { socket, stream, dispatch, getState } = this
     debug('socket users: %o', users)
-    NotifyActions.info('Connected users: {0}', users.length)(dispatch)
-    const { peers } = getState()
+    this.dispatch(NotifyActions.info('Connected users: {0}', users.length))
+    const { peers } = this.getState()
 
     users
     .filter(user => !peers[user.id] && user.id !== socket.id)
@@ -78,7 +78,7 @@ export interface HandshakeOptions {
 export function handshake (options: HandshakeOptions) {
   const { socket, roomName, stream } = options
 
-  return (dispatch: Dispatch, getState: PeerActions.GetState) => {
+  return (dispatch: Dispatch, getState: GetState) => {
     const handler = new SocketHandler({
       socket,
       roomName,
@@ -92,7 +92,7 @@ export function handshake (options: HandshakeOptions) {
 
     debug('socket.id: %s', socket.id)
     debug('emit ready for room: %s', roomName)
-    NotifyActions.info('Ready for connections')(dispatch)
+    dispatch(NotifyActions.info('Ready for connections'))
     socket.emit('ready', roomName)
   }
 }

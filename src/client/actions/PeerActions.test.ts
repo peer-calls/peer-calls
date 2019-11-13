@@ -167,9 +167,9 @@ describe('PeerActions', () => {
       PeerActions.sendMessage({ payload: 'test', type: 'text' })(
         dispatch, getState)
       const { peers } = store.getState()
-      expect(peers['user2'].send.mock.calls)
+      expect((peers['user2'].send as jest.Mock).mock.calls)
       .toEqual([[ '{"payload":"test","type":"text"}' ]])
-      expect(peers['user3'].send.mock.calls)
+      expect((peers['user3'].send as jest.Mock).mock.calls)
       .toEqual([[ '{"payload":"test","type":"text"}' ]])
     })
 

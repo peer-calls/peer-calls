@@ -1,6 +1,6 @@
 import * as NotifyActions from '../actions/NotifyActions'
 import _ from 'underscore'
-import { applyMiddleware, createStore, Store } from 'redux'
+import { applyMiddleware, createStore, Store, bindActionCreators } from 'redux'
 import { create } from '../middlewares'
 import reducers from './index'
 
@@ -9,21 +9,24 @@ jest.useFakeTimers()
 describe('reducers/alerts', () => {
 
   let store: Store
+  let notifyActions: typeof NotifyActions
   beforeEach(() => {
     store = createStore(
       reducers,
       applyMiddleware(...create()),
     )
+   notifyActions = bindActionCreators(NotifyActions, store.dispatch)
   })
+
 
   describe('clearAlert', () => {
 
     [true, false].forEach(dismissable => {
       beforeEach(() => {
-        store.dispatch(NotifyActions.clearAlerts())
+        notifyActions.clearAlerts()
       })
       it('adds alert to store', () => {
-        store.dispatch(NotifyActions.alert('test', dismissable))
+        notifyActions.alert('test', dismissable)
         expect(store.getState().alerts).toEqual([{
           action: dismissable ? 'Dismiss' : undefined,
           dismissable,
@@ -69,7 +72,7 @@ describe('reducers/alerts', () => {
     describe(type, () => {
 
       beforeEach(() => {
-        NotifyActions[type]('Hi {0}!', 'John')(store.dispatch)
+        notifyActions[type]('Hi {0}!', 'John')
       })
 
       it('adds a notification', () => {
@@ -86,7 +89,7 @@ describe('reducers/alerts', () => {
       })
 
       it('does not fail when no arguments', () => {
-        NotifyActions[type]()(store.dispatch)
+        notifyActions[type]()
       })
 
     })
@@ -96,9 +99,9 @@ describe('reducers/alerts', () => {
   describe('clear', () => {
 
     it('clears all alerts', () => {
-      NotifyActions.info('Hi {0}!', 'John')(store.dispatch)
-      NotifyActions.warning('Hi {0}!', 'John')(store.dispatch)
-      NotifyActions.error('Hi {0}!', 'John')(store.dispatch)
+      notifyActions.info('Hi {0}!', 'John')
+      notifyActions.warning('Hi {0}!', 'John')
+      notifyActions.error('Hi {0}!', 'John')
       store.dispatch(NotifyActions.clear())
       expect(store.getState().notifications).toEqual({})
     })
