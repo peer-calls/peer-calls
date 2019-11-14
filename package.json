@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node lib/index.js",
-    "start:server": "nodemon -ignore build/ --ignore lib/client lib/index.js",
+    "start:server": "nodemon --ignore build/ --ignore lib/client lib/index.js",
     "start:watch": "npm run ts && chastifol [ npm run ts:watch ] [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
     "build": "npm run css && npm run ts && npm run js && npm run js:uglify",
@@ -49,6 +49,7 @@
   "license": "MIT",
   "dependencies": {
     "config": "^3.2.4",
+    "debug": "^4.1.1",
     "express": "^4.17.1",
     "pug": "^2.0.4",
     "socket.io": "^2.2.0",
