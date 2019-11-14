@@ -12,7 +12,7 @@ function safeCreateObjectURL (stream: MediaStream) {
     return createObjectURL(stream)
   } catch (err) {
     debug('Error using createObjectURL: %s', err)
-    return null
+    return undefined
   }
 }
 
@@ -20,18 +20,26 @@ export interface StreamsState {
   [userId: string]: AddStreamPayload
 }
 
-function addStream (state: StreamsState, action: AddStreamAction) {
+function addStream (
+  state: StreamsState, action: AddStreamAction,
+): StreamsState {
   const { userId, stream } = action.payload
-  return Object.freeze({
+
+  const userStream: AddStreamPayload = {
+    userId,
+    stream,
+    url: safeCreateObjectURL(stream),
+  }
+
+  return {
     ...state,
-    [userId]: {
-      mediaStream: stream,
-      url: safeCreateObjectURL(stream),
-    },
-  })
+    [userId]: userStream,
+  }
 }
 
-function removeStream (state: StreamsState, action: RemoveStreamAction) {
+function removeStream (
+  state: StreamsState, action: RemoveStreamAction,
+): StreamsState {
   const { userId } = action.payload
   const stream = state[userId]
   if (stream && stream.url) {
@@ -40,7 +48,10 @@ function removeStream (state: StreamsState, action: RemoveStreamAction) {
   return omit(state, [userId])
 }
 
-export default function streams (state = defaultState, action: StreamAction) {
+export default function streams(
+  state = defaultState,
+    action: StreamAction,
+): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
       return addStream(state, action)

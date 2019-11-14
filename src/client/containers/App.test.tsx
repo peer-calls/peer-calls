@@ -70,7 +70,8 @@ describe('App', () => {
     beforeEach(async () => {
       state.streams = {
         test: {
-          mediaStream: new MediaStream(),
+          userId: 'test',
+          stream: new MediaStream(),
           url: 'blob://',
         },
       }

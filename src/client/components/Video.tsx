@@ -37,11 +37,14 @@ export default class Video extends React.PureComponent<VideoProps> {
     const video = this.videoRef.current!
     const mediaStream = stream && stream.stream || null
     const url = stream && stream.url
+    console.log('stream', stream)
     if ('srcObject' in video as unknown) {
       if (video.srcObject !== mediaStream) {
+        console.log('setting srcObject')
         video.srcObject = mediaStream
       }
     } else if (video.src !== url) {
+      console.log('setting src')
       video.src = url || ''
     }
     videos[socket.id] = video
