@@ -1,8 +1,8 @@
 import * as NotifyActions from '../actions/NotifyActions'
-import _ from 'underscore'
 import { applyMiddleware, createStore, Store, bindActionCreators } from 'redux'
 import { create } from '../middlewares'
 import reducers from './index'
+import values from 'lodash/values'
 
 jest.useFakeTimers()
 
@@ -76,7 +76,7 @@ describe('reducers/alerts', () => {
       })
 
       it('adds a notification', () => {
-        expect(_.values(store.getState().notifications)).toEqual([{
+        expect(values(store.getState().notifications)).toEqual([{
           id: jasmine.any(String),
           message: 'Hi John!',
           type,

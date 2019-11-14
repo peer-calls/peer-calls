@@ -1,6 +1,6 @@
+import map from 'lodash/map'
 import React from 'react'
 import Peer from 'simple-peer'
-import _ from 'underscore'
 import { Message } from '../actions/ChatActions'
 import { Alert, Notification } from '../actions/NotifyActions'
 import { TextMessage } from '../actions/PeerActions'
@@ -99,7 +99,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             mirrored
           />
 
-          {_.map(peers, (_, userId) => (
+          {map(peers, (_, userId) => (
             <Video
               active={userId === active}
               key={userId}

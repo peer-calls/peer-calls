@@ -1,6 +1,6 @@
 'use strict'
 import _debug from 'debug'
-import _ from 'underscore'
+import map from 'lodash/map'
 import { Socket, Server } from 'socket.io'
 
 const debug = _debug('peercalls:socket')
@@ -34,7 +34,7 @@ export default function handleSocket(socket: SocketWithRoom, io: Server) {
   })
 
   function getUsers (roomName: string) {
-    return _.map(io.sockets.adapter.rooms[roomName].sockets, (_, id) => {
+    return map(io.sockets.adapter.rooms[roomName].sockets, (_, id) => {
       return { id }
     })
   }

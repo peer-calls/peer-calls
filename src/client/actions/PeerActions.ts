@@ -3,7 +3,7 @@ import * as NotifyActions from '../actions/NotifyActions'
 import * as StreamActions from '../actions/StreamActions'
 import * as constants from '../constants'
 import Peer from 'simple-peer'
-import _ from 'underscore'
+import forEach from 'lodash/forEach'
 import _debug from 'debug'
 import { play, iceServers } from '../window'
 import { Dispatch, GetState } from '../store'
@@ -215,7 +215,7 @@ export const sendMessage = (message: Message) =>
   const { peers } = getState()
   debug('Sending message type: %s to %s peers.',
     message.type, Object.keys(peers).length)
-  _.each(peers, (peer, userId) => {
+  forEach(peers, (peer, userId) => {
     switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({

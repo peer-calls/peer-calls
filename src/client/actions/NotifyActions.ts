@@ -1,6 +1,6 @@
+import uniqueId from 'lodash/uniqueId'
+import { Dispatch } from 'redux'
 import * as constants from '../constants'
-import { Dispatch  } from 'redux'
-import _ from 'underscore'
 import { ThunkResult } from '../store'
 
 const TIMEOUT = 5000
@@ -16,7 +16,7 @@ export type NotifyType = 'info' | 'warning' | 'error'
 function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
   const string = args[0] || ''
   const message = format(string, Array.prototype.slice.call(args, 1))
-  const id = _.uniqueId('notification')
+  const id = uniqueId('notification')
   const payload: Notification = { id, type, message }
 
   setTimeout(() => {

@@ -1,8 +1,8 @@
-import _ from 'underscore'
-import { createObjectURL, revokeObjectURL } from '../window'
 import _debug from 'debug'
-import { AddStreamPayload, AddStreamAction, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
+import omit from 'lodash/omit'
+import { AddStreamAction, AddStreamPayload, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
 import { STREAM_ADD, STREAM_REMOVE } from '../constants'
+import { createObjectURL, revokeObjectURL } from '../window'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -24,10 +24,10 @@ function addStream (state: StreamsState, action: AddStreamAction) {
   const { userId, stream } = action.payload
   return Object.freeze({
     ...state,
-    [userId]: Object.freeze({
+    [userId]: {
       mediaStream: stream,
       url: safeCreateObjectURL(stream),
-    }),
+    },
   })
 }
 
@@ -37,7 +37,7 @@ function removeStream (state: StreamsState, action: RemoveStreamAction) {
   if (stream && stream.url) {
     revokeObjectURL(stream.url)
   }
-  return Object.freeze(_.omit(state, [userId]))
+  return omit(state, [userId])
 }
 
 export default function streams (state = defaultState, action: StreamAction) {

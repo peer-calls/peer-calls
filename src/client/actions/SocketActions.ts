@@ -1,7 +1,7 @@
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
-import _ from 'underscore'
+import keyBy from 'lodash/keyBy'
 import _debug from 'debug'
 import { SignalData } from 'simple-peer'
 import { Dispatch, GetState } from '../store'
@@ -62,8 +62,8 @@ class SocketHandler {
       stream,
     })(dispatch, getState))
 
-    const newUsersMap = _.indexBy(users, 'id')
-    _.keys(peers)
+    const newUsersMap = keyBy(users, 'id')
+    Object.keys(peers)
     .filter(id => !newUsersMap[id])
     .forEach(id => peers[id].destroy())
   }

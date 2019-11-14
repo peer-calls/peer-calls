@@ -1,7 +1,8 @@
-import * as constants from '../constants'
-import _ from 'underscore'
+import forEach from 'lodash/forEach'
+import omit from 'lodash/omit'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
+import * as constants from '../constants'
 
 export type PeersState = Record<string, Peer.Instance>
 
@@ -18,9 +19,9 @@ export default function peers(
         [action.payload.userId]: action.payload.peer,
       }
     case constants.PEER_REMOVE:
-      return _.omit(state, [action.payload.userId])
+      return omit(state, [action.payload.userId])
     case constants.PEERS_DESTROY:
-      _.each(state, peer => peer.destroy())
+      forEach(state, peer => peer.destroy())
       return defaultState
     default:
       return state
