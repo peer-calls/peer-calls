@@ -1,26 +1,38 @@
 jest.mock('../socket')
 jest.mock('../window')
-jest.mock('../store')
 jest.mock('./SocketActions')
 
 import * as CallActions from './CallActions'
 import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import socket from '../socket'
-import storeMock from '../store'
 import { callId, getUserMedia } from '../window'
-import { MockStore } from 'redux-mock-store'
-import { bindActionCreators } from 'redux'
+import { bindActionCreators, createStore, AnyAction, combineReducers, applyMiddleware } from 'redux'
+import reducers from '../reducers'
+import { middlewares } from '../middlewares'
 
 jest.useFakeTimers()
 
-describe('reducers/alerts', () => {
+describe('CallActions', () => {
 
-  const store: MockStore = storeMock as any
-  const callActions = bindActionCreators(CallActions, store.dispatch)
+  let callActions: typeof CallActions
+
+  function allActions(state: AnyAction[] = [], action: AnyAction) {
+    return [...state, action]
+  }
+
+  const configureStore = () => createStore(
+    combineReducers({...reducers, allActions }),
+    applyMiddleware(...middlewares),
+  )
+  let store: ReturnType<typeof configureStore>
 
   beforeEach(() => {
-    store.clearActions();
+    store = createStore(
+      combineReducers({ allActions }),
+      applyMiddleware(...middlewares),
+    )
+    callActions = bindActionCreators(CallActions, store.dispatch);
     (getUserMedia as any).fail(false);
     (SocketActions.handshake as jest.Mock).mockReturnValue(jest.fn())
   })
@@ -35,9 +47,8 @@ describe('reducers/alerts', () => {
     it('calls handshake.init when connected & got camera stream', async () => {
       const promise = callActions.init()
       socket.emit('connect')
-      expect(store.getActions()).toEqual([{
-        type: constants.INIT_PENDING,
-      }, {
+      await promise
+      expect(store.getState().allActions.slice(1)).toEqual([{
         type: constants.NOTIFY,
         payload: {
           id: jasmine.any(String),
@@ -45,15 +56,14 @@ describe('reducers/alerts', () => {
           type: 'warning',
         },
       }, {
-        type: constants.MESSAGE_ADD,
+        type: constants.STREAM_ADD,
         payload: {
-          image: null,
-          message: 'Connected to server socket',
-          timestamp: jasmine.any(String),
-          userId: '[PeerCalls]',
+          stream: jasmine.anything(),
+          userId: constants.ME,
         },
+      }, {
+        type: constants.INIT,
       }])
-      await promise
       expect((SocketActions.handshake as jest.Mock).mock.calls).toEqual([[{
         socket,
         roomName: callId,
@@ -65,9 +75,7 @@ describe('reducers/alerts', () => {
       const promise = callActions.init()
       socket.emit('connect')
       socket.emit('disconnect')
-      expect(store.getActions()).toEqual([{
-        type: constants.INIT_PENDING,
-      }, {
+      expect(store.getState().allActions.slice(1)).toEqual([{
         type: constants.NOTIFY,
         payload: {
           id: jasmine.any(String),
@@ -75,27 +83,11 @@ describe('reducers/alerts', () => {
           type: 'warning',
         },
       }, {
-        type: constants.MESSAGE_ADD,
-        payload: {
-          image: null,
-          message: 'Connected to server socket',
-          timestamp: jasmine.any(String),
-          userId: '[PeerCalls]',
-        },
-      }, {
         type: constants.NOTIFY,
         payload: {
           id: jasmine.any(String),
           message: 'Server socket disconnected',
           type: 'error',
-        },
-      }, {
-        type: constants.MESSAGE_ADD,
-        payload: {
-          image: null,
-          message: 'Server socket disconnected',
-          timestamp: jasmine.any(String),
-          userId: '[PeerCalls]',
         },
       }])
       await promise

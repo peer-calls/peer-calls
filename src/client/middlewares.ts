@@ -1,8 +1,9 @@
+import { Middleware } from 'redux'
 import logger from 'redux-logger'
-import promiseMiddleware from 'redux-promise-middleware'
 import thunk from 'redux-thunk'
+import { middleware as asyncMiddleware } from './async'
 
-export const middlewares = [thunk, promiseMiddleware()]
+export const middlewares: Middleware[] = [thunk, asyncMiddleware]
 export const create = (log = false) => {
   const m = middlewares.slice()
   log && m.push(logger)

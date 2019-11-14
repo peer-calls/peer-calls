@@ -1,7 +1,6 @@
 import { Action, applyMiddleware, createStore as _createStore, Store as ReduxStore } from 'redux'
 import { ThunkAction, ThunkDispatch } from 'redux-thunk'
 import { create } from './middlewares'
-import { middleware as asyncMiddleware }from './async'
 import reducers from './reducers'
 
 export const middlewares = create(
@@ -10,7 +9,7 @@ export const middlewares = create(
 
 export const createStore = () => _createStore(
   reducers,
-  applyMiddleware(...middlewares, asyncMiddleware),
+  applyMiddleware(...middlewares),
 )
 
 export default createStore()

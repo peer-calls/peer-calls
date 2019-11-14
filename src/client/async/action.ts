@@ -1,4 +1,4 @@
-import { Action } from 'redux'
+import { Action, Dispatch } from 'redux'
 
 export type PendingAction<T extends string, P> = Action<T> & Promise<P> & {
   status: 'pending'
@@ -49,9 +49,9 @@ export function isPendingAction(
 export function makeAction<A extends unknown[], T extends string, P>(
   type: T,
   impl: (...args: A) => Promise<P>,
-): (...args: A) => PendingAction<T, P>{
+): (...args: A) => PendingAction<T, P> {
   return (...args: A) => {
-    const pendingAction= impl(...args) as PendingAction<T, P>
+    const pendingAction = impl(...args) as PendingAction<T, P>
     pendingAction.type = type
     pendingAction.status = 'pending'
     return pendingAction

@@ -6,9 +6,6 @@ export const ALERT_DISMISS = 'ALERT_DISMISS'
 export const ALERT_CLEAR = 'ALERT_CLEAR'
 
 export const INIT = 'INIT'
-export const INIT_PENDING = `${INIT}_PENDING`
-export const INIT_FULFILLED = `${INIT}_FULFILLED`
-export const INIT_REJECTED = `${INIT}_REJECTED`
 
 export const ME = '_me_'
 

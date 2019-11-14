@@ -4,7 +4,8 @@ import * as StreamActions from './StreamActions'
 import * as constants from '../constants'
 import socket from '../socket'
 import { callId, getUserMedia } from '../window'
-import { Dispatch, GetState } from '../store'
+import { Dispatch, GetState, ThunkResult } from '../store'
+import { makeAction } from '../async'
 
 export interface InitAction {
   type: 'INIT'
@@ -19,20 +20,21 @@ const initialize = (): InitializeAction => ({
   type: 'INIT',
 })
 
-export const init = () => async (dispatch: Dispatch, getState: GetState) => {
-  dispatch(initialize())
+export const init = (): ThunkResult<Promise<void>> =>
+async (dispatch, getState) => {
+  const socket = await dispatch(connect())
+  const stream = await dispatch(getCameraStream())
 
-  const socket = await connect(dispatch)
-  const stream = await getCameraStream(dispatch)
-
-  SocketActions.handshake({
+  dispatch(SocketActions.handshake({
     socket,
     roomName: callId,
     stream,
-  })(dispatch, getState)
+  }))
+
+  dispatch(initialize())
 }
 
-export async function connect (dispatch: Dispatch) {
+export const connect = () => (dispatch: Dispatch) => {
   return new Promise<SocketIOClient.Socket>(resolve => {
     socket.once('connect', () => {
       resolve(socket)
@@ -46,7 +48,7 @@ export async function connect (dispatch: Dispatch) {
   })
 }
 
-export async function getCameraStream (dispatch: Dispatch) {
+export const getCameraStream = () => async (dispatch: Dispatch) => {
   try {
     const stream = await getUserMedia({
       video: { facingMode: 'user' },

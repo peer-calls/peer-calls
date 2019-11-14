@@ -27,15 +27,15 @@ function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
 }
 
 export const info = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => notify(dispatch, 'info', args)
+  return dispatch => dispatch(notify(dispatch, 'info', args))
 }
 
 export const warning = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => notify(dispatch, 'warning', args)
+  return dispatch => dispatch(notify(dispatch, 'warning', args))
 }
 
 export const error = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => notify(dispatch, 'error', args)
+  return dispatch => dispatch(notify(dispatch, 'error', args))
 }
 
 function addNotification(payload: Notification): NotificationAddAction {
