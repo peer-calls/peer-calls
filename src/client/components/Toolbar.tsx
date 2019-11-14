@@ -1,7 +1,6 @@
-import React, { ReactEventHandler, ChangeEvent } from 'react'
 import classnames from 'classnames'
+import React from 'react'
 import screenfull from 'screenfull'
-import { Message } from '../actions/ChatActions'
 import { AddStreamPayload } from '../actions/StreamActions'
 
 const hidden = {
@@ -9,7 +8,7 @@ const hidden = {
 }
 
 export interface ToolbarProps {
-  messages: Message[]
+  messagesCount: number
   stream: AddStreamPayload
   onToggleChat: () => void
   onSendFile: (file: File) => void
@@ -30,7 +29,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   constructor(props: ToolbarProps) {
     super(props)
     this.state = {
-      readMessages: props.messages.length,
+      readMessages: props.messagesCount,
       camDisabled: false,
       micMuted: false,
       fullScreenEnabled: false,
@@ -79,12 +78,12 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   }
   handleToggleChat = () => {
     this.setState({
-      readMessages: this.props.messages.length,
+      readMessages: this.props.messagesCount,
     })
     this.props.onToggleChat()
   }
   render () {
-    const { messages, stream } = this.props
+    const { messagesCount, stream } = this.props
 
     return (
       <div className="toolbar active">
@@ -93,7 +92,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
             on: this.props.chatVisible,
           })}
           data-blink={!this.props.chatVisible &&
-            messages.length > this.state.readMessages}
+            messagesCount > this.state.readMessages}
           title="Chat"
         >
           <span className="icon icon-question_answer" />

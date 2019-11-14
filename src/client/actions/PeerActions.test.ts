@@ -107,8 +107,8 @@ describe('PeerActions', () => {
         const payload = 'test'
         const object = JSON.stringify({ payload })
         peer.emit('data', Buffer.from(object, 'utf-8'))
-        const { messages } = store.getState()
-        expect(messages[messages.length - 1]).toEqual({
+        const { list } = store.getState().messages
+        expect(list[list.length - 1]).toEqual({
           userId: 'user2',
           timestamp: jasmine.any(String),
           image: undefined,

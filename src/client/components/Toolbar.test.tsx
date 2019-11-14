@@ -21,7 +21,7 @@ describe('components/Toolbar', () => {
         chatVisible={this.props.chatVisible}
         onToggleChat={this.props.onToggleChat}
         onSendFile={this.props.onSendFile}
-        messages={this.props.messages}
+        messagesCount={this.props.messagesCount}
         stream={this.state.stream || this.props.stream}
       />
     }
@@ -44,7 +44,7 @@ describe('components/Toolbar', () => {
           chatVisible
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
-          messages={[]}
+          messagesCount={1}
           stream={{ userId: '', stream: mediaStream, url }}
         />,
         div,

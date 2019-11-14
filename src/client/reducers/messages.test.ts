@@ -12,7 +12,7 @@ describe('reducers/messages', () => {
       }
       let state = messages(undefined, {type: 'test'} as any)
       state = messages(state, ChatActions.addMessage(payload))
-      expect(state).toEqual([payload])
+      expect(state.list).toEqual([payload])
     })
   })
 

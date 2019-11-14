@@ -24,8 +24,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "ci": "npm run lint && npm run test:coverage && npm run build",
-    "ts:watch": "tsc --build . --watch --preserveWatchOutput",
-    "ts": "tsc --build .",
+    "ts:watch": "tsc -p . --watch --preserveWatchOutput",
+    "ts": "tsc -p .",
     "clean": "rimraf lib/ tsconfig.tsbuildinfo build/*"
   },
   "babel": {

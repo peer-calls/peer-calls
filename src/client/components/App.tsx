@@ -19,6 +19,7 @@ export interface AppProps {
   init: () => void
   notifications: Record<string, Notification>
   messages: Message[]
+  messagesCount: number
   peers: Record<string, Peer.Instance>
   sendMessage: (message: TextMessage) => void
   streams: Record<string, AddStreamPayload>
@@ -62,6 +63,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       dismissAlert,
       notifications,
       messages,
+      messagesCount,
       onSendFile,
       peers,
       sendMessage,
@@ -75,7 +77,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       <div className="app">
         <Toolbar
           chatVisible={this.state.chatVisible}
-          messages={messages}
+          messagesCount={messagesCount}
           onToggleChat={this.handleToggleChat}
           onSendFile={onSendFile}
           stream={streams[constants.ME]}

@@ -13,7 +13,8 @@ function mapStateToProps (state: State) {
     peers: state.peers,
     alerts: state.alerts,
     notifications: state.notifications,
-    messages: state.messages,
+    messages: state.messages.list,
+    messagesCount: state.messages.count,
     active: state.active,
   }
 }

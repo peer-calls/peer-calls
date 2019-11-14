@@ -2,9 +2,15 @@ import * as constants from '../constants'
 import { Message, MessageAddAction } from '../actions/ChatActions'
 import { NotificationAddAction } from '../actions/NotifyActions'
 
-export type MessagesState = Message[]
+export interface MessagesState {
+  list: Message[]
+  count: number
+}
 
-const defaultState: MessagesState = []
+const defaultState: MessagesState = {
+  list: [],
+  count: 0,
+}
 
 function convertNotificationToMessage(action: NotificationAddAction): Message {
   return {
@@ -19,12 +25,15 @@ export default function messages (
 ): MessagesState {
   switch (action.type) {
     case constants.NOTIFY:
-      return [
-      ...state,
-      convertNotificationToMessage(action),
-    ]
+      return {
+        ...state,
+        list: [...state.list, convertNotificationToMessage(action)],
+      }
     case constants.MESSAGE_ADD:
-      return [...state, action.payload]
+      return {
+        count: state.count + 1,
+        list: [...state.list, action.payload],
+      }
     default:
       return state
   }
