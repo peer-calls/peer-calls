@@ -111,7 +111,7 @@ describe('PeerActions', () => {
         expect(messages[messages.length - 1]).toEqual({
           userId: 'user2',
           timestamp: jasmine.any(String),
-          image: null,
+          image: undefined,
           message: 'test',
         })
       })

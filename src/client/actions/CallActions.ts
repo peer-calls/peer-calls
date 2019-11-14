@@ -1,11 +1,10 @@
+import * as constants from '../constants'
+import socket from '../socket'
+import { Dispatch, ThunkResult } from '../store'
+import { callId, getUserMedia } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 import * as StreamActions from './StreamActions'
-import * as constants from '../constants'
-import socket from '../socket'
-import { callId, getUserMedia } from '../window'
-import { Dispatch, GetState, ThunkResult } from '../store'
-import { makeAction } from '../async'
 
 export interface InitAction {
   type: 'INIT'
