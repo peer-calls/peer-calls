@@ -58,7 +58,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
     })
   }
   handleFullscreenClick = () => {
-    if (screenfull.enabled) {
+    if (screenfull.isEnabled) {
       screenfull.toggle()
       this.setState({
         ...this.state,
