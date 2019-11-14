@@ -92,7 +92,7 @@ export function alert (message: string, dismissable = false): AlertAddAction {
   return {
     type: constants.ALERT,
     payload: {
-      action: dismissable ? 'Dismiss' : '',
+      action: dismissable ? 'Dismiss' : undefined,
       dismissable: !!dismissable,
       message,
       type: 'warning',
