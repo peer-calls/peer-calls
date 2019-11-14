@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node lib/index.js",
-    "start:server": "nodemon --ignore build/ --ignore lib/client lib/index.js",
+    "start:server": "nodemon --ignore build/ --ignore lib/client",
     "start:watch": "npm run ts && chastifol [ npm run ts:watch ] [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
     "build": "npm run css && npm run ts && npm run js && npm run js:uglify",
@@ -17,7 +17,7 @@
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "js": "browserify -g [ loose-envify purge --NODE_ENV production ] -t babelify ./lib/client/index.js -o ./build/index.prod.js",
-    "js:watch": "watchify -d -v ./lib/client/index.js -o ./build/index.js",
+    "js:watch": "watchify ./lib/client/index.js -v -d -o ./build/index.js",
     "js:uglify": "minify build/index.prod.js -o build/index.js",
     "css": "node-sass ./src/scss/style.scss -o ./build/",
     "css:watch": "npm run css && node-sass --watch ./src/scss/style.scss -o ./build/",
@@ -107,7 +107,7 @@
     "supertest": "^3.0.0",
     "ts-jest": "^24.1.0",
     "ts-node": "^8.5.0",
-    "typescript": "^3.6.4",
+    "typescript": "^3.7.2",
     "watchify": "^3.11.1"
   }
 }
