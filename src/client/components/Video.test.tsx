@@ -81,8 +81,8 @@ describe('components/Video', () => {
       await render()
     })
 
-    it('Mirrored and active propogate to rendered classes', () => {
-      render({ active: true, mirrored: true })
+    it('Mirrored and active propogate to rendered classes', async () => {
+      await render({ active: true, mirrored: true })
       expect(wrapper.className).toBe('video-container active mirrored')
     })
   })
@@ -91,25 +91,25 @@ describe('components/Video', () => {
     describe('src', () => {
       beforeEach(async () => {
         await render()
-        delete video.video.current!.srcObject
+        delete video.videoRef.current!.srcObject
       })
       it('updates src only when changed', () => {
         mediaStream = new MediaStream()
         component.setState({
           stream: { url: 'test', stream: mediaStream, userId: '' },
         })
-        expect(video.video.current!.src).toBe('http://localhost/test')
+        expect(video.videoRef.current!.src).toBe('http://localhost/test')
         component.setState({
           stream: { url: 'test', stream: mediaStream, userId: '' },
         })
       })
       it('updates srcObject only when changed', () => {
-        video.video.current!.srcObject = null
+        video.videoRef.current!.srcObject = null
         mediaStream = new MediaStream()
         component.setState({
           stream: { url: 'test', stream: mediaStream, userId: '' },
         })
-        expect(video.video.current!.srcObject).toBe(mediaStream)
+        expect(video.videoRef.current!.srcObject).toBe(mediaStream)
         component.setState({
           stream: { url: 'test', stream: mediaStream, userId: '' },
         })

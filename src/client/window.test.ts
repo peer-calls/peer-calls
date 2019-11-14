@@ -21,12 +21,12 @@ describe('window', () => {
       delete (navigator as any).webkitGetUserMedia
     })
 
-    it('calls navigator.mediaDevices.getUserMedia', () => {
+    it('calls navigator.mediaDevices.getUserMedia', async () => {
       const promise = Promise.resolve(stream);
       (navigator as any).mediaDevices = {
         getUserMedia: jest.fn().mockReturnValue(promise),
       }
-      expect(getUserMedia(constraints)).toBe(promise)
+      expect(await getUserMedia(constraints)).toBe(stream)
     })
 
     ;['getUserMedia', 'webkitGetUserMedia'].forEach((method) => {

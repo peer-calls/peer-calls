@@ -14,7 +14,7 @@ export interface VideoProps {
 }
 
 export default class Video extends React.PureComponent<VideoProps> {
-  video = React.createRef<HTMLVideoElement>()
+  videoRef = React.createRef<HTMLVideoElement>()
 
   static defaultProps = {
     muted: false,
@@ -34,10 +34,10 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   componentDidUpdate () {
     const { videos, stream } = this.props
-    const video = this.video.current!
+    const video = this.videoRef.current!
     const mediaStream = stream && stream.stream || null
     const url = stream && stream.url
-    if (!('srcObject' in video as unknown)) {
+    if ('srcObject' in video as unknown) {
       if (video.srcObject !== mediaStream) {
         video.srcObject = mediaStream
       }
@@ -57,7 +57,7 @@ export default class Video extends React.PureComponent<VideoProps> {
           onClick={this.handleClick}
           onLoadedMetadata={this.play}
           playsInline
-          ref={this.video}
+          ref={this.videoRef}
           muted={muted}
         />
       </div>

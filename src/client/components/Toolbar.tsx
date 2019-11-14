@@ -1,4 +1,4 @@
-import React, { ReactEventHandler } from 'react'
+import React, { ReactEventHandler, ChangeEvent } from 'react'
 import classnames from 'classnames'
 import screenfull from 'screenfull'
 import { Message } from '../actions/ChatActions'
@@ -72,9 +72,9 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   handleSendFile = () => {
     this.file.current!.click()
   }
-  handleSelectFiles: ReactEventHandler<HTMLInputElement> = event => {
+  handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     Array
-    .from(this.file.current!.files!)
+    .from(event.target!.files!)
     .forEach(file => this.props.onSendFile(file))
   }
   handleToggleChat = () => {
