@@ -10,15 +10,15 @@
   "scripts": {
     "start": "node lib/index.js",
     "start:server": "nodemon -ignore build/ --ignore lib/client lib/index.js",
-    "start:watch": "chastifol [ npm run ts:watch ] [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
-    "watch": "",
+    "start:watch": "npm run ts && chastifol [ npm run ts:watch ] [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
-    "build": "npm run css && npm run js",
+    "build": "npm run css && npm run ts && npm run js && npm run js:uglify",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "js": "browserify -t babelify ./lib/client/index.js -o ./build/index.js",
-    "js:watch": "watchify -d -v -t babelify ./lib/client/index.js -o ./build/index.js",
+    "js": "browserify -g [ loose-envify purge --NODE_ENV production ] -g babelify ./lib/client/index.js -o ./build/index.prod.js",
+    "js:watch": "watchify -d -v ./lib/client/index.js -o ./build/index.js",
+    "js:uglify": "uglifyjs --compress --mangle --source-map -o build/index.js build/index.prod.js",
     "css": "node-sass ./src/scss/style.scss -o ./build/",
     "css:watch": "npm run css && node-sass --watch ./src/scss/style.scss -o ./build/",
     "lint": "eslint .",
@@ -33,6 +33,7 @@
       [
         "@babel/preset-env",
         {
+          "forceAllTransforms": true,
           "targets": {
             "browsers": [
               "last 2 versions",
@@ -41,30 +42,22 @@
             ]
           }
         }
-      ],
-      "@babel/preset-react"
-    ],
-    "plugins": [
-      "@babel/plugin-proposal-class-properties",
-      "@babel/plugin-proposal-object-rest-spread"
+      ]
     ]
   },
   "author": "Jerko Steiner",
   "license": "MIT",
   "dependencies": {
-    "config": "^3.0.0",
-    "express": "^4.13.3",
-    "pug": "^2.0.0-rc.2",
+    "config": "^3.2.4",
+    "express": "^4.17.1",
+    "pug": "^2.0.4",
     "socket.io": "^2.2.0",
-    "uuid": "^3.3.2"
+    "uuid": "^3.3.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.5.0",
-    "@babel/plugin-proposal-class-properties": "^7.5.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.5.1",
-    "@babel/polyfill": "^7.4.4",
-    "@babel/preset-env": "^7.5.0",
-    "@babel/preset-react": "^7.0.0",
+    "@babel/core": "^7.7.2",
+    "@babel/polyfill": "^7.7.0",
+    "@babel/preset-env": "^7.7.1",
     "@types/classnames": "^2.2.9",
     "@types/config": "0.0.36",
     "@types/debug": "^4.1.5",
@@ -86,28 +79,22 @@
     "@typescript-eslint/eslint-plugin": "^2.7.0",
     "@typescript-eslint/parser": "^2.7.0",
     "babel-core": "^7.0.0-bridge.0",
-    "babel-eslint": "^10.0.1",
-    "babel-jest": "^24.8.0",
     "babelify": "^10.0.0",
     "chastifol": "^4.1.0",
     "classnames": "^2.2.6",
     "eslint": "^6.6.0",
-    "eslint-config-standard": "^12.0.0",
-    "eslint-config-standard-react": "^7.0.2",
     "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-node": "^8.0.0",
-    "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-react": "^7.16.0",
-    "eslint-plugin-standard": "^4.0.0",
     "jest": "^24.9.0",
     "lodash": "^4.17.15",
+    "loose-envify": "^1.4.0",
     "node-sass": "^4.13.0",
-    "nodemon": "^1.18.8",
+    "nodemon": "^1.19.4",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "react-redux": "^6.0.0",
     "react-transition-group": "^2.5.1",
-    "redux": "^4.0.1",
+    "redux": "^4.0.4",
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.2.0",
     "rimraf": "^3.0.0",
@@ -118,7 +105,7 @@
     "ts-jest": "^24.1.0",
     "ts-node": "^8.5.0",
     "typescript": "^3.6.4",
-    "uglify-js": "^3.4.9",
+    "uglify-js": "^3.6.9",
     "watchify": "^3.11.1"
   }
 }
