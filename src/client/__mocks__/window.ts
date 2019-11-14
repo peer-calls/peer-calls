@@ -15,11 +15,13 @@ export class MediaStream {
   }
 }
 export function getUserMedia () {
-  return !(getUserMedia as any).shouldFail
+  return !getUserMedia.shouldFail
     ? Promise.resolve(getUserMedia.stream)
     : Promise.reject(new Error('test'))
 }
-getUserMedia.fail = (shouldFail: boolean) => (getUserMedia as any).shouldFail = shouldFail
+getUserMedia.shouldFail = false
+getUserMedia.fail = (shouldFail: boolean) =>
+  getUserMedia.shouldFail = shouldFail
 getUserMedia.stream = new MediaStream()
 
 export const navigator = window.navigator

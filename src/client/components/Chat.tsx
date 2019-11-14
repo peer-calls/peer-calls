@@ -1,9 +1,8 @@
-import Input from './Input'
-import PropTypes from 'prop-types'
-import React from 'react'
 import classnames from 'classnames'
+import React from 'react'
 import { Message as MessageType } from '../actions/ChatActions'
 import { TextMessage } from '../actions/PeerActions'
+import Input from './Input'
 
 export interface MessageProps {
   message: MessageType

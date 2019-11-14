@@ -34,7 +34,7 @@ describe('reducers/alerts', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
       expect(store.getState().streams).toEqual({
         [userId]: {
-          mediaStream: stream,
+          stream: stream,
           url: jasmine.any(String),
         },
       })
@@ -45,7 +45,7 @@ describe('reducers/alerts', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
       expect(store.getState().streams).toEqual({
         [userId]: {
-          mediaStream: stream,
+          stream: stream,
           url: null,
         },
       })

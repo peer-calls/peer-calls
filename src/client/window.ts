@@ -9,7 +9,9 @@ export async function getUserMedia (constraints: MediaStreamConstraints) {
 
   return new Promise<MediaStream>((resolve, reject) => {
     const getMedia = navigator.getUserMedia ||
-      (navigator as any).webkitGetUserMedia
+      (navigator as unknown as {
+        webkitGetUserMedia: typeof navigator.getUserMedia
+      }).webkitGetUserMedia
     if (!getMedia) reject(new Error('Browser unsupported'))
     getMedia.call(navigator, constraints, resolve, reject)
   })

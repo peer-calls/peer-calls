@@ -1,4 +1,4 @@
-import { Action, Dispatch } from 'redux'
+import { Action } from 'redux'
 
 export type PendingAction<T extends string, P> = Action<T> & Promise<P> & {
   status: 'pending'
