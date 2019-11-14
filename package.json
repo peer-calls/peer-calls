@@ -25,7 +25,8 @@
     "lint:fix": "eslint . --fix",
     "ci": "npm run lint && npm run test:coverage && npm run build",
     "ts:watch": "tsc --build . --watch --preserveWatchOutput",
-    "ts": "tsc --build ."
+    "ts": "tsc --build .",
+    "clean": "rimraf lib/ tsconfig.tsbuildinfo build/*"
   },
   "babel": {
     "presets": [
@@ -109,6 +110,7 @@
     "redux": "^4.0.1",
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.2.0",
+    "rimraf": "^3.0.0",
     "screenfull": "^5.0.0",
     "simple-peer": "^9.1.2",
     "socket.io-client": "^2.2.0",
