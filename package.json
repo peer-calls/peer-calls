@@ -4,6 +4,7 @@
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/jeremija/peer-calls",
   "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "bin": {
     "peercalls": "./lib/index.js"
   },
