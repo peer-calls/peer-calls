@@ -1,13 +1,11 @@
 'use strict'
 import _debug from 'debug'
 import map from 'lodash/map'
-import { Socket, Server } from 'socket.io'
+import { ServerSocket, TypedIO } from '../shared'
 
 const debug = _debug('peercalls:socket')
 
-type SocketWithRoom = Socket & { room?: string }
-
-export default function handleSocket(socket: SocketWithRoom, io: Server) {
+export default function handleSocket(socket: ServerSocket, io: TypedIO) {
   socket.on('signal', payload => {
     // debug('signal: %s, payload: %o', socket.id, payload)
     io.to(payload.userId).emit('signal', {
