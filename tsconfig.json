@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "lib": ["es2015", "dom"],
+    "target": "es3",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "noImplicitAny": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": false,
+    "experimentalDecorators": false,
+    "allowJs": false,
+    "checkJs": false,
+    "outDir": "lib",
+    "rootDir": "src"
+  }
+}
