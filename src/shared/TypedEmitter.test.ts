@@ -60,10 +60,10 @@ describe('TypedEmitter', () => {
     })
   })
 
-  describe('removeListener & off', () => {
+  describe('removeListener', () => {
     it('removes an event listener', () => {
       emitter.removeListener('test1', listener1)
-      emitter.off('test2', listener2)
+      emitter.removeListener('test2', listener2)
       emitter.emit('test1', 'value')
       emitter.emit('test2', 3)
       expect(stringMock.mock.calls).toEqual([])

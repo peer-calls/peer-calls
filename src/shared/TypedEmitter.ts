@@ -19,7 +19,5 @@ export interface TypedEmitter<E extends Events> {
   on<K extends keyof E>(t: K, callback: Callback<E[K]>): this
   once<K extends keyof E>(t: K, callback: Callback<E[K]>): this
 
-  off<K extends keyof E>(t: K, callback: Callback<E[K]>): this
-
   emit<K extends keyof E>(t: K, value: E[K]): void
 }
