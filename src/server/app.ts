@@ -33,5 +33,6 @@ router.use('/', index)
 app.use(BASE_URL, router)
 
 io.on('connection', socket => handleSocket(socket, io))
+io.sockets.adapter.rooms['test'].sockets
 
 export default server

@@ -2,7 +2,7 @@ import * as ChatActions from '../actions/ChatActions'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as StreamActions from '../actions/StreamActions'
 import * as constants from '../constants'
-import Peer from 'simple-peer'
+import Peer, { SignalData } from 'simple-peer'
 import forEach from 'lodash/forEach'
 import _debug from 'debug'
 import { play, iceServers } from '../window'
@@ -42,7 +42,7 @@ class PeerHandler {
     peer && peer.destroy()
     dispatch(removePeer(user.id))
   }
-  handleSignal = (signal: unknown) => {
+  handleSignal = (signal: SignalData) => {
     const { socket, user } = this
     debug('peer: %s, signal: %o', user.id, signal)
 

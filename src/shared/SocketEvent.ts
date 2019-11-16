@@ -1,4 +1,5 @@
 import { TypedEmitter, TypedEmitterKeys } from './TypedEmitter'
+import { SignalData } from 'simple-peer'
 
 export interface User {
   id: string
@@ -12,7 +13,7 @@ export interface SocketEvent {
   signal: {
     userId: string
     // eslint-disable-next-line
-    signal: any
+    signal: SignalData
   }
   connect: undefined
   disconnect: undefined
