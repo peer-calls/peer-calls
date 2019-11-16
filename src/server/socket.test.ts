@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
+import { Socket } from 'socket.io'
+import { TypedIO } from '../shared'
 import handleSocket from './socket'
-import { Socket, Server } from 'socket.io'
 
 describe('server/socket', () => {
   type SocketMock = Socket & {
@@ -12,7 +13,7 @@ describe('server/socket', () => {
   }
 
   let socket: SocketMock
-  let io: Server & {
+  let io: TypedIO  & {
     in: jest.Mock<(room: string) => SocketMock>
     to: jest.Mock<(room: string) => SocketMock>
   }

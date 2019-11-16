@@ -38,12 +38,12 @@ describe('TypedEmitter', () => {
   let emitter: TypedEmitter<Events>
   beforeEach(() => {
     emitter = new EventEmitter()
-    emitter.addListener('test1', listener1)
+    emitter.on('test1', listener1)
     emitter.on('test2', listener2)
     emitter.once('test3', listener3)
   })
 
-  describe('addListener & on', () => {
+  describe('on & on', () => {
     it('adds an event emitter', () => {
       emitter.emit('test1', 'value')
       emitter.emit('test2', 3)

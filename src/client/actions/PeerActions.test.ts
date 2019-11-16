@@ -7,15 +7,16 @@ import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { play } from '../window'
 import { Dispatch } from 'redux'
+import { ClientSocket } from '../socket'
 
 describe('PeerActions', () => {
   function createSocket () {
-    const socket = new EventEmitter() as unknown as SocketIOClient.Socket
+    const socket = new EventEmitter() as unknown as ClientSocket
     socket.id = 'user1'
     return socket
   }
 
-  let socket: SocketIOClient.Socket
+  let socket: ClientSocket
   let stream: MediaStream
   let user: { id: string }
   let store: Store
