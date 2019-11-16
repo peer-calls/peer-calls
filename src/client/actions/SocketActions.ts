@@ -5,11 +5,12 @@ import keyBy from 'lodash/keyBy'
 import _debug from 'debug'
 import { SignalData } from 'simple-peer'
 import { Dispatch, GetState } from '../store'
+import { ClientSocket } from '../socket'
 
 const debug = _debug('peercalls')
 
 export interface SocketHandlerOptions {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   roomName: string
   stream?: MediaStream
   dispatch: Dispatch
@@ -27,7 +28,7 @@ export interface UsersOptions {
 }
 
 class SocketHandler {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   roomName: string
   stream?: MediaStream
   dispatch: Dispatch
@@ -70,7 +71,7 @@ class SocketHandler {
 }
 
 export interface HandshakeOptions {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   roomName: string
   stream?: MediaStream
 }

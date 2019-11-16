@@ -11,10 +11,11 @@ export interface SocketEvent {
   }
   signal: {
     userId: string
-    signal: unknown
+    // eslint-disable-next-line
+    signal: any
   }
-  connect: void
-  disconnect: void
+  connect: undefined
+  disconnect: undefined
   ready: string
 }
 

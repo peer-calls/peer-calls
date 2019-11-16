@@ -7,6 +7,7 @@ import forEach from 'lodash/forEach'
 import _debug from 'debug'
 import { play, iceServers } from '../window'
 import { Dispatch, GetState } from '../store'
+import { ClientSocket } from '../socket'
 
 const debug = _debug('peercalls')
 
@@ -15,14 +16,14 @@ export interface Peers {
 }
 
 export interface PeerHandlerOptions {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   user: { id: string }
   dispatch: Dispatch
   getState: GetState
 }
 
 class PeerHandler {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   user: { id: string }
   dispatch: Dispatch
   getState: GetState
@@ -94,7 +95,7 @@ class PeerHandler {
 }
 
 export interface CreatePeerOptions {
-  socket: SocketIOClient.Socket
+  socket: ClientSocket
   user: { id: string }
   initiator: string
   stream?: MediaStream

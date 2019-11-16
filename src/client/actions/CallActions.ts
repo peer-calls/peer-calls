@@ -2,6 +2,7 @@ import * as constants from '../constants'
 import socket from '../socket'
 import { Dispatch, ThunkResult } from '../store'
 import { callId, getUserMedia } from '../window'
+import { ClientSocket } from '../socket'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 import * as StreamActions from './StreamActions'
@@ -34,7 +35,7 @@ async (dispatch, getState) => {
 }
 
 export const connect = () => (dispatch: Dispatch) => {
-  return new Promise<SocketIOClient.Socket>(resolve => {
+  return new Promise<ClientSocket>(resolve => {
     socket.once('connect', () => {
       resolve(socket)
     })

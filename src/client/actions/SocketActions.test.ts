@@ -6,12 +6,13 @@ import * as constants from '../constants'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
+import { ClientSocket } from '../socket'
 import { Dispatch } from 'redux'
 
 describe('SocketActions', () => {
   const roomName = 'bla'
 
-  let socket: SocketIOClient.Socket
+  let socket: ClientSocket
   let store: Store
   let dispatch: Dispatch
   let getState: GetState
@@ -67,7 +68,7 @@ describe('SocketActions', () => {
       it('should forward signal to peer', () => {
         socket.emit('signal', {
           userId: 'b',
-          data,
+          signal: data,
         })
 
         expect(instances.length).toBe(1)
@@ -77,7 +78,7 @@ describe('SocketActions', () => {
       it('does nothing if no peer', () => {
         socket.emit('signal', {
           userId: 'a',
-          data,
+          signal: data,
         })
 
         expect(instances.length).toBe(1)

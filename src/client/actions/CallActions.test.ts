@@ -46,7 +46,7 @@ describe('CallActions', () => {
 
     it('calls handshake.init when connected & got camera stream', async () => {
       const promise = callActions.init()
-      socket.emit('connect')
+      socket.emit('connect', undefined)
       await promise
       expect(store.getState().allActions.slice(1)).toEqual([{
         type: constants.NOTIFY,
@@ -73,8 +73,8 @@ describe('CallActions', () => {
 
     it('calls dispatches disconnect message on disconnect', async () => {
       const promise = callActions.init()
-      socket.emit('connect')
-      socket.emit('disconnect')
+      socket.emit('connect', undefined)
+      socket.emit('disconnect', undefined)
       expect(store.getState().allActions.slice(1)).toEqual([{
         type: constants.NOTIFY,
         payload: {
@@ -96,7 +96,7 @@ describe('CallActions', () => {
     it('dispatches alert when failed to get media stream', async () => {
       (getUserMedia as any).fail(true)
       const promise = callActions.init()
-      socket.emit('connect')
+      socket.emit('connect', undefined)
       await promise
     })
 
