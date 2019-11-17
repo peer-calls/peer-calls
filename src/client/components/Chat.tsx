@@ -29,6 +29,7 @@ export interface ChatProps {
 
 export default class Chat extends React.PureComponent<ChatProps> {
   chatHistoryRef = React.createRef<HTMLDivElement>()
+  inputRef = React.createRef<Input>()
 
   scrollToBottom = () => {
     const chatHistoryRef = this.chatHistoryRef.current!
@@ -36,9 +37,16 @@ export default class Chat extends React.PureComponent<ChatProps> {
   }
   componentDidMount () {
     this.scrollToBottom()
+    this.focus()
   }
   componentDidUpdate () {
     this.scrollToBottom()
+    this.focus()
+  }
+  focus() {
+    if (this.props.visible) {
+      this.inputRef.current?.textArea.current?.focus()
+    }
   }
   render () {
     const { messages, sendMessage } = this.props
@@ -103,7 +111,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
 
         </div>
 
-        <Input sendMessage={sendMessage} />
+        <Input ref={this.inputRef} sendMessage={sendMessage} />
       </div>
     )
   }
