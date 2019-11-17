@@ -1,5 +1,5 @@
-import { MediaDevice, AudioConstraint, VideoConstraint, MediaAction, MediaEnumerateAction } from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
+import { MediaDevice, AudioConstraint, VideoConstraint, MediaAction, MediaEnumerateAction, MediaStreamAction } from '../actions/MediaActions'
+import { MEDIA_ENUMERATE, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_VISIBLE_SET, MEDIA_STREAM } from '../constants'
 
 export interface MediaState {
   devices: MediaDevice[]
@@ -7,6 +7,7 @@ export interface MediaState {
   audio: AudioConstraint
   loading: boolean
   error: string
+  visible: boolean
 }
 
 const defaultState: MediaState = {
@@ -15,6 +16,7 @@ const defaultState: MediaState = {
   audio: true,
   loading: false,
   error: '',
+  visible: true,
 }
 
 export function handleEnumerate(
@@ -42,6 +44,27 @@ export function handleEnumerate(
   }
 }
 
+export function handleMediaStream(
+  state: MediaState,
+  action: MediaStreamAction,
+): MediaState {
+  switch (action.status) {
+    case 'resolved':
+      return {
+        ...state,
+        visible: false,
+      }
+    case 'rejected':
+      return {
+        ...state,
+        error: action.payload.message,
+        visible: true,
+      }
+    default:
+      return state
+  }
+}
+
 export default function media(
   state = defaultState,
   action: MediaAction,
@@ -59,6 +82,13 @@ export default function media(
         ...state,
         video: action.payload,
       }
+    case MEDIA_VISIBLE_SET:
+      return {
+        ...state,
+        visible: action.payload.visible,
+      }
+    case MEDIA_STREAM:
+      return handleMediaStream(state, action)
     default:
       return state
   }

@@ -1,5 +1,5 @@
 import { makeAction, AsyncAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM } from '../constants'
+import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VISIBLE_SET } from '../constants'
 
 export interface MediaDevice {
   id: string
@@ -91,6 +91,18 @@ export function setAudioConstraint(
   }
 }
 
+export interface MediaVisibleAction {
+  type: 'MEDIA_VISIBLE_SET'
+  payload: { visible: boolean }
+}
+
+export function setMediaVisible(visible: boolean): MediaVisibleAction {
+  return {
+    type: MEDIA_VISIBLE_SET,
+    payload: { visible },
+  }
+}
+
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => getUserMedia(constraints),
@@ -103,4 +115,5 @@ export type MediaAction =
   MediaVideoConstraintAction |
   MediaAudioConstraintAction |
   MediaEnumerateAction |
-  MediaStreamAction
+  MediaStreamAction |
+  MediaVisibleAction

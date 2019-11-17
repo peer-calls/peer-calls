@@ -27,6 +27,9 @@ const mapDispatchToProps = {
 const c = connect(mapStateToProps, mapDispatchToProps)
 
 export const Media = c(React.memo(function Media(props: MediaProps) {
+  if (!props.visible) {
+    return null
+  }
 
   React.useMemo(async () => await props.enumerateDevices(), [])
 

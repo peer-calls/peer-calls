@@ -71,6 +71,12 @@
     }
   }
 
+  .send-file {
+    &:hover {
+      background: #407cf7;
+    }
+  }
+
   .mute-video {
     &:hover, &.on {
       background: #407cf7;
