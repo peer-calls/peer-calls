@@ -2,26 +2,9 @@ import _debug from 'debug'
 
 const debug = _debug('peercalls')
 
-export async function getUserMedia (constraints: MediaStreamConstraints) {
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    return navigator.mediaDevices.getUserMedia(constraints)
-  }
-
-  return new Promise<MediaStream>((resolve, reject) => {
-    const getMedia = navigator.getUserMedia ||
-      (navigator as unknown as {
-        webkitGetUserMedia: typeof navigator.getUserMedia
-      }).webkitGetUserMedia
-    if (!getMedia) reject(new Error('Browser unsupported'))
-    getMedia.call(navigator, constraints, resolve, reject)
-  })
-}
-
 export const createObjectURL = (object: unknown) =>
   window.URL.createObjectURL(object)
 export const revokeObjectURL = (url: string) => window.URL.revokeObjectURL(url)
-
-export const navigator = window.navigator
 
 export function play () {
   const videos = window.document.querySelectorAll('video')

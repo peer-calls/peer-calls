@@ -11,6 +11,7 @@ import Chat from './Chat'
 import Notifications from './Notifications'
 import Toolbar from './Toolbar'
 import Video from './Video'
+import { Media } from './Media'
 
 export interface AppProps {
   active: string | null
@@ -84,6 +85,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
         <Notifications notifications={notifications} />
+        <Media />
         <Chat
           messages={messages}
           onClose={this.handleHideChat}

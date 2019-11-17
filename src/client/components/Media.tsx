@@ -1,19 +1,14 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint } from '../actions/MediaActions'
+import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint, getMediaStream, enumerateDevices } from '../actions/MediaActions'
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
 
 export type MediaProps = MediaState & {
+  enumerateDevices: typeof enumerateDevices
   onSetVideoConstraint: typeof setVideoConstraint
   onSetAudioConstraint: typeof setAudioConstraint
-  onSave: () => void
-}
-
-function getId(constraint: VideoConstraint | AudioConstraint) {
-  return typeof constraint === 'object' && 'deviceId' in constraint
-    ? constraint.deviceId
-    : ''
+  getMediaStream: typeof getMediaStream
 }
 
 function mapStateToProps(state: State) {
@@ -23,17 +18,27 @@ function mapStateToProps(state: State) {
 }
 
 const mapDispatchToProps = {
+  enumerateDevices,
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
+  getMediaStream,
 }
 
 const c = connect(mapStateToProps, mapDispatchToProps)
 
 export const Media = c(React.memo(function Media(props: MediaProps) {
 
-  function onSave(event: React.FormEvent<HTMLFormElement>) {
+  React.useMemo(async () => await props.enumerateDevices(), [])
+
+  async function onSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    props.onSave()
+    const { audio, video } = props
+    try {
+      await props.getMediaStream({ audio, video })
+    } catch (err) {
+      console.error(err.stack)
+      // TODO display a message
+    }
   }
 
   function onVideoChange(event: React.ChangeEvent<HTMLSelectElement>) {
@@ -46,12 +51,17 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
     props.onSetAudioConstraint(constraint)
   }
 
-  const videoId = getId(props.video)
-  const audioId = getId(props.audio)
+  const videoId = JSON.stringify(props.video)
+  const audioId = JSON.stringify(props.audio)
 
   return (
     <form className='media' onSubmit={onSave}>
-      <select className='media-video' onChange={onVideoChange} value={videoId}>
+      <label htmlFor='video-input'>Video</label>
+      <select
+        name='video-input'
+        onChange={onVideoChange}
+        value={videoId}
+      >
         <Options
           devices={props.devices}
           default='{"facingMode":"user"}'
@@ -59,7 +69,12 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
         />
       </select>
 
-      <select className='media-audio' onChange={onAudioChange} value={audioId}>
+      <label htmlFor='video-input'>Audio</label>
+      <select
+        name='audio-input'
+        onChange={onAudioChange}
+        value={audioId}
+      >
         <Options
           devices={props.devices}
           default='true'
@@ -68,7 +83,7 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
       </select>
 
       <button type='submit'>
-        Save
+        Join Call
       </button>
     </form>
   )
@@ -91,7 +106,9 @@ function Options(props: OptionsProps) {
         .map(device =>
           <option
             key={device.id}
-            value={JSON.stringify({deviceId: device.id})}>{device.name}
+            value={JSON.stringify({deviceId: device.id})}
+          >
+            {device.name || device.type}
           </option>,
         )
       }

@@ -6,7 +6,7 @@ import * as CallActions from './CallActions'
 import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import socket from '../socket'
-import { callId, getUserMedia } from '../window'
+import { callId } from '../window'
 import { bindActionCreators, createStore, AnyAction, combineReducers, applyMiddleware } from 'redux'
 import reducers from '../reducers'
 import { middlewares } from '../middlewares'
@@ -33,7 +33,6 @@ describe('CallActions', () => {
       applyMiddleware(...middlewares),
     )
     callActions = bindActionCreators(CallActions, store.dispatch);
-    (getUserMedia as any).fail(false);
     (SocketActions.handshake as jest.Mock).mockReturnValue(jest.fn())
   })
 
@@ -56,18 +55,11 @@ describe('CallActions', () => {
           type: 'warning',
         },
       }, {
-        type: constants.STREAM_ADD,
-        payload: {
-          stream: jasmine.anything(),
-          userId: constants.ME,
-        },
-      }, {
         type: constants.INIT,
       }])
       expect((SocketActions.handshake as jest.Mock).mock.calls).toEqual([[{
         socket,
         roomName: callId,
-        stream: (getUserMedia as any).stream,
       }]])
     })
 
@@ -94,7 +86,6 @@ describe('CallActions', () => {
     })
 
     it('dispatches alert when failed to get media stream', async () => {
-      (getUserMedia as any).fail(true)
       const promise = callActions.init()
       socket.emit('connect', undefined)
       await promise

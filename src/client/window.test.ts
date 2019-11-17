@@ -1,57 +1,6 @@
-import {
-  createObjectURL,
-  revokeObjectURL,
-  getUserMedia,
-  navigator,
-  play,
-  valueOf,
-} from './window'
+import { createObjectURL, play, revokeObjectURL, valueOf } from './window'
 
 describe('window', () => {
-
-  describe('getUserMedia', () => {
-
-    class MediaStream {}
-    const stream = new MediaStream()
-    const constraints = { video: true }
-
-    afterEach(() => {
-      delete (navigator as any).mediaDevices
-      delete navigator.getUserMedia
-      delete (navigator as any).webkitGetUserMedia
-    })
-
-    it('calls navigator.mediaDevices.getUserMedia', async () => {
-      const promise = Promise.resolve(stream);
-      (navigator as any).mediaDevices = {
-        getUserMedia: jest.fn().mockReturnValue(promise),
-      }
-      expect(await getUserMedia(constraints)).toBe(stream)
-    })
-
-    ;['getUserMedia', 'webkitGetUserMedia'].forEach((method) => {
-      it(`it calls navigator.${method} as a fallback`, () => {
-        (navigator as any)[method] = jest.fn()
-        .mockImplementation(
-          (constraints, onSuccess, onError) => onSuccess(stream),
-        )
-        return getUserMedia(constraints)
-        .then(s => expect(s).toBe(stream))
-      })
-    })
-
-    it('throws error when no supported method', async () => {
-      let error: Error
-      try {
-        await getUserMedia(constraints)
-      } catch (err) {
-        error = err
-      }
-      expect(error!).toBeTruthy()
-      expect(error!.message).toBe('Browser unsupported')
-    })
-
-  })
 
   describe('play', () => {
 

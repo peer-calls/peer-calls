@@ -1,6 +1,7 @@
 import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM } from '../constants'
+import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD } from '../constants'
 import { createStore, Store } from '../store'
+import SimplePeer from 'simple-peer'
 
 describe('media', () => {
 
@@ -95,14 +96,73 @@ describe('media', () => {
         navigator.mediaDevices.getUserMedia = async () => stream
       })
 
-      it('returns a promise with media stream', async () => {
-        const promise = MediaActions.getMediaStream({
+      async function dispatch() {
+        const promise = store.dispatch(MediaActions.getMediaStream({
           audio: true,
           video: true,
-        })
-        expect(promise.type).toBe('MEDIA_STREAM')
-        expect(promise.status).toBe('pending')
+        }))
         expect(await promise).toBe(stream)
+      }
+
+      describe('reducers/streams', () => {
+        it('adds the local stream to the map of videos', async () => {
+          expect(store.getState().streams[ME]).toBeFalsy()
+          await dispatch()
+          expect(store.getState().streams[ME]).toBeTruthy()
+          expect(store.getState().streams[ME].stream).toBe(stream)
+        })
+      })
+
+      describe('reducers/peers', () => {
+        const peer1 = new SimplePeer()
+        peer1.addStream = jest.fn()
+        peer1.removeStream = jest.fn()
+        const peer2 = new SimplePeer()
+        peer2.addStream = jest.fn()
+        peer2.removeStream = jest.fn()
+        const peers = [peer1, peer2]
+
+        beforeEach(() => {
+          store.dispatch({
+            type: PEERS_DESTROY,
+          })
+          store.dispatch({
+            type: PEER_ADD,
+            payload: {
+              userId: '1',
+              peer: peer1,
+            },
+          })
+          store.dispatch({
+            type: PEER_ADD,
+            payload: {
+              userId: '2',
+              peer: peer2,
+            },
+          })
+        })
+
+        afterEach(() => {
+          store.dispatch({
+            type: PEERS_DESTROY,
+          })
+        })
+
+        it('replaces local stream on all peers', async () => {
+          await dispatch()
+          peers.forEach(peer => {
+            expect((peer.addStream as jest.Mock).mock.calls)
+            .toEqual([[ stream ]])
+            expect((peer.removeStream as jest.Mock).mock.calls).toEqual([])
+          })
+          await dispatch()
+          peers.forEach(peer => {
+            expect((peer.addStream as jest.Mock).mock.calls)
+            .toEqual([[ stream ], [ stream ]])
+            expect((peer.removeStream as jest.Mock).mock.calls)
+            .toEqual([[ stream ]])
+          })
+        })
       })
     });
 

@@ -1,8 +1,9 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
 import { AddStreamAction, AddStreamPayload, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE } from '../constants'
+import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, ME } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
+import { MediaStreamAction } from '../actions/MediaActions'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -21,9 +22,9 @@ export interface StreamsState {
 }
 
 function addStream (
-  state: StreamsState, action: AddStreamAction,
+  state: StreamsState, payload: AddStreamAction['payload'],
 ): StreamsState {
-  const { userId, stream } = action.payload
+  const { userId, stream } = payload
 
   const userStream: AddStreamPayload = {
     userId,
@@ -38,9 +39,9 @@ function addStream (
 }
 
 function removeStream (
-  state: StreamsState, action: RemoveStreamAction,
+  state: StreamsState, payload: RemoveStreamAction['payload'],
 ): StreamsState {
-  const { userId } = action.payload
+  const { userId } = payload
   const stream = state[userId]
   if (stream && stream.url) {
     revokeObjectURL(stream.url)
@@ -48,15 +49,31 @@ function removeStream (
   return omit(state, [userId])
 }
 
+function replaceStream(state: StreamsState, stream: MediaStream): StreamsState {
+  state = removeStream(state, {
+    userId: ME,
+  })
+  return addStream(state, {
+    userId: ME,
+    stream,
+  })
+}
+
 export default function streams(
   state = defaultState,
-    action: StreamAction,
+    action: StreamAction | MediaStreamAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
-      return addStream(state, action)
+      return addStream(state, action.payload)
     case STREAM_REMOVE:
-      return removeStream(state, action)
+      return removeStream(state, action.payload)
+    case MEDIA_STREAM:
+      if (action.status === 'resolved') {
+        return replaceStream(state, action.payload)
+      } else {
+        return state
+      }
     default:
       return state
   }

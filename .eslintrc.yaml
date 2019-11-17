@@ -55,6 +55,8 @@ overrides:
   - files:
       - '*.test.ts'
       - '*.test.tsx'
+      - '**/__mocks__/*.ts'
+      - '**/__mocks__/*.tsx'
     rules:
       '@typescript-eslint/no-explicit-any': off
   - files:

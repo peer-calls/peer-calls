@@ -1,11 +1,9 @@
-import * as constants from '../constants'
 import socket from '../socket'
 import { Dispatch, ThunkResult } from '../store'
-import { callId, getUserMedia } from '../window'
+import { callId } from '../window'
 import { ClientSocket } from '../socket'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
-import * as StreamActions from './StreamActions'
 
 export interface InitAction {
   type: 'INIT'
@@ -23,12 +21,12 @@ const initialize = (): InitializeAction => ({
 export const init = (): ThunkResult<Promise<void>> =>
 async (dispatch, getState) => {
   const socket = await dispatch(connect())
-  const stream = await dispatch(getCameraStream())
+  // const stream = await dispatch(getCameraStream())
 
   dispatch(SocketActions.handshake({
     socket,
     roomName: callId,
-    stream,
+    // stream,
   }))
 
   dispatch(initialize())
@@ -48,16 +46,17 @@ export const connect = () => (dispatch: Dispatch) => {
   })
 }
 
-export const getCameraStream = () => async (dispatch: Dispatch) => {
-  try {
-    const stream = await getUserMedia({
-      video: { facingMode: 'user' },
-      audio: true,
-    })
-    dispatch(StreamActions.addStream({ stream, userId: constants.ME }))
-    return stream
-  } catch (err) {
-    dispatch(NotifyActions.alert('Could not get access to microphone & camera'))
-    return
-  }
-}
+// export const getCameraStream = () => async (dispatch: Dispatch) => {
+//   try {
+//     const stream = await getUserMedia({
+//       video: { facingMode: 'user' },
+//       audio: true,
+//     })
+//     dispatch(StreamActions.addStream({ stream, userId: constants.ME }))
+//     return stream
+//   } catch (err) {
+//     dispatch(
+//       NotifyActions.alert('Could not get access to microphone & camera'))
+//     return
+//   }
+// }

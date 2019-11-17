@@ -14,17 +14,15 @@ export class MediaStream {
     }]
   }
 }
-export function getUserMedia () {
-  return !getUserMedia.shouldFail
-    ? Promise.resolve(getUserMedia.stream)
-    : Promise.reject(new Error('test'))
-}
-getUserMedia.shouldFail = false
-getUserMedia.fail = (shouldFail: boolean) =>
-  getUserMedia.shouldFail = shouldFail
-getUserMedia.stream = new MediaStream()
-
 export const navigator = window.navigator
+
+;(window as any).navigator.mediaDevices = {}
+window.navigator.mediaDevices.enumerateDevices = async () => {
+  return []
+}
+window.navigator.mediaDevices.getUserMedia = async () => {
+  return {} as any
+}
 
 export const play = jest.fn()
 
