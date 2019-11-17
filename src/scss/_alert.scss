@@ -1,15 +1,13 @@
 .alert {
-  background-color: black;
-  background-color: rgba(0, 0, 0, 0.3);
   left: 0;
   opacity: 1;
-  position: fixed;
   right: 0;
   text-align: center;
-  top: 0;
   transition: visibility 100ms ease-in, opacity 100ms ease-in;
-  z-index: 4;
-  pointer-events: none;
+  color: $color-warning;
+  text-shadow: 0px 0px 3px black;
+  padding: 1rem;
+  font-size: 1.2rem;
 
   span {
     display: inline-block;
@@ -18,12 +16,9 @@
   }
 
   button {
-    line-height: 1.4rem;
-    border: none;
-    border-radius: 0.3rem;
-    color: $color-info;
-    background-color: $color-fg;
-    vertical-align: middle;
+    @include button($color-primary, $color-warning);
+    font-size: 1.2rem;
+    padding: 1rem;
   }
 }
 

@@ -64,11 +64,26 @@ describe('App', () => {
     })
   })
 
+  describe('chat toggle', () => {
+    it('toggles chat state', async () => {
+      await render()
+      const chatButton = node.querySelector('.toolbar .button.chat')!
+      expect(chatButton).toBeTruthy()
+      TestUtils.Simulate.click(chatButton)
+      TestUtils.Simulate.click(chatButton)
+    })
+  })
+
   describe('state', () => {
     beforeEach(async () => {
       state.streams = {
-        test: {
-          userId: 'test',
+        [constants.ME]: {
+          userId: constants.ME,
+          stream: new MediaStream(),
+          url: 'blob://',
+        },
+        'other-user': {
+          userId: 'other-user',
           stream: new MediaStream(),
           url: 'blob://',
         },

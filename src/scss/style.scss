@@ -161,3 +161,40 @@ body.call {
   opacity: 0.01;
   transition: opacity 100ms ease-in;
 }
+
+.side {
+  position: absolute;
+  display: flex;
+
+  &.left {
+    flex-direction: row;
+    left: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  &.right {
+    flex-direction: row;
+    right: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  &.top {
+    flex-direction: column;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
+  &.bottom {
+    flex-direction: column;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+}
+
+.chat-visible {
+  transform: translateX(-330px);
+}

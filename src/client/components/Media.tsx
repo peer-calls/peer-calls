@@ -101,7 +101,7 @@ export const AutoplayMessage = React.memo(
   function Autoplay(props: AutoplayProps) {
     return (
       <React.Fragment>
-        The browser has blocked video autoplay on this page.
+        Your browser has blocked video autoplay on this page.
         To continue with your call, please press the play button:
         &nbsp;
         <button className='button' onClick={props.play}>

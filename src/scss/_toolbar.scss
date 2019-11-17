@@ -1,9 +1,5 @@
 .toolbar {
-  bottom: 20px;
-  left: 6vw;
-  position: absolute;
-  z-index: 3;
-
+  margin: 0 0 1rem 1rem;
   /* on icons are hidden by default */
 
   .icon {
@@ -38,7 +34,6 @@
     border-radius: 48px;
     box-shadow: 2px 2px 24px #444;
     display: block;
-    margin: 0 0 3vh 0;
     transform: translateX(calc(-6vw - 96px));
     transition: all .1s;
     transition-timing-function: ease-in-out;
@@ -46,6 +41,10 @@
       box-shadow: 4px 4px 48px #666;
       cursor: pointer;
     }
+  }
+
+  .button + .button {
+    margin-top: 1rem;
   }
 
   /* off icons are hidden when parent svg has class 'on' */

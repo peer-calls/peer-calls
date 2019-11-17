@@ -10,7 +10,7 @@
   transition: transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1);
   width: 320px;
   margin: 0 auto;
-  z-index: 3;
+  z-index: 4;
 
   &.show {
     -ms-transform: none;

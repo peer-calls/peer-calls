@@ -42,7 +42,7 @@ const Notification = React.memo(
 export default class Notifications
 extends React.PureComponent<NotificationsProps> {
   static defaultProps = {
-    max: 10,
+    max: 5,
   }
   render () {
     const { dismiss, notifications, max } = this.props

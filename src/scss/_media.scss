@@ -1,11 +1,7 @@
 .media-container form.media {
+  margin: 1rem auto 0;
   max-width: 440px;
   text-align: center;
-  position: absolute;
-  z-index: 100;
-  left: 50%;
-  top: 100px;
-  transform: translateX(-50%);
 
   & > * {
     margin: 0.25rem;
