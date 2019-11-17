@@ -2,7 +2,7 @@ import map from 'lodash/map'
 import React from 'react'
 import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
-import { Alert, Notification } from '../actions/NotifyActions'
+import { Alert, Notification, dismissNotification } from '../actions/NotifyActions'
 import { TextMessage } from '../actions/PeerActions'
 import { AddStreamPayload } from '../actions/StreamActions'
 import * as constants from '../constants'
@@ -17,6 +17,7 @@ export interface AppProps {
   active: string | null
   alerts: Alert[]
   dismissAlert: (alert: Alert) => void
+  dismissNotification: typeof dismissNotification
   init: () => void
   notifications: Record<string, Notification>
   messages: Message[]
@@ -63,6 +64,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       active,
       alerts,
       dismissAlert,
+      dismissNotification,
       notifications,
       messages,
       messagesCount,
@@ -86,7 +88,10 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           stream={streams[constants.ME]}
         />
         <Alerts alerts={alerts} dismiss={dismissAlert} />
-        <Notifications notifications={notifications} />
+          <Notifications
+            dismiss={dismissNotification}
+            notifications={notifications}
+          />
         <Media />
         <Chat
           messages={messages}

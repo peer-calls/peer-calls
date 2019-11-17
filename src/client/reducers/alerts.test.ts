@@ -83,11 +83,6 @@ describe('reducers/alerts', () => {
         }])
       })
 
-      it('dismisses notification after a timeout', () => {
-        jest.runAllTimers()
-        expect(store.getState().notifications).toEqual({})
-      })
-
       it('does not fail when no arguments', () => {
         notifyActions[type]()
       })

@@ -3,8 +3,6 @@ import { Dispatch } from 'redux'
 import * as constants from '../constants'
 import { ThunkResult } from '../store'
 
-const TIMEOUT = 5000
-
 function format (string: string, args: string[]) {
   string = args
   .reduce((string, arg, i) => string.replace('{' + i + '}', arg), string)
@@ -18,10 +16,6 @@ function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
   const message = format(string, Array.prototype.slice.call(args, 1))
   const id = uniqueId('notification')
   const payload: Notification = { id, type, message }
-
-  setTimeout(() => {
-    dispatch(dismissNotification(id))
-  }, TIMEOUT)
 
   return addNotification(payload)
 }
@@ -45,7 +39,7 @@ function addNotification(payload: Notification): NotificationAddAction {
   }
 }
 
-function dismissNotification(id: string): NotificationDismissAction {
+export function dismissNotification(id: string): NotificationDismissAction {
   return {
     type: constants.NOTIFY_DISMISS,
     payload: { id },

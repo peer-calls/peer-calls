@@ -1,7 +1,7 @@
 import { connect } from 'react-redux'
 import { init } from '../actions/CallActions'
 import { play } from '../actions/MediaActions'
-import { dismissAlert } from '../actions/NotifyActions'
+import { dismissAlert, dismissNotification } from '../actions/NotifyActions'
 import { sendFile, sendMessage } from '../actions/PeerActions'
 import { toggleActive } from '../actions/StreamActions'
 import App from '../components/App'
@@ -23,6 +23,7 @@ const mapDispatchToProps = {
   toggleActive,
   sendMessage,
   dismissAlert: dismissAlert,
+  dismissNotification,
   init,
   onSendFile: sendFile,
   play,

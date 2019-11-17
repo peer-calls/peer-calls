@@ -2,10 +2,11 @@ import CSSTransition from 'react-transition-group/CSSTransition'
 import TransitionGroup from 'react-transition-group/TransitionGroup'
 import React from 'react'
 import classnames from 'classnames'
-import { Notification } from '../actions/NotifyActions'
+import { dismissNotification, Notification } from '../actions/NotifyActions'
 
-export interface NotificationProps {
+export interface NotificationsProps {
   notifications: Record<string, Notification>
+  dismiss: typeof dismissNotification
   max: number
 }
 
@@ -14,13 +15,37 @@ const transitionTimeout = {
   exit: 100,
 }
 
+export interface NotificationProps {
+  notification: Notification
+  dismiss: typeof dismissNotification
+  timeout: number
+}
+
+const Notification = React.memo(
+  function Notification(props: NotificationProps) {
+    const { dismiss, notification } = props
+    React.useEffect(() => {
+      const timeout = setTimeout(dismiss, props.timeout, notification.id)
+      return () => {
+        clearTimeout(timeout)
+        dismiss(notification.id)
+      }
+    }, [])
+    return (
+      <div className={classnames(notification.type, 'notification')}>
+        {notification.message}
+      </div>
+    )
+  },
+)
+
 export default class Notifications
-extends React.PureComponent<NotificationProps> {
+extends React.PureComponent<NotificationsProps> {
   static defaultProps = {
     max: 10,
   }
   render () {
-    const { notifications, max } = this.props
+    const { dismiss, notifications, max } = this.props
     return (
       <div className="notifications">
         <TransitionGroup>
@@ -30,11 +55,11 @@ extends React.PureComponent<NotificationProps> {
               classNames='fade'
               timeout={transitionTimeout}
             >
-              <div
-                className={classnames(notifications[id].type, 'notification')}
-              >
-                {notifications[id].message}
-              </div>
+                <Notification
+                  notification={notifications[id]}
+                  dismiss={dismiss}
+                  timeout={10000}
+                />
             </CSSTransition>
           ))}
         </TransitionGroup>
