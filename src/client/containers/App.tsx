@@ -1,10 +1,10 @@
-import * as CallActions from '../actions/CallActions'
-import * as NotifyActions from '../actions/NotifyActions'
-import * as PeerActions from '../actions/PeerActions'
-import * as StreamActions from '../actions/StreamActions'
-import App from '../components/App'
-import { bindActionCreators, Dispatch } from 'redux'
 import { connect } from 'react-redux'
+import { init } from '../actions/CallActions'
+import { play } from '../actions/MediaActions'
+import { dismissAlert } from '../actions/NotifyActions'
+import { sendFile, sendMessage } from '../actions/PeerActions'
+import { toggleActive } from '../actions/StreamActions'
+import App from '../components/App'
 import { State } from '../store'
 
 function mapStateToProps (state: State) {
@@ -19,14 +19,13 @@ function mapStateToProps (state: State) {
   }
 }
 
-function mapDispatchToProps (dispatch: Dispatch) {
-  return {
-    toggleActive: bindActionCreators(StreamActions.toggleActive, dispatch),
-    sendMessage: bindActionCreators(PeerActions.sendMessage, dispatch),
-    dismissAlert: bindActionCreators(NotifyActions.dismissAlert, dispatch),
-    init: bindActionCreators(CallActions.init, dispatch),
-    onSendFile: bindActionCreators(PeerActions.sendFile, dispatch),
-  }
+const mapDispatchToProps = {
+  toggleActive,
+  sendMessage,
+  dismissAlert: dismissAlert,
+  init,
+  onSendFile: sendFile,
+  play,
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(App)

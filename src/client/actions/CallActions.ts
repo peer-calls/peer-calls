@@ -21,12 +21,10 @@ const initialize = (): InitializeAction => ({
 export const init = (): ThunkResult<Promise<void>> =>
 async (dispatch, getState) => {
   const socket = await dispatch(connect())
-  // const stream = await dispatch(getCameraStream())
 
   dispatch(SocketActions.handshake({
     socket,
     roomName: callId,
-    // stream,
   }))
 
   dispatch(initialize())
@@ -45,18 +43,3 @@ export const connect = () => (dispatch: Dispatch) => {
     })
   })
 }
-
-// export const getCameraStream = () => async (dispatch: Dispatch) => {
-//   try {
-//     const stream = await getUserMedia({
-//       video: { facingMode: 'user' },
-//       audio: true,
-//     })
-//     dispatch(StreamActions.addStream({ stream, userId: constants.ME }))
-//     return stream
-//   } catch (err) {
-//     dispatch(
-//       NotifyActions.alert('Could not get access to microphone & camera'))
-//     return
-//   }
-// }

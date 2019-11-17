@@ -1,38 +1,6 @@
-import { createObjectURL, play, revokeObjectURL, valueOf } from './window'
+import { createObjectURL, revokeObjectURL, valueOf } from './window'
 
 describe('window', () => {
-
-  describe('play', () => {
-
-    let v1: HTMLVideoElement & { play: jest.Mock }
-    let v2: HTMLVideoElement & { play: jest.Mock }
-    beforeEach(() => {
-      v1 = window.document.createElement('video') as any
-      v2 = window.document.createElement('video') as any
-      window.document.body.appendChild(v1)
-      window.document.body.appendChild(v2)
-      v1.play = jest.fn()
-      v2.play = jest.fn()
-    })
-    afterEach(() => {
-      window.document.body.removeChild(v1)
-      window.document.body.removeChild(v2)
-    })
-
-    it('gets all videos and plays them', () => {
-      play()
-      expect(v1.play.mock.calls.length).toBe(1)
-      expect(v2.play.mock.calls.length).toBe(1)
-    })
-
-    it('does not fail on error', () => {
-      v1.play.mockImplementation(() => { throw new Error('test') })
-      play()
-      expect(v1.play.mock.calls.length).toBe(1)
-      expect(v2.play.mock.calls.length).toBe(1)
-    })
-
-  })
 
   describe('navigator', () => {
 

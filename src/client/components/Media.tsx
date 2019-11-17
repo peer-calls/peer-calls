@@ -1,6 +1,6 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint, getMediaStream, enumerateDevices } from '../actions/MediaActions'
+import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint, getMediaStream, enumerateDevices, play } from '../actions/MediaActions'
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
 
@@ -9,6 +9,7 @@ export type MediaProps = MediaState & {
   onSetVideoConstraint: typeof setVideoConstraint
   onSetAudioConstraint: typeof setAudioConstraint
   getMediaStream: typeof getMediaStream
+  play: typeof play
 }
 
 function mapStateToProps(state: State) {
@@ -22,11 +23,12 @@ const mapDispatchToProps = {
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
   getMediaStream,
+  play,
 }
 
 const c = connect(mapStateToProps, mapDispatchToProps)
 
-export const Media = c(React.memo(function Media(props: MediaProps) {
+export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
   if (!props.visible) {
     return null
   }
@@ -87,6 +89,34 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
         Join Call
       </button>
     </form>
+  )
+})
+
+export interface AutoplayProps {
+  play: () => void
+}
+
+export const AutoplayMessage = React.memo(
+  function Autoplay(props: AutoplayProps) {
+    return (
+      <div className='autoplay'>
+        The browser has blocked video autoplay on this page.
+        To continue with your call, please press the play button:
+        &nbsp;
+        <button className='button' onClick={props.play}>
+          Play
+        </button>
+      </div>
+    )
+  },
+)
+
+export const Media = c(React.memo(function Media(props: MediaProps) {
+  return (
+    <div className='media-container'>
+      {props.autoplayError && <AutoplayMessage play={props.play} />}
+      <MediaForm {...props} />
+    </div>
   )
 }))
 

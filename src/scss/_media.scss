@@ -1,4 +1,21 @@
-form.media {
+.media-container .autoplay {
+  background-color: rgba(0, 0, 0, 0.3);
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+  position: absolute;
+  color: $color-warning;
+  text-align: center;
+  padding: 0.5rem;
+
+  button {
+    padding: 0.5rem;
+    @include button($color-primary, $color-warning);
+  }
+}
+
+.media-container form.media {
   max-width: 440px;
   text-align: center;
   position: absolute;
@@ -29,13 +46,5 @@ form.media {
   button {
     @include button($color-primary, $color-warning);
     padding: 1rem;
-
-    &:hover {
-      @include button($color-primary, darken($color-warning, 5%));
-    }
-
-    &:active {
-      @include button($color-primary, darken($color-warning, 10%));
-    }
   }
 }

@@ -11,6 +11,7 @@ export interface VideoProps {
   userId: string
   muted: boolean
   mirrored: boolean
+  play: () => void
 }
 
 export default class Video extends React.PureComponent<VideoProps> {
@@ -22,12 +23,8 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   handleClick: ReactEventHandler<HTMLVideoElement> = e => {
     const { onClick, userId } = this.props
-    this.play(e)
+    this.props.play()
     onClick(userId)
-  }
-  play: ReactEventHandler<HTMLVideoElement> = e => {
-    e.preventDefault();
-    (e.target as HTMLVideoElement).play()
   }
   componentDidMount () {
     this.componentDidUpdate()
@@ -55,7 +52,10 @@ export default class Video extends React.PureComponent<VideoProps> {
           id={`video-${socket.id}`}
           autoPlay
           onClick={this.handleClick}
-          onLoadedMetadata={this.play}
+          onLoadedMetadata={() => {
+            console.log('onLoadedMetadata')
+            this.props.play()
+          }}
           playsInline
           ref={this.videoRef}
           muted={muted}

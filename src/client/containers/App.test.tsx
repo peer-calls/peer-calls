@@ -112,7 +112,8 @@ describe('App', () => {
         dispatchSpy.mockReset()
         const video = node.querySelector('video')!
         TestUtils.Simulate.click(video)
-        expect(dispatchSpy.mock.calls).toEqual([[{
+        expect(dispatchSpy.mock.calls[0][0].type).toBe(constants.MEDIA_PLAY)
+        expect(dispatchSpy.mock.calls.slice(1)).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
           payload: { userId: constants.ME },
         }]])

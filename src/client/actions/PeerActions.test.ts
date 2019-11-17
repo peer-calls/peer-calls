@@ -5,7 +5,6 @@ import * as PeerActions from './PeerActions'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
-import { play } from '../window'
 import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
 
@@ -33,8 +32,7 @@ describe('PeerActions', () => {
     user = { id: 'user2' }
     socket = createSocket()
     instances = (Peer as any).instances = [];
-    (Peer as unknown as jest.Mock).mockClear();
-    (play as jest.Mock).mockClear()
+    (Peer as unknown as jest.Mock).mockClear()
     stream = { stream: true } as unknown as MediaStream
     PeerMock = Peer as unknown as jest.Mock<Peer.Instance>
   })
@@ -87,8 +85,8 @@ describe('PeerActions', () => {
     describe('connect', () => {
       beforeEach(() => peer.emit('connect'))
 
-      it('dispatches "play" action', () => {
-        expect((play as jest.Mock).mock.calls.length).toBe(1)
+      it('dispatches peer connection established message', () => {
+        // TODO
       })
     })
 

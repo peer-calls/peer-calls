@@ -5,7 +5,7 @@ import * as constants from '../constants'
 import Peer, { SignalData } from 'simple-peer'
 import forEach from 'lodash/forEach'
 import _debug from 'debug'
-import { play, iceServers } from '../window'
+import { iceServers } from '../window'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 
@@ -50,10 +50,19 @@ class PeerHandler {
     socket.emit('signal', payload)
   }
   handleConnect = () => {
-    const { dispatch, user } = this
+    const { dispatch, user, getState } = this
     debug('peer: %s, connect', user.id)
     dispatch(NotifyActions.warning('Peer connection established'))
-    play()
+
+    const state = getState()
+    const peer = state.peers[user.id]
+    const localStream = state.streams[constants.ME]
+    if (localStream && localStream.stream) {
+      // If the local user pressed join call before this peer has joined the
+      // call, now is the time to share local media stream with the peer since
+      // we no longer automatically send the stream to the peer.
+      peer.addStream(localStream.stream)
+    }
   }
   handleStream = (stream: MediaStream) => {
     const { user, dispatch } = this

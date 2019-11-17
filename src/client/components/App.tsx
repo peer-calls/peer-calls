@@ -22,6 +22,7 @@ export interface AppProps {
   messages: Message[]
   messagesCount: number
   peers: Record<string, Peer.Instance>
+  play: () => void
   sendMessage: (message: TextMessage) => void
   streams: Record<string, AddStreamPayload>
   onSendFile: (file: File) => void
@@ -66,6 +67,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       messages,
       messagesCount,
       onSendFile,
+      play,
       peers,
       sendMessage,
       toggleActive,
@@ -97,6 +99,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             videos={videos}
             active={active === constants.ME}
             onClick={toggleActive}
+            play={play}
             stream={streams[constants.ME]}
             userId={constants.ME}
             muted
@@ -108,6 +111,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
               active={userId === active}
               key={userId}
               onClick={toggleActive}
+              play={play}
               stream={streams[userId]}
               userId={userId}
               videos={videos}

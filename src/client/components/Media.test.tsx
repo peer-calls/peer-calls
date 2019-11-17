@@ -53,7 +53,7 @@ describe('Media', () => {
       }
     })
     it('tries to retrieve audio/video media stream', async () => {
-      const node = await render()
+      const node = (await render()).querySelector('.media')!
       expect(node.tagName).toBe('FORM')
       TestUtils.Simulate.submit(node)
       expect(promise).toBeDefined()

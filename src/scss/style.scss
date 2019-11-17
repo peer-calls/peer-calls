@@ -49,7 +49,7 @@ body.call {
   border: 0;
 }
 
-@mixin button($color-fg, $color-bg) {
+@mixin button-style($color-fg, $color-bg) {
   background-color: $color-bg;
   border: none;
   border-bottom: 2px solid darken($color-bg, 10%);
@@ -58,6 +58,22 @@ body.call {
   color: $color-fg;
   // font-size: 1.2rem;
   text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+}
+
+@mixin button($color-fg, $color-bg) {
+  @include button-style($color-fg, $color-bg);
+  cursor: pointer;
+
+  &:hover {
+    outline: none;
+    @include button-style($color-fg, darken($color-bg, 5%));
+  }
+
+  &:active {
+    outline: none;
+    transform: translate(0px, 1px);
+    @include button-style($color-fg, darken($color-bg, 10%));
+  }
 }
 
 #form {
@@ -84,24 +100,6 @@ body.call {
     @include button($color-primary, $color-warning);
     font-size: 1.1rem;
     padding: 1rem 1rem;
-  }
-
-  input:hover {
-    @include button($color-primary, darken($color-warning, 5%));
-  }
-
-  input:active {
-    transform: translate(0px, 1px);
-    @include button($color-primary, darken($color-warning, 10%));
-  }
-
-  input:active,
-  input:focus {
-    outline: none;
-  }
-
-  input[type="submit"] {
-    cursor: pointer;
   }
 
   ::-webkit-input-placeholder {

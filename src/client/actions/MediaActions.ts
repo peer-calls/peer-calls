@@ -103,6 +103,18 @@ export function setMediaVisible(visible: boolean): MediaVisibleAction {
   }
 }
 
+
+export const play = makeAction('MEDIA_PLAY', async () => {
+  const promises = Array
+  .from(document.querySelectorAll('video'))
+  .filter(video => {
+    console.log('video', video.paused, video)
+    return video.paused
+  })
+  .map(video => video.play())
+  await Promise.all(promises)
+})
+
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => getUserMedia(constraints),
@@ -110,10 +122,12 @@ export const getMediaStream = makeAction(
 
 export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
 export type MediaStreamAction = AsyncAction<'MEDIA_STREAM', MediaStream>
+export type MediaPlayAction = AsyncAction<'MEDIA_PLAY', void>
 
 export type MediaAction =
   MediaVideoConstraintAction |
   MediaAudioConstraintAction |
   MediaEnumerateAction |
   MediaStreamAction |
-  MediaVisibleAction
+  MediaVisibleAction |
+  MediaPlayAction

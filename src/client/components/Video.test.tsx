@@ -12,6 +12,8 @@ describe('components/Video', () => {
     stream: null | AddStreamPayload
   }
 
+  const play = jest.fn()
+
   class VideoWrapper extends React.PureComponent<VideoProps, VideoState> {
     ref = React.createRef<Video>()
 
@@ -26,6 +28,7 @@ describe('components/Video', () => {
         active={this.props.active}
         stream={this.state.stream || this.props.stream}
         onClick={this.props.onClick}
+        play={this.props.play}
         userId="test"
         muted={this.props.muted}
         mirrored={this.props.mirrored}
@@ -65,6 +68,7 @@ describe('components/Video', () => {
           active={flags.active}
           stream={{ stream: mediaStream, url, userId: 'test' }}
           onClick={onClick}
+          play={play}
           userId="test"
           muted={flags.muted}
           mirrored={flags.mirrored}
