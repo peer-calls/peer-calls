@@ -70,57 +70,6 @@ export const clear = (): NotificationClearAction => ({
   type: constants.NOTIFY_CLEAR,
 })
 
-export interface Alert {
-  action?: string
-  dismissable: boolean
-  message: string
-  type: NotifyType
-}
-
-export interface AlertAddAction {
-  type: 'ALERT'
-  payload: Alert
-}
-
-export function alert (message: string, dismissable = false): AlertAddAction {
-  return {
-    type: constants.ALERT,
-    payload: {
-      action: dismissable ? 'Dismiss' : undefined,
-      dismissable: !!dismissable,
-      message,
-      type: 'warning',
-    },
-  }
-}
-
-export interface AlertDismissAction {
-  type: 'ALERT_DISMISS'
-  payload: Alert
-}
-
-export const dismissAlert = (alert: Alert): AlertDismissAction => {
-  return {
-    type: constants.ALERT_DISMISS,
-    payload: alert,
-  }
-}
-
-export interface AlertClearAction {
-  type: 'ALERT_CLEAR'
-}
-
-export const clearAlerts = (): AlertClearAction => {
-  return {
-    type: constants.ALERT_CLEAR,
-  }
-}
-
-export type AlertActionType =
-  AlertAddAction |
-  AlertDismissAction |
-  AlertClearAction
-
 export type NotificationActionType =
   NotificationAddAction |
   NotificationDismissAction |

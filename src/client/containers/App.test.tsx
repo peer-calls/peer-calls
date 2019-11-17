@@ -8,7 +8,6 @@ import TestUtils from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { AnyAction, applyMiddleware, createStore } from 'redux'
 import { init } from '../actions/CallActions'
-import { Alert } from '../actions/NotifyActions'
 import * as constants from '../constants'
 import reducers from '../reducers'
 import { middlewares, State, Store } from '../store'
@@ -66,7 +65,6 @@ describe('App', () => {
   })
 
   describe('state', () => {
-    let alert: Alert
     beforeEach(async () => {
       state.streams = {
         test: {
@@ -85,26 +83,7 @@ describe('App', () => {
           type: 'warning',
         },
       }
-      alert = {
-        dismissable: true,
-        action: 'Dismiss',
-        message: 'test alert',
-        type: 'info',
-      }
-      state.alerts = [alert]
       await render()
-    })
-
-    describe('alerts', () => {
-      it('can be dismissed', () => {
-        const dismiss = node.querySelector('.action-alert-dismiss')!
-        dispatchSpy.mockReset()
-        TestUtils.Simulate.click(dismiss)
-        expect(dispatchSpy.mock.calls).toEqual([[{
-          type: constants.ALERT_DISMISS,
-          payload: alert,
-        }]])
-      })
     })
 
     describe('video', () => {

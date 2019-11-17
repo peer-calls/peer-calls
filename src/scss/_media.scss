@@ -1,20 +1,3 @@
-.media-container .autoplay {
-  background-color: rgba(0, 0, 0, 0.3);
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 1000;
-  position: absolute;
-  color: $color-warning;
-  text-align: center;
-  padding: 0.5rem;
-
-  button {
-    padding: 0.5rem;
-    @include button($color-primary, $color-warning);
-  }
-}
-
 .media-container form.media {
   max-width: 440px;
   text-align: center;

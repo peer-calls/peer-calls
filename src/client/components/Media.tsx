@@ -3,6 +3,7 @@ import { connect } from 'react-redux'
 import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint, getMediaStream, enumerateDevices, play } from '../actions/MediaActions'
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
+import { Alerts, Alert } from './Alerts'
 
 export type MediaProps = MediaState & {
   enumerateDevices: typeof enumerateDevices
@@ -99,14 +100,14 @@ export interface AutoplayProps {
 export const AutoplayMessage = React.memo(
   function Autoplay(props: AutoplayProps) {
     return (
-      <div className='autoplay'>
+      <React.Fragment>
         The browser has blocked video autoplay on this page.
         To continue with your call, please press the play button:
         &nbsp;
         <button className='button' onClick={props.play}>
           Play
         </button>
-      </div>
+      </React.Fragment>
     )
   },
 )
@@ -114,6 +115,14 @@ export const AutoplayMessage = React.memo(
 export const Media = c(React.memo(function Media(props: MediaProps) {
   return (
     <div className='media-container'>
+      <Alerts>
+        {props.autoplayError && (
+          <Alert>
+            <AutoplayMessage play={props.play} />
+          </Alert>
+        )}
+      </Alerts>
+
       {props.autoplayError && <AutoplayMessage play={props.play} />}
       <MediaForm {...props} />
     </div>
