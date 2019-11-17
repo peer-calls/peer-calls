@@ -91,16 +91,19 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           className={classnames('button chat', {
             on: this.props.chatVisible,
           })}
+          href='#'
           data-blink={!this.props.chatVisible &&
             messagesCount > this.state.readMessages}
           title="Chat"
         >
           <span className="icon icon-question_answer" />
+          <span className="tooltip">Toggle Chat</span>
         </a>
         <a
           className="button send-file"
           onClick={this.handleSendFile}
           title="Send file"
+          href='#'
         >
           <input
             style={hidden}
@@ -110,6 +113,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
             onChange={this.handleSelectFiles}
           />
           <span className="icon icon-file-text2" />
+          <span className="tooltip">Send File</span>
         </a>
 
         {stream && (
@@ -119,24 +123,30 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
               className={classnames('button mute-audio', {
                 on: this.state.micMuted,
               })}
+              href='#'
               title="Mute audio"
             >
               <span className="on icon icon-mic_off" />
               <span className="off icon icon-mic" />
+              <span className="tooltip">Toggle Microphone</span>
             </a>
             <a onClick={this.handleCamClick}
               className={classnames('button mute-video', {
                 on: this.state.camDisabled,
               })}
+              href='#'
               title="Mute video"
             >
               <span className="on icon icon-videocam_off" />
               <span className="off icon icon-videocam" />
+              <span className="tooltip">Toggle Camera</span>
             </a>
           </React.Fragment>
         )}
 
-        <a onClick={this.handleFullscreenClick}
+        <a
+          onClick={this.handleFullscreenClick}
+          href='#'
           className={classnames('button fullscreen', {
             on: this.state.fullScreenEnabled,
           })}
@@ -144,13 +154,17 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
         >
           <span className="on icon icon-fullscreen_exit" />
           <span className="off icon icon-fullscreen" />
+          <span className="tooltip">Fullscreen</span>
         </a>
 
-        <a onClick={this.handleHangoutClick}
+        <a
+          onClick={this.handleHangoutClick}
           className="button hangup"
-          title="Hangup"
+          href='#'
+          title="Hang Up"
         >
           <span className="icon icon-call_end" />
+          <span className="tooltip">Hang Up</span>
         </a>
       </div>
     )

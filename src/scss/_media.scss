@@ -1,10 +1,22 @@
 .media-container form.media {
   margin: 1rem auto 0;
-  max-width: 440px;
+  max-width: 450px;
   text-align: center;
 
   & > * {
-    margin: 0.25rem;
+    & + * {
+      margin-top: 1rem;
+    }
+    @media(max-width: 650px) {
+      display: block;
+      width: 100%;
+    }
+    @media(min-width: 651px) {
+      & + * {
+        margin-left: 1rem;
+      }
+    }
+
   }
 
   select {

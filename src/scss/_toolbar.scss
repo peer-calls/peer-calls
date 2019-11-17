@@ -3,43 +3,71 @@
   /* on icons are hidden by default */
 
   .icon {
-    &.on {
-      display: none;
-    }
-    &.off {
-      display: block;
-    }
+    position: relative;
     font-size: 24px;
     color: #fff;
-    position: absolute;
-    top: 12px;
-    left: 12px;
-  }
-
-  /* off icons are displayed by default */
-
-  /* on icons are displayed when parent svg has class 'on' */
-
-  .button {
-    &.on .icon {
-      &.on {
-        display: block;
-      }
-      &.off {
-        display: none;
-      }
-    }
     width: 48px;
     height: 48px;
     border-radius: 48px;
     box-shadow: 2px 2px 24px #444;
-    display: block;
-    transform: translateX(calc(-6vw - 96px));
     transition: all .1s;
     transition-timing-function: ease-in-out;
+
+    &::before {
+      position: absolute;
+      left: 1px;
+      right: 0;
+      text-align: center;
+      top: 12px;
+    }
+
+    &.on {
+      display: none;
+    }
+
+  }
+
+  .tooltip {
+    margin-left: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    color: white;
+    text-shadow: 0 0 5px black;
+    transition: opacity 200ms ease-in 25ms, transform 100ms ease-in;
+    transform: translateX(-100%);
+    z-index: 0;
+  }
+
+  .button {
+    text-decoration: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+
     &:hover {
-      box-shadow: 4px 4px 48px #666;
-      cursor: pointer;
+      .icon {
+        box-shadow: 4px 4px 48px #666;
+        cursor: pointer;
+        background-color: #407cf7;
+      }
+      .icon.icon-call_end {
+        background-color: #dd2c00;
+      }
+      .tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+      }
+    }
+    &.on .icon {
+      background: lighten(#407cf7, 10%);
+      &.on {
+        display: inherit;
+      }
+      &.off {
+        display: none;
+      }
     }
   }
 
@@ -47,52 +75,14 @@
     margin-top: 1rem;
   }
 
-  /* off icons are hidden when parent svg has class 'on' */
-
-  &.active .button {
-    transform: translateX(0);
-  }
-
   .chat {
-    &[data-blink="true"] {
+    &[data-blink="true"] .icon {
       -webkit-animation: bg-blink 1s infinite;
       -moz-animation: bg-blink 1s infinite;
       animation: bg-blink 1s infinite;
     }
-    &:hover, &.on {
-      background: #407cf7;
-    }
   }
 
-  .mute-audio {
-    &:hover, &.on {
-      background: #407cf7;
-    }
-  }
-
-  .send-file {
-    &:hover {
-      background: #407cf7;
-    }
-  }
-
-  .mute-video {
-    &:hover, &.on {
-      background: #407cf7;
-    }
-  }
-
-  .fullscreen {
-    &:hover, &.on {
-      background: #407cf7;
-    }
-  }
-
-  .hangup {
-    &:hover {
-      background: #dd2c00;
-    }
-  }
 }
 
 @-webkit-keyframes bg_blink {
