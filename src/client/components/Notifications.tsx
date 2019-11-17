@@ -1,4 +1,5 @@
 import CSSTransition from 'react-transition-group/CSSTransition'
+import TransitionGroup from 'react-transition-group/TransitionGroup'
 import React from 'react'
 import classnames from 'classnames'
 import { Notification } from '../actions/NotifyActions'
@@ -22,19 +23,21 @@ extends React.PureComponent<NotificationProps> {
     const { notifications, max } = this.props
     return (
       <div className="notifications">
-        {Object.keys(notifications).slice(-max).map(id => (
-          <CSSTransition
-            key={id}
-            classNames='fade'
-            timeout={transitionTimeout}
-          >
-            <div
-              className={classnames(notifications[id].type, 'notification')}
+        <TransitionGroup>
+          {Object.keys(notifications).slice(-max).map(id => (
+            <CSSTransition
+              key={id}
+              classNames='fade'
+              timeout={transitionTimeout}
             >
-              {notifications[id].message}
-            </div>
-          </CSSTransition>
-        ))}
+              <div
+                className={classnames(notifications[id].type, 'notification')}
+              >
+                {notifications[id].message}
+              </div>
+            </CSSTransition>
+          ))}
+        </TransitionGroup>
       </div>
     )
   }
