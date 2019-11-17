@@ -49,6 +49,17 @@ body.call {
   border: 0;
 }
 
+@mixin button($color-fg, $color-bg) {
+  background-color: $color-bg;
+  border: none;
+  border-bottom: 2px solid darken($color-bg, 10%);
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: $color-fg;
+  // font-size: 1.2rem;
+  text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
+}
+
 #form {
   padding-top: 50px;
   text-align: center;
@@ -68,22 +79,11 @@ body.call {
     color: $color-primary;
   }
 
-  @mixin button($color-fg, $color-bg) {
-    background-color: $color-bg;
-    border: none;
-    border-bottom: 2px solid darken($color-bg, 10%);
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: $color-fg;
-    // font-size: 1.2rem;
-    text-shadow: 0 0 0.35rem rgba(0, 0, 0, 0.6);
-    padding: 1rem 1rem;
-  }
-
   input {
     font-family: $font-monospace;
     @include button($color-primary, $color-warning);
     font-size: 1.1rem;
+    padding: 1rem 1rem;
   }
 
   input:hover {
@@ -142,6 +142,7 @@ body.call {
   @import '_notification';
   @import '_video';
   @import '_chat';
+  @import '_media';
   @import '_toolbar';
 }
 

@@ -56,7 +56,6 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
 
   return (
     <form className='media' onSubmit={onSave}>
-      <label htmlFor='video-input'>Video</label>
       <select
         name='video-input'
         onChange={onVideoChange}
@@ -69,7 +68,6 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
         />
       </select>
 
-      <label htmlFor='video-input'>Audio</label>
       <select
         name='audio-input'
         onChange={onAudioChange}
@@ -95,11 +93,17 @@ interface OptionsProps {
   default: string
 }
 
+const labels = {
+  audioinput: 'Audio',
+  videoinput: 'Video',
+}
+
 function Options(props: OptionsProps) {
+  const label = labels[props.type]
   return (
     <React.Fragment>
-      <option value='false'>Disabled</option>
-      <option value={props.default}>Default</option>
+      <option value='false'>{label} disabled</option>
+      <option value={props.default}>Default {label}</option>
       {
         props.devices
         .filter(device => device.type === props.type)
