@@ -52,7 +52,9 @@
     "config": "^3.2.4",
     "debug": "^4.1.1",
     "express": "^4.17.1",
+    "lodash": "^4.17.15",
     "pug": "^2.0.4",
+    "socket.io": "^2.3.0",
     "uuid": "^3.3.3"
   },
   "devDependencies": {
@@ -89,7 +91,6 @@
     "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-react": "^7.16.0",
     "jest": "^24.9.0",
-    "lodash": "^4.17.15",
     "loose-envify": "^1.4.0",
     "node-sass": "^4.13.0",
     "nodemon": "^1.19.4",
@@ -103,7 +104,6 @@
     "rimraf": "^3.0.0",
     "screenfull": "^5.0.0",
     "simple-peer": "^9.6.2",
-    "socket.io": "^2.3.0",
     "socket.io-client": "^2.3.0",
     "supertest": "^4.0.2",
     "ts-jest": "^24.1.0",
