@@ -1,0 +1,7 @@
+.git/
+build/
+config/local.yaml
+coverage/
+lib/
+node_modules/
+Dockerfile
