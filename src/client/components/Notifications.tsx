@@ -24,13 +24,13 @@ export interface NotificationProps {
 const Notification = React.memo(
   function Notification(props: NotificationProps) {
     const { dismiss, notification } = props
-    React.useEffect(() => {
-      const timeout = setTimeout(dismiss, props.timeout, notification.id)
-      return () => {
-        clearTimeout(timeout)
-        dismiss(notification.id)
-      }
-    }, [])
+    // React.useEffect(() => {
+    //   const timeout = setTimeout(dismiss, props.timeout, notification.id)
+    //   return () => {
+    //     clearTimeout(timeout)
+    //     dismiss(notification.id)
+    //   }
+    // }, [])
     return (
       <div className={classnames(notification.type, 'notification')}>
         {notification.message}
@@ -42,24 +42,24 @@ const Notification = React.memo(
 export default class Notifications
 extends React.PureComponent<NotificationsProps> {
   static defaultProps = {
-    max: 5,
+    max: 20,
   }
   render () {
     const { dismiss, notifications, max } = this.props
     return (
-      <div className="notifications">
+      <div className="notifications" tabIndex={0}>
         <TransitionGroup>
-          {Object.keys(notifications).slice(-max).map(id => (
+          {Object.keys(notifications).slice(-max).reverse().map(id => (
             <CSSTransition
               key={id}
               classNames='fade'
               timeout={transitionTimeout}
             >
-                <Notification
-                  notification={notifications[id]}
-                  dismiss={dismiss}
-                  timeout={10000}
-                />
+              <Notification
+                notification={notifications[id]}
+                dismiss={dismiss}
+                timeout={10000}
+              />
             </CSSTransition>
           ))}
         </TransitionGroup>

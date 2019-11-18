@@ -143,7 +143,7 @@ function Options(props: OptionsProps) {
   const label = labels[props.type]
   return (
     <React.Fragment>
-      <option value='false'>{label} disabled</option>
+      <option value='false'>Disable {label}</option>
       <option value={props.default}>Default {label}</option>
       {
         props.devices

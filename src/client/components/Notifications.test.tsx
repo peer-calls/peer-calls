@@ -34,11 +34,9 @@ describe('Notifications', () => {
   }
 
   describe('render', () => {
-    it('renders and sets a timeout for notification', async () => {
+    it('renders', async () => {
       await render()
-      expect(dismiss.mock.calls).toEqual([])
       ReactDOM.unmountComponentAtNode(div)
-      expect(dismiss.mock.calls).toEqual([[ 'one' ]])
     })
   })
 
