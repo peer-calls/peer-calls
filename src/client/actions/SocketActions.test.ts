@@ -8,6 +8,7 @@ import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { Dispatch } from 'redux'
+import { MediaStream } from '../window'
 
 describe('SocketActions', () => {
   const roomName = 'bla'
@@ -128,7 +129,13 @@ describe('SocketActions', () => {
 
     describe('stream', () => {
       it('adds a stream to streamStore', () => {
-        const stream = {}
+        const stream = {
+          getTracks() {
+            return [{
+              stop: jest.fn(),
+            }]
+          },
+        }
         peer.emit(constants.PEER_EVENT_STREAM, stream)
 
         expect(store.getState().streams).toEqual({
@@ -143,7 +150,7 @@ describe('SocketActions', () => {
 
     describe('close', () => {
       beforeEach(() => {
-        const stream = {}
+        const stream = new MediaStream()
         peer.emit(constants.PEER_EVENT_STREAM, stream)
         expect(store.getState().streams).toEqual({
           b: {

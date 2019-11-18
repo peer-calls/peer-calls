@@ -23,14 +23,7 @@ export interface NotificationProps {
 
 const Notification = React.memo(
   function Notification(props: NotificationProps) {
-    const { dismiss, notification } = props
-    // React.useEffect(() => {
-    //   const timeout = setTimeout(dismiss, props.timeout, notification.id)
-    //   return () => {
-    //     clearTimeout(timeout)
-    //     dismiss(notification.id)
-    //   }
-    // }, [])
+    const { notification } = props
     return (
       <div className={classnames(notification.type, 'notification')}>
         {notification.message}

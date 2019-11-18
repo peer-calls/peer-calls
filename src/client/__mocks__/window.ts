@@ -3,13 +3,22 @@ export const createObjectURL = jest.fn()
 export const revokeObjectURL = jest.fn()
 
 export class MediaStream {
+  getTracks() {
+    return [{
+      stop: jest.fn(),
+    }, {
+      stop: jest.fn(),
+    }]
+  }
   getVideoTracks () {
     return [{
       enabled: true,
+      stop: jest.fn(),
     }]
   }
   getAudioTracks () {
     return [{
+      stop: jest.fn(),
       enabled: true,
     }]
   }

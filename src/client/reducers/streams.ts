@@ -43,6 +43,9 @@ function removeStream (
 ): StreamsState {
   const { userId } = payload
   const stream = state[userId]
+  if (stream && stream.stream) {
+    stream.stream.getTracks().forEach(track => track.stop())
+  }
   if (stream && stream.url) {
     revokeObjectURL(stream.url)
   }
