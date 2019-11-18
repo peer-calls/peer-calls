@@ -123,7 +123,6 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
         )}
       </Alerts>
 
-      {props.autoplayError && <AutoplayMessage play={props.play} />}
       <MediaForm {...props} />
     </div>
   )

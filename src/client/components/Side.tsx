@@ -7,6 +7,7 @@ export type Top = { top: true }
 export type Bottom = { bottom: true }
 
 export type SideProps = (Left | Right | Top | Bottom) & {
+  className?: string
   zIndex: number
   children: React.ReactNode
   align?: 'baseline' | 'center' | 'end'
@@ -14,11 +15,11 @@ export type SideProps = (Left | Right | Top | Bottom) & {
 
 export const Side = React.memo(
   function Side(props: SideProps) {
-    const className = classnames('side', { ...props })
+    const { className, zIndex, ...otherProps } = props
     return (
       <div
-        className={className}
-        style={{alignItems: props.align  || 'center', zIndex: props.zIndex}}
+        className={classnames('side', className, { ...otherProps })}
+        style={{alignItems: props.align  || 'center', zIndex }}
       >
         {props.children}
       </div>

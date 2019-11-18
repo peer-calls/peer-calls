@@ -165,6 +165,7 @@ body.call {
 .side {
   position: absolute;
   display: flex;
+  transition: right cubic-bezier(0.55, 0, 0, 1) 500ms;
 
   &.left {
     flex-direction: row;
@@ -195,6 +196,6 @@ body.call {
   }
 }
 
-.chat-visible {
-  transform: translateX(-330px);
+.app .chat-visible {
+  right: 320px;
 }

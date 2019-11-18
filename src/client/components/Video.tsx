@@ -52,10 +52,7 @@ export default class Video extends React.PureComponent<VideoProps> {
           id={`video-${socket.id}`}
           autoPlay
           onClick={this.handleClick}
-          onLoadedMetadata={() => {
-            console.log('onLoadedMetadata')
-            this.props.play()
-          }}
+          onLoadedMetadata={() => this.props.play()}
           playsInline
           ref={this.videoRef}
           muted={muted}

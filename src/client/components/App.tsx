@@ -75,9 +75,13 @@ export default class App extends React.PureComponent<AppProps, AppState> {
 
     const { videos } = this.state
 
+    const chatVisibleClassName = classnames({
+      'chat-visible': this.state.chatVisible,
+    })
+
     return (
       <div className="app">
-        <Side align='end' left zIndex={1}>
+        <Side align='end' left zIndex={2}>
           <Toolbar
             chatVisible={this.state.chatVisible}
             messagesCount={messagesCount}
@@ -86,7 +90,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             stream={streams[constants.ME]}
           />
         </Side>
-        <Side top zIndex={2}>
+        <Side className={chatVisibleClassName} top zIndex={1}>
           <Notifications
             dismiss={dismissNotification}
             notifications={notifications}
@@ -99,11 +103,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           sendMessage={sendMessage}
           visible={this.state.chatVisible}
         />
-        <div
-          className={classnames('videos', {
-            'chat-visible': this.state.chatVisible,
-          })}
-        >
+        <div className={classnames('videos', chatVisibleClassName)}>
           {streams[constants.ME] && (
             <Video
               videos={videos}

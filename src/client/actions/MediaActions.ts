@@ -107,10 +107,7 @@ export function setMediaVisible(visible: boolean): MediaVisibleAction {
 export const play = makeAction('MEDIA_PLAY', async () => {
   const promises = Array
   .from(document.querySelectorAll('video'))
-  .filter(video => {
-    console.log('video', video.paused, video)
-    return video.paused
-  })
+  .filter(video => video.paused)
   .map(video => video.play())
   await Promise.all(promises)
 })

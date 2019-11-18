@@ -9,6 +9,7 @@
     width: 48px;
     height: 48px;
     border-radius: 48px;
+    background-color: rgba(0, 0, 0, 0.2);
     box-shadow: 2px 2px 24px #444;
     transition: all .1s;
     transition-timing-function: ease-in-out;
@@ -21,8 +22,13 @@
       top: 12px;
     }
 
-    &.on {
-      display: none;
+    .badge {
+      font-family: sans-serif;
+      font-weight: bold;
+      color: white;
+      position: relative;
+      font-size: 12px;
+      top: 23px;
     }
 
   }
@@ -35,17 +41,18 @@
     text-shadow: 0 0 5px black;
     transition: opacity 200ms ease-in 25ms, transform 100ms ease-in;
     transform: translateX(-100%);
-    z-index: 0;
+    pointer-events: none;
   }
 
   .button {
+    outline: none;
     text-decoration: none;
     display: flex;
     flex-direction: row;
     align-items: center;
     cursor: pointer;
 
-    &:hover {
+    &:hover, &:focus {
       .icon {
         box-shadow: 4px 4px 48px #666;
         cursor: pointer;
@@ -62,12 +69,6 @@
     }
     &.on .icon {
       background: lighten(#407cf7, 10%);
-      &.on {
-        display: inherit;
-      }
-      &.off {
-        display: none;
-      }
     }
   }
 
@@ -75,12 +76,10 @@
     margin-top: 1rem;
   }
 
-  .chat {
-    &[data-blink="true"] .icon {
-      -webkit-animation: bg-blink 1s infinite;
-      -moz-animation: bg-blink 1s infinite;
-      animation: bg-blink 1s infinite;
-    }
+  .chat.blink .icon {
+    -webkit-animation: bg-blink 1s infinite;
+    -moz-animation: bg-blink 1s infinite;
+    animation: bg-blink 1s infinite;
   }
 
 }

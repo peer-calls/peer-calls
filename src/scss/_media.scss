@@ -28,6 +28,15 @@
     border-radius: 4px;
     border-bottom: 2px solid darken(#fff, 10%);
     text-align: center;
+    color: black;
+    background-color: white;
+    cursor: pointer;
+    &:hover {
+      background-color: darken(white, 5%);
+    }
+    &:active {
+      background-color: darken(white, 10%);
+    }
   }
 
   select, button {

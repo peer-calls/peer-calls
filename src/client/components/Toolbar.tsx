@@ -22,6 +22,43 @@ export interface ToolbarState {
   fullScreenEnabled: boolean
 }
 
+export interface ToolbarButtonProps {
+  className?: string
+  badge?: string | number
+  blink?: boolean
+  onClick: () => void
+  icon: string
+  offIcon?: string
+  on?: boolean
+  title: string
+}
+
+
+function ToolbarButton(props: ToolbarButtonProps) {
+  const { blink, on } = props
+  const icon = !on && props.offIcon ? props.offIcon : props.icon
+
+  function onClick(event: React.MouseEvent<HTMLElement>) {
+    props.onClick()
+    document.activeElement &&
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement.blur()
+  }
+
+  return (
+    <a
+      className={classnames('button', props.className, { blink, on })}
+      onClick={onClick}
+      href='#'
+    >
+      <span className={classnames('icon', icon)}>
+        {!!props.badge && <span className='badge'>{props.badge}</span>}
+      </span>
+      <span className="tooltip">{props.title}</span>
+    </a>
+  )
+}
+
 export default class Toolbar
 extends React.PureComponent<ToolbarProps, ToolbarState> {
   file = React.createRef<HTMLInputElement>()
@@ -61,7 +98,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
       screenfull.toggle()
       this.setState({
         ...this.state,
-        fullScreenEnabled: !this.state.fullScreenEnabled,
+        fullScreenEnabled: !screenfull.isFullscreen,
       })
     }
   }
@@ -84,88 +121,73 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   }
   render () {
     const { messagesCount, stream } = this.props
+    const unreadCount = messagesCount - this.state.readMessages
+    const hasUnread = unreadCount > 0
 
     return (
       <div className="toolbar active">
-        <a onClick={this.handleToggleChat}
-          className={classnames('button chat', {
-            on: this.props.chatVisible,
-          })}
-          href='#'
-          data-blink={!this.props.chatVisible &&
-            messagesCount > this.state.readMessages}
-          title="Chat"
-        >
-          <span className="icon icon-question_answer" />
-          <span className="tooltip">Toggle Chat</span>
-        </a>
-        <a
-          className="button send-file"
+        <input
+          style={hidden}
+          type="file"
+          multiple
+          ref={this.file}
+          onChange={this.handleSelectFiles}
+        />
+
+        <ToolbarButton
+          badge={unreadCount}
+          className='chat'
+          icon='icon-question_answer'
+          blink={!this.props.chatVisible && hasUnread}
+          onClick={this.handleToggleChat}
+          on={this.props.chatVisible}
+          title='Toggle Chat'
+        />
+
+        <ToolbarButton
+          className='send-file'
+          icon='icon-file-text2'
           onClick={this.handleSendFile}
-          title="Send file"
-          href='#'
-        >
-          <input
-            style={hidden}
-            type="file"
-            multiple
-            ref={this.file}
-            onChange={this.handleSelectFiles}
-          />
-          <span className="icon icon-file-text2" />
-          <span className="tooltip">Send File</span>
-        </a>
+          title='Send File'
+        />
 
         {stream && (
           <React.Fragment>
-            <a
+            <ToolbarButton
               onClick={this.handleMicClick}
-              className={classnames('button mute-audio', {
-                on: this.state.micMuted,
-              })}
-              href='#'
-              title="Mute audio"
-            >
-              <span className="on icon icon-mic_off" />
-              <span className="off icon icon-mic" />
-              <span className="tooltip">Toggle Microphone</span>
-            </a>
-            <a onClick={this.handleCamClick}
-              className={classnames('button mute-video', {
-                on: this.state.camDisabled,
-              })}
-              href='#'
-              title="Mute video"
-            >
-              <span className="on icon icon-videocam_off" />
-              <span className="off icon icon-videocam" />
-              <span className="tooltip">Toggle Camera</span>
-            </a>
+              className='mute-audio'
+              on={this.state.micMuted}
+              icon='icon-mic_off'
+              offIcon='icon-mic'
+              title='Toggle Microphone'
+            />
+            <ToolbarButton
+              onClick={this.handleCamClick}
+              className='mute-video'
+              on={this.state.camDisabled}
+              icon='icon-videocam_off'
+              offIcon='icon-videocam'
+              title='Toggle Camera'
+            />
           </React.Fragment>
         )}
 
-        <a
+        <ToolbarButton
           onClick={this.handleFullscreenClick}
-          href='#'
-          className={classnames('button fullscreen', {
-            on: this.state.fullScreenEnabled,
-          })}
-          title="Enter fullscreen"
-        >
-          <span className="on icon icon-fullscreen_exit" />
-          <span className="off icon icon-fullscreen" />
-          <span className="tooltip">Fullscreen</span>
-        </a>
+          className='fullscreen'
+          icon='icon-fullscreen_exit'
+          offIcon='icon-fullscreen'
+          on={this.state.fullScreenEnabled}
+          title='Toggle Fullscreen'
+        />
 
-        <a
+        <ToolbarButton
           onClick={this.handleHangoutClick}
-          className="button hangup"
-          href='#'
+          className='hangup'
+          icon='icon-call_end'
           title="Hang Up"
-        >
-          <span className="icon icon-call_end" />
-          <span className="tooltip">Hang Up</span>
-        </a>
+        />
+
       </div>
     )
   }
