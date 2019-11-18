@@ -1,5 +1,8 @@
 import { makeAction, AsyncAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VISIBLE_SET } from '../constants'
+import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM } from '../constants'
+import _debug from 'debug'
+
+const debug = _debug('peercalls')
 
 export interface MediaDevice {
   id: string
@@ -91,19 +94,6 @@ export function setAudioConstraint(
   }
 }
 
-export interface MediaVisibleAction {
-  type: 'MEDIA_VISIBLE_SET'
-  payload: { visible: boolean }
-}
-
-export function setMediaVisible(visible: boolean): MediaVisibleAction {
-  return {
-    type: MEDIA_VISIBLE_SET,
-    payload: { visible },
-  }
-}
-
-
 export const play = makeAction('MEDIA_PLAY', async () => {
   const promises = Array
   .from(document.querySelectorAll('video'))
@@ -114,7 +104,10 @@ export const play = makeAction('MEDIA_PLAY', async () => {
 
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
-  async (constraints: GetMediaConstraints) => getUserMedia(constraints),
+  async (constraints: GetMediaConstraints) => {
+    debug('getMediaStream', constraints)
+    return getUserMedia(constraints)
+  },
 )
 
 export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
@@ -126,5 +119,4 @@ export type MediaAction =
   MediaAudioConstraintAction |
   MediaEnumerateAction |
   MediaStreamAction |
-  MediaVisibleAction |
   MediaPlayAction

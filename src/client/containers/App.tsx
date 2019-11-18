@@ -3,7 +3,7 @@ import { init } from '../actions/CallActions'
 import { play } from '../actions/MediaActions'
 import { dismissNotification } from '../actions/NotifyActions'
 import { sendFile, sendMessage } from '../actions/PeerActions'
-import { toggleActive } from '../actions/StreamActions'
+import { toggleActive, removeStream } from '../actions/StreamActions'
 import App from '../components/App'
 import { State } from '../store'
 
@@ -22,6 +22,7 @@ const mapDispatchToProps = {
   toggleActive,
   sendMessage,
   dismissNotification,
+  removeStream,
   init,
   onSendFile: sendFile,
   play,

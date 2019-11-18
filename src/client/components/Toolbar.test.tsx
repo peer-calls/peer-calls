@@ -20,6 +20,7 @@ describe('components/Toolbar', () => {
       return <Toolbar
         chatVisible={this.props.chatVisible}
         onToggleChat={this.props.onToggleChat}
+        onHangup={this.props.onHangup}
         onSendFile={this.props.onSendFile}
         messagesCount={this.props.messagesCount}
         stream={this.state.stream || this.props.stream}
@@ -32,16 +33,19 @@ describe('components/Toolbar', () => {
   let url: string
   let onToggleChat: jest.Mock<() => void>
   let onSendFile: jest.Mock<(file: File) => void>
+  let onHangup: jest.Mock<() => void>
   async function render () {
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
     onSendFile = jest.fn()
+    onHangup = jest.fn()
     const div = document.createElement('div')
     await new Promise<ToolbarWrapper>(resolve => {
       ReactDOM.render(
         <ToolbarWrapper
           ref={instance => resolve(instance!)}
           chatVisible
+          onHangup={onHangup}
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
           messagesCount={1}
@@ -119,6 +123,16 @@ describe('components/Toolbar', () => {
         } as any,
       })
       expect(onSendFile.mock.calls).toEqual([[ files[0] ]])
+    })
+  })
+
+  describe('onHangup', () => {
+    it('calls onHangup callback', () => {
+      expect(onHangup.mock.calls.length).toBe(0)
+      const hangup = node.querySelector('.hangup')!
+      expect(hangup).toBeDefined()
+      TestUtils.Simulate.click(hangup)
+      expect(onHangup.mock.calls.length).toBe(1)
     })
   })
 

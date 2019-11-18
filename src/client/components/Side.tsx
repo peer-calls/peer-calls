@@ -10,7 +10,7 @@ export type SideProps = (Left | Right | Top | Bottom) & {
   className?: string
   zIndex: number
   children: React.ReactNode
-  align?: 'baseline' | 'center' | 'end'
+  align?: 'baseline' | 'center' | 'flex-end'
 }
 
 export const Side = React.memo(

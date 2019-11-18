@@ -1,7 +1,5 @@
 import uniqueId from 'lodash/uniqueId'
-import { Dispatch } from 'redux'
 import * as constants from '../constants'
-import { ThunkResult } from '../store'
 
 function format (string: string, args: string[]) {
   string = args
@@ -11,7 +9,7 @@ function format (string: string, args: string[]) {
 
 export type NotifyType = 'info' | 'warning' | 'error'
 
-function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
+function notify(type: NotifyType, args: string[]) {
   const string = args[0] || ''
   const message = format(string, Array.prototype.slice.call(args, 1))
   const id = uniqueId('notification')
@@ -20,16 +18,16 @@ function notify(dispatch: Dispatch, type: NotifyType, args: string[]) {
   return addNotification(payload)
 }
 
-export const info = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => dispatch(notify(dispatch, 'info', args))
+export const info = (...args: any[]): NotificationAddAction => {
+  return notify('info', args)
 }
 
-export const warning = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => dispatch(notify(dispatch, 'warning', args))
+export const warning = (...args: any[]): NotificationAddAction => {
+  return notify('warning', args)
 }
 
-export const error = (...args: any[]): ThunkResult<NotificationAddAction> => {
-  return dispatch => dispatch(notify(dispatch, 'error', args))
+export const error = (...args: any[]): NotificationAddAction => {
+  return notify('error', args)
 }
 
 function addNotification(payload: Notification): NotificationAddAction {

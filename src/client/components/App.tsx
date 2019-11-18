@@ -5,7 +5,7 @@ import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
 import { TextMessage } from '../actions/PeerActions'
-import { AddStreamPayload } from '../actions/StreamActions'
+import { AddStreamPayload, removeStream } from '../actions/StreamActions'
 import * as constants from '../constants'
 import Chat from './Chat'
 import { Media } from './Media'
@@ -25,6 +25,7 @@ export interface AppProps {
   play: () => void
   sendMessage: (message: TextMessage) => void
   streams: Record<string, AddStreamPayload>
+  removeStream: typeof removeStream
   onSendFile: (file: File) => void
   toggleActive: (userId: string) => void
 }
@@ -58,6 +59,9 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     const { init } = this.props
     init()
   }
+  onHangup = () => {
+    this.props.removeStream(constants.ME)
+  }
   render () {
     const {
       active,
@@ -81,12 +85,13 @@ export default class App extends React.PureComponent<AppProps, AppState> {
 
     return (
       <div className="app">
-        <Side align='end' left zIndex={2}>
+        <Side align='flex-end' left zIndex={2}>
           <Toolbar
             chatVisible={this.state.chatVisible}
             messagesCount={messagesCount}
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}
+            onHangup={this.onHangup}
             stream={streams[constants.ME]}
           />
         </Side>

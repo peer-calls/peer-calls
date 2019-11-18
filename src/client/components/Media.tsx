@@ -4,18 +4,27 @@ import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, V
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
 import { Alerts, Alert } from './Alerts'
+import { info, warning, error } from '../actions/NotifyActions'
+import { ME } from '../constants'
 
 export type MediaProps = MediaState & {
+  visible: boolean
   enumerateDevices: typeof enumerateDevices
   onSetVideoConstraint: typeof setVideoConstraint
   onSetAudioConstraint: typeof setAudioConstraint
   getMediaStream: typeof getMediaStream
   play: typeof play
+  logInfo: typeof info
+  logWarning: typeof warning
+  logError: typeof error
 }
 
 function mapStateToProps(state: State) {
+  const localStream = state.streams[ME]
+  const visible = !localStream
   return {
     ...state.media,
+    visible,
   }
 }
 
@@ -25,6 +34,9 @@ const mapDispatchToProps = {
   onSetAudioConstraint: setAudioConstraint,
   getMediaStream,
   play,
+  logInfo: info,
+  logWarning: warning,
+  logError: error,
 }
 
 const c = connect(mapStateToProps, mapDispatchToProps)
@@ -42,8 +54,7 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
     try {
       await props.getMediaStream({ audio, video })
     } catch (err) {
-      console.error(err.stack)
-      // TODO display a message
+      props.logError('Error: {0}', err)
     }
   }
 

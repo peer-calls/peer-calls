@@ -12,6 +12,7 @@ export interface ToolbarProps {
   stream: AddStreamPayload
   onToggleChat: () => void
   onSendFile: (file: File) => void
+  onHangup: () => void
   chatVisible: boolean
 }
 
@@ -38,17 +39,10 @@ function ToolbarButton(props: ToolbarButtonProps) {
   const { blink, on } = props
   const icon = !on && props.offIcon ? props.offIcon : props.icon
 
-  function onClick(event: React.MouseEvent<HTMLElement>) {
-    props.onClick()
-    document.activeElement &&
-      document.activeElement instanceof HTMLElement &&
-      document.activeElement.blur()
-  }
-
   return (
     <a
       className={classnames('button', props.className, { blink, on })}
-      onClick={onClick}
+      onClick={props.onClick}
       href='#'
     >
       <span className={classnames('icon', icon)}>
@@ -181,12 +175,14 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           title='Toggle Fullscreen'
         />
 
-        <ToolbarButton
-          onClick={this.handleHangoutClick}
-          className='hangup'
-          icon='icon-call_end'
-          title="Hang Up"
-        />
+          {this.props.stream && this.props.stream.stream && (
+            <ToolbarButton
+              onClick={this.props.onHangup}
+              className='hangup'
+              icon='icon-call_end'
+              title="Hang Up"
+            />
+          )}
 
       </div>
     )
