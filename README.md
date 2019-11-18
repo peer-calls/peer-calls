@@ -1,9 +1,18 @@
 # Peer Calls
 
-[![Build Status](https://travis-ci.org/jeremija/peer-calls.svg?branch=master)](https://travis-ci.org/jeremija/peer-calls) [![npm](https://img.shields.io/npm/v/peer-calls.svg)](https://www.npmjs.com/package/peer-calls)
+[![Build Status][travis-badge]][travis]
+[![NPM Package][npm-badge]][npm]
+
+[travis-badge]: https://travis-ci.org/jeremija/peer-calls.svg?branch=master
+[travis]: https://travis-ci.org/jeremija/peer-calls
+[npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
+[npm]: https://www.npmjs.com/package/peer-calls
+
+[peer-calls]: https://peercalls.com
+[config]: https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
 
 WebRTC peer to peer calls for everyone. See it live in action at
-[peercalls.com](https://peercalls.com).
+[peercalls.com][peer-calls].
 
 Work in progress.
 
@@ -14,7 +23,16 @@ Work in progress.
 
 ## From npm
 
-create directory `./peer-calls` and copy [config/default.json](https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json) into it.
+### Local install
+
+```bash
+npm install peer-calls
+mkdir config/
+curl -o config/local.json https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
+./node_modules/.bin/peer-calls
+```
+
+create directory `./peer-calls` and copy [config/default.json][config] into it.
 
 ```bash
 npm install --global peer-calls

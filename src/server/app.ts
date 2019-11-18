@@ -10,7 +10,7 @@ import index from './routes/index'
 
 const debug = _debug('peercalls')
 
-const BASE_URL: string = config.get('baseUrl')
+const BASE_URL: string = config.baseUrl
 const SOCKET_URL = `${BASE_URL}/ws`
 
 debug(`WebSocket URL: ${SOCKET_URL}`)
@@ -19,6 +19,7 @@ const app = express()
 const server = createServer(config, app)
 const io = SocketIO(server, { path: SOCKET_URL })
 
+app.set('x-powered-by', false)
 app.locals.version = require('../../package.json').version
 app.locals.baseUrl = BASE_URL
 

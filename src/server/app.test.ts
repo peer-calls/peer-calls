@@ -13,7 +13,7 @@ import request from 'supertest'
 
 const io = SocketIO()
 
-const BASE_URL: string = config.get('baseUrl')
+const BASE_URL: string = config.baseUrl
 
 describe('server/app', () => {
 

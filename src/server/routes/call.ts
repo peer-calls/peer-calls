@@ -1,12 +1,12 @@
-import { config, ICEServer } from '../config'
+import { config } from '../config'
 import * as turn from '../turn'
 import { Router } from 'express'
 import { v4 } from 'uuid'
 
 const router = Router()
 
-const BASE_URL: string = config.get('baseUrl')
-const cfgIceServers = config.get('iceServers') as ICEServer[]
+const BASE_URL: string = config.baseUrl
+const cfgIceServers = config.iceServers
 
 router.get('/', (req, res) => {
   res.redirect(`${BASE_URL}/call/${v4()}`)

@@ -1,4 +1,4 @@
-import cfg, { IConfig } from 'config'
+import { readConfig } from './readConfig'
 
 export type ICEServer = {
   url: string
@@ -17,10 +17,16 @@ export type ICEServer = {
 export interface Config {
   baseUrl: string
   iceServers: ICEServer[]
-  ssl: {
+  ssl?: {
     cert: string
     key: string
   }
 }
 
-export const config = cfg as IConfig & Config
+const cfg = readConfig()
+
+export const config: Config = {
+  baseUrl: cfg.get('baseUrl', ''),
+  iceServers: cfg.get('iceServers'),
+  ssl: cfg.get('ssl', undefined),
+}
