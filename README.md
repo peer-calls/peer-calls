@@ -8,39 +8,62 @@
 [npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
 [npm]: https://www.npmjs.com/package/peer-calls
 
-[peer-calls]: https://peercalls.com
-[config]: https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
-
 WebRTC peer to peer calls for everyone. See it live in action at
 [peercalls.com][peer-calls].
+
+[peer-calls]: https://peercalls.com
 
 Work in progress.
 
 # Requirements
- - Node.js 8 [https://nodejs.org/en/](https://nodejs.org/en/)
+
+ - [Node.js 8][node], or
+ - [Node.js 12][node], or
+ - [Docker][docker]
+
+[node]: https://nodejs.org
+[docker]: https://www.docker.com/
+
+# Stack
+
+ - Express
+ - Socket.IO
+ - React
+ - Redux
+ - TypeScript (since peer-calls `v2.1.0`)
 
 # Installation & Running
 
-## From npm
+## Using npx (from NPM)
 
-### Local install
+```bash
+npx peer-calls
+```
+
+## Installing locally
 
 ```bash
 npm install peer-calls
-mkdir config/
-curl -o config/local.json https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
 ./node_modules/.bin/peer-calls
 ```
 
-create directory `./peer-calls` and copy [config/default.json][config] into it.
+## Installing Globally
 
 ```bash
 npm install --global peer-calls
-
-env NODE_CONFIG_DIR=./peer-calls peercalls
+peer-calls
 ```
 
-> :warning: Using `--global` is not advised in server environments. [*](https://github.com/jeremija/peer-calls/pull/48)
+## Using docker
+
+Use the [`jeremija/peer-calls`][hub] image from Docker Hub:
+
+```bash
+docker pull jeremija/peer-calls
+docker run --rm -it -p 3000:3000 peer-calls:latest
+```
+
+[hub]: https://hub.docker.com/r/jeremija/peer-calls
 
 ## From git source
 
@@ -57,12 +80,59 @@ npm start
 npm run start:watch
 ```
 
-To run a development version, type:
+## Building Docker image
 
-If you successfully completed the above steps, your commandline/terminal should
-show that your node server is listening.
+```bash
+git clone https://github.com/jeremija/peer-calls
+cd peer-calls
+docker build -t peer-calls .
+docker run --rm -it -p 3000:3000 peer-calls:latest
+```
 
-On your other machine or mobile device open the url: http://<your_ip_or_localhost>:3000
+# Configuration
+
+There has been a breaking change in `v3.0.0`. The default binary provided via
+NPM is now called peer-calls, while it used to be peercalls. This has been made
+to make `npx peer-calls` work.
+
+Version 3 also changed the way configuration works. Previously, `config` module
+was used to read config files. To make things simpler, a default STUN
+configuration will now be used by default. Config files can still be provided
+via the `config/` folder in the working directory, but the extension read will
+be `.yaml` instead of `.json`.
+
+The config files are read in the following order:
+
+- `node_modules/peer-calls/config/default.yaml`
+- `node_modules/peer-calls/config/${NODE_ENV}.yaml`, if `NODE_ENV` is set
+- `node_modules/peer-calls/config/local.yaml`
+- `./config/default.yaml`
+- `./config/${NODE_ENV}.yaml`, if `NODE_ENV` is set
+- `./config/local.yaml`
+
+No errors will be thrown if a file is not found, but an error will be thrown
+when the required properties are not found. To debug configuration issues,
+set the `DEBUG` environment variable to `DEBUG=peercalls,peercalls:config`.
+
+Additionally, version 3 provides easier configuration via environment
+variables. For example:
+
+```bash
+ - Set STUN/TURN servers: `PEERCALLS__ICE_SERVERS='[{"url": "stun:stun.l.google.com:19302", "urls": "stun:stun.l.google.com:19302"}]'
+ - Change base url: `PEERCALLS__BASE_URL=/test`
+ - Enable SSL: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
+ - Enable SSL: `PEERCALLS__SSL=undefined`
+```
+
+See [config/default.yaml][config] for sample configuration.
+
+[config]: https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
+
+By default, the server will start on port `3000`. This can be modified by
+setting the `PORT` environment variable to another number, or to a path for a
+unix domain socket.
+
+To access the server, go to http://localhost:3000 (or another port).
 
 # Testing
 
@@ -85,6 +155,8 @@ For more details, see here:
 # Contributing
 
 See [Contributing](CONTRIBUTING.md) section.
+
+If you encoutner a bug, please open a new issue! Thank you ❤️
 
 # License
 
