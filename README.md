@@ -156,7 +156,7 @@ For more details, see here:
 
 See [Contributing](CONTRIBUTING.md) section.
 
-If you encoutner a bug, please open a new issue! Thank you ❤️
+If you encounter a bug, please open a new issue! Thank you ❤️
 
 # License
 
