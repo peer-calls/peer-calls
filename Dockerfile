@@ -1,19 +1,22 @@
 FROM node:12-alpine
 WORKDIR /app
 RUN chown node:node /app
+COPY package.json .
 USER node
-COPY . .
 RUN npm install
+COPY . .
 RUN npm run build
-RUN rm -rf node_modules
+RUN rm -rf node_modules build/index.prod.js
 
 FROM node:12-alpine
 WORKDIR /app
 RUN chown node:node /app
-COPY --from=0 /app .
+COPY package.json .
 RUN npm install --production
-USER root
+COPY --from=0 /app .
 RUN chown -R root:root .
 USER node
 EXPOSE 3000
-CMD ["node", "lib/index.js"]
+STOPSIGNAL SIGINT
+ENTRYPOINT ["node", "lib/index.js"]
+# CMD ["node", "lib/index.js"]
