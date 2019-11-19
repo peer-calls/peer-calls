@@ -1,0 +1,15 @@
+---
+layout: _layout.html
+title: Peer Call
+---
+
+[[##body:
+<body class="call">
+  <input type="hidden" id="baseUrl" value="[[=model.baseUrl]]">
+  <input type="hidden" id="callId" value="[[!model.callId]]">
+  <input type="hidden" id="iceServers" value='[[!JSON.stringify(model.iceServers)]]'>
+  <div id="container"></div>
+
+  <script src="[[=model.baseUrl + '/static/index.js']]"></script>
+</body>
+#]]

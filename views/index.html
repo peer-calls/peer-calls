@@ -1,0 +1,26 @@
+---
+layout: _layout.html
+title: Peer Calls - Video calls to anybody in the world with a private direct connection
+---
+
+[[##body:
+<body>
+  <a id="github-ribbon" href="https://github.com/jeremija/peer-calls" target="_blank">
+    <img src="[[=model.baseUrl + '/res/fork.png']]" alt="Fork me on GitHub">
+  </a>
+
+  <div id="container">
+    <form id="form" method="get" action="[[=model.baseUrl + '/call']]">
+      <h1>
+        <img src="[[=model.baseUrl + '/res/peer-calls.svg']]" width="100%" alt="Peer Calls">
+      </h1>
+      <p>Group peer-to-peer calls for everyone. Create a private room. Share the link.</p>
+      <input type="submit" value="New Session">
+    </form>
+  </div>
+
+  <footer>
+    <div>v#[[=model.version]]</div>
+  </footer>
+</body>
+#]]

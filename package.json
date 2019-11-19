@@ -51,9 +51,9 @@
   "dependencies": {
     "debug": "^4.1.1",
     "express": "^4.17.1",
+    "express-dot-engine": "^1.0.8",
     "js-yaml": "^3.13.1",
     "lodash": "^4.17.15",
-    "pug": "^2.0.4",
     "socket.io": "^2.3.0",
     "uuid": "^3.3.3"
   },

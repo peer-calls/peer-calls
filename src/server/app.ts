@@ -1,3 +1,4 @@
+/// <reference path="../@types/express-dot-engine.d.ts" />
 import { config } from './config'
 import _debug from 'debug'
 import express from 'express'
@@ -7,6 +8,7 @@ import { createServer } from './server'
 import SocketIO from 'socket.io'
 import call from './routes/call'
 import index from './routes/index'
+import dot from 'express-dot-engine'
 
 const debug = _debug('peercalls')
 
@@ -22,8 +24,9 @@ export const io = SocketIO(server, { path: SOCKET_URL })
 app.set('x-powered-by', false)
 app.locals.version = require('../../package.json').version
 app.locals.baseUrl = BASE_URL
+app.engine('html', dot.__express)
 
-app.set('view engine', 'pug')
+app.set('view engine', 'html')
 app.set('views', path.join(__dirname, '../../views'))
 
 const router = express.Router()
