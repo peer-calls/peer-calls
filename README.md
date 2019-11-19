@@ -54,18 +54,18 @@ npm install --global peer-calls
 peer-calls
 ```
 
-## Using docker
+## Using Docker
 
 Use the [`jeremija/peer-calls`][hub] image from Docker Hub:
 
 ```bash
 docker pull jeremija/peer-calls
-docker run --rm -it -p 3000:3000 peer-calls:latest
+docker run --rm -it -p 3000:3000 jeremija/peer-calls:latest
 ```
 
 [hub]: https://hub.docker.com/r/jeremija/peer-calls
 
-## From git source
+## From Git Source
 
 ```bash
 git clone https://github.com/jeremija/peer-calls.git
