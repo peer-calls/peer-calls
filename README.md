@@ -117,12 +117,10 @@ set the `DEBUG` environment variable to `DEBUG=peercalls,peercalls:config`.
 Additionally, version 3 provides easier configuration via environment
 variables. For example:
 
-```bash
  - Set STUN/TURN servers: `PEERCALLS__ICE_SERVERS='[{"url": "stun:stun.l.google.com:19302", "urls": "stun:stun.l.google.com:19302"}]'
  - Change base url: `PEERCALLS__BASE_URL=/test`
  - Enable SSL: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
  - Enable SSL: `PEERCALLS__SSL=undefined`
-```
 
 See [config/default.yaml][config] for sample configuration.
 
