@@ -140,9 +140,16 @@ npm install
 npm test
 ```
 
+To run all tests and build production artifacts, run:
+
+```bash
+npm run ci
+```
+
 # Browser Support
 
-Tested on Firefox and Chrome, including mobile versions.
+Tested on Firefox and Chrome, including mobile versions. Also works on Safari
+13 on Mac OS.
 
 Does not work on iOS 10, but should work on iOS 11 - would appreciate feedback!
 
