@@ -124,7 +124,7 @@ variables. For example:
 
 See [config/default.yaml][config] for sample configuration.
 
-[config]: https://raw.githubusercontent.com/jeremija/peer-calls/master/config/default.json
+[config]: ./config/default.yaml
 
 By default, the server will start on port `3000`. This can be modified by
 setting the `PORT` environment variable to another number, or to a path for a
