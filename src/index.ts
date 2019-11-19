@@ -8,8 +8,11 @@ import app from './server/app'
 
 const debug = _debug('peercalls')
 
-const port = process.env.PORT || 3000
-app.listen(port, () => debug('Listening on: %s', port))
+const port = parseInt(process.env.PORT || '') || 3000
+const hostname = process.env.BIND
+const server = app.listen(
+  port, hostname, () => debug('Listening on %s', server.address()))
+
 
 process.on('SIGINT', () => process.exit())
 process.on('SIGTERM', () => process.exit())

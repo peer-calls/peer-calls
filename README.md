@@ -121,7 +121,8 @@ variables. For example:
  - Change base URL: `PEERCALLS__BASE_URL=/test` - app will now be accessible at `localhost:3000/test`
  - Enable HTTPS: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
  - Disable HTTPS: `PEERCALLS__SSL=undefined`
- - Listen on a different port: `PORT=3001`
+ - Listen on a different port: `PORT=3001` (default is `3000`)
+ - Bind to specific IP or hostname: `BIND=127.0.0.1`
 
 See [config/default.yaml][config] for sample configuration.
 
