@@ -80,7 +80,7 @@ npm start
 npm run start:watch
 ```
 
-## Building Docker image
+## Building Docker Image
 
 ```bash
 git clone https://github.com/jeremija/peer-calls
@@ -119,8 +119,8 @@ variables. For example:
 
  - Set STUN/TURN servers: `PEERCALLS__ICE_SERVERS='[{"url": "stun:stun.l.google.com:19302", "urls": "stun:stun.l.google.com:19302"}]'
  - Change base url: `PEERCALLS__BASE_URL=/test`
- - Enable SSL: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
- - Enable SSL: `PEERCALLS__SSL=undefined`
+ - Enable HTTPS: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
+ - Disable HTTPS: `PEERCALLS__SSL=undefined`
 
 See [config/default.yaml][config] for sample configuration.
 
