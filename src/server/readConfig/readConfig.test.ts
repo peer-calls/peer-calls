@@ -198,11 +198,13 @@ describe('readConfig', () => {
     const config = readConfig({
       PEERCALLS__TEST_VALUE__SUB_VALUE_1: '1',
       PEERCALLS__TEST_VALUE__SUB_VALUE_2: JSON.stringify({a: 2}),
+      PEERCALLS__TEST_VALUE__SUB_VALUE_3: 'string',
     }, '/tmp', '/tmp')
     expect(config.value()).toEqual({
       testValue: {
         subValue1: 1,
         subValue2: {a: 2},
+        subValue3: 'string',
       },
     })
   })

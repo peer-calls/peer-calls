@@ -4,7 +4,7 @@ import { resolve, join } from 'path'
 import { safeLoad } from 'js-yaml'
 import _debug from 'debug'
 
-const debug = _debug('peercalls')
+const debug = _debug('peercalls:config')
 
 const isObject = (value: unknown) => value !== null && typeof value === 'object'
 
@@ -175,8 +175,15 @@ export function readConfig(
     .forEach(shortKey => {
       cfg = cfg[shortKey] = cfg[shortKey] || {}
     })
-    cfg[lastKey] = JSON.parse(value)
+
+    try {
+      cfg[lastKey] = JSON.parse(value)
+    } catch (err) {
+      cfg[lastKey] = value
+    }
   })
 
-  return new ReadConfig(mergeConfig(envConfig, config))
+  const configWithEnv = mergeConfig(envConfig, config)
+  debug('Read configuration: %j', configWithEnv)
+  return new ReadConfig(configWithEnv)
 }
