@@ -1,11 +1,12 @@
 import express from 'express'
-import http from 'http'
+import http, { RequestListener } from 'http'
 import https from 'https'
 import { createServer } from './server'
 
 describe('server', () => {
 
-  let app: Express.Application, config: any
+  let app: RequestListener
+  let config: any
   beforeEach(() => {
     config = {}
     app = express()

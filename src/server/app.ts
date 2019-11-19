@@ -17,7 +17,7 @@ debug(`WebSocket URL: ${SOCKET_URL}`)
 
 const app = express()
 const server = createServer(config, app)
-const io = SocketIO(server, { path: SOCKET_URL })
+export const io = SocketIO(server, { path: SOCKET_URL })
 
 app.set('x-powered-by', false)
 app.locals.version = require('../../package.json').version
