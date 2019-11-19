@@ -179,6 +179,19 @@ For more details, see here:
 - http://caniuse.com/#feat=rtcpeerconnection
 - http://caniuse.com/#search=getUserMedia
 
+# TODO
+
+- [x] Do not require config files and allow configuration via environment
+  variables. (Fixed in 23fabb0)
+- [x] Show menu dialog before connecting (Fixed in 0b4aa45)
+- [x] Reduce production build size by removing Pug. (Fixed in 2d14e5f c743f19)
+- [x] Add ability to share files (Fixed in 3877893)
+- [ ] Enable node cluster support (to scale vertically).
+- [ ] Add Socket.IO support for Redis (to scale horizontally).
+- [ ] Generate public keys for each client, and allow each client to accept,
+      deny, and remember allowed/denied connections to specific peers.
+- [ ] Add support for browser push notifications
+
 # Contributing
 
 See [Contributing](CONTRIBUTING.md) section.
