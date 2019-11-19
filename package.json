@@ -6,7 +6,7 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {
-    "peercalls": "./lib/index.js"
+    "peer-calls": "./lib/index.js"
   },
   "scripts": {
     "start": "node lib/index.js",
