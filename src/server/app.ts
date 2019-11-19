@@ -11,6 +11,7 @@ import index from './routes/index'
 import dot from 'express-dot-engine'
 
 const debug = _debug('peercalls')
+const logRequest = _debug('peercalls:requests')
 
 const BASE_URL: string = config.baseUrl
 const SOCKET_URL = `${BASE_URL}/ws`
@@ -28,6 +29,15 @@ app.engine('html', dot.__express)
 
 app.set('view engine', 'html')
 app.set('views', path.join(__dirname, '../../views'))
+
+app.use((req, res, next) => {
+  const start = Date.now()
+  res.on('finish', () => {
+    const duration = Date.now() - start
+    logRequest('%s %s %sms', req.method, req.originalUrl, duration)
+  })
+  next()
+})
 
 const router = express.Router()
 router.use('/res', express.static(path.join(__dirname, '../../res')))

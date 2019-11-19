@@ -134,17 +134,37 @@ unix domain socket.
 
 To access the server, go to http://localhost:3000 (or another port).
 
-# Testing
+# Logging
 
-```bash
-npm install
-npm test
+By default, Peer Calls server will log only basic information. Client-side
+logging is disabled by default.
+
+Server-side logs can be configured via the `DEBUG` environment variable. Setting
+it to `peercalls,peercalls:*` will enable all server-side logging:
+
+- `DEBUG=peercalls,peercalls:* npm run start:server`
+
+Client-side logs can be configured via `localStorage.DEBUG` and
+`localStorage.LOG` variables:
+
+- Setting `localStorage.LOG=1` enables logging of Redux actions and state
+  changes
+- Setting `localStorage.DEBUG=peercalls,peercalls:*` enables all other
+  client-side logging
+
+# Development
+
+Below are some common NPM scripts that are used for development:
+
 ```
-
-To run all tests and build production artifacts, run:
-
-```bash
-npm run ci
+npm start              start the precompiled server.
+npm run build          build all client-side resources.
+npm run start:server   start and compile server-side TypeScript on the fly,
+                       restarts the server when the resources change.
+npm run start:watch    start the server, and recompile client-side resources
+                       when the sources change.
+npm test               run all tests.
+npm run ci             run all linting, tests and build the client-side
 ```
 
 # Browser Support
