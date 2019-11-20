@@ -17,7 +17,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "js": "browserify ./lib/client/index.js -o ./build/index.prod.js",
+    "js": "browserify -g [ loose-envify purge --NODE_ENV production ] -t babelify ./lib/client/index.js -o ./build/index.prod.js",
     "js:watch": "watchify -p tsify ./src/client/index.tsx -v -d -o ./build/index.js",
     "js:uglify": "minify build/index.prod.js -o build/index.js",
     "css": "node-sass ./src/scss/style.scss -o ./build/",
