@@ -1,15 +1,15 @@
----
-layout: _layout.html
-title: Peer Call
----
-
-[[##body:
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Peer Call</title>
+  <%- include('./_header.html') %>
+</head>
 <body class="call">
-  <input type="hidden" id="baseUrl" value="[[=model.baseUrl]]">
-  <input type="hidden" id="callId" value="[[!model.callId]]">
-  <input type="hidden" id="iceServers" value='[[!JSON.stringify(model.iceServers)]]'>
+  <input type="hidden" id="baseUrl" value="<%= baseUrl %>">
+  <input type="hidden" id="callId" value="<%= callId %>">
+  <input type="hidden" id="iceServers" value='<%- JSON.stringify(iceServers) %>'>
   <div id="container"></div>
 
-  <script src="[[=model.baseUrl + '/static/index.js']]"></script>
+  <script src="<%= baseUrl + '/static/index.js' %>"></script>
 </body>
-#]]
+</html>
