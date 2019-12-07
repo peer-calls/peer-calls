@@ -4,16 +4,16 @@ describe('db', () => {
 
   const TEST_DB = 'TEST_DB'
 
-  async function getError(promise: Promise<unknown>): Promise<Error> {
-    let error: Error
-    try {
-      await promise
-    } catch (err) {
-      error = err
-    }
-    expect(error!).toBeTruthy()
-    return error!
-  }
+  // async function getError(promise: Promise<unknown>): Promise<Error> {
+  //   let error: Error
+  //   try {
+  //     await promise
+  //   } catch (err) {
+  //     error = err
+  //   }
+  //   expect(error!).toBeTruthy()
+  //   return error!
+  // }
 
   afterEach(async () => {
     db && db.close()
