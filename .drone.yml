@@ -9,3 +9,8 @@ steps:
     commands:
       - npm install
       - npm run ci
+---
+kind: signature
+hmac: a49a1e7c428472d0237bb2ba73511965607384f45114941b869c6a9eff7aef70
+
+...
