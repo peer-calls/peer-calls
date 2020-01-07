@@ -1,0 +1,11 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+steps:
+  - name: build
+    image: node:12
+    commands:
+      - npm install
+      - npm run ci
