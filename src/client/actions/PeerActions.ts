@@ -63,6 +63,10 @@ class PeerHandler {
       // we no longer automatically send the stream to the peer.
       peer.addStream(localStream.stream)
     }
+    const desktopStream = state.streams[constants.ME_DESKTOP]
+    if (desktopStream && desktopStream.stream) {
+      peer.addStream(desktopStream.stream)
+    }
   }
   handleStream = (stream: MediaStream) => {
     const { user, dispatch } = this

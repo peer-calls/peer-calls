@@ -1,5 +1,5 @@
 import { makeAction, AsyncAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM } from '../constants'
+import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, ME, ME_DESKTOP } from '../constants'
 import _debug from 'debug'
 
 const debug = _debug('peercalls')
@@ -66,6 +66,11 @@ async function getUserMedia(
   })
 }
 
+async function getDisplayMedia(): Promise<MediaStream> {
+  const mediaDevices = navigator.mediaDevices as any // eslint-disable-line
+  return mediaDevices.getDisplayMedia({video: true, audio: false})
+}
+
 export interface MediaVideoConstraintAction {
   type: 'MEDIA_VIDEO_CONSTRAINT_SET'
   payload: VideoConstraint
@@ -106,12 +111,33 @@ export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
     debug('getMediaStream', constraints)
-    return getUserMedia(constraints)
+    const payload: MediaStreamPayload = {
+      stream: await getUserMedia(constraints),
+      userId: ME,
+    }
+    return payload
   },
 )
 
+export const getDesktopStream = makeAction(
+  MEDIA_STREAM,
+  async () => {
+    debug('getDesktopStream')
+    const payload: MediaStreamPayload = {
+      stream: await getDisplayMedia(),
+      userId: ME_DESKTOP,
+    }
+    return payload
+  },
+)
+
+export interface MediaStreamPayload {
+  stream: MediaStream
+  userId: string
+}
+
 export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
-export type MediaStreamAction = AsyncAction<'MEDIA_STREAM', MediaStream>
+export type MediaStreamAction = AsyncAction<'MEDIA_STREAM', MediaStreamPayload>
 export type MediaPlayAction = AsyncAction<'MEDIA_PLAY', void>
 
 export type MediaAction =

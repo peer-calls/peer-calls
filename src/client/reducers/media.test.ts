@@ -1,5 +1,5 @@
 import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD } from '../constants'
+import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, ME_DESKTOP } from '../constants'
 import { createStore, Store } from '../store'
 import SimplePeer from 'simple-peer'
 
@@ -97,11 +97,12 @@ describe('media', () => {
       })
 
       async function dispatch() {
-        const promise = store.dispatch(MediaActions.getMediaStream({
+        const result = await store.dispatch(MediaActions.getMediaStream({
           audio: true,
           video: true,
         }))
-        expect(await promise).toBe(stream)
+        expect(result.stream).toBe(stream)
+        expect(result.userId).toBe(ME)
       }
 
       describe('reducers/streams', () => {
@@ -148,7 +149,7 @@ describe('media', () => {
           })
         })
 
-        it('replaces local stream on all peers', async () => {
+        it('replaces local camera stream on all peers', async () => {
           await dispatch()
           peers.forEach(peer => {
             expect((peer.addStream as jest.Mock).mock.calls)
@@ -183,9 +184,29 @@ describe('media', () => {
           })
           expect(promise.type).toBe('MEDIA_STREAM')
           expect(promise.status).toBe('pending')
-          expect(await promise).toBe(stream)
+          const result = await promise
+          expect(result.stream).toBe(stream)
+          expect(result.userId).toBe(ME)
         })
       })
+    })
+  })
+
+  describe('getDesktopStream (getDisplayMedia)', () => {
+    const stream: MediaStream = {} as MediaStream
+    beforeEach(() => {
+      (navigator.mediaDevices as any).getDisplayMedia = async () => stream
+    })
+    async function dispatch() {
+      const result = await store.dispatch(MediaActions.getDesktopStream())
+      expect(result.stream).toBe(stream)
+      expect(result.userId).toBe(ME_DESKTOP)
+    }
+    it('adds the local stream to the map of videos', async () => {
+      expect(store.getState().streams[ME_DESKTOP]).toBeFalsy()
+      await dispatch()
+      expect(store.getState().streams[ME_DESKTOP]).toBeTruthy()
+      expect(store.getState().streams[ME_DESKTOP].stream).toBe(stream)
     })
   })
 

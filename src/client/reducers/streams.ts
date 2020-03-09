@@ -1,9 +1,9 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
 import { AddStreamAction, AddStreamPayload, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, ME } from '../constants'
+import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
-import { MediaStreamAction } from '../actions/MediaActions'
+import { MediaStreamPayload, MediaStreamAction } from '../actions/MediaActions'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -52,14 +52,14 @@ function removeStream (
   return omit(state, [userId])
 }
 
-function replaceStream(state: StreamsState, stream: MediaStream): StreamsState {
+function replaceStream(
+  state: StreamsState,
+  payload: MediaStreamPayload,
+): StreamsState {
   state = removeStream(state, {
-    userId: ME,
+    userId: payload.userId,
   })
-  return addStream(state, {
-    userId: ME,
-    stream,
-  })
+  return addStream(state, payload)
 }
 
 export default function streams(

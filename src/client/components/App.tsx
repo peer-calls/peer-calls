@@ -13,6 +13,7 @@ import Notifications from './Notifications'
 import { Side } from './Side'
 import Toolbar from './Toolbar'
 import Video from './Video'
+import { getDesktopStream } from '../actions/MediaActions'
 
 export interface AppProps {
   active: string | null
@@ -25,6 +26,7 @@ export interface AppProps {
   play: () => void
   sendMessage: (message: TextMessage) => void
   streams: Record<string, AddStreamPayload>
+  getDesktopStream: typeof getDesktopStream
   removeStream: typeof removeStream
   onSendFile: (file: File) => void
   toggleActive: (userId: string) => void
@@ -34,6 +36,8 @@ export interface AppState {
   videos: Record<string, unknown>
   chatVisible: boolean
 }
+
+const localStreams: string[] = [constants.ME, constants.ME_DESKTOP]
 
 export default class App extends React.PureComponent<AppProps, AppState> {
   state: AppState = {
@@ -61,6 +65,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
   }
   onHangup = () => {
     this.props.removeStream(constants.ME)
+    this.props.removeStream(constants.ME_DESKTOP)
   }
   render () {
     const {
@@ -93,6 +98,9 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             onSendFile={onSendFile}
             onHangup={this.onHangup}
             stream={streams[constants.ME]}
+            desktopStream={streams[constants.ME_DESKTOP]}
+            onGetDesktopStream={this.props.getDesktopStream}
+            onRemoveStream={this.props.removeStream}
           />
         </Side>
         <Side className={chatVisibleClassName} top zIndex={1}>
@@ -109,19 +117,19 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           visible={this.state.chatVisible}
         />
         <div className={classnames('videos', chatVisibleClassName)}>
-          {streams[constants.ME] && (
+          {localStreams.map(userId => (
             <Video
               videos={videos}
-              active={active === constants.ME}
+              key={userId}
+              active={active === userId}
               onClick={toggleActive}
               play={play}
-              stream={streams[constants.ME]}
-              userId={constants.ME}
+              stream={streams[userId]}
+              userId={userId}
               muted
               mirrored
             />
-          )}
-
+          ))}
           {
             map(peers, (_, userId) => userId)
             .filter(stream => !!stream)

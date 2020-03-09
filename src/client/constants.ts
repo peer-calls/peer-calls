@@ -8,6 +8,7 @@ export const ALERT_CLEAR = 'ALERT_CLEAR'
 export const INIT = 'INIT'
 
 export const ME = '_me_'
+export const ME_DESKTOP = '_me_desktop'
 
 export const NOTIFY = 'NOTIFY'
 export const NOTIFY_DISMISS = 'NOTIFY_DISMISS'

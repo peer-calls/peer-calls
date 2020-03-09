@@ -9,7 +9,7 @@ export type PeersState = Record<string, Peer.Instance>
 
 const defaultState: PeersState = {}
 
-let localStream: MediaStream | undefined
+let localStreams: Record<string, MediaStream> = {}
 
 export default function peers(
   state = defaultState,
@@ -24,16 +24,18 @@ export default function peers(
     case constants.PEER_REMOVE:
       return omit(state, [action.payload.userId])
     case constants.PEERS_DESTROY:
-      localStream = undefined
+      localStreams = {}
       forEach(state, peer => peer.destroy())
       return defaultState
     case constants.MEDIA_STREAM:
       if (action.status === 'resolved') {
+        // userId can be ME or ME_DESKTOP
         forEach(state, peer => {
+          const localStream = localStreams[action.payload.userId]
           localStream && peer.removeStream(localStream)
-          peer.addStream(action.payload)
+          peer.addStream(action.payload.stream)
         })
-        localStream = action.payload
+        localStreams[action.payload.userId] = action.payload.stream
       }
       return state
     default:
