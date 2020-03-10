@@ -115,7 +115,7 @@ describe('App', () => {
         expect(dispatchSpy.mock.calls[0][0].type).toBe(constants.MEDIA_PLAY)
         expect(dispatchSpy.mock.calls.slice(1)).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
-          payload: { userId: constants.ME },
+          payload: { userId: constants.ME + '_0' },
         }]])
       })
     })
