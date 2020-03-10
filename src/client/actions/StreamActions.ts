@@ -20,17 +20,32 @@ export interface RemoveStreamAction {
 
 export interface RemoveStreamPayload {
   userId: string
-  stream?: MediaStream
+  stream: MediaStream
+}
+
+export interface SetActiveStreamPayload {
+  userId: string
 }
 
 export interface SetActiveStreamAction {
   type: 'ACTIVE_SET'
-  payload: RemoveStreamPayload
+  payload: SetActiveStreamPayload
 }
 
 export interface ToggleActiveStreamAction {
   type: 'ACTIVE_TOGGLE'
   payload: UserIdPayload
+}
+
+export interface RemoveStreamTrackPayload {
+  userId: string
+  stream: MediaStream
+  track: MediaStreamTrack
+}
+
+export interface RemoveStreamTrackAction {
+  type: 'PEER_STREAM_TRACK_REMOVE'
+  payload: RemoveStreamTrackPayload
 }
 
 export interface UserIdPayload {
@@ -44,10 +59,17 @@ export const addStream = (payload: AddStreamPayload): AddStreamAction => ({
 
 export const removeStream = (
   userId: string,
-  stream?: MediaStream,
+  stream: MediaStream,
 ): RemoveStreamAction => ({
   type: constants.STREAM_REMOVE,
   payload: { userId, stream },
+})
+
+export const removeTrack = (
+  payload: RemoveStreamTrackPayload,
+): RemoveStreamTrackAction => ({
+  type: constants.STREAM_TRACK_REMOVE,
+  payload,
 })
 
 export const setActive = (userId: string): SetActiveStreamAction => ({
@@ -64,4 +86,5 @@ export type StreamAction =
   AddStreamAction |
   RemoveStreamAction |
   SetActiveStreamAction |
-  ToggleActiveStreamAction
+  ToggleActiveStreamAction |
+  RemoveStreamTrackAction

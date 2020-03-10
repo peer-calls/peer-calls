@@ -4,6 +4,7 @@ import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
 import { MediaStreamAction } from '../actions/MediaActions'
+import { RemoveStreamAction } from '../actions/StreamActions'
 
 export type PeersState = Record<string, Peer.Instance>
 
@@ -11,9 +12,26 @@ const defaultState: PeersState = {}
 
 let localStreams: Record<string, MediaStream> = {}
 
+function handleRemoveStream(
+  state: PeersState,
+  action: RemoveStreamAction,
+): PeersState {
+  const stream = action.payload.stream
+  if (action.payload.userId === constants.ME) {
+    forEach(state, peer => {
+      console.log('removing track from peer')
+      stream.getTracks().forEach(track => {
+        peer.removeTrack(track, stream)
+      })
+    })
+  }
+
+  return state
+}
+
 export default function peers(
   state = defaultState,
-  action: PeerAction | MediaStreamAction,
+  action: PeerAction | MediaStreamAction | RemoveStreamAction,
 ): PeersState {
   switch (action.type) {
     case constants.PEER_ADD:
@@ -27,6 +45,8 @@ export default function peers(
       localStreams = {}
       forEach(state, peer => peer.destroy())
       return defaultState
+    case constants.STREAM_REMOVE:
+      return handleRemoveStream(state, action)
     case constants.MEDIA_STREAM:
       if (action.status === 'resolved') {
         forEach(state, peer => {

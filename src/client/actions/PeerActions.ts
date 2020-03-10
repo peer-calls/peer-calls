@@ -68,9 +68,20 @@ class PeerHandler {
   }
   handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
     const { user, dispatch } = this
-    debug('peer: %s, track', user.id)
+    const userId = user.id
+    debug('peer: %s, track', userId)
+    // Listen to mute event to know when a track was removed
+    // https://github.com/feross/simple-peer/issues/512
+    track.onmute = () => {
+      debug('peer: %s, track muted', userId)
+      dispatch(StreamActions.removeTrack({
+        userId,
+        stream,
+        track,
+      }))
+    }
     dispatch(StreamActions.addStream({
-      userId: user.id,
+      userId,
       stream,
     }))
   }
@@ -97,10 +108,13 @@ class PeerHandler {
     }
   }
   handleClose = () => {
-    const { dispatch, user } = this
-    debug('peer: %s, close', user.id)
+    const { dispatch, user, getState } = this
     dispatch(NotifyActions.error('Peer connection closed'))
-    dispatch(StreamActions.removeStream(user.id))
+    const state = getState()
+    const userStreams = state.streams[user.id]
+    userStreams && userStreams.streams.forEach(s => {
+      dispatch(StreamActions.removeStream(user.id, s.stream))
+    })
     dispatch(removePeer(user.id))
   }
 }

@@ -1,7 +1,7 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
-import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM } from '../constants'
+import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction } from '../actions/StreamActions'
+import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
 
@@ -99,6 +99,27 @@ function removeStream (
   return omit(state, [userId])
 }
 
+function removeStreamTrack(
+  state: StreamsState, payload: RemoveStreamTrackAction['payload'],
+): StreamsState {
+  const { userId, stream, track } = payload
+  const userStreams = state[userId]
+  if (!userStreams) {
+    return state
+  }
+  const index = userStreams.streams.map(s => s.stream).indexOf(stream)
+  if (index < 0) {
+    return state
+  }
+  stream.removeTrack(track)
+  if (stream.getTracks().length === 0) {
+    return removeStream(state, {userId, stream})
+  }
+  // UI does not update when a stream track is removed so there is no need to
+  // update the state object
+  return state
+}
+
 export default function streams(
   state = defaultState,
     action: StreamAction | MediaStreamAction,
@@ -108,6 +129,8 @@ export default function streams(
       return addStream(state, action.payload)
     case STREAM_REMOVE:
       return removeStream(state, action.payload)
+    case STREAM_TRACK_REMOVE:
+      return removeStreamTrack(state, action.payload)
     case MEDIA_STREAM:
       if (action.status === 'resolved') {
         return addStream(state, action.payload)

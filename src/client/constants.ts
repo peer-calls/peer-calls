@@ -37,6 +37,7 @@ export const SOCKET_EVENT_USERS = 'users'
 
 export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'
+export const STREAM_TRACK_REMOVE = 'PEER_STREAM_TRACK_REMOVE'
 
 export const STREAM_TYPE_CAMERA = 'camera'
 export const STREAM_TYPE_DESKTOP = 'desktop'

@@ -57,11 +57,11 @@ describe('reducers/alerts', () => {
   describe('removeStream', () => {
     it('removes a stream', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
-      store.dispatch(StreamActions.removeStream(userId))
+      store.dispatch(StreamActions.removeStream(userId, stream))
       expect(store.getState().streams).toEqual({})
     })
     it('does not fail when no stream', () => {
-      store.dispatch(StreamActions.removeStream(userId))
+      store.dispatch(StreamActions.removeStream(userId, stream))
     })
   })
 

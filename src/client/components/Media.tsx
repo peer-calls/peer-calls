@@ -24,7 +24,6 @@ function mapStateToProps(state: State) {
   const hidden = !!localStream &&
     localStream.streams.filter(s => s.type === STREAM_TYPE_CAMERA).length > 0
   const visible = !hidden
-  console.log('visible', visible)
   return {
     ...state.media,
     visible,

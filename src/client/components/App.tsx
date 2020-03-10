@@ -63,7 +63,16 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     init()
   }
   onHangup = () => {
-    this.props.removeStream(constants.ME)
+    const localStreams = this.getLocalStreams()
+    localStreams.streams.forEach(s => {
+      this.props.removeStream(constants.ME, s.stream)
+    })
+  }
+  getLocalStreams() {
+    return this.props.streams[constants.ME] || {
+      userId: constants.ME,
+      streams: [],
+    }
   }
   render () {
     const {
@@ -86,10 +95,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       'chat-visible': this.state.chatVisible,
     })
 
-    const localStreams = streams[constants.ME] || {
-      userId: constants.ME,
-      streams: [],
-    }
+    const localStreams = this.getLocalStreams()
 
     return (
       <div className="app">
