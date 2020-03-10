@@ -5,7 +5,7 @@ import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
 import { TextMessage } from '../actions/PeerActions'
-import { AddStreamPayload, removeStream } from '../actions/StreamActions'
+import { removeStream } from '../actions/StreamActions'
 import * as constants from '../constants'
 import Chat from './Chat'
 import { Media } from './Media'
@@ -13,6 +13,8 @@ import Notifications from './Notifications'
 import { Side } from './Side'
 import Toolbar from './Toolbar'
 import Video from './Video'
+import { getDesktopStream } from '../actions/MediaActions'
+import { StreamsState } from '../reducers/streams'
 
 export interface AppProps {
   active: string | null
@@ -24,7 +26,8 @@ export interface AppProps {
   peers: Record<string, Peer.Instance>
   play: () => void
   sendMessage: (message: TextMessage) => void
-  streams: Record<string, AddStreamPayload>
+  streams: StreamsState
+  getDesktopStream: typeof getDesktopStream
   removeStream: typeof removeStream
   onSendFile: (file: File) => void
   toggleActive: (userId: string) => void
@@ -60,7 +63,16 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     init()
   }
   onHangup = () => {
-    this.props.removeStream(constants.ME)
+    const localStreams = this.getLocalStreams()
+    localStreams.streams.forEach(s => {
+      this.props.removeStream(constants.ME, s.stream)
+    })
+  }
+  getLocalStreams() {
+    return this.props.streams[constants.ME] || {
+      userId: constants.ME,
+      streams: [],
+    }
   }
   render () {
     const {
@@ -83,6 +95,8 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       'chat-visible': this.state.chatVisible,
     })
 
+    const localStreams = this.getLocalStreams()
+
     return (
       <div className="app">
         <Side align='flex-end' left zIndex={2}>
@@ -92,7 +106,16 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}
             onHangup={this.onHangup}
-            stream={streams[constants.ME]}
+            stream={
+              localStreams.streams
+              .filter(s => s.type === constants.STREAM_TYPE_CAMERA)[0]
+            }
+            desktopStream={
+              localStreams.streams
+              .filter(s => s.type === constants.STREAM_TYPE_DESKTOP)[0]
+            }
+            onGetDesktopStream={this.props.getDesktopStream}
+            onRemoveStream={this.props.removeStream}
           />
         </Side>
         <Side className={chatVisibleClassName} top zIndex={1}>
@@ -109,33 +132,43 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           visible={this.state.chatVisible}
         />
         <div className={classnames('videos', chatVisibleClassName)}>
-          {streams[constants.ME] && (
-            <Video
-              videos={videos}
-              active={active === constants.ME}
-              onClick={toggleActive}
-              play={play}
-              stream={streams[constants.ME]}
-              userId={constants.ME}
-              muted
-              mirrored
-            />
-          )}
-
+          {localStreams.streams.map((s, i) => {
+            const key = localStreams.userId + '_' + i
+            return (
+              <Video
+                videos={videos}
+                key={key}
+                active={active === key}
+                onClick={toggleActive}
+                play={play}
+                stream={s}
+                userId={key}
+                muted
+                mirrored={s.type === 'camera'}
+              />
+            )
+          })}
           {
             map(peers, (_, userId) => userId)
             .filter(stream => !!stream)
-            .map(userId =>
-              <Video
-                active={userId === active}
-                key={userId}
-                onClick={toggleActive}
-                play={play}
-                stream={streams[userId]}
-                userId={userId}
-                videos={videos}
-              />,
-            )
+            .map(userId => streams[userId])
+            .filter(userStreams => !!userStreams)
+            .map(userStreams => {
+              return userStreams.streams.map((s, i) => {
+                const key = userStreams.userId + '_' + i
+                return (
+                  <Video
+                    active={key === active}
+                    key={key}
+                    onClick={toggleActive}
+                    play={play}
+                    stream={s}
+                    userId={key}
+                    videos={videos}
+                  />
+                )
+              })
+            })
           }
         </div>
       </div>

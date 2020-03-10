@@ -136,13 +136,16 @@ describe('SocketActions', () => {
             }]
           },
         }
-        peer.emit(constants.PEER_EVENT_STREAM, stream)
+        peer.emit(constants.PEER_EVENT_TRACK, stream.getTracks()[0], stream)
 
         expect(store.getState().streams).toEqual({
           b: {
             userId: 'b',
-            stream,
-            url: jasmine.any(String),
+            streams: [{
+              stream,
+              type: undefined,
+              url: jasmine.any(String),
+            }],
           },
         })
       })
@@ -151,12 +154,18 @@ describe('SocketActions', () => {
     describe('close', () => {
       beforeEach(() => {
         const stream = new MediaStream()
-        peer.emit(constants.PEER_EVENT_STREAM, stream)
+        const track = {} as unknown as MediaStreamTrack
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
+        // test stream with two tracks
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
         expect(store.getState().streams).toEqual({
           b: {
             userId: 'b',
-            stream,
-            url: jasmine.any(String),
+            streams: [{
+              stream,
+              type: undefined,
+              url: jasmine.any(String),
+            }],
           },
         })
       })

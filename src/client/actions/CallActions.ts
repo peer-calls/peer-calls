@@ -1,7 +1,6 @@
 import socket from '../socket'
-import { Dispatch, ThunkResult } from '../store'
+import { ThunkResult } from '../store'
 import { callId } from '../window'
-import { ClientSocket } from '../socket'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 
@@ -20,23 +19,15 @@ const initialize = (): InitializeAction => ({
 
 export const init = (): ThunkResult<Promise<void>> =>
 async (dispatch, getState) => {
-  const socket = await dispatch(connect())
-
-  dispatch(SocketActions.handshake({
-    socket,
-    roomName: callId,
-  }))
-
-  dispatch(initialize())
-}
-
-export const connect = () => (dispatch: Dispatch) => {
-  return new Promise<ClientSocket>(resolve => {
-    socket.once('connect', () => {
-      resolve(socket)
-    })
+  return new Promise(resolve => {
     socket.on('connect', () => {
       dispatch(NotifyActions.warning('Connected to server socket'))
+      dispatch(SocketActions.handshake({
+        socket,
+        roomName: callId,
+      }))
+      dispatch(initialize())
+      resolve()
     })
     socket.on('disconnect', () => {
       dispatch(NotifyActions.error('Server socket disconnected'))

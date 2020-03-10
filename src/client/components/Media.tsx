@@ -5,7 +5,7 @@ import { MediaState } from '../reducers/media'
 import { State } from '../store'
 import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
-import { ME } from '../constants'
+import { ME, STREAM_TYPE_CAMERA } from '../constants'
 
 export type MediaProps = MediaState & {
   visible: boolean
@@ -21,7 +21,9 @@ export type MediaProps = MediaState & {
 
 function mapStateToProps(state: State) {
   const localStream = state.streams[ME]
-  const visible = !localStream
+  const hidden = !!localStream &&
+    localStream.streams.filter(s => s.type === STREAM_TYPE_CAMERA).length > 0
+  const visible = !hidden
   return {
     ...state.media,
     visible,

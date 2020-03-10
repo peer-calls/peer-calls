@@ -79,13 +79,19 @@ describe('App', () => {
       state.streams = {
         [constants.ME]: {
           userId: constants.ME,
-          stream: new MediaStream(),
-          url: 'blob://',
+          streams: [{
+            stream: new MediaStream(),
+            type: constants.STREAM_TYPE_CAMERA,
+            url: 'blob://',
+          }],
         },
         'other-user': {
           userId: 'other-user',
-          stream: new MediaStream(),
-          url: 'blob://',
+          streams: [{
+            stream: new MediaStream(),
+            type: undefined,
+            url: 'blob://',
+          }],
         },
       }
       state.peers = {
@@ -109,7 +115,7 @@ describe('App', () => {
         expect(dispatchSpy.mock.calls[0][0].type).toBe(constants.MEDIA_PLAY)
         expect(dispatchSpy.mock.calls.slice(1)).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
-          payload: { userId: constants.ME },
+          payload: { userId: constants.ME + '_0' },
         }]])
       })
     })

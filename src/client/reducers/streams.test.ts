@@ -35,8 +35,11 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         [userId]: {
           userId,
-          stream: stream,
-          url: jasmine.any(String),
+          streams: [{
+            stream,
+            url: jasmine.any(String),
+            type: undefined,
+          }],
         },
       })
     })
@@ -47,8 +50,11 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         [userId]: {
           userId,
-          stream: stream,
-          url: undefined,
+          streams: [{
+            stream,
+            type: undefined,
+            url: undefined,
+          }],
         },
       })
     })
@@ -57,12 +63,16 @@ describe('reducers/alerts', () => {
   describe('removeStream', () => {
     it('removes a stream', () => {
       store.dispatch(StreamActions.addStream({ userId, stream }))
-      store.dispatch(StreamActions.removeStream(userId))
+      store.dispatch(StreamActions.removeStream(userId, stream))
       expect(store.getState().streams).toEqual({})
     })
     it('does not fail when no stream', () => {
-      store.dispatch(StreamActions.removeStream(userId))
+      store.dispatch(StreamActions.removeStream(userId, stream))
     })
+  })
+
+  describe('removeStreamTrack', () => {
+
   })
 
 })

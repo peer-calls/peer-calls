@@ -75,6 +75,8 @@ describe('CallActions', () => {
           type: 'warning',
         },
       }, {
+        type: constants.INIT,
+      }, {
         type: constants.NOTIFY,
         payload: {
           id: jasmine.any(String),

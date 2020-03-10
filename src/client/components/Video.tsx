@@ -1,13 +1,13 @@
 import React, { ReactEventHandler } from 'react'
 import classnames from 'classnames'
 import socket from '../socket'
-import { AddStreamPayload } from '../actions/StreamActions'
+import { StreamWithURL } from '../reducers/streams'
 
 export interface VideoProps {
   videos: Record<string, unknown>
   onClick: (userId: string) => void
   active: boolean
-  stream?: AddStreamPayload
+  stream?: StreamWithURL
   userId: string
   muted: boolean
   mirrored: boolean

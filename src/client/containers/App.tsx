@@ -1,6 +1,6 @@
 import { connect } from 'react-redux'
 import { init } from '../actions/CallActions'
-import { play } from '../actions/MediaActions'
+import { getDesktopStream, play } from '../actions/MediaActions'
 import { dismissNotification } from '../actions/NotifyActions'
 import { sendFile, sendMessage } from '../actions/PeerActions'
 import { toggleActive, removeStream } from '../actions/StreamActions'
@@ -22,6 +22,7 @@ const mapDispatchToProps = {
   toggleActive,
   sendMessage,
   dismissNotification,
+  getDesktopStream,
   removeStream,
   init,
   onSendFile: sendFile,

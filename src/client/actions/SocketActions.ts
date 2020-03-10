@@ -88,6 +88,10 @@ export function handshake (options: HandshakeOptions) {
       getState,
     })
 
+    // remove listeneres to make seocket reusable
+    socket.removeListener(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
+    socket.removeListener(constants.SOCKET_EVENT_USERS, handler.handleUsers)
+
     socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
     socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
 

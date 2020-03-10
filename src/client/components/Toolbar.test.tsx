@@ -2,9 +2,12 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import Toolbar, { ToolbarProps } from './Toolbar'
+import { getDesktopStream } from '../actions/MediaActions'
+import { AddStreamPayload, removeStream } from '../actions/StreamActions'
+import { STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
+import { StreamWithURL } from '../reducers/streams'
 import { MediaStream } from '../window'
-import { AddStreamPayload } from '../actions/StreamActions'
+import Toolbar, { ToolbarProps } from './Toolbar'
 
 describe('components/Toolbar', () => {
 
@@ -15,15 +18,19 @@ describe('components/Toolbar', () => {
   class ToolbarWrapper extends React.PureComponent<ToolbarProps, StreamState> {
     state = {
       stream: null,
+      desktopStream: null,
     }
     render () {
       return <Toolbar
         chatVisible={this.props.chatVisible}
         onToggleChat={this.props.onToggleChat}
         onHangup={this.props.onHangup}
+        onGetDesktopStream={this.props.onGetDesktopStream}
+        onRemoveStream={this.props.onRemoveStream}
         onSendFile={this.props.onSendFile}
         messagesCount={this.props.messagesCount}
         stream={this.state.stream || this.props.stream}
+        desktopStream={this.state.desktopStream || this.props.desktopStream}
       />
     }
   }
@@ -34,12 +41,22 @@ describe('components/Toolbar', () => {
   let onToggleChat: jest.Mock<() => void>
   let onSendFile: jest.Mock<(file: File) => void>
   let onHangup: jest.Mock<() => void>
+  let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
+  let onRemoveStream: jest.MockedFunction<typeof removeStream>
+  let desktopStream: StreamWithURL | undefined
   async function render () {
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
     onSendFile = jest.fn()
     onHangup = jest.fn()
+    onGetDesktopStream = jest.fn().mockImplementation(() => Promise.resolve())
+    onRemoveStream = jest.fn()
     const div = document.createElement('div')
+    const stream: StreamWithURL = {
+      stream: mediaStream,
+      type: STREAM_TYPE_CAMERA,
+      url,
+    }
     await new Promise<ToolbarWrapper>(resolve => {
       ReactDOM.render(
         <ToolbarWrapper
@@ -49,7 +66,10 @@ describe('components/Toolbar', () => {
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
           messagesCount={1}
-          stream={{ userId: '', stream: mediaStream, url }}
+          stream={stream}
+          desktopStream={desktopStream}
+          onGetDesktopStream={onGetDesktopStream}
+          onRemoveStream={onRemoveStream}
         />,
         div,
       )
@@ -133,6 +153,28 @@ describe('components/Toolbar', () => {
       expect(hangup).toBeDefined()
       TestUtils.Simulate.click(hangup)
       expect(onHangup.mock.calls.length).toBe(1)
+    })
+  })
+
+  describe('desktop sharing', () => {
+    it('starts desktop sharing', async () => {
+      const shareDesktop = node.querySelector('.stream-desktop')!
+      expect(shareDesktop).toBeDefined()
+      TestUtils.Simulate.click(shareDesktop)
+      await Promise.resolve()
+      expect(onGetDesktopStream.mock.calls.length).toBe(1)
+    })
+    it('stops desktop sharing', async () => {
+      desktopStream = {
+        stream: new MediaStream(),
+        type: STREAM_TYPE_DESKTOP,
+      }
+      await render()
+      const shareDesktop = node.querySelector('.stream-desktop')!
+      expect(shareDesktop).toBeDefined()
+      TestUtils.Simulate.click(shareDesktop)
+      await Promise.resolve()
+      expect(onRemoveStream.mock.calls.length).toBe(1)
     })
   })
 

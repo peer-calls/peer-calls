@@ -1,7 +1,10 @@
 import classnames from 'classnames'
 import React from 'react'
 import screenfull from 'screenfull'
-import { AddStreamPayload } from '../actions/StreamActions'
+import { removeStream } from '../actions/StreamActions'
+import { getDesktopStream } from '../actions/MediaActions'
+import { StreamWithURL } from '../reducers/streams'
+import { ME } from '../constants'
 
 const hidden = {
   display: 'none',
@@ -9,8 +12,11 @@ const hidden = {
 
 export interface ToolbarProps {
   messagesCount: number
-  stream: AddStreamPayload
+  stream: StreamWithURL
+  desktopStream: StreamWithURL | undefined
   onToggleChat: () => void
+  onGetDesktopStream: typeof getDesktopStream
+  onRemoveStream: typeof removeStream
   onSendFile: (file: File) => void
   onHangup: () => void
   chatVisible: boolean
@@ -113,6 +119,13 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
     })
     this.props.onToggleChat()
   }
+  handleToggleShareDesktop = () => {
+    if (this.props.desktopStream) {
+      this.props.onRemoveStream(ME, this.props.desktopStream.stream)
+    } else {
+      this.props.onGetDesktopStream().catch(() => {})
+    }
+  }
   render () {
     const { messagesCount, stream } = this.props
     const unreadCount = messagesCount - this.state.readMessages
@@ -143,6 +156,14 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           icon='icon-file-text2'
           onClick={this.handleSendFile}
           title='Send File'
+        />
+
+        <ToolbarButton
+          className='stream-desktop'
+          icon='icon-display'
+          onClick={this.handleToggleShareDesktop}
+          on={!!this.props.desktopStream}
+          title='Share Desktop'
         />
 
         {stream && (

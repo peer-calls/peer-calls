@@ -32,6 +32,9 @@ window.navigator.mediaDevices.enumerateDevices = async () => {
 window.navigator.mediaDevices.getUserMedia = async () => {
   return {} as any
 }
+(window.navigator.mediaDevices as any).getDisplayMedia = async () => {
+  return {} as any
+}
 
 export const play = jest.fn()
 

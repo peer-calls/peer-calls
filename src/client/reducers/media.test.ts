@@ -1,5 +1,7 @@
+jest.mock('simple-peer')
+
 import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD } from '../constants'
+import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import { createStore, Store } from '../store'
 import SimplePeer from 'simple-peer'
 
@@ -89,7 +91,12 @@ describe('media', () => {
   })
 
   describe(MEDIA_STREAM, () => {
-    const stream: MediaStream = {} as MediaStream
+    const track: MediaStreamTrack = {} as unknown as MediaStreamTrack
+    const stream: MediaStream = {
+      getTracks() {
+        return [track]
+      },
+    } as MediaStream
     describe('using navigator.mediaDevices.getUserMedia', () => {
 
       beforeEach(() => {
@@ -97,29 +104,30 @@ describe('media', () => {
       })
 
       async function dispatch() {
-        const promise = store.dispatch(MediaActions.getMediaStream({
+        const result = await store.dispatch(MediaActions.getMediaStream({
           audio: true,
           video: true,
         }))
-        expect(await promise).toBe(stream)
+        expect(result.stream).toBe(stream)
+        expect(result.type).toBe(STREAM_TYPE_CAMERA)
+        expect(result.userId).toBe(ME)
       }
 
       describe('reducers/streams', () => {
         it('adds the local stream to the map of videos', async () => {
           expect(store.getState().streams[ME]).toBeFalsy()
           await dispatch()
-          expect(store.getState().streams[ME]).toBeTruthy()
-          expect(store.getState().streams[ME].stream).toBe(stream)
+          const localStreams = store.getState().streams[ME]
+          expect(localStreams).toBeTruthy()
+          expect(localStreams.streams.length).toBe(1)
+          expect(localStreams.streams[0].type).toBe(STREAM_TYPE_CAMERA)
+          expect(localStreams.streams[0].stream).toBe(stream)
         })
       })
 
       describe('reducers/peers', () => {
         const peer1 = new SimplePeer()
-        peer1.addStream = jest.fn()
-        peer1.removeStream = jest.fn()
         const peer2 = new SimplePeer()
-        peer2.addStream = jest.fn()
-        peer2.removeStream = jest.fn()
         const peers = [peer1, peer2]
 
         beforeEach(() => {
@@ -148,19 +156,19 @@ describe('media', () => {
           })
         })
 
-        it('replaces local stream on all peers', async () => {
+        it('adds local camera stream to all peers', async () => {
           await dispatch()
           peers.forEach(peer => {
-            expect((peer.addStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ]])
-            expect((peer.removeStream as jest.Mock).mock.calls).toEqual([])
+            expect((peer.addTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ]])
+            expect((peer.removeTrack as any).mock.calls).toEqual([])
           })
           await dispatch()
           peers.forEach(peer => {
-            expect((peer.addStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ], [ stream ]])
-            expect((peer.removeStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ]])
+            expect((peer.addTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ], [ track, stream ]])
+            expect((peer.removeTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ]])
           })
         })
       })
@@ -183,9 +191,33 @@ describe('media', () => {
           })
           expect(promise.type).toBe('MEDIA_STREAM')
           expect(promise.status).toBe('pending')
-          expect(await promise).toBe(stream)
+          const result = await promise
+          expect(result.stream).toBe(stream)
+          expect(result.userId).toBe(ME)
         })
       })
+    })
+  })
+
+  describe('getDesktopStream (getDisplayMedia)', () => {
+    const stream: MediaStream = {} as MediaStream
+    beforeEach(() => {
+      (navigator.mediaDevices as any).getDisplayMedia = async () => stream
+    })
+    async function dispatch() {
+      const result = await store.dispatch(MediaActions.getDesktopStream())
+      expect(result.stream).toBe(stream)
+      expect(result.type).toBe(STREAM_TYPE_DESKTOP)
+      expect(result.userId).toBe(ME)
+    }
+    it('adds the local stream to the map of videos', async () => {
+      expect(store.getState().streams[ME]).toBeFalsy()
+      await dispatch()
+      const localStreams = store.getState().streams[ME]
+      expect(localStreams).toBeTruthy()
+      expect(localStreams.streams.length).toBe(1)
+      expect(localStreams.streams[0].type).toBe(STREAM_TYPE_DESKTOP)
+      expect(localStreams.streams[0].stream).toBe(stream)
     })
   })
 
