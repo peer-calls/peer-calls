@@ -117,7 +117,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           visible={this.state.chatVisible}
         />
         <div className={classnames('videos', chatVisibleClassName)}>
-          {localStreams.map(userId => (
+          {localStreams.filter(userId => !!streams[userId]).map(userId => (
             <Video
               videos={videos}
               key={userId}
@@ -127,7 +127,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
               stream={streams[userId]}
               userId={userId}
               muted
-              mirrored
+              mirrored={userId == constants.ME}
             />
           ))}
           {
