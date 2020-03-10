@@ -49,7 +49,7 @@ describe('components/Toolbar', () => {
     onToggleChat = jest.fn()
     onSendFile = jest.fn()
     onHangup = jest.fn()
-    onGetDesktopStream = jest.fn()
+    onGetDesktopStream = jest.fn().mockImplementation(() => Promise.resolve())
     onRemoveStream = jest.fn()
     const div = document.createElement('div')
     const stream: StreamWithURL = {
@@ -170,7 +170,7 @@ describe('components/Toolbar', () => {
         type: STREAM_TYPE_DESKTOP,
       }
       await render()
-      const shareDesktop = node.querySelector('.share-desktop')!
+      const shareDesktop = node.querySelector('.stream-desktop')!
       expect(shareDesktop).toBeDefined()
       TestUtils.Simulate.click(shareDesktop)
       await Promise.resolve()
