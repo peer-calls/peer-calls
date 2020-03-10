@@ -22,7 +22,6 @@ function handleRemoveStream(
   const stream = action.payload.stream
   if (action.payload.userId === constants.ME) {
     forEach(state, peer => {
-      console.log('removing track from peer')
       stream.getTracks().forEach(track => {
         peer.removeTrack(track, stream)
       })

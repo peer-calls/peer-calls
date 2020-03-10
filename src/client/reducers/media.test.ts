@@ -1,3 +1,5 @@
+jest.mock('simple-peer')
+
 import * as MediaActions from '../actions/MediaActions'
 import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import { createStore, Store } from '../store'
@@ -89,7 +91,12 @@ describe('media', () => {
   })
 
   describe(MEDIA_STREAM, () => {
-    const stream: MediaStream = {} as MediaStream
+    const track: MediaStreamTrack = {} as unknown as MediaStreamTrack
+    const stream: MediaStream = {
+      getTracks() {
+        return [track]
+      },
+    } as MediaStream
     describe('using navigator.mediaDevices.getUserMedia', () => {
 
       beforeEach(() => {
@@ -120,11 +127,7 @@ describe('media', () => {
 
       describe('reducers/peers', () => {
         const peer1 = new SimplePeer()
-        peer1.addStream = jest.fn()
-        peer1.removeStream = jest.fn()
         const peer2 = new SimplePeer()
-        peer2.addStream = jest.fn()
-        peer2.removeStream = jest.fn()
         const peers = [peer1, peer2]
 
         beforeEach(() => {
@@ -153,19 +156,19 @@ describe('media', () => {
           })
         })
 
-        it('replaces local camera stream on all peers', async () => {
+        it('adds local camera stream to all peers', async () => {
           await dispatch()
           peers.forEach(peer => {
-            expect((peer.addStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ]])
-            expect((peer.removeStream as jest.Mock).mock.calls).toEqual([])
+            expect((peer.addTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ]])
+            expect((peer.removeTrack as any).mock.calls).toEqual([])
           })
           await dispatch()
           peers.forEach(peer => {
-            expect((peer.addStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ], [ stream ]])
-            expect((peer.removeStream as jest.Mock).mock.calls)
-            .toEqual([[ stream ]])
+            expect((peer.addTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ], [ track, stream ]])
+            expect((peer.removeTrack as jest.Mock).mock.calls)
+            .toEqual([[ track, stream ]])
           })
         })
       })

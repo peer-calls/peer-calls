@@ -65,4 +65,8 @@ describe('reducers/alerts', () => {
     })
   })
 
+  describe('removeStreamTrack', () => {
+
+  })
+
 })
