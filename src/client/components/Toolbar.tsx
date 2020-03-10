@@ -123,7 +123,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
     if (this.props.desktopStream) {
       this.props.onRemoveStream(ME_DESKTOP)
     } else {
-      this.props.onGetDesktopStream()
+      this.props.onGetDesktopStream().catch(() => {})
     }
   }
   render () {
