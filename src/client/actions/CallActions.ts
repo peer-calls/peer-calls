@@ -19,15 +19,18 @@ const initialize = (): InitializeAction => ({
 
 export const init = (): ThunkResult<Promise<void>> =>
 async (dispatch, getState) => {
-  socket.on('connect', () => {
-    dispatch(NotifyActions.warning('Connected to server socket'))
-    dispatch(SocketActions.handshake({
-      socket,
-      roomName: callId,
-    }))
-    dispatch(initialize())
-  })
-  socket.on('disconnect', () => {
-    dispatch(NotifyActions.error('Server socket disconnected'))
+  return new Promise(resolve => {
+    socket.on('connect', () => {
+      dispatch(NotifyActions.warning('Connected to server socket'))
+      dispatch(SocketActions.handshake({
+        socket,
+        roomName: callId,
+      }))
+      dispatch(initialize())
+      resolve()
+    })
+    socket.on('disconnect', () => {
+      dispatch(NotifyActions.error('Server socket disconnected'))
+    })
   })
 }
