@@ -43,6 +43,7 @@ function addStream (
   }
 
   if (userStreams.streams.map(s => s.stream).indexOf(stream) >= 0) {
+    console.log('stream already found')
     return state
   }
 
