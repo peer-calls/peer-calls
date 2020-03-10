@@ -136,7 +136,7 @@ describe('SocketActions', () => {
             }]
           },
         }
-        peer.emit(constants.PEER_EVENT_STREAM, stream)
+        peer.emit(constants.PEER_EVENT_TRACK, stream.getTracks()[0], stream)
 
         expect(store.getState().streams).toEqual({
           b: {
@@ -151,7 +151,8 @@ describe('SocketActions', () => {
     describe('close', () => {
       beforeEach(() => {
         const stream = new MediaStream()
-        peer.emit(constants.PEER_EVENT_STREAM, stream)
+        const track = new MediaStreamTrack()
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
         expect(store.getState().streams).toEqual({
           b: {
             userId: 'b',

@@ -12,7 +12,7 @@ export default function notifications (
   action: AnyAction,
 ) {
   if (isRejectedAction(action)) {
-    action = error(action.payload)
+    action = error('' + action.payload)
   }
   return handleNotifications(state, action)
 }

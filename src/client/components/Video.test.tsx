@@ -2,14 +2,15 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import { AddStreamPayload } from '../actions/StreamActions'
 import Video, { VideoProps } from './Video'
 import { MediaStream } from '../window'
+import { STREAM_TYPE_CAMERA } from '../constants'
+import { StreamWithURL } from '../reducers/streams'
 
 describe('components/Video', () => {
 
   interface VideoState {
-    stream: null | AddStreamPayload
+    stream: null | StreamWithURL
   }
 
   const play = jest.fn()
@@ -61,12 +62,17 @@ describe('components/Video', () => {
     mediaStream = new MediaStream()
     const div = document.createElement('div')
     component = await new Promise<VideoWrapper>(resolve => {
+      const stream: StreamWithURL = {
+        stream: mediaStream,
+        url,
+        type: STREAM_TYPE_CAMERA,
+      }
       ReactDOM.render(
         <VideoWrapper
           ref={instance => resolve(instance!)}
           videos={videos}
           active={flags.active}
-          stream={{ stream: mediaStream, url, userId: 'test' }}
+          stream={stream}
           onClick={onClick}
           play={play}
           userId="test"
@@ -100,22 +106,38 @@ describe('components/Video', () => {
       it('updates src only when changed', () => {
         mediaStream = new MediaStream()
         component.setState({
-          stream: { url: 'test', stream: mediaStream, userId: '' },
+          stream: {
+            url: 'test',
+            stream: mediaStream,
+            type: STREAM_TYPE_CAMERA,
+          },
         })
         expect(video.videoRef.current!.src).toBe('http://localhost/test')
         component.setState({
-          stream: { url: 'test', stream: mediaStream, userId: '' },
+          stream: {
+            url: 'test',
+            stream: mediaStream,
+            type: STREAM_TYPE_CAMERA,
+          },
         })
       })
       it('updates srcObject only when changed', () => {
         video.videoRef.current!.srcObject = null
         mediaStream = new MediaStream()
         component.setState({
-          stream: { url: 'test', stream: mediaStream, userId: '' },
+          stream: {
+            url: 'test',
+            stream: mediaStream,
+            type: STREAM_TYPE_CAMERA,
+          },
         })
         expect(video.videoRef.current!.srcObject).toBe(mediaStream)
         component.setState({
-          stream: { url: 'test', stream: mediaStream, userId: '' },
+          stream: {
+            url: 'test',
+            stream: mediaStream,
+            type: STREAM_TYPE_CAMERA,
+          },
         })
       })
     })

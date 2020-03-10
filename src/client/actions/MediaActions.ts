@@ -1,6 +1,7 @@
 import { makeAction, AsyncAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, ME, ME_DESKTOP } from '../constants'
+import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, ME, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import _debug from 'debug'
+import { AddStreamPayload } from './StreamActions'
 
 const debug = _debug('peercalls')
 
@@ -111,8 +112,9 @@ export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
     debug('getMediaStream', constraints)
-    const payload: MediaStreamPayload = {
+    const payload: AddStreamPayload = {
       stream: await getUserMedia(constraints),
+      type: STREAM_TYPE_CAMERA,
       userId: ME,
     }
     return payload
@@ -123,21 +125,17 @@ export const getDesktopStream = makeAction(
   MEDIA_STREAM,
   async () => {
     debug('getDesktopStream')
-    const payload: MediaStreamPayload = {
+    const payload: AddStreamPayload = {
       stream: await getDisplayMedia(),
-      userId: ME_DESKTOP,
+      type: STREAM_TYPE_DESKTOP,
+      userId: ME,
     }
     return payload
   },
 )
 
-export interface MediaStreamPayload {
-  stream: MediaStream
-  userId: string
-}
-
 export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
-export type MediaStreamAction = AsyncAction<'MEDIA_STREAM', MediaStreamPayload>
+export type MediaStreamAction = AsyncAction<'MEDIA_STREAM', AddStreamPayload>
 export type MediaPlayAction = AsyncAction<'MEDIA_PLAY', void>
 
 export type MediaAction =

@@ -1,9 +1,11 @@
 import * as constants from '../constants'
 
+export type StreamType = 'camera' | 'desktop'
+
 export interface AddStreamPayload {
   userId: string
+  type?: StreamType
   stream: MediaStream
-  url?: string
 }
 
 export interface AddStreamAction {
@@ -18,6 +20,7 @@ export interface RemoveStreamAction {
 
 export interface RemoveStreamPayload {
   userId: string
+  stream?: MediaStream
 }
 
 export interface SetActiveStreamAction {
@@ -39,9 +42,12 @@ export const addStream = (payload: AddStreamPayload): AddStreamAction => ({
   payload,
 })
 
-export const removeStream = (userId: string): RemoveStreamAction => ({
+export const removeStream = (
+  userId: string,
+  stream?: MediaStream,
+): RemoveStreamAction => ({
   type: constants.STREAM_REMOVE,
-  payload: { userId },
+  payload: { userId, stream },
 })
 
 export const setActive = (userId: string): SetActiveStreamAction => ({

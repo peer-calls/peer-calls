@@ -29,11 +29,15 @@ export default function peers(
       return defaultState
     case constants.MEDIA_STREAM:
       if (action.status === 'resolved') {
-        // userId can be ME or ME_DESKTOP
         forEach(state, peer => {
           const localStream = localStreams[action.payload.userId]
-          localStream && peer.removeStream(localStream)
-          peer.addStream(action.payload.stream)
+          localStream && localStream.getTracks().forEach(track => {
+            peer.removeTrack(track, localStream)
+          })
+          const stream = action.payload.stream
+          stream.getTracks().forEach(track => {
+            peer.addTrack(track, stream)
+          })
         })
         localStreams[action.payload.userId] = action.payload.stream
       }

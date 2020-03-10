@@ -2,11 +2,12 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import Toolbar, { ToolbarProps } from './Toolbar'
-import { MediaStream } from '../window'
-import { AddStreamPayload, removeStream } from '../actions/StreamActions'
-import { ME_DESKTOP } from '../constants'
 import { getDesktopStream } from '../actions/MediaActions'
+import { AddStreamPayload, removeStream } from '../actions/StreamActions'
+import { STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
+import { StreamWithURL } from '../reducers/streams'
+import { MediaStream } from '../window'
+import Toolbar, { ToolbarProps } from './Toolbar'
 
 describe('components/Toolbar', () => {
 
@@ -42,7 +43,7 @@ describe('components/Toolbar', () => {
   let onHangup: jest.Mock<() => void>
   let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
   let onRemoveStream: jest.MockedFunction<typeof removeStream>
-  let desktopStream: AddStreamPayload | undefined
+  let desktopStream: StreamWithURL | undefined
   async function render () {
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
@@ -51,6 +52,11 @@ describe('components/Toolbar', () => {
     onGetDesktopStream = jest.fn()
     onRemoveStream = jest.fn()
     const div = document.createElement('div')
+    const stream: StreamWithURL = {
+      stream: mediaStream,
+      type: STREAM_TYPE_CAMERA,
+      url,
+    }
     await new Promise<ToolbarWrapper>(resolve => {
       ReactDOM.render(
         <ToolbarWrapper
@@ -60,7 +66,7 @@ describe('components/Toolbar', () => {
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
           messagesCount={1}
-          stream={{ userId: '', stream: mediaStream, url }}
+          stream={stream}
           desktopStream={desktopStream}
           onGetDesktopStream={onGetDesktopStream}
           onRemoveStream={onRemoveStream}
@@ -160,8 +166,8 @@ describe('components/Toolbar', () => {
     })
     it('stops desktop sharing', async () => {
       desktopStream = {
-        userId: ME_DESKTOP,
         stream: new MediaStream(),
+        type: STREAM_TYPE_DESKTOP,
       }
       await render()
       const shareDesktop = node.querySelector('.share-desktop')!

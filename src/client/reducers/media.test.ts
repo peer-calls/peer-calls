@@ -1,5 +1,5 @@
 import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, ME_DESKTOP } from '../constants'
+import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import { createStore, Store } from '../store'
 import SimplePeer from 'simple-peer'
 
@@ -102,6 +102,7 @@ describe('media', () => {
           video: true,
         }))
         expect(result.stream).toBe(stream)
+        expect(result.type).toBe(STREAM_TYPE_CAMERA)
         expect(result.userId).toBe(ME)
       }
 
@@ -109,8 +110,11 @@ describe('media', () => {
         it('adds the local stream to the map of videos', async () => {
           expect(store.getState().streams[ME]).toBeFalsy()
           await dispatch()
-          expect(store.getState().streams[ME]).toBeTruthy()
-          expect(store.getState().streams[ME].stream).toBe(stream)
+          const localStreams = store.getState().streams[ME]
+          expect(localStreams).toBeTruthy()
+          expect(localStreams.streams.length).toBe(1)
+          expect(localStreams.streams[0].type).toBe(STREAM_TYPE_CAMERA)
+          expect(localStreams.streams[0].stream).toBe(stream)
         })
       })
 
@@ -200,13 +204,17 @@ describe('media', () => {
     async function dispatch() {
       const result = await store.dispatch(MediaActions.getDesktopStream())
       expect(result.stream).toBe(stream)
-      expect(result.userId).toBe(ME_DESKTOP)
+      expect(result.type).toBe(STREAM_TYPE_DESKTOP)
+      expect(result.userId).toBe(ME)
     }
     it('adds the local stream to the map of videos', async () => {
-      expect(store.getState().streams[ME_DESKTOP]).toBeFalsy()
+      expect(store.getState().streams[ME]).toBeFalsy()
       await dispatch()
-      expect(store.getState().streams[ME_DESKTOP]).toBeTruthy()
-      expect(store.getState().streams[ME_DESKTOP].stream).toBe(stream)
+      const localStreams = store.getState().streams[ME]
+      expect(localStreams).toBeTruthy()
+      expect(localStreams.streams.length).toBe(1)
+      expect(localStreams.streams[0].type).toBe(STREAM_TYPE_DESKTOP)
+      expect(localStreams.streams[0].stream).toBe(stream)
     })
   })
 

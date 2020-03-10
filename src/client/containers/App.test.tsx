@@ -79,13 +79,19 @@ describe('App', () => {
       state.streams = {
         [constants.ME]: {
           userId: constants.ME,
-          stream: new MediaStream(),
-          url: 'blob://',
+          streams: [{
+            stream: new MediaStream(),
+            type: constants.STREAM_TYPE_CAMERA,
+            url: 'blob://',
+          }],
         },
         'other-user': {
           userId: 'other-user',
-          stream: new MediaStream(),
-          url: 'blob://',
+          streams: [{
+            stream: new MediaStream(),
+            type: undefined,
+            url: 'blob://',
+          }],
         },
       }
       state.peers = {

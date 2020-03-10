@@ -1,9 +1,9 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
-import { AddStreamAction, AddStreamPayload, RemoveStreamAction, StreamAction } from '../actions/StreamActions'
+import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType } from '../actions/StreamActions'
 import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
-import { MediaStreamPayload, MediaStreamAction } from '../actions/MediaActions'
+import { MediaStreamAction } from '../actions/MediaActions'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -17,8 +17,19 @@ function safeCreateObjectURL (stream: MediaStream) {
   }
 }
 
+export interface StreamWithURL {
+  stream: MediaStream
+  type: StreamType | undefined
+  url?: string
+}
+
+export interface UserStreams {
+  userId: string
+  streams: StreamWithURL[]
+}
+
 export interface StreamsState {
-  [userId: string]: AddStreamPayload
+  [userId: string]: UserStreams
 }
 
 function addStream (
@@ -26,40 +37,66 @@ function addStream (
 ): StreamsState {
   const { userId, stream } = payload
 
-  const userStream: AddStreamPayload = {
+  const userStreams = state[userId] || {
     userId,
+    streams: [],
+  }
+
+  if (userStreams.streams.map(s => s.stream).indexOf(stream) >= 0) {
+    return state
+  }
+
+  const streamWithURL: StreamWithURL = {
     stream,
+    type: payload.type,
     url: safeCreateObjectURL(stream),
   }
 
   return {
     ...state,
-    [userId]: userStream,
+    [userId]: {
+      userId,
+      streams: [...userStreams.streams, streamWithURL],
+    },
   }
 }
 
 function removeStream (
   state: StreamsState, payload: RemoveStreamAction['payload'],
 ): StreamsState {
-  const { userId } = payload
-  const stream = state[userId]
-  if (stream && stream.stream) {
-    stream.stream.getTracks().forEach(track => track.stop())
+  const { userId, stream } = payload
+  const userStreams = state[userId]
+  if (!userStreams) {
+    return state
   }
-  if (stream && stream.url) {
-    revokeObjectURL(stream.url)
-  }
-  return omit(state, [userId])
-}
 
-function replaceStream(
-  state: StreamsState,
-  payload: MediaStreamPayload,
-): StreamsState {
-  state = removeStream(state, {
-    userId: payload.userId,
+  if (stream) {
+    const streams = userStreams.streams.filter(s => {
+      const found = s.stream === stream
+      if (found) {
+        stream.getTracks().forEach(track => track.stop())
+        s.url && revokeObjectURL(s.url)
+      }
+      return !found
+    })
+    if (userStreams.streams.length > 0) {
+      return {
+        ...state,
+        [userId]: {
+          userId,
+          streams,
+        },
+      }
+    } else {
+      omit(state, [userId])
+    }
+  }
+
+  userStreams && userStreams.streams.forEach(s => {
+    s.stream.getTracks().forEach(track => track.stop())
+    s.url && revokeObjectURL(s.url)
   })
-  return addStream(state, payload)
+  return omit(state, [userId])
 }
 
 export default function streams(
@@ -73,7 +110,7 @@ export default function streams(
       return removeStream(state, action.payload)
     case MEDIA_STREAM:
       if (action.status === 'resolved') {
-        return replaceStream(state, action.payload)
+        return addStream(state, action.payload)
       } else {
         return state
       }

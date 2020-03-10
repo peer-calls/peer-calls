@@ -57,20 +57,18 @@ class PeerHandler {
     const state = getState()
     const peer = state.peers[user.id]
     const localStream = state.streams[constants.ME]
-    if (localStream && localStream.stream) {
+    localStream && localStream.streams.forEach(s => {
       // If the local user pressed join call before this peer has joined the
       // call, now is the time to share local media stream with the peer since
       // we no longer automatically send the stream to the peer.
-      peer.addStream(localStream.stream)
-    }
-    const desktopStream = state.streams[constants.ME_DESKTOP]
-    if (desktopStream && desktopStream.stream) {
-      peer.addStream(desktopStream.stream)
-    }
+      s.stream.getTracks().forEach(track => {
+        peer.addTrack(track, s.stream)
+      })
+    })
   }
-  handleStream = (stream: MediaStream) => {
+  handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
     const { user, dispatch } = this
-    debug('peer: %s, stream', user.id)
+    debug('peer: %s, track', user.id)
     dispatch(StreamActions.addStream({
       userId: user.id,
       stream,
@@ -160,7 +158,7 @@ export function createPeer (options: CreatePeerOptions) {
     peer.once(constants.PEER_EVENT_CONNECT, handler.handleConnect)
     peer.once(constants.PEER_EVENT_CLOSE, handler.handleClose)
     peer.on(constants.PEER_EVENT_SIGNAL, handler.handleSignal)
-    peer.on(constants.PEER_EVENT_STREAM, handler.handleStream)
+    peer.on(constants.PEER_EVENT_TRACK, handler.handleTrack)
     peer.on(constants.PEER_EVENT_DATA, handler.handleData)
 
     dispatch(addPeer({ peer, userId }))
