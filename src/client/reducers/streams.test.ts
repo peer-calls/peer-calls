@@ -35,8 +35,11 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         [userId]: {
           userId,
-          stream: stream,
-          url: jasmine.any(String),
+          streams: [{
+            stream,
+            url: jasmine.any(String),
+            type: undefined,
+          }],
         },
       })
     })
@@ -47,8 +50,11 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         [userId]: {
           userId,
-          stream: stream,
-          url: undefined,
+          streams: [{
+            stream,
+            type: undefined,
+            url: undefined,
+          }],
         },
       })
     })
