@@ -69,6 +69,11 @@ body.call {
     @include button-style($color-fg, darken($color-bg, 5%));
   }
 
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 1rem rgba(black, 0.4);
+  }
+
   &:active {
     outline: none;
     transform: translate(0px, 1px);
@@ -95,10 +100,29 @@ body.call {
     color: $color-primary;
   }
 
-  input {
-    font-family: $font-monospace;
+  input[type="text"] {
+    font-size: 1rem;
+    padding: 1rem 1rem 0.75rem;
+    width: 100%;
+    margin-bottom: 1rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid rgba($color-warning, 0);
+    transition: border-bottom 200ms ease-in;
+    text-align: center;
+    color: white;
+    position: relative;
+
+    &:focus {
+      border-bottom: 2px solid $color-warning;
+      outline: none;
+    }
+  }
+
+  input[type="submit"] {
+    // font-family: $font-monospace;
     @include button($color-primary, $color-warning);
-    font-size: 1.1rem;
+    font-size: 1rem;
     padding: 1rem 1rem;
   }
 

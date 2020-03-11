@@ -27,13 +27,21 @@ describe('server/app', () => {
 
   })
 
-  describe('GET /call', () => {
+  describe('POST /call', () => {
 
     it('redirects to a new call', () => {
       return request(app)
-      .get('/call')
+      .post('/call')
       .expect(302)
       .expect('location', new RegExp(`^${BASE_URL}/call/[0-9a-f-]{36}$`))
+    })
+
+    it('redirects to specific call', () => {
+      return request(app)
+      .post('/call')
+      .send('call=test%20id')
+      .expect(302)
+      .expect('location', `${BASE_URL}/call/test%20id`)
     })
 
   })

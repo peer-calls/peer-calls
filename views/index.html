@@ -10,12 +10,13 @@
   </a>
 
   <div id="container">
-    <form id="form" method="get" action="<%= baseUrl + '/call' %>">
+    <form id="form" method="post" action="<%= baseUrl + '/call' %>" autocomplete="off">
       <h1>
         <img src="<%= baseUrl + '/res/peer-calls.svg' %>" width="100%" alt="Peer Calls">
       </h1>
       <p>Group peer-to-peer calls for everyone. Create a private room. Share the link.</p>
-      <input type="submit" value="New Session">
+      <input type="text" value="" name="call" placeholder="Room ID (Leave empty for random)" autofocus>
+      <input type="submit" value="Start Session">
     </form>
   </div>
 

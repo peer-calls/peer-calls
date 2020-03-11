@@ -1,5 +1,6 @@
 import { config } from './config'
 import _debug from 'debug'
+import bodyParser from 'body-parser'
 import express from 'express'
 import handleSocket from './socket'
 import path from 'path'
@@ -38,6 +39,7 @@ app.use((req, res, next) => {
   })
   next()
 })
+app.use(bodyParser.urlencoded({ extended: false }))
 
 const router = express.Router()
 router.use('/res', express.static(path.join(__dirname, '../../res')))

@@ -8,8 +8,9 @@ const router = Router()
 const BASE_URL: string = config.baseUrl
 const cfgIceServers = config.iceServers
 
-router.get('/', (req, res) => {
-  res.redirect(`${BASE_URL}/call/${v4()}`)
+router.post('/', (req, res) => {
+  const callId = req.body.call ? encodeURIComponent(req.body.call) : v4()
+  res.redirect(`${BASE_URL}/call/${callId}`)
 })
 
 router.get('/:callId', (req, res) => {
