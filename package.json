@@ -112,6 +112,7 @@
     "ts-node": "^8.5.2",
     "tsify": "^4.0.1",
     "typescript": "^3.7.2",
-    "watchify": "^3.11.1"
+    "watchify": "^3.11.1",
+    "webrtc-adapter": "^7.5.0"
   }
 }

@@ -1,4 +1,5 @@
 import '@babel/polyfill'
+import 'webrtc-adapter'
 import App from './containers/App'
 import React from 'react'
 import ReactDOM from 'react-dom'
