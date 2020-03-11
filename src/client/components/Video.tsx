@@ -32,6 +32,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     this.timeout = undefined
   }
   handleMouseDown: ReactEventHandler<HTMLVideoElement> = e => {
+    clearTimeout(this.timeout)
     this.timeout = window.setTimeout(this.toggleCover, 300)
   }
   handleMouseUp: ReactEventHandler<HTMLVideoElement> = e => {
@@ -71,7 +72,9 @@ export default class Video extends React.PureComponent<VideoProps> {
           autoPlay
           onClick={this.handleClick}
           onMouseDown={this.handleMouseDown}
+          onTouchStart={this.handleMouseDown}
           onMouseUp={this.handleMouseUp}
+          onTouchEnd={this.handleMouseUp}
           onLoadedMetadata={() => this.props.play()}
           playsInline
           ref={this.videoRef}
