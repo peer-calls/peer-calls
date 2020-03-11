@@ -1,6 +1,7 @@
 jest.mock('../actions/CallActions')
 jest.mock('../socket')
 jest.mock('../window')
+jest.useFakeTimers()
 
 import React from 'react'
 import ReactDOM from 'react-dom'
@@ -108,15 +109,32 @@ describe('App', () => {
     })
 
     describe('video', () => {
-      it('can be activated', () => {
+      beforeEach(() => {
         dispatchSpy.mockReset()
+      })
+
+      it('can be activated', () => {
         const video = node.querySelector('video')!
+        TestUtils.Simulate.mouseDown(video)
+        TestUtils.Simulate.mouseUp(video)
         TestUtils.Simulate.click(video)
         expect(dispatchSpy.mock.calls[0][0].type).toBe(constants.MEDIA_PLAY)
         expect(dispatchSpy.mock.calls.slice(1)).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
           payload: { userId: constants.ME + '_0' },
         }]])
+      })
+
+      it('can toggle object-fit to/from cover by long-pressing', () => {
+        ['cover', ''].forEach(objectFit => {
+          const video = node.querySelector('video')!
+          TestUtils.Simulate.mouseDown(video)
+          jest.runAllTimers()
+          TestUtils.Simulate.mouseUp(video)
+          TestUtils.Simulate.click(video)
+          expect(video.style.objectFit).toBe(objectFit)
+          expect(dispatchSpy.mock.calls.slice(1)).toEqual([])
+        })
       })
     })
 

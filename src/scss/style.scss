@@ -101,8 +101,8 @@ body.call {
   }
 
   input[type="text"] {
-    font-size: 1rem;
-    padding: 1rem 1rem 0.75rem;
+    font-size: 1.2rem;
+    padding: 1rem 0rem 0.75rem;
     width: 100%;
     margin-bottom: 1rem;
     background: none;
@@ -120,9 +120,9 @@ body.call {
   }
 
   input[type="submit"] {
-    // font-family: $font-monospace;
+    font-family: $font-monospace;
     @include button($color-primary, $color-warning);
-    font-size: 1rem;
+    font-size: 1.2rem;
     padding: 1rem 1rem;
   }
 

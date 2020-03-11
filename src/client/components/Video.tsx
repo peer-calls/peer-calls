@@ -16,6 +16,7 @@ export interface VideoProps {
 
 export default class Video extends React.PureComponent<VideoProps> {
   videoRef = React.createRef<HTMLVideoElement>()
+  timeout?: number
 
   static defaultProps = {
     muted: false,
@@ -23,8 +24,25 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   handleClick: ReactEventHandler<HTMLVideoElement> = e => {
     const { onClick, userId } = this.props
-    this.props.play()
-    onClick(userId)
+    if (this.timeout) {
+      // if the timeout was cancelled, execute click
+      this.props.play()
+      onClick(userId)
+    }
+    this.timeout = undefined
+  }
+  handleMouseDown: ReactEventHandler<HTMLVideoElement> = e => {
+    this.timeout = window.setTimeout(this.toggleCover, 300)
+  }
+  handleMouseUp: ReactEventHandler<HTMLVideoElement> = e => {
+    clearTimeout(this.timeout)
+  }
+  toggleCover = () => {
+    this.timeout = undefined
+    const v = this.videoRef.current
+    if (v) {
+      v.style.objectFit = v.style.objectFit ? '' : 'cover'
+    }
   }
   componentDidMount () {
     this.componentDidUpdate()
@@ -52,6 +70,8 @@ export default class Video extends React.PureComponent<VideoProps> {
           id={`video-${socket.id}`}
           autoPlay
           onClick={this.handleClick}
+          onMouseDown={this.handleMouseDown}
+          onMouseUp={this.handleMouseUp}
           onLoadedMetadata={() => this.props.play()}
           playsInline
           ref={this.videoRef}

@@ -25,6 +25,10 @@
       width: 100%;
       height: 100%;
     }
+
+    .video-actions {
+      display: none;
+    }
   }
 
   .video-container.active {
@@ -43,6 +47,22 @@
     video {
       border-radius: 0;
       cursor: inherit;
+      object-fit: contain;
+    }
+
+    .video-actions {
+      display: inherit;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      padding: 1rem;
+      font-family: monospace;
+      user-select: none;
+
+      .action:hover {
+        cursor: pointer;
+        color: white;
+      }
     }
   }
 
