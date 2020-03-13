@@ -241,25 +241,25 @@ export const sendMessage = (message: Message) =>
   const { peers } = getState()
   debug('Sending message type: %s to %s peers.',
     message.type, Object.keys(peers).length)
+  switch (message.type) {
+    case 'file':
+      dispatch(ChatActions.addMessage({
+        userId: 'You',
+        message: 'Send file: "' +
+          message.payload.name + '" to all peers',
+        timestamp: new Date().toLocaleString(),
+        image: message.payload.data,
+      }))
+      break
+    default:
+      dispatch(ChatActions.addMessage({
+        userId: 'You',
+        message: message.payload,
+        timestamp: new Date().toLocaleString(),
+        image: undefined,
+      }))
+  }
   forEach(peers, (peer, userId) => {
-    switch (message.type) {
-      case 'file':
-        dispatch(ChatActions.addMessage({
-          userId: 'You',
-          message: 'Send file: "' +
-            message.payload.name + '" to peer: ' + userId,
-          timestamp: new Date().toLocaleString(),
-          image: message.payload.data,
-        }))
-        break
-      default:
-        dispatch(ChatActions.addMessage({
-          userId: 'You',
-          message: message.payload,
-          timestamp: new Date().toLocaleString(),
-          image: undefined,
-        }))
-    }
     peer.send(JSON.stringify(message))
   })
 }
