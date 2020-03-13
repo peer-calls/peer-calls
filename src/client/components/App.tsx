@@ -4,7 +4,7 @@ import React from 'react'
 import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
-import { TextMessage } from '../actions/PeerActions'
+import { Message as MessageType } from '../actions/PeerActions'
 import { removeStream } from '../actions/StreamActions'
 import * as constants from '../constants'
 import Chat from './Chat'
@@ -15,17 +15,19 @@ import Toolbar from './Toolbar'
 import Video from './Video'
 import { getDesktopStream } from '../actions/MediaActions'
 import { StreamsState } from '../reducers/streams'
+import { Nicknames } from '../reducers/nicknames'
 
 export interface AppProps {
   active: string | null
   dismissNotification: typeof dismissNotification
   init: () => void
+  nicknames: Nicknames
   notifications: Record<string, Notification>
   messages: Message[]
   messagesCount: number
   peers: Record<string, Peer.Instance>
   play: () => void
-  sendMessage: (message: TextMessage) => void
+  sendMessage: (message: MessageType) => void
   streams: StreamsState
   getDesktopStream: typeof getDesktopStream
   removeStream: typeof removeStream
@@ -79,6 +81,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       active,
       dismissNotification,
       notifications,
+      nicknames,
       messages,
       messagesCount,
       onSendFile,
@@ -127,6 +130,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         </Side>
         <Chat
           messages={messages}
+          nicknames={nicknames}
           onClose={this.handleHideChat}
           sendMessage={sendMessage}
           visible={this.state.chatVisible}

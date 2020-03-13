@@ -1,13 +1,15 @@
 import React, { ReactEventHandler, ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react'
-import { TextMessage } from '../actions/PeerActions'
+import { Message } from '../actions/PeerActions'
 
 export interface InputProps {
-  sendMessage: (message: TextMessage) => void
+  sendMessage: (message: Message) => void
 }
 
 export interface InputState {
   message: string
 }
+
+const regexp = /^\/([a-z0-9]+) (.*)$/
 
 export default class Input extends React.PureComponent<InputProps, InputState> {
   textArea = React.createRef<HTMLTextAreaElement>()
@@ -38,10 +40,22 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
     const { sendMessage } = this.props
     const { message } = this.state
     if (message) {
-      sendMessage({
-        payload: message,
-        type: 'text',
-      })
+      const matches = regexp.exec(message)
+      const command = matches && matches[1]
+      const restOfMessage = matches && matches[2] || ''
+      switch (command) {
+        case 'nick':
+          sendMessage({
+            type: 'nickname',
+            payload: {nickname: restOfMessage},
+          })
+          break
+        default:
+          sendMessage({
+            payload: message,
+            type: 'text',
+          })
+      }
       // let image = null
 
       // // take snapshoot

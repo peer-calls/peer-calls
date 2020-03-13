@@ -1,14 +1,17 @@
 import classnames from 'classnames'
 import React from 'react'
-import { Message as MessageType } from '../actions/ChatActions'
-import { TextMessage } from '../actions/PeerActions'
+import { Message as ChatMessage } from '../actions/ChatActions'
+import { Message } from '../actions/PeerActions'
+import { Nicknames } from '../reducers/nicknames'
 import Input from './Input'
+import { ME } from '../constants'
+import { getNickname } from '../nickname'
 
 export interface MessageProps {
-  message: MessageType
+  message: ChatMessage
 }
 
-function Message (props: MessageProps) {
+function MessageEntry (props: MessageProps) {
   const { message } = props
   return (
     <p className="message-text">
@@ -22,9 +25,10 @@ function Message (props: MessageProps) {
 
 export interface ChatProps {
   visible: boolean
-  messages: MessageType[]
+  messages: ChatMessage[]
+  nicknames: Nicknames
   onClose: () => void
-  sendMessage: (message: TextMessage) => void
+  sendMessage: (message: Message) => void
 }
 
 export default class Chat extends React.PureComponent<ChatProps> {
@@ -67,15 +71,15 @@ export default class Chat extends React.PureComponent<ChatProps> {
           {messages.length ? (
             messages.map((message, i) => (
               <div key={i}>
-                {message.userId === 'You' ? (
+                {message.userId === ME ? (
                   <div className="chat-item chat-item-me">
                     <div className="message">
                       <span className="message-user-name">
-                        {message.userId}
+                        {getNickname(this.props.nicknames, message.userId)}
                       </span>
                       <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
-                      <Message message={message} />
+                      <MessageEntry message={message} />
                     </div>
                     {message.image ? (
                       <img className="chat-item-img" src={message.image} />
@@ -92,11 +96,11 @@ export default class Chat extends React.PureComponent<ChatProps> {
                     )}
                     <div className="message">
                       <span className="message-user-name">
-                        {message.userId}
+                        {getNickname(this.props.nicknames, message.userId)}
                       </span>
                       <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
-                      <Message message={message} />
+                      <MessageEntry message={message} />
                     </div>
                   </div>
                 )}

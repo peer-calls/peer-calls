@@ -1,6 +1,7 @@
-import * as ChatActions from '../actions/ChatActions'
-import * as NotifyActions from '../actions/NotifyActions'
-import * as StreamActions from '../actions/StreamActions'
+import * as ChatActions from './ChatActions'
+import * as NicknameActions from './NicknameActions'
+import * as NotifyActions from './NotifyActions'
+import * as StreamActions from './StreamActions'
 import * as constants from '../constants'
 import Peer, { SignalData } from 'simple-peer'
 import forEach from 'lodash/forEach'
@@ -8,6 +9,7 @@ import _debug from 'debug'
 import { iceServers } from '../window'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
+import { getNickname } from '../nickname'
 
 const debug = _debug('peercalls')
 
@@ -65,6 +67,13 @@ class PeerHandler {
         peer.addTrack(track, s.stream)
       })
     })
+    const nickname = state.nicknames[constants.ME]
+    if (nickname) {
+      sendData(peer, {
+        payload: {nickname},
+        type: 'nickname',
+      })
+    }
   }
   handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
     const { user, dispatch } = this
@@ -86,7 +95,8 @@ class PeerHandler {
     }))
   }
   handleData = (buffer: ArrayBuffer) => {
-    const { dispatch, user } = this
+    const { dispatch, getState, user } = this
+    const state = getState()
     const message = JSON.parse(new window.TextDecoder('utf-8').decode(buffer))
     debug('peer: %s, message: %o', user.id, buffer)
     switch (message.type) {
@@ -96,6 +106,19 @@ class PeerHandler {
           message: message.payload.name,
           timestamp: new Date().toLocaleString(),
           image: message.payload.data,
+        }))
+        break
+      case 'nickname':
+        dispatch(ChatActions.addMessage({
+          userId: constants.PEERCALLS,
+          message: 'User ' + getNickname(state.nicknames, user.id) +
+            ' is now known as ' + message.payload.nickname,
+          timestamp: new Date().toLocaleString(),
+          image: undefined,
+        }))
+        dispatch(NicknameActions.setNickname({
+          userId: user.id,
+          nickname: message.payload.nickname,
         }))
         break
       default:
@@ -234,7 +257,18 @@ export interface FileMessage {
   payload: Base64File
 }
 
-export type Message = TextMessage | FileMessage
+export interface NicknameMessage {
+  type: 'nickname'
+  payload: {
+    nickname: string
+  }
+}
+
+export type Message = TextMessage | FileMessage | NicknameMessage
+
+function sendData(peer: Peer.Instance, message: Message) {
+  peer.send(JSON.stringify(message))
+}
 
 export const sendMessage = (message: Message) =>
 (dispatch: Dispatch, getState: GetState) => {
@@ -244,23 +278,37 @@ export const sendMessage = (message: Message) =>
   switch (message.type) {
     case 'file':
       dispatch(ChatActions.addMessage({
-        userId: 'You',
+        userId: constants.ME,
         message: 'Send file: "' +
           message.payload.name + '" to all peers',
         timestamp: new Date().toLocaleString(),
         image: message.payload.data,
       }))
       break
+    case 'nickname':
+      dispatch(ChatActions.addMessage({
+        userId: constants.PEERCALLS,
+        message: 'You are now known as: ' + message.payload.nickname,
+        timestamp: new Date().toLocaleString(),
+        image: undefined,
+      }))
+      dispatch(NicknameActions.setNickname({
+        userId: constants.ME,
+        nickname: message.payload.nickname,
+      }))
+      window.localStorage &&
+        (window.localStorage.nickname = message.payload.nickname)
+      break
     default:
       dispatch(ChatActions.addMessage({
-        userId: 'You',
+        userId: constants.ME,
         message: message.payload,
         timestamp: new Date().toLocaleString(),
         image: undefined,
       }))
   }
   forEach(peers, (peer, userId) => {
-    peer.send(JSON.stringify(message))
+    sendData(peer, message)
   })
 }
 

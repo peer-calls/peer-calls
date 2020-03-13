@@ -8,6 +8,7 @@ export const ALERT_CLEAR = 'ALERT_CLEAR'
 export const INIT = 'INIT'
 
 export const ME = '_me_'
+export const PEERCALLS = '[PeerCalls]'
 
 export const NOTIFY = 'NOTIFY'
 export const NOTIFY_DISMISS = 'NOTIFY_DISMISS'
@@ -20,6 +21,8 @@ export const MEDIA_STREAM = 'MEDIA_STREAM'
 export const MEDIA_VIDEO_CONSTRAINT_SET = 'MEDIA_VIDEO_CONSTRAINT_SET'
 export const MEDIA_AUDIO_CONSTRAINT_SET = 'MEDIA_AUDIO_CONSTRAINT_SET'
 export const MEDIA_PLAY = 'MEDIA_PLAY'
+
+export const NICKNAME_SET = 'NICKNAME_SET'
 
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'

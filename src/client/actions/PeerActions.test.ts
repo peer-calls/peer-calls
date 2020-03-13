@@ -7,6 +7,7 @@ import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
+import { PEERCALLS, PEER_EVENT_DATA, ME } from '../constants'
 
 describe('PeerActions', () => {
   function createSocket () {
@@ -74,19 +75,29 @@ describe('PeerActions', () => {
   })
 
   describe('events', () => {
-    let peer: Peer.Instance
-
-    beforeEach(() => {
+    function createPeer() {
       PeerActions.createPeer({ socket, user, initiator: 'user1', stream })(
         dispatch, getState)
-      peer = instances[0]
-    })
+      const peer = instances[instances.length - 1]
+      return peer
+    }
 
     describe('connect', () => {
-      beforeEach(() => peer.emit('connect'))
-
       it('dispatches peer connection established message', () => {
+        createPeer().emit('connect')
         // TODO
+      })
+
+      it('sends existing local streams to new peer', () => {
+        PeerActions.sendMessage({
+          payload: {nickname: 'john'},
+          type: 'nickname',
+        })(dispatch, getState)
+        const peer = createPeer()
+        peer.emit('connect')
+      })
+
+      it('sends current nickname to new peer', () => {
       })
     })
 
@@ -103,10 +114,15 @@ describe('PeerActions', () => {
       })
 
       it('decodes a message', () => {
-        const payload = 'test'
-        const object = JSON.stringify({ payload })
+        const peer = createPeer()
+        const message = {
+          type: 'text',
+          payload: 'test',
+        }
+        const object = JSON.stringify(message)
         peer.emit('data', Buffer.from(object, 'utf-8'))
         const { list } = store.getState().messages
+        expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
           userId: 'user2',
           timestamp: jasmine.any(String),
@@ -162,7 +178,7 @@ describe('PeerActions', () => {
       })(dispatch, getState)
     })
 
-    it('sends a message to all peers', () => {
+    it('sends a text message to all peers', () => {
       PeerActions.sendMessage({ payload: 'test', type: 'text' })(
         dispatch, getState)
       const { peers } = store.getState()
@@ -172,5 +188,76 @@ describe('PeerActions', () => {
       .toEqual([[ '{"payload":"test","type":"text"}' ]])
     })
 
+    it('sends a nickname change to all peers', () => {
+      PeerActions.sendMessage({
+        payload: {nickname: 'john'},
+        type: 'nickname',
+      })(dispatch, getState)
+      const { nicknames, peers } = store.getState()
+      expect((peers['user2'].send as jest.Mock).mock.calls)
+      .toEqual([[ '{"payload":{"nickname":"john"},"type":"nickname"}' ]])
+      expect((peers['user3'].send as jest.Mock).mock.calls)
+      .toEqual([[ '{"payload":{"nickname":"john"},"type":"nickname"}' ]])
+      expect(nicknames[ME]).toBe('john')
+    })
+
+  })
+
+  describe('receive message (handleData)', () => {
+    let peer: Peer.Instance
+    function emitData(message: PeerActions.Message) {
+      peer.emit(PEER_EVENT_DATA, JSON.stringify(message))
+    }
+    beforeEach(() => {
+      PeerActions.createPeer({
+        socket, user: { id: 'user2' }, initiator: 'user2', stream,
+      })(dispatch, getState)
+      peer = store.getState().peers['user2']
+    })
+
+    it('handles a message', () => {
+      emitData({
+        payload: 'hello',
+        type: 'text',
+      })
+      expect(store.getState().messages.list)
+      .toEqual([{
+        message: 'Connecting to peer...',
+        userId: PEERCALLS,
+        timestamp: jasmine.any(String),
+      }, {
+        message: 'hello',
+        userId: 'user2',
+        image: undefined,
+        timestamp: jasmine.any(String),
+      }])
+    })
+
+    it('handles nickname changes', () => {
+      emitData({
+        payload: {nickname: 'john'},
+        type: 'nickname',
+      })
+      emitData({
+        payload: {nickname: 'john2'},
+        type: 'nickname',
+      })
+      expect(store.getState().messages.list)
+      .toEqual([{
+        message: 'Connecting to peer...',
+        userId: PEERCALLS,
+        timestamp: jasmine.any(String),
+      }, {
+        message: 'User user2 is now known as john',
+        userId: PEERCALLS,
+        image: undefined,
+        timestamp: jasmine.any(String),
+      }, {
+        message: 'User john is now known as john2',
+        userId: PEERCALLS,
+        image: undefined,
+        timestamp: jasmine.any(String),
+      }])
+    })
   })
 })

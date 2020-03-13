@@ -12,6 +12,7 @@ function mapStateToProps (state: State) {
     streams: state.streams,
     peers: state.peers,
     notifications: state.notifications,
+    nicknames: state.nicknames,
     messages: state.messages.list,
     messagesCount: state.messages.count,
     active: state.active,
