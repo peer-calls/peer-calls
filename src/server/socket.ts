@@ -5,7 +5,7 @@ import { Store } from './store'
 
 const debug = _debug('peercalls:socket')
 
-interface Stores {
+export interface Stores {
   userIdBySocketId: Store
   socketIdByUserId: Store
 }
