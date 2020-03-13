@@ -28,8 +28,7 @@ export interface SocketEvent {
 
 export type ServerSocket =
   Omit<SocketIO.Socket, TypedEmitterKeys> &
-  TypedEmitter<SocketEvent> &
-  { userId?: string, room?: string }
+  TypedEmitter<SocketEvent>
 
 export type TypedIO = SocketIO.Server & {
   to(roomName: string): TypedEmitter<SocketEvent>

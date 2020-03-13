@@ -10,6 +10,8 @@ import call from './routes/call'
 import index from './routes/index'
 import ejs from 'ejs'
 import { MemoryStore } from './store'
+// import Redis from 'ioredis'
+// import redisAdapter from 'socket.io-redis'
 
 const debug = _debug('peercalls')
 const logRequest = _debug('peercalls:requests')
@@ -22,6 +24,19 @@ debug(`WebSocket URL: ${SOCKET_URL}`)
 const app = express()
 const server = createServer(config, app)
 export const io = SocketIO(server, { path: SOCKET_URL })
+// const pubClient = new Redis({
+//   host: '127.0.0.1',
+//   port: 6379,
+// })
+// const subClient = new Redis({
+//   host: '127.0.0.1',
+//   port: 6379,
+// })
+// io.adapter(redisAdapter({
+//   key: 'peercalls',
+//   pubClient,
+//   subClient,
+// }))
 
 app.set('x-powered-by', false)
 app.locals.version = require('../../package.json').version
@@ -49,7 +64,10 @@ router.use('/call', call)
 router.use('/', index)
 app.use(BASE_URL, router)
 
-const store = new MemoryStore()
-io.on('connection', socket => handleSocket(socket, io, store))
+const stores = {
+  socketIdByUserId: new MemoryStore(),
+  userIdBySocketId: new MemoryStore(),
+}
+io.on('connection', socket => handleSocket(socket, io, stores))
 
 export default server
