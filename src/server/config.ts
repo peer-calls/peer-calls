@@ -21,6 +21,16 @@ export interface Config {
     cert: string
     key: string
   }
+  store?: StoreConfig
+}
+
+export type StoreConfig = {
+  host: string
+  port: number
+  prefix: string
+  type: 'redis'
+} | {
+  type: 'memory'
 }
 
 const cfg = readConfig()
