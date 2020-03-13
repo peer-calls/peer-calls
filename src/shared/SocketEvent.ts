@@ -2,7 +2,13 @@ import { TypedEmitter, TypedEmitterKeys } from './TypedEmitter'
 import { SignalData } from 'simple-peer'
 
 export interface User {
-  id: string
+  socketId: string
+  userId?: string
+}
+
+export interface Ready {
+  room: string
+  userId: string
 }
 
 export interface SocketEvent {
@@ -17,13 +23,13 @@ export interface SocketEvent {
   }
   connect: undefined
   disconnect: undefined
-  ready: string
+  ready: Ready
 }
 
 export type ServerSocket =
   Omit<SocketIO.Socket, TypedEmitterKeys> &
   TypedEmitter<SocketEvent> &
-  { room?: string }
+  { userId?: string, room?: string }
 
 export type TypedIO = SocketIO.Server & {
   to(roomName: string): TypedEmitter<SocketEvent>

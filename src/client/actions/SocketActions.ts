@@ -3,9 +3,9 @@ import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
 import keyBy from 'lodash/keyBy'
 import _debug from 'debug'
-import { SignalData } from 'simple-peer'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
+import { SocketEvent } from '../../shared'
 
 const debug = _debug('peercalls')
 
@@ -15,16 +15,7 @@ export interface SocketHandlerOptions {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
-}
-
-export interface SignalOptions {
-  signal: SignalData
   userId: string
-}
-
-export interface UsersOptions {
-  initiator: string
-  users: Array<{ id: string }>
 }
 
 class SocketHandler {
@@ -33,6 +24,7 @@ class SocketHandler {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
+  userId: string
 
   constructor (options: SocketHandlerOptions) {
     this.socket = options.socket
@@ -40,30 +32,36 @@ class SocketHandler {
     this.stream = options.stream
     this.dispatch = options.dispatch
     this.getState = options.getState
+    this.userId = options.userId
   }
-  handleSignal = ({ userId, signal }: SignalOptions) => {
+  handleSignal = ({ userId, signal }: SocketEvent['signal']) => {
     const { getState } = this
     const peer = getState().peers[userId]
     // debug('socket signal, userId: %s, signal: %o', userId, signal);
     if (!peer) return debug('user: %s, no peer found', userId)
     peer.signal(signal)
   }
-  handleUsers = ({ initiator, users }: UsersOptions) => {
+  handleUsers = ({ initiator, users }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
     debug('socket users: %o', users)
     this.dispatch(NotifyActions.info('Connected users: {0}', users.length))
     const { peers } = this.getState()
 
     users
-    .filter(user => !peers[user.id] && user.id !== socket.id)
+    .filter(
+      user =>
+      user.userId && !peers[user.userId] && user.userId !== this.userId)
     .forEach(user => PeerActions.createPeer({
       socket,
-      user,
+      user: {
+        // users without id should be filtered out
+        id: user.userId!,
+      },
       initiator,
       stream,
     })(dispatch, getState))
 
-    const newUsersMap = keyBy(users, 'id')
+    const newUsersMap = keyBy(users, 'userId')
     Object.keys(peers)
     .filter(id => !newUsersMap[id])
     .forEach(id => peers[id].destroy())
@@ -73,11 +71,12 @@ class SocketHandler {
 export interface HandshakeOptions {
   socket: ClientSocket
   roomName: string
+  userId: string
   stream?: MediaStream
 }
 
 export function handshake (options: HandshakeOptions) {
-  const { socket, roomName, stream } = options
+  const { socket, roomName, stream, userId } = options
 
   return (dispatch: Dispatch, getState: GetState) => {
     const handler = new SocketHandler({
@@ -86,6 +85,7 @@ export function handshake (options: HandshakeOptions) {
       stream,
       dispatch,
       getState,
+      userId,
     })
 
     // remove listeneres to make seocket reusable
@@ -95,9 +95,12 @@ export function handshake (options: HandshakeOptions) {
     socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
     socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
 
-    debug('socket.id: %s', socket.id)
+    debug('userId: %s', userId)
     debug('emit ready for room: %s', roomName)
     dispatch(NotifyActions.info('Ready for connections'))
-    socket.emit('ready', roomName)
+    socket.emit('ready', {
+      room: roomName,
+      userId,
+    })
   }
 }

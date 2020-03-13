@@ -9,6 +9,7 @@ import SocketIO from 'socket.io'
 import call from './routes/call'
 import index from './routes/index'
 import ejs from 'ejs'
+import { MemoryStore } from './store'
 
 const debug = _debug('peercalls')
 const logRequest = _debug('peercalls:requests')
@@ -48,6 +49,7 @@ router.use('/call', call)
 router.use('/', index)
 app.use(BASE_URL, router)
 
-io.on('connection', socket => handleSocket(socket, io))
+const store = new MemoryStore()
+io.on('connection', socket => handleSocket(socket, io, store))
 
 export default server

@@ -17,6 +17,7 @@ router.get('/:callId', (req, res) => {
   const iceServers = turn.processServers(cfgIceServers)
   res.render('call', {
     callId: encodeURIComponent(req.params.callId),
+    userId: v4(),
     iceServers,
   })
 })

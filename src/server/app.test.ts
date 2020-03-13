@@ -10,6 +10,7 @@ import { config } from './config'
 import handleSocket from './socket'
 import SocketIO from 'socket.io'
 import request from 'supertest'
+import { MemoryStore } from './store'
 
 const io = SocketIO()
 
@@ -61,7 +62,11 @@ describe('server/app', () => {
     it('calls handleSocket with socket', () => {
       const socket = { hi: 'me socket' }
       io.emit('connection', socket)
-      expect((handleSocket as jest.Mock).mock.calls).toEqual([[ socket, io ]])
+      expect((handleSocket as jest.Mock).mock.calls).toEqual([[
+        socket,
+        io,
+        jasmine.any(MemoryStore),
+      ]])
     })
 
   })

@@ -1,7 +1,8 @@
 import { EventEmitter } from 'events'
 import { Socket } from 'socket.io'
-import { TypedIO } from '../shared'
+import { TypedIO, ServerSocket } from '../shared'
 import handleSocket from './socket'
+import { MemoryStore, Store } from './store'
 
 describe('server/socket', () => {
   type SocketMock = Socket & {
@@ -32,7 +33,23 @@ describe('server/socket', () => {
       })
     })
 
+    const sockets = {
+      socket0: {
+        id: 'socket0',
+        userId: 'socket0_userid',
+      },
+      socket1: {
+        id: 'socket1',
+        userId: 'socket1_userid',
+      },
+      socket2: {
+        id: 'socket2',
+        userId: 'socket2_userid',
+      },
+    }
+
     io.sockets = {
+      sockets: sockets as any,
       adapter: {
         rooms: {
           room1: {
@@ -43,9 +60,9 @@ describe('server/socket', () => {
           } as any,
           room3: {
             sockets: {
-              'socket0': true,
-              'socket1': true,
-              'socket2': true,
+              socket0: true,
+              socket1: true,
+              socket2: true,
             },
           } as any,
         },
@@ -61,18 +78,24 @@ describe('server/socket', () => {
   })
 
   describe('socket events', () => {
-    beforeEach(() => handleSocket(socket, io))
+    let store: Store
+    beforeEach(() => {
+      store = new MemoryStore()
+      handleSocket(socket, io, store)
+    })
 
     describe('signal', () => {
       it('should broadcast signal to specific user', () => {
+        store.set('a', 'a-socket-id')
+        ;(socket as ServerSocket) .userId = 'b'
         const signal = { type: 'signal' }
 
         socket.emit('signal', { userId: 'a', signal })
 
-        expect(io.to.mock.calls).toEqual([[ 'a' ]])
-        expect((io.to('a').emit as jest.Mock).mock.calls).toEqual([[
+        expect(io.to.mock.calls).toEqual([[ 'a-socket-id' ]])
+        expect((io.to('a-socket-id').emit as jest.Mock).mock.calls).toEqual([[
           'signal', {
-            userId: 'socket0',
+            userId: 'b',
             signal,
           },
         ]])
@@ -82,31 +105,43 @@ describe('server/socket', () => {
     describe('ready', () => {
       it('should call socket.leave if socket.room', () => {
         socket.room = 'room1'
-        socket.emit('ready', 'room2')
+        socket.emit('ready', {
+          userId: 'socket0_userid',
+          room: 'room2',
+        })
 
         expect(socket.leave.mock.calls).toEqual([[ 'room1' ]])
         expect(socket.join.mock.calls).toEqual([[ 'room2' ]])
       })
 
       it('should call socket.join to room', () => {
-        socket.emit('ready', 'room3')
+        socket.emit('ready', {
+          userId: 'socket0_userid',
+          room: 'room3',
+        })
         expect(socket.join.mock.calls).toEqual([[ 'room3' ]])
       })
 
       it('should emit users', () => {
-        socket.emit('ready', 'room3')
+        socket.emit('ready', {
+          userId: 'socket0_userid',
+          room: 'room3',
+        })
 
         expect(io.to.mock.calls).toEqual([[ 'room3' ]])
         expect((io.to('room3').emit as jest.Mock).mock.calls).toEqual([
           [
             'users', {
-              initiator: 'socket0',
+              initiator: 'socket0_userid',
               users: [{
-                id: 'socket0',
+                socketId: 'socket0',
+                userId: 'socket0_userid',
               }, {
-                id: 'socket1',
+                socketId: 'socket1',
+                userId: 'socket1_userid',
               }, {
-                id: 'socket2',
+                socketId: 'socket2',
+                userId: 'socket2_userid',
               }],
             },
           ],

@@ -25,7 +25,6 @@ describe('components/Video', () => {
     render () {
       return <Video
         ref={this.ref}
-        videos={this.props.videos}
         active={this.props.active}
         stream={this.state.stream || this.props.stream}
         onClick={this.props.onClick}
@@ -38,7 +37,6 @@ describe('components/Video', () => {
   }
 
   let component: VideoWrapper
-  let videos: Record<string, unknown> = {}
   let video: Video
   let onClick: (userId: string) => void
   let mediaStream: MediaStream
@@ -57,7 +55,6 @@ describe('components/Video', () => {
   }
   async function render (args?: Partial<Flags>) {
     const flags: Flags = Object.assign({}, defaultFlags, args)
-    videos = {}
     onClick = jest.fn()
     mediaStream = new MediaStream()
     const div = document.createElement('div')
@@ -70,7 +67,6 @@ describe('components/Video', () => {
       ReactDOM.render(
         <VideoWrapper
           ref={instance => resolve(instance!)}
-          videos={videos}
           active={flags.active}
           stream={stream}
           onClick={onClick}

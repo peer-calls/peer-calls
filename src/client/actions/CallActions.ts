@@ -1,6 +1,6 @@
 import socket from '../socket'
 import { ThunkResult } from '../store'
-import { callId } from '../window'
+import { callId, userId } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 
@@ -25,6 +25,7 @@ async (dispatch, getState) => {
       dispatch(SocketActions.handshake({
         socket,
         roomName: callId,
+        userId,
       }))
       dispatch(initialize())
       resolve()

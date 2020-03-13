@@ -4,7 +4,7 @@ import socket from '../socket'
 import { StreamWithURL } from '../reducers/streams'
 
 export interface VideoProps {
-  videos: Record<string, unknown>
+  // videos: Record<string, unknown>
   onClick: (userId: string) => void
   active: boolean
   stream?: StreamWithURL
@@ -49,7 +49,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     this.componentDidUpdate()
   }
   componentDidUpdate () {
-    const { videos, stream } = this.props
+    const { stream } = this.props
     const video = this.videoRef.current!
     const mediaStream = stream && stream.stream || null
     const url = stream && stream.url
@@ -60,7 +60,6 @@ export default class Video extends React.PureComponent<VideoProps> {
     } else if (video.src !== url) {
       video.src = url || ''
     }
-    videos[socket.id] = video
   }
   render () {
     const { active, mirrored, muted } = this.props

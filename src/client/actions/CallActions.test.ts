@@ -6,7 +6,7 @@ import * as CallActions from './CallActions'
 import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import socket from '../socket'
-import { callId } from '../window'
+import { callId, userId } from '../window'
 import { bindActionCreators, createStore, AnyAction, combineReducers, applyMiddleware } from 'redux'
 import reducers from '../reducers'
 import { middlewares } from '../middlewares'
@@ -60,6 +60,7 @@ describe('CallActions', () => {
       expect((SocketActions.handshake as jest.Mock).mock.calls).toEqual([[{
         socket,
         roomName: callId,
+        userId: userId,
       }]])
     })
 

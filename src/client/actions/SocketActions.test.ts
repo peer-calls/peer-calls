@@ -9,6 +9,7 @@ import { createStore, Store, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { Dispatch } from 'redux'
 import { MediaStream } from '../window'
+import { SocketEvent } from '../../shared'
 
 describe('SocketActions', () => {
   const roomName = 'bla'
@@ -29,22 +30,39 @@ describe('SocketActions', () => {
     instances = (Peer as any).instances = []
   })
 
+  const userA = {
+    socketId: 'socket-a',
+    userId: 'user-a',
+  }
+  const userId = userA.userId
+
+  const userB = {
+    socketId: 'socket-b',
+    userId: 'user-b',
+  }
+
+  const userC = {
+    socketId: 'socket-c',
+    userId: 'user-c',
+  }
+
   describe('handshake', () => {
     describe('users', () => {
       beforeEach(() => {
-        SocketActions.handshake({ socket, roomName })(dispatch, getState)
+        SocketActions
+        .handshake({ socket, roomName, userId })(dispatch, getState)
         const payload = {
-          users: [{ id: 'a' }, { id: 'b' }],
-          initiator: 'a',
+          users: [userA, userB],
+          initiator: userA.userId,
         }
         socket.emit('users', payload)
         expect(instances.length).toBe(1)
       })
 
-      it('adds a peer for each new user and destroys peers for missing', () => {
+      it('adds a peer for each new user and destroys missing peers', () => {
         const payload = {
-          users: [{ id: 'a' }, { id: 'c' }],
-          initiator: 'c',
+          users: [userA, userC],
+          initiator:  userC.userId,
         }
         socket.emit(constants.SOCKET_EVENT_USERS, payload)
 
@@ -59,16 +77,17 @@ describe('SocketActions', () => {
       let data: Peer.SignalData
       beforeEach(() => {
         data = {} as any
-        SocketActions.handshake({ socket, roomName })(dispatch, getState)
+        SocketActions
+        .handshake({ socket, roomName, userId })(dispatch, getState)
         socket.emit('users', {
-          initiator: 'a',
-          users: [{ id: 'a' }, { id: 'b' }],
+          initiator: userA.userId,
+          users: [userA, userB],
         })
       })
 
       it('should forward signal to peer', () => {
         socket.emit('signal', {
-          userId: 'b',
+          userId: userB.userId,
           signal: data,
         })
 
@@ -94,11 +113,12 @@ describe('SocketActions', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      SocketActions.handshake({ socket, roomName })(dispatch, getState)
+      SocketActions
+      .handshake({ socket, roomName, userId })(dispatch, getState)
 
       socket.emit('users', {
-        initiator: 'a',
-        users: [{ id: 'a' }, { id: 'b' }],
+        initiator: userA.userId,
+        users: [userA, userB],
       })
       expect(instances.length).toBe(1)
       peer = instances[0]
@@ -117,8 +137,8 @@ describe('SocketActions', () => {
       it('emits socket signal with user id', done => {
         const signal = { bla: 'bla' }
 
-        socket.once('signal', (payload: SocketActions.SignalOptions) => {
-          expect(payload.userId).toEqual('b')
+        socket.once('signal', (payload: SocketEvent['signal']) => {
+          expect(payload.userId).toEqual(userB.userId)
           expect(payload.signal).toBe(signal)
           done()
         })
@@ -139,8 +159,8 @@ describe('SocketActions', () => {
         peer.emit(constants.PEER_EVENT_TRACK, stream.getTracks()[0], stream)
 
         expect(store.getState().streams).toEqual({
-          b: {
-            userId: 'b',
+          [userB.userId]: {
+            userId: userB.userId,
             streams: [{
               stream,
               type: undefined,
@@ -159,8 +179,8 @@ describe('SocketActions', () => {
         // test stream with two tracks
         peer.emit(constants.PEER_EVENT_TRACK, track, stream)
         expect(store.getState().streams).toEqual({
-          b: {
-            userId: 'b',
+          [userB.userId]: {
+            userId: userB.userId,
             streams: [{
               stream,
               type: undefined,
@@ -171,7 +191,7 @@ describe('SocketActions', () => {
       })
 
       it('removes stream & peer from store', () => {
-        expect(store.getState().peers).toEqual({ b: peer })
+        expect(store.getState().peers).toEqual({ [userB.userId]: peer })
         peer.emit('close')
         expect(store.getState().streams).toEqual({})
         expect(store.getState().peers).toEqual({})

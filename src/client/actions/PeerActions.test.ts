@@ -12,7 +12,7 @@ import { PEERCALLS, PEER_EVENT_DATA, ME } from '../constants'
 describe('PeerActions', () => {
   function createSocket () {
     const socket = new EventEmitter() as unknown as ClientSocket
-    socket.id = 'user1'
+    socket.id = 'socket-id-user-1'
     return socket
   }
 
@@ -30,7 +30,7 @@ describe('PeerActions', () => {
     dispatch = store.dispatch
     getState = store.getState
 
-    user = { id: 'user2' }
+    user = { id: 'user1' }
     socket = createSocket()
     instances = (Peer as any).instances = [];
     (Peer as unknown as jest.Mock).mockClear()
@@ -40,7 +40,7 @@ describe('PeerActions', () => {
 
   describe('create', () => {
     it('creates a new peer', () => {
-      PeerActions.createPeer({ socket, user, initiator: 'user2', stream })(
+      PeerActions.createPeer({ socket, user, initiator: 'other-user', stream })(
         dispatch, getState)
 
       expect(instances.length).toBe(1)
@@ -52,7 +52,7 @@ describe('PeerActions', () => {
     it('sets initiator correctly', () => {
       PeerActions
       .createPeer({
-        socket, user, initiator: 'user1', stream,
+        socket, user, initiator: user.id, stream,
       })(dispatch, getState)
 
       expect(instances.length).toBe(1)
@@ -124,7 +124,7 @@ describe('PeerActions', () => {
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
-          userId: 'user2',
+          userId: user.id,
           timestamp: jasmine.any(String),
           image: undefined,
           message: 'test',

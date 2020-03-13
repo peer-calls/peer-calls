@@ -36,13 +36,11 @@ export interface AppProps {
 }
 
 export interface AppState {
-  videos: Record<string, unknown>
   chatVisible: boolean
 }
 
 export default class App extends React.PureComponent<AppProps, AppState> {
   state: AppState = {
-    videos: {},
     chatVisible: false,
   }
   handleShowChat = () => {
@@ -92,8 +90,6 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       streams,
     } = this.props
 
-    const { videos } = this.state
-
     const chatVisibleClassName = classnames({
       'chat-visible': this.state.chatVisible,
     })
@@ -140,7 +136,6 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             const key = localStreams.userId + '_' + i
             return (
               <Video
-                videos={videos}
                 key={key}
                 active={active === key}
                 onClick={toggleActive}
@@ -168,7 +163,6 @@ export default class App extends React.PureComponent<AppProps, AppState> {
                     play={play}
                     stream={s}
                     userId={key}
-                    videos={videos}
                   />
                 )
               })

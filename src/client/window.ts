@@ -9,6 +9,7 @@ export const valueOf = (id: string) => {
 
 export const baseUrl = valueOf('baseUrl')
 export const callId = valueOf('callId')
+export const userId = valueOf('userId')
 export const iceServers = JSON.parse(valueOf('iceServers')!)
 
 export const MediaStream = window.MediaStream

@@ -42,4 +42,6 @@ export const valueOf = jest.fn()
 
 export const callId = 'call1234'
 
+export const userId = 'user1234'
+
 export const iceServers = []
