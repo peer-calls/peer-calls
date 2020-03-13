@@ -59,7 +59,7 @@ describe('SocketActions', () => {
         expect(instances.length).toBe(1)
       })
 
-      it('adds a peer for each new user and destroys missing peers', () => {
+      it('adds a peer for each new user and keeps active connections', () => {
         const payload = {
           users: [userA, userC],
           initiator:  userC.userId,
@@ -68,7 +68,7 @@ describe('SocketActions', () => {
 
         // then
         expect(instances.length).toBe(2)
-        expect((instances[0].destroy as jest.Mock).mock.calls.length).toBe(1)
+        expect((instances[0].destroy as jest.Mock).mock.calls.length).toBe(0)
         expect((instances[1].destroy as jest.Mock).mock.calls.length).toBe(0)
       })
     })

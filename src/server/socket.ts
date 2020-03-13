@@ -40,7 +40,7 @@ export default function handleSocket(
 
     const users = getUsers(room)
 
-    debug('ready: %s, room: %s, users: %o', room, users)
+    debug('ready: %s, room: %s, users: %o', userId, room, users)
 
     io.to(room).emit('users', {
       initiator: userId,

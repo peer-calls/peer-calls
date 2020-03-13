@@ -98,7 +98,7 @@ class PeerHandler {
     const { dispatch, getState, user } = this
     const state = getState()
     const message = JSON.parse(new window.TextDecoder('utf-8').decode(buffer))
-    debug('peer: %s, message: %o', user.id, buffer)
+    debug('peer: %s, message: %o', user.id, message)
     switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({

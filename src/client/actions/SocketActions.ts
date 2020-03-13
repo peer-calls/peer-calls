@@ -1,7 +1,6 @@
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
-import keyBy from 'lodash/keyBy'
 import _debug from 'debug'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
@@ -46,6 +45,7 @@ class SocketHandler {
     debug('socket users: %o', users)
     this.dispatch(NotifyActions.info('Connected users: {0}', users.length))
     const { peers } = this.getState()
+    debug('active peers: %o', Object.keys(peers))
 
     users
     .filter(
@@ -60,11 +60,6 @@ class SocketHandler {
       initiator,
       stream,
     })(dispatch, getState))
-
-    const newUsersMap = keyBy(users, 'userId')
-    Object.keys(peers)
-    .filter(id => !newUsersMap[id])
-    .forEach(id => peers[id].destroy())
   }
 }
 
