@@ -9,4 +9,4 @@ test:
     - npm install
     - npm run ci
 services:
-  redis:5-alpine
+  - redis:5-alpine
