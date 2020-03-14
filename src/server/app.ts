@@ -1,15 +1,15 @@
-import { config } from './config'
-import _debug from 'debug'
 import bodyParser from 'body-parser'
+import _debug from 'debug'
+import ejs from 'ejs'
 import express from 'express'
-import handleSocket from './socket'
 import path from 'path'
-import { createServer } from './server'
 import SocketIO from 'socket.io'
+import { config } from './config'
+import { configureStores } from './configureStores'
 import call from './routes/call'
 import index from './routes/index'
-import ejs from 'ejs'
-import { MemoryStore } from './store'
+import { createServer } from './server'
+import handleSocket from './socket'
 
 const debug = _debug('peercalls')
 const logRequest = _debug('peercalls:requests')
@@ -49,7 +49,7 @@ router.use('/call', call)
 router.use('/', index)
 app.use(BASE_URL, router)
 
-const store = new MemoryStore()
-io.on('connection', socket => handleSocket(socket, io, store))
+const stores = configureStores(io, config.store)
+io.on('connection', socket => handleSocket(socket, io, stores))
 
 export default server

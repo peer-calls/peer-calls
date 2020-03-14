@@ -65,7 +65,10 @@ describe('server/app', () => {
       expect((handleSocket as jest.Mock).mock.calls).toEqual([[
         socket,
         io,
-        jasmine.any(MemoryStore),
+        {
+          socketIdByUserId: jasmine.any(MemoryStore),
+          userIdBySocketId: jasmine.any(MemoryStore),
+        },
       ]])
     })
 

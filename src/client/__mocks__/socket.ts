@@ -1,2 +1,2 @@
-import EventEmitter from 'events'
+import { EventEmitter } from 'events'
 export default new EventEmitter()
