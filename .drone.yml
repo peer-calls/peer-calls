@@ -4,13 +4,16 @@ type: docker
 name: default
 
 steps:
-  - name: build
-    image: node:12
-    commands:
-      - npm install
-      - npm run ci
+- name: build
+  image: node:12
+  commands:
+  - npm install
+  - npm run ci
+services:
+- name: redis
+  image: redis:5-alpine
 ---
 kind: signature
-hmac: a49a1e7c428472d0237bb2ba73511965607384f45114941b869c6a9eff7aef70
+hmac: a88ee9f582a6f84910dc99e1deac94587796a88b0fda212c78a4c80422bbf33b
 
 ...

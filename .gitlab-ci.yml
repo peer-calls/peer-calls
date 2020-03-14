@@ -1,9 +1,12 @@
 stages:
   - test
-
 test:
   image: node:12
   stage: test
+  variables:
+    TEST_REDIS_HOST: redis
   script:
     - npm install
     - npm run ci
+services:
+  redis:5-alpine
