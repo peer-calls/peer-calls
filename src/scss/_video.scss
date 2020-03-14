@@ -1,6 +1,10 @@
 .videos {
+  $video-size: 100px;
+  $shadow-size: 2px;
+
   position: fixed;
-  height: 100px;
+  height: $video-size + $shadow-size;
+  padding: $shadow-size 0;
   bottom: 1rem;
   left: 0;
   right: 0;
@@ -10,11 +14,9 @@
   overflow-x: auto;
   overflow-y: hidden;
 
-  $video-size: 100px;
-
   .video-container {
     background-color: black;
-    box-shadow: 0px 0px 5px black;
+    box-shadow: 0px 0px $shadow-size black;
     border-radius: 10px;
     display: inline-block;
     width: $video-size;
