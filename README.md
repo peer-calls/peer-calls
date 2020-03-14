@@ -134,6 +134,19 @@ unix domain socket.
 
 To access the server, go to http://localhost:3000 (or another port).
 
+# Multiple Instances and Redis
+
+Redis can be used to allow users connected to different instances to connect.
+The following needs to be added to `config.yaml` to enable Redis:
+
+```yaml
+store:
+  type: redis
+  host: 127.0.0.1   # redis host
+  port: 6379        # redis port
+  prefix: peercalls # all instances must use the same prefix
+```
+
 # Logging
 
 By default, Peer Calls server will log only basic information. Client-side
