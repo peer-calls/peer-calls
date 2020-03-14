@@ -6,6 +6,7 @@ import Video, { VideoProps } from './Video'
 import { MediaStream } from '../window'
 import { STREAM_TYPE_CAMERA } from '../constants'
 import { StreamWithURL } from '../reducers/streams'
+import { NicknameMessage } from '../actions/PeerActions'
 
 describe('components/Video', () => {
 
@@ -32,16 +33,20 @@ describe('components/Video', () => {
         userId="test"
         muted={this.props.muted}
         mirrored={this.props.mirrored}
+        nickname={this.props.nickname}
+        onChangeNickname={this.props.onChangeNickname}
       />
     }
   }
 
   let component: VideoWrapper
   let video: Video
-  let onClick: (userId: string) => void
+  let onClick: jest.MockedFunction<(userId: string) => void>
+  let onChangeNickname: jest.MockedFunction<(message: NicknameMessage) => void>
   let mediaStream: MediaStream
   let url: string
   let wrapper: Element
+  let nickname: string
 
   interface Flags {
     active: boolean
@@ -54,8 +59,10 @@ describe('components/Video', () => {
     mirrored: false,
   }
   async function render (args?: Partial<Flags>) {
+    nickname = 'john'
     const flags: Flags = Object.assign({}, defaultFlags, args)
     onClick = jest.fn()
+    onChangeNickname = jest.fn()
     mediaStream = new MediaStream()
     const div = document.createElement('div')
     component = await new Promise<VideoWrapper>(resolve => {
@@ -74,6 +81,8 @@ describe('components/Video', () => {
           userId="test"
           muted={flags.muted}
           mirrored={flags.mirrored}
+          onChangeNickname={onChangeNickname}
+          nickname={nickname}
         />,
         div,
       )

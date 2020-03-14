@@ -1,17 +1,21 @@
 import React, { ReactEventHandler } from 'react'
 import classnames from 'classnames'
-import socket from '../socket'
 import { StreamWithURL } from '../reducers/streams'
+import { NicknameMessage } from '../actions/PeerActions'
+import { Nickname } from './Nickname'
 
 export interface VideoProps {
   // videos: Record<string, unknown>
   onClick: (userId: string) => void
+  onChangeNickname: (message: NicknameMessage) => void
+  nickname: string
   active: boolean
   stream?: StreamWithURL
   userId: string
   muted: boolean
   mirrored: boolean
   play: () => void
+  localUser?: boolean
 }
 
 export default class Video extends React.PureComponent<VideoProps> {
@@ -62,12 +66,12 @@ export default class Video extends React.PureComponent<VideoProps> {
     }
   }
   render () {
-    const { active, mirrored, muted } = this.props
+    const { active, mirrored, muted, userId } = this.props
     const className = classnames('video-container', { active, mirrored })
     return (
       <div className={className}>
         <video
-          id={`video-${socket.id}`}
+          id={`video-${userId}`}
           autoPlay
           onClick={this.handleClick}
           onMouseDown={this.handleMouseDown}
@@ -78,6 +82,11 @@ export default class Video extends React.PureComponent<VideoProps> {
           playsInline
           ref={this.videoRef}
           muted={muted}
+        />
+        <Nickname
+          value={this.props.nickname}
+          onChange={this.props.onChangeNickname}
+          localUser={this.props.localUser}
         />
       </div>
     )

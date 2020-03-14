@@ -16,6 +16,7 @@ import Video from './Video'
 import { getDesktopStream } from '../actions/MediaActions'
 import { StreamsState } from '../reducers/streams'
 import { Nicknames } from '../reducers/nicknames'
+import { getNickname } from '../nickname'
 
 export interface AppProps {
   active: string | null
@@ -144,6 +145,9 @@ export default class App extends React.PureComponent<AppProps, AppState> {
                 userId={key}
                 muted
                 mirrored={s.type === 'camera'}
+                nickname={getNickname(nicknames, localStreams.userId)}
+                onChangeNickname={this.props.sendMessage}
+                localUser
               />
             )
           })}
@@ -163,6 +167,8 @@ export default class App extends React.PureComponent<AppProps, AppState> {
                     play={play}
                     stream={s}
                     userId={key}
+                    nickname={getNickname(nicknames, userStreams.userId)}
+                    onChangeNickname={this.props.sendMessage}
                   />
                 )
               })

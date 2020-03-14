@@ -2,9 +2,13 @@
   position: fixed;
   height: 100px;
   bottom: 1rem;
+  left: 0;
   right: 0;
   text-align: right;
   transition: right cubic-bezier(0.55, 0, 0, 1) 500ms;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
 
   $video-size: 100px;
 
@@ -17,6 +21,31 @@
     height: 100%;
     z-index: 3;
     margin-right: 1rem;
+    position: relative;
+
+    .nickname {
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      padding: 2px 4px 2px 4px;
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      color: white;
+      text-shadow: 0 0px 2px black;
+      text-align: center;
+
+      &:hover,
+      &:focus {
+        background-color: rgba(black, 0.5);
+        border-radius: 0 0 10px 10px;
+      }
+    }
 
     video {
       border-radius: 10px;
