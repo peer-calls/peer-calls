@@ -9,11 +9,13 @@ steps:
   commands:
   - npm install
   - npm run ci
+  environment:
+    TEST_REDIS_HOST: redis
 services:
 - name: redis
   image: redis:5-alpine
 ---
 kind: signature
-hmac: a88ee9f582a6f84910dc99e1deac94587796a88b0fda212c78a4c80422bbf33b
+hmac: 6cf23314158a6b508ef5240c110304b4b8c8f155d837c393ad1beb7a75a7d990
 
 ...
