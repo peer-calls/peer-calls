@@ -51,6 +51,7 @@ rules:
   '@typescript-eslint/triple-slash-reference':
     - warn
     - path: always
+  '@typescript-eslint/no-empty-function': off
 overrides:
   - files:
       - '*.test.ts'

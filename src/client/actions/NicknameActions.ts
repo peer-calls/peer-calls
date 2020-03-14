@@ -1,11 +1,11 @@
 import { NICKNAME_SET } from '../constants'
 
-interface NicknameSetPayload {
+export interface NicknameSetPayload {
   nickname: string
   userId: string
 }
 
-interface NicknameSetAction {
+export interface NicknameSetAction {
   type: 'NICKNAME_SET'
   payload: NicknameSetPayload
 }
