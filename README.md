@@ -182,8 +182,8 @@ npm run ci             run all linting, tests and build the client-side
 
 # Browser Support
 
-Tested on Firefox and Chrome, including mobile versions. Also works on Safari
-13 on Mac OS.
+Tested on Firefox and Chrome, including mobile versions. Also works on Safari,
+however connection issues have been reported.
 
 Does not work on iOS 10, but should work on iOS 11 - would appreciate feedback!
 
@@ -191,6 +191,60 @@ For more details, see here:
 
 - http://caniuse.com/#feat=rtcpeerconnection
 - http://caniuse.com/#search=getUserMedia
+
+In Firefox, it might be useful to use `about:webrtc` to debug connection
+issues.
+
+When experiencing connection issues, the first thing to try is to have all
+peers to use the same browser.
+
+# TURN Server
+
+When a direct connection cannot be established, it might be help to use a TURN
+server. The peercalls.com instance is configured to use a TURN server and it
+can be used for testing. However, the server bandwidth there is not unlimited.
+
+Here are the steps to install a TURN server on Ubuntu/Debian Linux:
+
+```bash
+sudo apt install coturn
+```
+
+Use the following configuration as a template:
+
+```bash
+lt-cred-mech
+use-auth-secret
+static-auth-secret=PASSWORD
+realm=example.com
+total-quota=300
+cert=/etc/letsencrypt/live/rtc.example.com/fullchain.pem
+pkey=/etc/letsencrypt/live/rtc.example.com/privkey.pem
+log-file=/dev/stdout
+no-multicast-peers
+proc-user=turnserver
+proc-group=turnserver
+```
+
+Change the `PASSWORD`, `realm`  and paths to server certificates.
+
+Use the following configuration for Peer Calls:
+
+```yaml
+iceServers:
+- url: 'turn:rtc.example.com'
+  urls: 'turn:rtc.example.com'
+  username: 'example'
+  secret: 'PASSWORD'
+  auth: 'secret'
+```
+
+Finally, enable and start the `coturn` service:
+
+```bash
+sudo systemctl enable coturn
+sudo systemctl start coturn
+```
 
 # TODO
 
