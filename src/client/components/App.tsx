@@ -1,5 +1,6 @@
 import classnames from 'classnames'
-import map from 'lodash/map'
+import keyBy from 'lodash/keyBy'
+import forEach from 'lodash/forEach'
 import React from 'react'
 import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
@@ -12,11 +13,10 @@ import { Media } from './Media'
 import Notifications from './Notifications'
 import { Side } from './Side'
 import Toolbar from './Toolbar'
-import Video from './Video'
+import Videos from './Videos'
 import { getDesktopStream } from '../actions/MediaActions'
-import { StreamsState, StreamWithURL } from '../reducers/streams'
+import { StreamsState } from '../reducers/streams'
 import { Nicknames } from '../reducers/nicknames'
-import { getNickname } from '../nickname'
 
 export interface AppProps {
   active: string | null
@@ -65,87 +65,30 @@ export default class App extends React.PureComponent<AppProps, AppState> {
   }
   onHangup = () => {
     const localStreams = this.getLocalStreams()
-    localStreams.streams.forEach(s => {
+    forEach(localStreams, s => {
       this.props.removeStream(constants.ME, s.stream)
     })
   }
-  private getLocalStreams() {
-    return this.props.streams[constants.ME] || {
-      userId: constants.ME,
-      streams: [],
-    }
-  }
-  private getVideoStreams() {
-    const {active, peers, streams} = this.props
-    const localStreams = this.getLocalStreams()
-
-    type s = {
-      key: string
-      stream: StreamWithURL
-      userId: string
-      muted?: boolean
-      localUser?: boolean
-      mirrored?: boolean
-    }
-    let activeStream: s | undefined
-    const otherStreams: Array<s> = []
-
-    function addStream(s: s) {
-      if (active === s.key) {
-        activeStream = s
-      } else {
-        otherStreams.push(s)
-      }
-    }
-
-    localStreams.streams.map((stream, i) => {
-      const key = localStreams.userId + '_' + i
-      addStream({
-        key,
-        stream,
-        userId: localStreams.userId,
-        mirrored: stream.type === 'camera',
-        muted: true,
-        localUser: true,
-      })
-    })
-
-    map(peers, (_, userId) => userId)
-    .filter(stream => !!stream)
-    .map(userId => streams[userId])
-    .filter(userStreams => !!userStreams)
-    .map(userStreams => {
-      return userStreams.streams.map((stream, i) => {
-        const key = userStreams.userId + '_' + i
-        addStream({
-          key,
-          stream,
-          userId: userStreams.userId,
-        })
-      })
-    })
-
-    return { activeStream, localStreams, otherStreams }
+  getLocalStreams() {
+    const ls = this.props.streams[constants.ME]
+    return ls ? keyBy(ls.streams, 'type') : {}
   }
   render () {
     const {
-      active,
       dismissNotification,
       notifications,
       nicknames,
       messages,
       messagesCount,
       onSendFile,
-      play,
       sendMessage,
-      toggleActive,
     } = this.props
 
     const chatVisibleClassName = classnames({
       'chat-visible': this.state.chatVisible,
     })
 
-    const { activeStream, localStreams, otherStreams } = this.getVideoStreams()
+    const localStreams = this.getLocalStreams()
 
     return (
       <div className="app">
@@ -156,14 +99,8 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}
             onHangup={this.onHangup}
-            stream={
-              localStreams.streams
-              .filter(s => s.type === constants.STREAM_TYPE_CAMERA)[0]
-            }
-            desktopStream={
-              localStreams.streams
-              .filter(s => s.type === constants.STREAM_TYPE_DESKTOP)[0]
-            }
+            stream={localStreams[constants.STREAM_TYPE_CAMERA]}
+            desktopStream={localStreams[constants.STREAM_TYPE_DESKTOP]}
             onGetDesktopStream={this.props.getDesktopStream}
             onRemoveStream={this.props.removeStream}
           />
@@ -183,40 +120,14 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           visible={this.state.chatVisible}
         />
 
-        {activeStream && (
-          <Video
-            key={activeStream.key}
-            active={active === activeStream.key}
-            onClick={toggleActive}
-            play={play}
-            stream={activeStream.stream}
-            userId={activeStream.key}
-            muted={activeStream.muted}
-            mirrored={activeStream.mirrored}
-            nickname={getNickname(nicknames, activeStream.userId)}
-            onChangeNickname={this.props.sendMessage}
-            localUser={activeStream.localUser}
-          />
-        )}
-        <div className={classnames('videos', chatVisibleClassName)}>
-          {otherStreams.map(stream => {
-            return (
-              <Video
-                key={stream.key}
-                active={active === stream.key}
-                onClick={toggleActive}
-                play={play}
-                stream={stream.stream}
-                userId={stream.key}
-                muted={stream.muted}
-                mirrored={stream.mirrored}
-                nickname={getNickname(nicknames, stream.userId)}
-                onChangeNickname={this.props.sendMessage}
-                localUser={stream.localUser}
-              />
-            )
-          })}
-        </div>
+        <Videos
+          onChangeNickname={sendMessage}
+          streams={this.props.streams}
+          play={this.props.play}
+          active={this.props.active}
+          nicknames={this.props.nicknames}
+          toggleActive={this.props.toggleActive}
+        />
       </div>
     )
   }
