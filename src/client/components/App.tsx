@@ -14,7 +14,7 @@ import { Side } from './Side'
 import Toolbar from './Toolbar'
 import Video from './Video'
 import { getDesktopStream } from '../actions/MediaActions'
-import { StreamsState } from '../reducers/streams'
+import { StreamsState, StreamWithURL } from '../reducers/streams'
 import { Nicknames } from '../reducers/nicknames'
 import { getNickname } from '../nickname'
 
@@ -69,11 +69,63 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       this.props.removeStream(constants.ME, s.stream)
     })
   }
-  getLocalStreams() {
+  private getLocalStreams() {
     return this.props.streams[constants.ME] || {
       userId: constants.ME,
       streams: [],
     }
+  }
+  private getVideoStreams() {
+    const {active, peers, streams} = this.props
+    const localStreams = this.getLocalStreams()
+
+    type s = {
+      key: string
+      stream: StreamWithURL
+      userId: string
+      muted?: boolean
+      localUser?: boolean
+      mirrored?: boolean
+    }
+    let activeStream: s | undefined
+    const otherStreams: Array<s> = []
+
+    function addStream(s: s) {
+      if (active === s.key) {
+        activeStream = s
+      } else {
+        otherStreams.push(s)
+      }
+    }
+
+    localStreams.streams.map((stream, i) => {
+      const key = localStreams.userId + '_' + i
+      addStream({
+        key,
+        stream,
+        userId: localStreams.userId,
+        mirrored: stream.type === 'camera',
+        muted: true,
+        localUser: true,
+      })
+    })
+
+    map(peers, (_, userId) => userId)
+    .filter(stream => !!stream)
+    .map(userId => streams[userId])
+    .filter(userStreams => !!userStreams)
+    .map(userStreams => {
+      return userStreams.streams.map((stream, i) => {
+        const key = userStreams.userId + '_' + i
+        addStream({
+          key,
+          stream,
+          userId: userStreams.userId,
+        })
+      })
+    })
+
+    return { activeStream, localStreams, otherStreams }
   }
   render () {
     const {
@@ -85,17 +137,15 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       messagesCount,
       onSendFile,
       play,
-      peers,
       sendMessage,
       toggleActive,
-      streams,
     } = this.props
 
     const chatVisibleClassName = classnames({
       'chat-visible': this.state.chatVisible,
     })
 
-    const localStreams = this.getLocalStreams()
+    const { activeStream, localStreams, otherStreams } = this.getVideoStreams()
 
     return (
       <div className="app">
@@ -132,48 +182,40 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           sendMessage={sendMessage}
           visible={this.state.chatVisible}
         />
+
+        {activeStream && (
+          <Video
+            key={activeStream.key}
+            active={active === activeStream.key}
+            onClick={toggleActive}
+            play={play}
+            stream={activeStream.stream}
+            userId={activeStream.key}
+            muted={activeStream.muted}
+            mirrored={activeStream.mirrored}
+            nickname={getNickname(nicknames, activeStream.userId)}
+            onChangeNickname={this.props.sendMessage}
+            localUser={activeStream.localUser}
+          />
+        )}
         <div className={classnames('videos', chatVisibleClassName)}>
-          {localStreams.streams.map((s, i) => {
-            const key = localStreams.userId + '_' + i
+          {otherStreams.map(stream => {
             return (
               <Video
-                key={key}
-                active={active === key}
+                key={stream.key}
+                active={active === stream.key}
                 onClick={toggleActive}
                 play={play}
-                stream={s}
-                userId={key}
-                muted
-                mirrored={s.type === 'camera'}
-                nickname={getNickname(nicknames, localStreams.userId)}
+                stream={stream.stream}
+                userId={stream.key}
+                muted={stream.muted}
+                mirrored={stream.mirrored}
+                nickname={getNickname(nicknames, stream.userId)}
                 onChangeNickname={this.props.sendMessage}
-                localUser
+                localUser={stream.localUser}
               />
             )
           })}
-          {
-            map(peers, (_, userId) => userId)
-            .filter(stream => !!stream)
-            .map(userId => streams[userId])
-            .filter(userStreams => !!userStreams)
-            .map(userStreams => {
-              return userStreams.streams.map((s, i) => {
-                const key = userStreams.userId + '_' + i
-                return (
-                  <Video
-                    active={key === active}
-                    key={key}
-                    onClick={toggleActive}
-                    play={play}
-                    stream={s}
-                    userId={key}
-                    nickname={getNickname(nicknames, userStreams.userId)}
-                    onChangeNickname={this.props.sendMessage}
-                  />
-                )
-              })
-            })
-          }
         </div>
       </div>
     )
