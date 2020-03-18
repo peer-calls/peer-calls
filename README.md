@@ -210,7 +210,7 @@ Here are the steps to install a TURN server on Ubuntu/Debian Linux:
 sudo apt install coturn
 ```
 
-Use the following configuration as a template:
+Use the following configuration as a template for `/etc/turnserver.conf`:
 
 ```bash
 lt-cred-mech
