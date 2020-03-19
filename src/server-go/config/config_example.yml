@@ -1,0 +1,17 @@
+base_url: /test
+ice_servers:
+- urls:
+  - 'stun:stun.l.google.com:19302'
+  auth_type: secret
+  auth_secret:
+    username: test_user
+    secret: test_secret
+tls:
+  cert: test.pem
+  key: test.key
+store:
+  type: redis
+  redis:
+    host: localhost
+    port: 6379
+    prefix: peercalls
