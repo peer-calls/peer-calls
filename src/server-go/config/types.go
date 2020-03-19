@@ -8,7 +8,7 @@ const (
 )
 
 type ICEServer struct {
-	URLs       []string `yaml:"urls" `
+	URLs       []string `yaml:"urls"`
 	AuthType   AuthType `yaml:"auth_type"`
 	AuthSecret struct {
 		Username string `yaml:"username"`
@@ -41,6 +41,8 @@ type StoreConfig struct {
 
 type Config struct {
 	BaseURL    string      `yaml:"base_url"`
+	BindHost   string      `yaml:"bind_host"`
+	BindPort   int         `yaml:"bind_port"`
 	ICEServers []ICEServer `yaml:"ice_servers"`
 	TLS        TLSConfig   `yaml:"tls"`
 	Store      StoreConfig `yaml:"store"`

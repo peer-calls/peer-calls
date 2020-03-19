@@ -20,6 +20,12 @@ func ReadFile(filename string, c *Config) (err error) {
 	return err
 }
 
+func Defaults(c *Config) {
+	if !strings.HasSuffix(c.BaseURL, "/") {
+		c.BaseURL += "/"
+	}
+}
+
 func ReadFiles(filenames []string, c *Config) (err error) {
 	for _, filename := range filenames {
 		err = ReadFile(filename, c)
@@ -46,6 +52,8 @@ func ReadYAML(reader io.Reader, c *Config) error {
 
 func ReadEnv(prefix string, c *Config) {
 	setEnvString(&c.BaseURL, prefix+"BASE_URL")
+	setEnvString(&c.BindHost, prefix+"BIND_HOST")
+	setEnvInt(&c.BindPort, prefix+"BIND_PORT")
 	setEnvString(&c.TLS.Cert, prefix+"TLS_CERT")
 	setEnvString(&c.TLS.Key, prefix+"TLS_KEY")
 

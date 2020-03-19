@@ -15,6 +15,12 @@ func TestRead(t *testing.T) {
 	assert.Nil(t, err, "error reading config")
 }
 
+func TestDefaults(t *testing.T) {
+	var c config.Config
+	config.Defaults(&c)
+	assert.Equal(t, "/", c.BaseURL)
+}
+
 func TestReadFiles(t *testing.T) {
 	var c config.Config
 	err := config.ReadFiles([]string{"config_example.yml"}, &c)
