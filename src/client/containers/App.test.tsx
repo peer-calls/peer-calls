@@ -110,10 +110,10 @@ describe('App', () => {
 
     describe('video', () => {
       beforeEach(() => {
-        dispatchSpy.mockReset()
+        dispatchSpy.mockClear()
       })
 
-      it('can be activated', () => {
+      it.only('can be activated', () => {
         const video = node.querySelector('video')!
         TestUtils.Simulate.mouseDown(video)
         TestUtils.Simulate.mouseUp(video)
@@ -123,6 +123,8 @@ describe('App', () => {
           type: constants.ACTIVE_TOGGLE,
           payload: { userId: constants.ME + '_0' },
         }]])
+        const active = node.querySelector('.video-container.active')!
+        expect(active).toBeTruthy()
       })
 
       it('can toggle object-fit to/from cover by long-pressing', () => {
