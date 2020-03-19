@@ -2,55 +2,61 @@ package routes
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 
+	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
 	"github.com/google/uuid"
 	"github.com/jeremija/peer-calls/src/server-go/render"
 )
 
-func joinURL(base string, paths ...string) string {
-	p := path.Join(paths...)
-	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
-}
-
 type Mux struct {
 	BaseURL    string
-	mux        *http.ServeMux
+	handler    *chi.Mux
 	iceServers string
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mux.mux.ServeHTTP(w, r)
+	mux.handler.ServeHTTP(w, r)
 }
 
 func NewMux(baseURL string, version string, iceServersJSON string) *Mux {
-	serveMux := http.NewServeMux()
-
 	box := packr.NewBox("../templates")
 	templates := render.ParseTemplates(box)
 	renderer := render.NewRenderer(templates, baseURL, version)
 
+	handler := chi.NewRouter()
 	mux := &Mux{
 		BaseURL:    baseURL,
-		mux:        serveMux,
+		handler:    handler,
 		iceServers: iceServersJSON,
 	}
 
-	serveMux.Handle(joinURL(baseURL, "/"), renderer.Render(mux.routeIndex))
-	serveMux.Handle(joinURL(baseURL, "/static"), static("../../../build"))
-	serveMux.Handle(joinURL(baseURL, "/call"), http.HandlerFunc(mux.routeNewCall))
-	serveMux.Handle(joinURL(baseURL, "/call/*"), renderer.Render(mux.routeCall))
+	var root string
+	if baseURL == "" {
+		root = "/"
+	} else {
+		root = baseURL
+	}
+
+	handler.Route(root, func(router chi.Router) {
+		router.Get("/", renderer.Render(mux.routeIndex))
+		router.Handle("/static/*", static(baseURL+"/static", "../../../build"))
+		router.Handle("/res/*", static(baseURL+"/res", "../../../res"))
+		router.Post("/call", mux.routeNewCall)
+		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
+	})
 
 	return mux
 }
 
-func static(path string) http.Handler {
+func static(prefix string, path string) http.Handler {
 	box := packr.NewBox(path)
-	return http.FileServer(http.FileSystem(box))
+	fileServer := http.FileServer(http.FileSystem(box))
+	return http.StripPrefix(prefix, fileServer)
 }
 
 func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
@@ -67,12 +73,13 @@ func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, inte
 }
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
+	fmt.Println("routeCall")
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := uuid.New().String()
-	data := map[string]string{
+	data := map[string]interface{}{
 		"CallID":     callID,
 		"UserID":     userID,
-		"ICEServers": mux.iceServers,
+		"ICEServers": template.HTML(mux.iceServers),
 	}
 	return "call.html", data, nil
 }

@@ -3,6 +3,7 @@ module github.com/jeremija/peer-calls/src/server-go
 go 1.14
 
 require (
+	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/gobuffalo/packd v0.3.0
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.1.1

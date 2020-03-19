@@ -34,7 +34,6 @@ func main() {
 		panicOnError(err, "Error reading config file")
 	}
 	config.ReadEnv("PEERCALLS_", &c)
-	config.Defaults(&c)
 
 	ice, err := json.Marshal(iceauth.GetICEServers(c.ICEServers))
 	panicOnError(err, "Error setting ICE servers")

@@ -15,5 +15,6 @@ matrix:
     go: "1.14"
     script:
       - cd src/server-go
-      - go test ./...
       - go build ./...
+      - go test ./... -coverprofile=coverage.out
+      - go tool cover -func=coverage.out

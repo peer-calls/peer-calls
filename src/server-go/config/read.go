@@ -20,12 +20,6 @@ func ReadFile(filename string, c *Config) (err error) {
 	return err
 }
 
-func Defaults(c *Config) {
-	if !strings.HasSuffix(c.BaseURL, "/") {
-		c.BaseURL += "/"
-	}
-}
-
 func ReadFiles(filenames []string, c *Config) (err error) {
 	for _, filename := range filenames {
 		err = ReadFile(filename, c)
