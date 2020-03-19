@@ -1,7 +1,19 @@
-language: node_js
-services:
-  - redis-server
-node_js:
-  - "8"
-  - "12"
-script: npm run ci
+
+matrix:
+  include:
+  - language: node_js
+    services:
+    - redis-server
+    node_js: "8"
+    script: npm run ci
+  - language: node_js
+    services:
+    - redis-server
+    node_js: "12"
+    script: npm run ci
+  - language: go
+    go: "1.14"
+    script:
+      - cd src/server-go
+      - go test ./...
+      - go build ./...
