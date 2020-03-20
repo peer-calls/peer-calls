@@ -11,4 +11,5 @@ require (
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/yaml.v2 v2.2.8
 	honnef.co/go/tools v0.0.1-2020.1.3
+	nhooyr.io/websocket v1.8.4
 )
