@@ -18,6 +18,7 @@ router.get('/:callId', (req, res) => {
   res.render('call', {
     callId: encodeURIComponent(req.params.callId),
     userId: v4(),
+    nickname: req.headers['x-forwarded-user'] || '',
     iceServers,
   })
 })

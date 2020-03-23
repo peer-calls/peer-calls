@@ -1,12 +1,13 @@
 import { NICKNAME_SET, PEER_REMOVE, ME } from '../constants'
 import { NicknameActions } from '../actions/NicknameActions'
 import { RemovePeerAction } from '../actions/PeerActions'
-import omit = require('lodash/omit')
+import { nickname } from '../window'
+import omit from 'lodash/omit'
 
 export type Nicknames = Record<string, string | undefined>
 
 const defaultState: Nicknames = {
-  [ME]: localStorage && localStorage.nickname,
+  [ME]: localStorage && localStorage.nickname || nickname,
 }
 
 export default function nicknames(
