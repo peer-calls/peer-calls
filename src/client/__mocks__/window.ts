@@ -44,4 +44,6 @@ export const callId = 'call1234'
 
 export const userId = 'user1234'
 
+export const nickname = 'nick1234'
+
 export const iceServers = []

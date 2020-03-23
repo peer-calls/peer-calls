@@ -112,7 +112,7 @@ class PeerHandler {
         dispatch(ChatActions.addMessage({
           userId: constants.PEERCALLS,
           message: 'User ' + getNickname(state.nicknames, user.id) +
-            ' is now known as ' + message.payload.nickname,
+            ' is now known as ' + (message.payload.nickname || user.id),
           timestamp: new Date().toLocaleString(),
           image: undefined,
         }))

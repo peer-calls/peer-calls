@@ -51,8 +51,16 @@ describe('server/app', () => {
 
     it('renders call page', () => {
       return request(app)
-      .get('/call/test')
+      .get(`${BASE_URL}/call/test`)
       .expect(200)
+    })
+
+    it('sets nickname from x-forwarded-user', () => {
+      return request(app)
+      .get(`${BASE_URL}/call/test`)
+      .set('x-forwarded-user', 'abc')
+      .expect(200)
+      .expect(/<input type="hidden" id="nickname" value="abc">/)
     })
 
   })
