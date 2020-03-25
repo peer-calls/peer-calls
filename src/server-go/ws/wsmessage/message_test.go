@@ -8,28 +8,35 @@ import (
 )
 
 func TestMessageSerializeDeserialize(t *testing.T) {
-	typ := ^uint16(0)
+	typ := "test-type"
+	room := "test-room"
 	payload := []byte{1, 2, 3}
-	m1 := wsmessage.NewMessage(typ, payload)
+	m1 := wsmessage.NewMessage(typ, room, payload)
 	assert.Equal(t, typ, m1.Type())
 	assert.Equal(t, payload, m1.Payload())
+	assert.Equal(t, room, m1.Room())
 	var s wsmessage.ByteSerializer
 	serialized := s.Serialize(m1)
 	m2 := s.Deserialize(serialized)
 	assert.Equal(t, typ, m2.Type())
 	assert.Equal(t, payload, m2.Payload())
+	assert.Equal(t, room, m2.Room())
 }
 
 func TestNewMessageRoomJoin(t *testing.T) {
 	room := "test"
-	m1 := wsmessage.NewMessageRoomJoin(room)
+	clientID := "client1"
+	m1 := wsmessage.NewMessageRoomJoin(room, clientID)
 	assert.Equal(t, wsmessage.MessageTypeRoomJoin, m1.Type())
-	assert.Equal(t, []byte(room), m1.Payload())
+	assert.Equal(t, room, m1.Room())
+	assert.Equal(t, []byte(clientID), m1.Payload())
 }
 
 func TestNewMessageRoomLeave(t *testing.T) {
 	room := "test"
-	m1 := wsmessage.NewMessageRoomLeave(room)
+	clientID := "client1"
+	m1 := wsmessage.NewMessageRoomLeave(room, clientID)
 	assert.Equal(t, wsmessage.MessageTypeRoomLeave, m1.Type())
-	assert.Equal(t, []byte(room), m1.Payload())
+	assert.Equal(t, room, m1.Room())
+	assert.Equal(t, []byte(clientID), m1.Payload())
 }

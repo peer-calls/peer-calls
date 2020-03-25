@@ -35,7 +35,7 @@ type RedisAdapter struct {
 	allClients map[string]struct{}
 	logger     *log.Logger
 	prefix     string
-	roomName   string
+	room       string
 	pubRedis   *redis.Client // FIXME replace this with interface
 	subRedis   *redis.Client
 	channels   struct {
@@ -44,19 +44,19 @@ type RedisAdapter struct {
 	}
 }
 
-func getRoomChannelName(prefix string, roomName string) string {
-	return prefix + ":room:" + roomName
+func getRoomChannelName(prefix string, room string) string {
+	return prefix + ":room:" + room
 }
 
-func getClientChannelName(prefix string, roomName string, clientID string) string {
-	return prefix + ":room:" + roomName + ":client:" + clientID
+func getClientChannelName(prefix string, room string, clientID string) string {
+	return prefix + ":room:" + room + ":client:" + clientID
 }
 
 func NewRedisAdapter(
 	pubRedis *redis.Client,
 	subRedis *redis.Client,
 	prefix string,
-	roomName string,
+	room string,
 ) *RedisAdapter {
 	var clientsMu sync.RWMutex
 
@@ -66,37 +66,37 @@ func NewRedisAdapter(
 		clientsMu:  &clientsMu,
 		logger:     log.New(os.Stdout, "wsredis ", log.LstdFlags),
 		prefix:     prefix,
-		roomName:   roomName,
+		room:       room,
 		pubRedis:   pubRedis,
 		subRedis:   subRedis,
 	}
 
-	adapter.channels.roomChannel = getRoomChannelName(prefix, roomName)
-	adapter.channels.clientPattern = getClientChannelName(prefix, roomName, "*")
+	adapter.channels.roomChannel = getRoomChannelName(prefix, room)
+	adapter.channels.clientPattern = getClientChannelName(prefix, room, "*")
 
 	return &adapter
 }
 
 func (a *RedisAdapter) Add(client Client) {
 	clientID := client.ID()
-	a.logger.Printf("Add clientID: %s to room: %s", clientID, a.roomName)
+	a.logger.Printf("Add clientID: %s to room: %s", clientID, a.room)
 	a.clientsMu.Lock()
-	a.Broadcast(wsmessage.NewMessageRoomJoin(clientID))
+	a.Broadcast(wsmessage.NewMessageRoomJoin(a.room, clientID))
 	a.clients[clientID] = client
-	a.logger.Printf("Add clientID: %s to room: %s done", clientID, a.roomName)
+	a.logger.Printf("Add clientID: %s to room: %s done", clientID, a.room)
 	a.clientsMu.Unlock()
 }
 
 func (a *RedisAdapter) Remove(clientID string) {
-	a.logger.Printf("Remove clientID: %s from room: %s", clientID, a.roomName)
+	a.logger.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	a.clientsMu.Lock()
 	if _, ok := a.clients[clientID]; ok {
 		// can only remove clients connected to this adapter
-		a.Broadcast(wsmessage.NewMessageRoomLeave(clientID))
+		a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
 		delete(a.clients, clientID)
 		delete(a.allClients, clientID)
 	}
-	a.logger.Printf("Remove clientID: %s from room: %s done", clientID, a.roomName)
+	a.logger.Printf("Remove clientID: %s from room: %s done", clientID, a.room)
 	a.clientsMu.Unlock()
 }
 
@@ -130,7 +130,7 @@ func (a *RedisAdapter) handleMessage(
 	message string,
 ) {
 	msg := serializer.Deserialize([]byte(message))
-	a.logger.Printf("handleMessage pattern: %s, channel: %s, type: %d, payload: %s", pattern, channel, msg.Type(), msg.Payload())
+	a.logger.Printf("handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type(), msg.Payload())
 	switch {
 	case channel == a.channels.roomChannel:
 		// localBroadcast to all clients
@@ -211,38 +211,38 @@ func (a *RedisAdapter) Subscribe() (stop func() error) {
 
 func (a *RedisAdapter) Broadcast(msg wsmessage.Message) {
 	channel := a.channels.roomChannel
-	a.logger.Printf("Broadcast type: %d, payload: %s to %s", msg.Type(), msg.Payload(), channel)
+	a.logger.Printf("Broadcast type: %s, payload: %s to %s", msg.Type(), msg.Payload(), channel)
 	a.pubRedis.Publish(channel, string(serializer.Serialize(msg)))
 }
 
 func (a *RedisAdapter) localBroadcast(msg wsmessage.Message) {
-	a.logger.Printf("localBroadcast in room %s of message type: %d", a.roomName, msg.Type())
+	a.logger.Printf("localBroadcast in room %s of message type: %s", a.room, msg.Type())
 	for clientID := range a.clients {
 		a.localEmit(clientID, msg)
 	}
 }
 
 func (a *RedisAdapter) Emit(clientID string, msg wsmessage.Message) {
-	channel := getClientChannelName(a.prefix, a.roomName, clientID)
-	a.logger.Printf("Emit clientID: %s, type: %d, payload: %s to %s", clientID, msg.Type(), msg, channel)
+	channel := getClientChannelName(a.prefix, a.room, clientID)
+	a.logger.Printf("Emit clientID: %s, type: %s, payload: %s to %s", clientID, msg.Type(), msg, channel)
 	a.pubRedis.Publish(channel, string(serializer.Serialize(msg)))
 }
 
 func (a *RedisAdapter) localEmit(clientID string, msg wsmessage.Message) {
 	client, ok := a.clients[clientID]
 	if !ok {
-		a.logger.Printf("localEmit in room: %s  - no local clientID: %s", a.roomName, clientID)
+		a.logger.Printf("localEmit in room: %s  - no local clientID: %s", a.room, clientID)
 		return
 	}
 	if _, ok := a.allClients[clientID]; !ok {
 		// we only want to emit messages to other clients once they are fully registered.
-		a.logger.Printf("localEmit in room: %s  - skipping not completely registered clientID: %s", a.roomName, clientID)
+		a.logger.Printf("localEmit in room: %s  - skipping not completely registered clientID: %s", a.room, clientID)
 		return
 	}
 	select {
 	case client.Messages() <- msg:
-		a.logger.Printf("localEmit in room: %s - sent to local clientID: %s", a.roomName, clientID)
+		a.logger.Printf("localEmit in room: %s - sent to local clientID: %s", a.room, clientID)
 	default:
-		a.logger.Printf("localEmit in room: %s - buffer full for clientID: %s", a.roomName, clientID)
+		a.logger.Printf("localEmit in room: %s - buffer full for clientID: %s", a.room, clientID)
 	}
 }

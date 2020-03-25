@@ -14,15 +14,15 @@ type Client interface {
 type MemoryAdapter struct {
 	clientsMu *sync.RWMutex
 	clients   map[string]Client
-	roomName  string
+	room      string
 }
 
-func NewMemoryAdapter(roomName string) *MemoryAdapter {
+func NewMemoryAdapter(room string) *MemoryAdapter {
 	var clientsMu sync.RWMutex
 	return &MemoryAdapter{
 		clientsMu: &clientsMu,
 		clients:   map[string]Client{},
-		roomName:  roomName,
+		room:      room,
 	}
 }
 
@@ -31,14 +31,14 @@ func (m *MemoryAdapter) Add(client Client) {
 	m.clientsMu.Lock()
 	clientID := client.ID()
 	m.clients[clientID] = client
-	m.broadcast(wsmessage.NewMessageRoomJoin(clientID))
+	m.broadcast(wsmessage.NewMessageRoomJoin(m.room, clientID))
 	m.clientsMu.Unlock()
 }
 
 // Remove a client from the room
 func (m *MemoryAdapter) Remove(clientID string) {
 	m.clientsMu.Lock()
-	m.broadcast(wsmessage.NewMessageRoomLeave(clientID))
+	m.broadcast(wsmessage.NewMessageRoomLeave(m.room, clientID))
 	delete(m.clients, clientID)
 	m.clientsMu.Unlock()
 }
