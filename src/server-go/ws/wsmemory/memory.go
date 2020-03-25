@@ -36,24 +36,44 @@ func (m *MemoryAdapter) Remove(clientID string) {
 	m.clientsMu.Unlock()
 }
 
-func (m *MemoryAdapter) Size() int {
+func (m *MemoryAdapter) Clients() []string {
 	m.clientsMu.RLock()
-	defer m.clientsMu.RUnlock()
-	return len(m.clients)
+	clientIDs := []string{}
+	for clientID := range m.clients {
+		clientIDs = append(clientIDs, clientID)
+	}
+	m.clientsMu.RUnlock()
+	return clientIDs
+}
+
+func (m *MemoryAdapter) Size() (value int) {
+	m.clientsMu.RLock()
+	value = len(m.clients)
+	m.clientsMu.RUnlock()
+	return
 }
 
 // Send a message to all sockets
 func (m *MemoryAdapter) Broadcast(msg []byte) {
 	m.clientsMu.RLock()
-	defer m.clientsMu.RUnlock()
+	m.broadcast(msg)
+	m.clientsMu.RUnlock()
+}
 
+func (m *MemoryAdapter) broadcast(msg []byte) {
 	for clientID := range m.clients {
-		m.Emit(clientID, msg)
+		m.emit(clientID, msg)
 	}
 }
 
 // Sends a message to specific socket.
 func (m *MemoryAdapter) Emit(clientID string, msg []byte) {
+	m.clientsMu.RLock()
+	m.emit(clientID, msg)
+	m.clientsMu.RUnlock()
+}
+
+func (m *MemoryAdapter) emit(clientID string, msg []byte) {
 	client, ok := m.clients[clientID]
 	if !ok {
 		return
@@ -61,6 +81,6 @@ func (m *MemoryAdapter) Emit(clientID string, msg []byte) {
 	select {
 	case client.Messages() <- msg:
 	default:
-		// TODO see if this is called when channel is closed
+		// if the client buffer is full, it will not be sent
 	}
 }
