@@ -2,36 +2,43 @@ package wsmemory
 
 import (
 	"sync"
+
+	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 )
 
 type Client interface {
 	ID() string
-	Messages() chan<- []byte
+	Messages() chan<- wsmessage.Message
 }
 
 type MemoryAdapter struct {
 	clientsMu *sync.RWMutex
 	clients   map[string]Client
+	roomName  string
 }
 
-func NewMemoryAdapter() *MemoryAdapter {
+func NewMemoryAdapter(roomName string) *MemoryAdapter {
 	var clientsMu sync.RWMutex
 	return &MemoryAdapter{
 		clientsMu: &clientsMu,
 		clients:   map[string]Client{},
+		roomName:  roomName,
 	}
 }
 
 // Add a client to the room
 func (m *MemoryAdapter) Add(client Client) {
 	m.clientsMu.Lock()
-	m.clients[client.ID()] = client
+	clientID := client.ID()
+	m.clients[clientID] = client
+	m.broadcast(wsmessage.NewMessageRoomJoin(clientID))
 	m.clientsMu.Unlock()
 }
 
 // Remove a client from the room
 func (m *MemoryAdapter) Remove(clientID string) {
 	m.clientsMu.Lock()
+	m.broadcast(wsmessage.NewMessageRoomLeave(clientID))
 	delete(m.clients, clientID)
 	m.clientsMu.Unlock()
 }
@@ -54,26 +61,26 @@ func (m *MemoryAdapter) Size() (value int) {
 }
 
 // Send a message to all sockets
-func (m *MemoryAdapter) Broadcast(msg []byte) {
+func (m *MemoryAdapter) Broadcast(msg wsmessage.Message) {
 	m.clientsMu.RLock()
 	m.broadcast(msg)
 	m.clientsMu.RUnlock()
 }
 
-func (m *MemoryAdapter) broadcast(msg []byte) {
+func (m *MemoryAdapter) broadcast(msg wsmessage.Message) {
 	for clientID := range m.clients {
 		m.emit(clientID, msg)
 	}
 }
 
 // Sends a message to specific socket.
-func (m *MemoryAdapter) Emit(clientID string, msg []byte) {
+func (m *MemoryAdapter) Emit(clientID string, msg wsmessage.Message) {
 	m.clientsMu.RLock()
 	m.emit(clientID, msg)
 	m.clientsMu.RUnlock()
 }
 
-func (m *MemoryAdapter) emit(clientID string, msg []byte) {
+func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) {
 	client, ok := m.clients[clientID]
 	if !ok {
 		return

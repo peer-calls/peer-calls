@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"nhooyr.io/websocket"
 )
 
@@ -14,9 +15,10 @@ type WSWriter interface {
 
 // An abstraction for sending messages to websocket using channels.
 type Client struct {
-	id       string
-	conn     WSWriter
-	messages chan []byte
+	id         string
+	conn       WSWriter
+	messages   chan wsmessage.Message
+	serializer wsmessage.ByteSerializer
 }
 
 // Creates a new websocket client.
@@ -24,15 +26,15 @@ func NewClient(conn WSWriter) *Client {
 	return &Client{
 		id:       uuid.New().String(),
 		conn:     conn,
-		messages: make(chan []byte, 16),
+		messages: make(chan wsmessage.Message, 16),
 	}
 }
 
 // Writes a message to websocket with timeout.
-func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg []byte) error {
+func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg wsmessage.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return c.conn.Write(ctx, websocket.MessageText, msg)
+	return c.conn.Write(ctx, websocket.MessageText, c.serializer.Serialize(msg))
 }
 
 func (c *Client) ID() string {
@@ -41,7 +43,7 @@ func (c *Client) ID() string {
 
 // Gets the channel to write messages to. Messages sent here will be written
 // to the websocket and received by the other side.
-func (c *Client) Messages() chan<- []byte {
+func (c *Client) Messages() chan<- wsmessage.Message {
 	return c.messages
 }
 
