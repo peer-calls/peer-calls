@@ -8,7 +8,7 @@ import (
 
 type Client interface {
 	ID() string
-	Messages() chan<- wsmessage.Message
+	WriteChannel() chan<- wsmessage.Message
 }
 
 type MemoryAdapter struct {
@@ -86,7 +86,7 @@ func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) {
 		return
 	}
 	select {
-	case client.Messages() <- msg:
+	case client.WriteChannel() <- msg:
 	default:
 		// if the client buffer is full, it will not be sent
 	}

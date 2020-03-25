@@ -13,20 +13,20 @@ type WSWriter interface {
 	Write(ctx context.Context, typ websocket.MessageType, msg []byte) error
 }
 
-// An abstraction for sending messages to websocket using channels.
+// An abstraction for sending out to websocket using channels.
 type Client struct {
-	id         string
-	conn       WSWriter
-	messages   chan wsmessage.Message
-	serializer wsmessage.ByteSerializer
+	id           string
+	conn         WSWriter
+	writeChannel chan wsmessage.Message
+	serializer   wsmessage.ByteSerializer
 }
 
 // Creates a new websocket client.
 func NewClient(conn WSWriter) *Client {
 	return &Client{
-		id:       uuid.New().String(),
-		conn:     conn,
-		messages: make(chan wsmessage.Message, 16),
+		id:           uuid.New().String(),
+		conn:         conn,
+		writeChannel: make(chan wsmessage.Message, 16),
 	}
 }
 
@@ -41,19 +41,19 @@ func (c *Client) ID() string {
 	return c.id
 }
 
-// Gets the channel to write messages to. Messages sent here will be written
+// Gets the channel to write out to. Messages sent here will be written
 // to the websocket and received by the other side.
-func (c *Client) Messages() chan<- wsmessage.Message {
-	return c.messages
+func (c *Client) WriteChannel() chan<- wsmessage.Message {
+	return c.writeChannel
 }
 
-// Subscribes to messages and writes messages to the websocket. This method
+// Subscribes to out and writes out to the websocket. This method
 // blocks until the channel is closed, or the context is done. Should be
 // called from the HTTP handler method.
 func (c *Client) Subscribe(ctx context.Context) error {
 	for {
 		select {
-		case msg := <-c.messages:
+		case msg := <-c.writeChannel:
 			err := c.WriteTimeout(ctx, time.Second*5, msg)
 			if err != nil {
 				return err

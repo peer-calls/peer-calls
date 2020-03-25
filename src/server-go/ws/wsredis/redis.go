@@ -13,7 +13,7 @@ import (
 
 type Client interface {
 	ID() string
-	Messages() chan<- wsmessage.Message
+	WriteChannel() chan<- wsmessage.Message
 }
 
 type JSONMessage struct {
@@ -243,7 +243,7 @@ func (a *RedisAdapter) localEmit(clientID string, msg wsmessage.Message) {
 		return
 	}
 	select {
-	case client.Messages() <- msg:
+	case client.WriteChannel() <- msg:
 		a.logger.Printf("localEmit in room: %s - sent to local clientID: %s", a.room, clientID)
 	default:
 		a.logger.Printf("localEmit in room: %s - buffer full for clientID: %s", a.room, clientID)
