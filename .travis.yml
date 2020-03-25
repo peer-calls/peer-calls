@@ -12,6 +12,8 @@ matrix:
     node_js: "12"
     script: npm run ci
   - language: go
+    services:
+    - redis-server
     go: "1.14"
     script:
       - cd src/server-go

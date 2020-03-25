@@ -83,7 +83,7 @@ func (a *RedisAdapter) Add(client Client) {
 	a.clientsMu.Lock()
 	a.Broadcast(wsmessage.NewMessageRoomJoin(clientID))
 	a.clients[clientID] = client
-	a.allClients[clientID] = struct{}{}
+	a.logger.Printf("Add clientID: %s to room: %s done", clientID, a.roomName)
 	a.clientsMu.Unlock()
 }
 
@@ -96,24 +96,32 @@ func (a *RedisAdapter) Remove(clientID string) {
 		delete(a.clients, clientID)
 		delete(a.allClients, clientID)
 	}
+	a.logger.Printf("Remove clientID: %s from room: %s done", clientID, a.roomName)
 	a.clientsMu.Unlock()
 }
 
+// Returns IDs of all known clients connected to this room
 func (a *RedisAdapter) Clients() (clientIDs []string) {
 	a.logger.Printf("Clients")
 	a.clientsMu.RLock()
+	size := len(a.allClients)
+	clientIDs = make([]string, size)
+	i := 0
 	for clientID := range a.allClients {
-		clientIDs = append(clientIDs, clientID)
+		clientIDs[i] = clientID
+		i++
 	}
 	a.clientsMu.RUnlock()
-	a.logger.Printf("Clients size: %d", len(clientIDs))
+	a.logger.Printf("Clients size: %d", size)
 	return
 }
 
-func (a *RedisAdapter) Size() int {
+// Returns count of all known clients connected to this room
+func (a *RedisAdapter) Size() (size int) {
 	a.clientsMu.RLock()
-	defer a.clientsMu.RUnlock()
-	return len(a.clients)
+	size = len(a.allClients)
+	a.clientsMu.RUnlock()
+	return
 }
 
 func (a *RedisAdapter) handleMessage(
@@ -159,17 +167,22 @@ func (a *RedisAdapter) handleMessage(
 func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
 	a.logger.Println("Subscribe", a.channels.roomChannel, a.channels.clientPattern)
 	pubsub := a.subRedis.PSubscribe(a.channels.roomChannel, a.channels.clientPattern)
-	ch := pubsub.Channel()
+	ch := pubsub.ChannelWithSubscriptions(100)
 
-	pubsub.Ping()
-
-	ready()
-	a.logger.Println("Subscribe ready")
+	isReady := false
 
 	for {
 		select {
 		case msg := <-ch:
-			a.handleMessage(msg.Pattern, msg.Channel, msg.Payload)
+			switch msg := msg.(type) {
+			case *redis.Subscription:
+				if !isReady {
+					isReady = true
+					ready()
+				}
+			case *redis.Message:
+				a.handleMessage(msg.Pattern, msg.Channel, msg.Payload)
+			}
 		case <-ctx.Done():
 			err := ctx.Err()
 			a.logger.Println("Subscribe done", err)
@@ -219,6 +232,11 @@ func (a *RedisAdapter) localEmit(clientID string, msg wsmessage.Message) {
 	client, ok := a.clients[clientID]
 	if !ok {
 		a.logger.Printf("localEmit in room: %s  - no local clientID: %s", a.roomName, clientID)
+		return
+	}
+	if _, ok := a.allClients[clientID]; !ok {
+		// we only want to emit messages to other clients once they are fully registered.
+		a.logger.Printf("localEmit in room: %s  - skipping not completely registered clientID: %s", a.roomName, clientID)
 		return
 	}
 	select {

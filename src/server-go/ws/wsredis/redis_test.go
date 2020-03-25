@@ -38,10 +38,10 @@ func (w *MockWSWriter) Write(ctx context.Context, typ websocket.MessageType, msg
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	r, err := miniredis.Run()
 	require.Nil(t, err)
-	pubRedis := redis.NewClient(&redis.Options{
+	subRedis := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
-	subRedis := redis.NewClient(&redis.Options{
+	pubRedis := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
 	return pubRedis, subRedis, func() {
@@ -102,7 +102,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	assert.Equal(t, []string{client2.ID()}, adapter2.Clients())
 
 	adapter2.Remove(client2.ID())
-	assert.Equal(t, []string(nil), adapter2.Clients())
+	assert.Equal(t, make([]string, 0), adapter2.Clients())
 
 	t.Log("stopping...")
 	for _, stop := range []func() error{stop1, stop2} {
