@@ -67,7 +67,3 @@ func (s ByteSerializer) Deserialize(data []byte) Message {
 	m.message = data[typeSize:]
 	return m
 }
-
-type StringSerializer struct {
-	byteSerializer ByteSerializer
-}

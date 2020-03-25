@@ -6,13 +6,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/alicebob/miniredis"
 	"github.com/go-redis/redis/v7"
 	"github.com/jeremija/peer-calls/src/server-go/ws"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsredis"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
@@ -36,8 +34,6 @@ func (w *MockWSWriter) Write(ctx context.Context, typ websocket.MessageType, msg
 }
 
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
-	r, err := miniredis.Run()
-	require.Nil(t, err)
 	subRedis := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
@@ -47,7 +43,6 @@ func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	return pubRedis, subRedis, func() {
 		pubRedis.Close()
 		subRedis.Close()
-		r.Close()
 	}
 }
 
