@@ -32,24 +32,28 @@ type RedisAdapter struct {
 	// contains local clients connected to current instance
 	clients map[string]Client
 	// contains IDs of all clients in room, including those from other instances
-	allClients map[string]struct{}
-	logger     *log.Logger
-	prefix     string
-	room       string
-	pubRedis   *redis.Client // FIXME replace this with interface
-	subRedis   *redis.Client
-	channels   struct {
+	logger   *log.Logger
+	prefix   string
+	room     string
+	pubRedis *redis.Client // FIXME replace this with interface
+	subRedis *redis.Client
+	keys     struct {
 		roomChannel   string
+		roomClients   string
 		clientPattern string
 	}
 }
 
 func getRoomChannelName(prefix string, room string) string {
-	return prefix + ":room:" + room
+	return prefix + ":room:" + room + ":broadcast"
 }
 
 func getClientChannelName(prefix string, room string, clientID string) string {
 	return prefix + ":room:" + room + ":client:" + clientID
+}
+
+func getRoomClientsName(prefix string, room string) string {
+	return prefix + ":room:" + room + ":clients"
 }
 
 func NewRedisAdapter(
@@ -61,18 +65,18 @@ func NewRedisAdapter(
 	var clientsMu sync.RWMutex
 
 	adapter := RedisAdapter{
-		clients:    map[string]Client{},
-		allClients: map[string]struct{}{},
-		clientsMu:  &clientsMu,
-		logger:     log.New(os.Stdout, "wsredis ", log.LstdFlags),
-		prefix:     prefix,
-		room:       room,
-		pubRedis:   pubRedis,
-		subRedis:   subRedis,
+		clients:   map[string]Client{},
+		clientsMu: &clientsMu,
+		logger:    log.New(os.Stdout, "wsredis ", log.LstdFlags),
+		prefix:    prefix,
+		room:      room,
+		pubRedis:  pubRedis,
+		subRedis:  subRedis,
 	}
 
-	adapter.channels.roomChannel = getRoomChannelName(prefix, room)
-	adapter.channels.clientPattern = getClientChannelName(prefix, room, "*")
+	adapter.keys.roomChannel = getRoomChannelName(prefix, room)
+	adapter.keys.clientPattern = getClientChannelName(prefix, room, "*")
+	adapter.keys.roomClients = getRoomClientsName(prefix, room)
 
 	return &adapter
 }
@@ -92,9 +96,11 @@ func (a *RedisAdapter) Remove(clientID string) {
 	a.clientsMu.Lock()
 	if _, ok := a.clients[clientID]; ok {
 		// can only remove clients connected to this adapter
+		if err := a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
+			a.logger.Printf("Error deleting clientID from all clients: %s", err)
+		}
 		a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
 		delete(a.clients, clientID)
-		delete(a.allClients, clientID)
 	}
 	a.logger.Printf("Remove clientID: %s from room: %s done", clientID, a.room)
 	a.clientsMu.Unlock()
@@ -103,25 +109,27 @@ func (a *RedisAdapter) Remove(clientID string) {
 // Returns IDs of all known clients connected to this room
 func (a *RedisAdapter) Clients() (clientIDs []string) {
 	a.logger.Printf("Clients")
-	a.clientsMu.RLock()
-	size := len(a.allClients)
-	clientIDs = make([]string, size)
+
+	r := a.pubRedis.HGetAll(a.keys.roomClients)
+	allClients, err := r.Result()
+
+	if err != nil {
+		a.logger.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
+	}
+
+	clientIDs = make([]string, len(allClients))
 	i := 0
-	for clientID := range a.allClients {
+	for clientID := range allClients {
 		clientIDs[i] = clientID
 		i++
 	}
-	a.clientsMu.RUnlock()
-	a.logger.Printf("Clients size: %d", size)
+	a.logger.Printf("Clients size: %d", len(clientIDs))
 	return
 }
 
 // Returns count of all known clients connected to this room
 func (a *RedisAdapter) Size() (size int) {
-	a.clientsMu.RLock()
-	size = len(a.allClients)
-	a.clientsMu.RUnlock()
-	return
+	return len(a.Clients())
 }
 
 func (a *RedisAdapter) handleMessage(
@@ -132,27 +140,27 @@ func (a *RedisAdapter) handleMessage(
 	msg := serializer.Deserialize([]byte(message))
 	a.logger.Printf("handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type(), msg.Payload())
 	switch {
-	case channel == a.channels.roomChannel:
+	case channel == a.keys.roomChannel:
 		// localBroadcast to all clients
 		switch msg.Type() {
 		case wsmessage.MessageTypeRoomJoin:
 			a.clientsMu.Lock()
 			clientID := string(msg.Payload())
-			a.allClients[clientID] = struct{}{}
+			a.pubRedis.HSet(a.keys.roomClients, clientID, "")
 			a.localBroadcast(msg)
 			a.clientsMu.Unlock()
 		case wsmessage.MessageTypeRoomLeave:
 			a.clientsMu.Lock()
 			a.localBroadcast(msg)
 			clientID := string(msg.Payload())
-			delete(a.allClients, clientID)
+			a.pubRedis.HDel(a.keys.roomClients, clientID)
 			a.clientsMu.Unlock()
 		default:
 			a.clientsMu.RLock()
 			a.localBroadcast(msg)
 			a.clientsMu.RUnlock()
 		}
-	case pattern == a.channels.clientPattern:
+	case pattern == a.keys.clientPattern:
 		params := strings.Split(channel, ":")
 		clientID := params[len(params)-1]
 		a.clientsMu.RLock()
@@ -162,11 +170,11 @@ func (a *RedisAdapter) handleMessage(
 	a.logger.Println("handleMessage done")
 }
 
-// Reads from subscribed channels and dispatches relevant messages to
+// Reads from subscribed keys and dispatches relevant messages to
 // client websockets. This method blocks until the context is closed.
 func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
-	a.logger.Println("Subscribe", a.channels.roomChannel, a.channels.clientPattern)
-	pubsub := a.subRedis.PSubscribe(a.channels.roomChannel, a.channels.clientPattern)
+	a.logger.Println("Subscribe", a.keys.roomChannel, a.keys.clientPattern)
+	pubsub := a.subRedis.PSubscribe(a.keys.roomChannel, a.keys.clientPattern)
 	ch := pubsub.ChannelWithSubscriptions(100)
 
 	isReady := false
@@ -210,7 +218,7 @@ func (a *RedisAdapter) Subscribe() (stop func() error) {
 }
 
 func (a *RedisAdapter) Broadcast(msg wsmessage.Message) {
-	channel := a.channels.roomChannel
+	channel := a.keys.roomChannel
 	a.logger.Printf("Broadcast type: %s, payload: %s to %s", msg.Type(), msg.Payload(), channel)
 	a.pubRedis.Publish(channel, string(serializer.Serialize(msg)))
 }
@@ -232,11 +240,6 @@ func (a *RedisAdapter) localEmit(clientID string, msg wsmessage.Message) {
 	client, ok := a.clients[clientID]
 	if !ok {
 		a.logger.Printf("localEmit in room: %s  - no local clientID: %s", a.room, clientID)
-		return
-	}
-	if _, ok := a.allClients[clientID]; !ok {
-		// we only want to emit messages to other clients once they are fully registered.
-		a.logger.Printf("localEmit in room: %s  - skipping not completely registered clientID: %s", a.room, clientID)
 		return
 	}
 	select {
