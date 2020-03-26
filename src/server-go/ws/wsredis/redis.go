@@ -150,25 +150,29 @@ func (a *RedisAdapter) handleMessage(
 	if err != nil {
 		return fmt.Errorf("RedisAdapter.handleMessage error deserializing redis subscription: %w", err)
 	}
-	a.logger.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type(), msg.Payload())
+	a.logger.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type, msg.Payload)
 	switch {
 	case channel == a.keys.roomChannel:
 		// localBroadcast to all clients
-		switch msg.Type() {
+		switch msg.Type {
 		case wsmessage.MessageTypeRoomJoin:
 			a.clientsMu.Lock()
-			clientID := string(msg.Payload())
-			err = a.pubRedis.HSet(a.keys.roomClients, clientID, "").Err()
-			if err == nil {
-				err = a.localBroadcast(msg)
+			clientID, ok := msg.Payload.(string)
+			if ok {
+				err = a.pubRedis.HSet(a.keys.roomClients, clientID, "").Err()
+				if err == nil {
+					err = a.localBroadcast(msg)
+				}
 			}
 			a.clientsMu.Unlock()
 		case wsmessage.MessageTypeRoomLeave:
 			a.clientsMu.Lock()
 			err = a.localBroadcast(msg)
 			if err == nil {
-				clientID := string(msg.Payload())
-				err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err()
+				clientID, ok := msg.Payload.(string)
+				if ok {
+					err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err()
+				}
 			}
 			a.clientsMu.Unlock()
 		default:
@@ -248,12 +252,12 @@ func (a *RedisAdapter) publish(channel string, msg wsmessage.Message) error {
 
 func (a *RedisAdapter) Broadcast(msg wsmessage.Message) error {
 	channel := a.keys.roomChannel
-	a.logger.Printf("Broadcast type: %s, payload: %s to %s", msg.Type(), msg.Payload(), channel)
+	a.logger.Printf("Broadcast type: %s, payload: %s to %s", msg.Type, msg.Payload, channel)
 	return a.publish(channel, msg)
 }
 
 func (a *RedisAdapter) localBroadcast(msg wsmessage.Message) (err error) {
-	a.logger.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type())
+	a.logger.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
 	for clientID := range a.clients {
 		if emitErr := a.localEmit(clientID, msg); emitErr != nil && err == nil {
 			err = emitErr
@@ -264,7 +268,7 @@ func (a *RedisAdapter) localBroadcast(msg wsmessage.Message) (err error) {
 
 func (a *RedisAdapter) Emit(clientID string, msg wsmessage.Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
-	a.logger.Printf("Emit clientID: %s, type: %s, payload: %s to %s", clientID, msg.Type(), msg, channel)
+	a.logger.Printf("Emit clientID: %s, type: %s, payload: %s to %s", clientID, msg.Type, msg, channel)
 	data, err := serializer.Serialize(msg)
 	if err != nil {
 		return fmt.Errorf("RedisAdapter.Emit - error serializing message: %w", err)
