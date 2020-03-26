@@ -38,6 +38,7 @@ func NewClient(conn WSReadWriter) *Client {
 		id:           uuid.New().String(),
 		conn:         conn,
 		writeChannel: make(chan wsmessage.Message, 16),
+		readChannel:  make(chan wsmessage.Message, 16),
 	}
 }
 
@@ -58,9 +59,14 @@ func (c *Client) WriteChannel() chan<- wsmessage.Message {
 	return c.writeChannel
 }
 
+// Closes read and write channels
+func (c *Client) Close() {
+	close(c.readChannel)
+	close(c.writeChannel)
+}
+
 // Subscribes to out and writes out to the websocket. This method
-// blocks until the channel is closed, or the context is done. Should be
-// called from the HTTP handler method.
+// blocks until the channel is closed, or the context is done.
 func (c *Client) SubscribeWrite(ctx context.Context) error {
 	for {
 		select {
@@ -75,6 +81,7 @@ func (c *Client) SubscribeWrite(ctx context.Context) error {
 	}
 }
 
+// Subscribes
 func (c *Client) SubscribeRead(ctx context.Context) error {
 	for {
 		typ, msg, err := c.conn.Read(ctx)
