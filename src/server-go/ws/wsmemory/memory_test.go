@@ -41,7 +41,6 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	client := ws.NewClient(mockWriter)
-	defer client.Close()
 	clientID := client.ID()
 	adapter.Add(client)
 	assert.Equal(t, []string{clientID}, adapter.Clients())
@@ -56,13 +55,12 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 	mockWriter := NewMockWriter()
 	defer close(mockWriter.out)
 	client := ws.NewClient(mockWriter)
-	defer client.Close()
 	adapter.Add(client)
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err, _ := client.Subscribe(ctx)
+		err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
 		assert.Equal(t, context.Canceled, err)
 		wg.Done()
 	}()
@@ -87,10 +85,8 @@ func TestMemoryAdapter_Brodacast(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter1 := NewMockWriter()
 	client1 := ws.NewClient(mockWriter1)
-	defer client1.Close()
 	mockWriter2 := NewMockWriter()
 	client2 := ws.NewClient(mockWriter2)
-	defer client2.Close()
 	defer close(mockWriter1.out)
 	defer close(mockWriter2.out)
 	adapter.Add(client1)
@@ -99,12 +95,12 @@ func TestMemoryAdapter_Brodacast(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err, _ := client1.Subscribe(ctx)
+		err := client1.Subscribe(ctx, func(msg wsmessage.Message) {})
 		assert.Equal(t, context.Canceled, err)
 		wg.Done()
 	}()
 	go func() {
-		err, _ := client2.Subscribe(ctx)
+		err := client2.Subscribe(ctx, func(msg wsmessage.Message) {})
 		assert.Equal(t, context.Canceled, err)
 		wg.Done()
 	}()

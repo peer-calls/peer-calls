@@ -67,11 +67,9 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
 	client1 := ws.NewClient(mockWriter1)
-	defer client1.Close()
 	mockWriter2 := NewMockWriter()
 	defer close(mockWriter2.out)
 	client2 := ws.NewClient(mockWriter2)
-	defer client2.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
@@ -81,7 +79,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	stop2 := adapter2.Subscribe()
 	for _, client := range []*ws.Client{client1, client2} {
 		go func(client *ws.Client) {
-			err, _ := client.Subscribe(ctx)
+			err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
 			assert.Equal(t, context.Canceled, err)
 			wg.Done()
 		}(client)

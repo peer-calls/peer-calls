@@ -2,7 +2,6 @@ package ws
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,30 +58,8 @@ func (c *Client) WriteChannel() chan<- wsmessage.Message {
 	return c.writeChannel
 }
 
-// Closes read and write channels
-func (c *Client) Close() {
-	close(c.readChannel)
-	close(c.writeChannel)
-}
-
-// Subscribes to out and writes out to the websocket. This method
-// blocks until the channel is closed, or the context is done.
-func (c *Client) SubscribeWrite(ctx context.Context) error {
-	for {
-		select {
-		case msg := <-c.writeChannel:
-			err := c.WriteTimeout(ctx, time.Second*5, msg)
-			if err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
 // Subscribes
-func (c *Client) SubscribeRead(ctx context.Context) error {
+func (c *Client) subscribeRead(ctx context.Context) error {
 	for {
 		typ, msg, err := c.conn.Read(ctx)
 		if err != nil {
@@ -94,19 +71,35 @@ func (c *Client) SubscribeRead(ctx context.Context) error {
 	}
 }
 
-func (c *Client) Subscribe(ctx context.Context) (writeErr error, readErr error) {
-	var wg sync.WaitGroup
-	wg.Add(2)
+func (c *Client) Subscribe(ctx context.Context, handle func(wsmessage.Message)) error {
+	ctx, cancel := context.WithCancel(ctx)
 
-	go func() {
-		writeErr = c.SubscribeWrite(ctx)
-		wg.Done()
-	}()
-	go func() {
-		readErr = c.SubscribeRead(ctx)
-		wg.Done()
+	defer func() {
+		cancel()
+		close(c.readChannel)
+		close(c.writeChannel)
 	}()
 
-	wg.Wait()
-	return
+	readErr := make(chan error)
+	go func() {
+		readErr <- c.subscribeRead(ctx)
+		close(readErr)
+	}()
+
+	for {
+		select {
+		case msg := <-c.writeChannel:
+			err := c.WriteTimeout(ctx, time.Second*5, msg)
+			if err != nil {
+				return err
+			}
+		case msg := <-c.readChannel:
+			handle(msg)
+		case err := <-readErr:
+			return err
+		case <-ctx.Done():
+			err := ctx.Err()
+			return err
+		}
+	}
 }
