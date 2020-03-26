@@ -35,7 +35,7 @@ type RedisAdapter struct {
 	logger   *log.Logger
 	prefix   string
 	room     string
-	pubRedis *redis.Client // FIXME replace this with interface
+	pubRedis *redis.Client // TODO replace this with interface
 	subRedis *redis.Client
 	keys     struct {
 		roomChannel   string

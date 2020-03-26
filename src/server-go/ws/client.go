@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,16 +14,26 @@ type WSWriter interface {
 	Write(ctx context.Context, typ websocket.MessageType, msg []byte) error
 }
 
+type WSReader interface {
+	Read(ctx context.Context) (websocket.MessageType, []byte, error)
+}
+
+type WSReadWriter interface {
+	WSReader
+	WSWriter
+}
+
 // An abstraction for sending out to websocket using channels.
 type Client struct {
 	id           string
-	conn         WSWriter
+	conn         WSReadWriter
 	writeChannel chan wsmessage.Message
+	readChannel  chan wsmessage.Message
 	serializer   wsmessage.ByteSerializer
 }
 
 // Creates a new websocket client.
-func NewClient(conn WSWriter) *Client {
+func NewClient(conn WSReadWriter) *Client {
 	return &Client{
 		id:           uuid.New().String(),
 		conn:         conn,
@@ -50,7 +61,7 @@ func (c *Client) WriteChannel() chan<- wsmessage.Message {
 // Subscribes to out and writes out to the websocket. This method
 // blocks until the channel is closed, or the context is done. Should be
 // called from the HTTP handler method.
-func (c *Client) Subscribe(ctx context.Context) error {
+func (c *Client) SubscribeWrite(ctx context.Context) error {
 	for {
 		select {
 		case msg := <-c.writeChannel:
@@ -62,4 +73,33 @@ func (c *Client) Subscribe(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+}
+
+func (c *Client) SubscribeRead(ctx context.Context) error {
+	for {
+		typ, msg, err := c.conn.Read(ctx)
+		if err != nil {
+			return err
+		}
+		if typ == websocket.MessageText {
+			c.readChannel <- c.serializer.Deserialize(msg)
+		}
+	}
+}
+
+func (c *Client) Subscribe(ctx context.Context) (writeErr error, readErr error) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		writeErr = c.SubscribeWrite(ctx)
+		wg.Done()
+	}()
+	go func() {
+		readErr = c.SubscribeRead(ctx)
+		wg.Done()
+	}()
+
+	wg.Wait()
+	return
 }
