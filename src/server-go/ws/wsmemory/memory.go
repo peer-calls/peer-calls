@@ -1,6 +1,7 @@
 package wsmemory
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
@@ -27,33 +28,34 @@ func NewMemoryAdapter(room string) *MemoryAdapter {
 }
 
 // Add a client to the room
-func (m *MemoryAdapter) Add(client Client) {
+func (m *MemoryAdapter) Add(client Client) error {
 	m.clientsMu.Lock()
 	clientID := client.ID()
 	m.clients[clientID] = client
 	m.broadcast(wsmessage.NewMessageRoomJoin(m.room, clientID))
 	m.clientsMu.Unlock()
+	return nil
 }
 
 // Remove a client from the room
-func (m *MemoryAdapter) Remove(clientID string) {
+func (m *MemoryAdapter) Remove(clientID string) error {
 	m.clientsMu.Lock()
 	m.broadcast(wsmessage.NewMessageRoomLeave(m.room, clientID))
 	delete(m.clients, clientID)
 	m.clientsMu.Unlock()
+	return nil
 }
 
-func (m *MemoryAdapter) Clients() []string {
+func (m *MemoryAdapter) Clients() (clientIDs []string, err error) {
 	m.clientsMu.RLock()
-	clientIDs := []string{}
 	for clientID := range m.clients {
 		clientIDs = append(clientIDs, clientID)
 	}
 	m.clientsMu.RUnlock()
-	return clientIDs
+	return
 }
 
-func (m *MemoryAdapter) Size() (value int) {
+func (m *MemoryAdapter) Size() (value int, err error) {
 	m.clientsMu.RLock()
 	value = len(m.clients)
 	m.clientsMu.RUnlock()
@@ -61,33 +63,40 @@ func (m *MemoryAdapter) Size() (value int) {
 }
 
 // Send a message to all sockets
-func (m *MemoryAdapter) Broadcast(msg wsmessage.Message) {
+func (m *MemoryAdapter) Broadcast(msg wsmessage.Message) error {
 	m.clientsMu.RLock()
-	m.broadcast(msg)
+	err := m.broadcast(msg)
 	m.clientsMu.RUnlock()
+	return err
 }
 
-func (m *MemoryAdapter) broadcast(msg wsmessage.Message) {
+func (m *MemoryAdapter) broadcast(msg wsmessage.Message) (err error) {
 	for clientID := range m.clients {
-		m.emit(clientID, msg)
+		if emitErr := m.emit(clientID, msg); emitErr != nil && err == nil {
+			err = emitErr
+		}
 	}
+	return
 }
 
 // Sends a message to specific socket.
-func (m *MemoryAdapter) Emit(clientID string, msg wsmessage.Message) {
+func (m *MemoryAdapter) Emit(clientID string, msg wsmessage.Message) error {
 	m.clientsMu.RLock()
 	m.emit(clientID, msg)
 	m.clientsMu.RUnlock()
+	return nil
 }
 
-func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) {
+func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) error {
 	client, ok := m.clients[clientID]
 	if !ok {
-		return
+		return fmt.Errorf("Client not found, clientID: %s", clientID)
 	}
 	select {
 	case client.WriteChannel() <- msg:
+		return nil
 	default:
+		return fmt.Errorf("Client buffer full, clientID: %s", clientID)
 		// if the client buffer is full, it will not be sent
 	}
 }

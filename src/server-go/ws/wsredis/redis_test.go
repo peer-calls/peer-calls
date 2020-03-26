@@ -2,6 +2,7 @@ package wsredis_test
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsredis"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
@@ -39,6 +41,12 @@ func (w *MockWSWriter) Read(ctx context.Context) (typ websocket.MessageType, msg
 	return
 }
 
+func serialize(t *testing.T, msg wsmessage.Message) []byte {
+	data, err := serializer.Serialize(msg)
+	require.Nil(t, err)
+	return data
+}
+
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	subRedis := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
@@ -57,6 +65,12 @@ func assertEqualSorted(t *testing.T, s1 []string, s2 []string) {
 	sort.Strings(s1)
 	sort.Strings(s2)
 	assert.Equal(t, s1, s2)
+}
+
+func getClientIDs(t *testing.T, a *wsredis.RedisAdapter) []string {
+	clientIDs, err := a.Clients()
+	assert.Nil(t, err)
+	return clientIDs
 }
 
 func TestRedisAdapter_add_remove_client(t *testing.T) {
@@ -80,30 +94,31 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	for _, client := range []*ws.Client{client1, client2} {
 		go func(client *ws.Client) {
 			err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
-			assert.Equal(t, context.Canceled, err)
+			assert.True(t, errors.Is(err, context.Canceled), "expected error to be context.Canceled, but was: %s", err)
 			wg.Done()
 		}(client)
 	}
 
-	adapter1.Add(client1)
+	assert.Nil(t, adapter1.Add(client1))
 	t.Log("waiting for room join message broadcast (1)")
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client1.ID())), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client1.ID())), <-mockWriter1.out)
 
-	adapter2.Add(client2)
+	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter1.out)
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter2.out)
-	assertEqualSorted(t, []string{client1.ID(), client2.ID()}, adapter1.Clients())
-	assertEqualSorted(t, []string{client1.ID(), client2.ID()}, adapter2.Clients())
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter2.out)
+	assertEqualSorted(t, []string{client1.ID(), client2.ID()}, getClientIDs(t, adapter1))
+	assertEqualSorted(t, []string{client1.ID(), client2.ID()}, getClientIDs(t, adapter2))
 
-	adapter1.Remove(client1.ID())
+	assert.Nil(t, adapter1.Remove(client1.ID()))
 	t.Log("waiting for client id removal", client1.ID())
-	leaveMessage := serializer.Deserialize(<-mockWriter2.out)
+	leaveMessage, err := serializer.Deserialize(<-mockWriter2.out)
+	assert.Nil(t, err)
 	assert.Equal(t, wsmessage.NewMessageRoomLeave(room, client1.ID()), leaveMessage)
-	assert.Equal(t, []string{client2.ID()}, adapter2.Clients())
+	assert.Equal(t, []string{client2.ID()}, getClientIDs(t, adapter2))
 
-	adapter2.Remove(client2.ID())
-	assert.Equal(t, make([]string, 0), adapter2.Clients())
+	assert.Nil(t, adapter2.Remove(client2.ID()))
+	assert.Equal(t, make([]string, 0), getClientIDs(t, adapter2))
 
 	t.Log("stopping...")
 	for _, stop := range []func() error{stop1, stop2} {

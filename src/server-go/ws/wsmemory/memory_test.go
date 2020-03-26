@@ -2,6 +2,7 @@ package wsmemory_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmemory"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
@@ -37,17 +39,32 @@ func (w *MockWSWriter) Read(ctx context.Context) (typ websocket.MessageType, msg
 	return
 }
 
+func serialize(t *testing.T, msg wsmessage.Message) []byte {
+	data, err := serializer.Serialize(msg)
+	require.Nil(t, err)
+	return data
+}
+
 func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	client := ws.NewClient(mockWriter)
 	clientID := client.ID()
-	adapter.Add(client)
-	assert.Equal(t, []string{clientID}, adapter.Clients())
-	assert.Equal(t, 1, adapter.Size())
+	err := adapter.Add(client)
+	assert.Nil(t, err)
+	clientIDs, err := adapter.Clients()
+	assert.Nil(t, err)
+	assert.Equal(t, []string{clientID}, clientIDs)
+	size, err := adapter.Size()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, size)
 	adapter.Remove(clientID)
-	assert.Equal(t, []string{}, adapter.Clients())
-	assert.Equal(t, 0, adapter.Size())
+	clientIDs, err = adapter.Clients()
+	assert.Nil(t, err)
+	assert.Equal(t, []string(nil), clientIDs)
+	size, err = adapter.Size()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, size)
 }
 
 func TestMemoryAdapter_emitFound(t *testing.T) {
@@ -61,17 +78,17 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
-		assert.Equal(t, context.Canceled, err)
+		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	msg := wsmessage.NewMessage("test-type", room, []byte("test"))
 	adapter.Emit(client.ID(), msg)
 	msg1 := <-mockWriter.out
-	joinMessage := serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client.ID()))
+	joinMessage := serialize(t, wsmessage.NewMessageRoomJoin(room, client.ID()))
 	assert.Equal(t, joinMessage, msg1)
 	msg2 := <-mockWriter.out
 	cancel()
-	assert.Equal(t, serializer.Serialize(msg), msg2)
+	assert.Equal(t, serialize(t, msg), msg2)
 	wg.Wait()
 }
 
@@ -89,27 +106,27 @@ func TestMemoryAdapter_Brodacast(t *testing.T) {
 	client2 := ws.NewClient(mockWriter2)
 	defer close(mockWriter1.out)
 	defer close(mockWriter2.out)
-	adapter.Add(client1)
-	adapter.Add(client2)
+	assert.Nil(t, adapter.Add(client1))
+	assert.Nil(t, adapter.Add(client2))
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		err := client1.Subscribe(ctx, func(msg wsmessage.Message) {})
-		assert.Equal(t, context.Canceled, err)
+		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	go func() {
 		err := client2.Subscribe(ctx, func(msg wsmessage.Message) {})
-		assert.Equal(t, context.Canceled, err)
+		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	msg := wsmessage.NewMessage("test-type", room, []byte("test"))
 	adapter.Broadcast(msg)
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client1.ID())), <-mockWriter1.out)
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter1.out)
-	assert.Equal(t, serializer.Serialize(wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter2.out)
-	serializedMsg := serializer.Serialize(msg)
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client1.ID())), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, wsmessage.NewMessageRoomJoin(room, client2.ID())), <-mockWriter2.out)
+	serializedMsg := serialize(t, msg)
 	assert.Equal(t, serializedMsg, <-mockWriter1.out)
 	assert.Equal(t, serializedMsg, <-mockWriter2.out)
 	cancel()

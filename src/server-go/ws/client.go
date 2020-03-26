@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,7 +46,11 @@ func NewClient(conn WSReadWriter) *Client {
 func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg wsmessage.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return c.conn.Write(ctx, websocket.MessageText, c.serializer.Serialize(msg))
+	data, err := c.serializer.Serialize(msg)
+	if err != nil {
+		return fmt.Errorf("client.WriteTimeout - error serializing message: %w", err)
+	}
+	return c.conn.Write(ctx, websocket.MessageText, data)
 }
 
 func (c *Client) ID() string {
@@ -61,12 +66,16 @@ func (c *Client) WriteChannel() chan<- wsmessage.Message {
 // Subscribes
 func (c *Client) subscribeRead(ctx context.Context) error {
 	for {
-		typ, msg, err := c.conn.Read(ctx)
+		typ, data, err := c.conn.Read(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("client.subscribeRead - error reading data: %w", err)
+		}
+		message, err := c.serializer.Deserialize(data)
+		if err != nil {
+			return fmt.Errorf("client.subscribeRead - error deserializing data: %w", err)
 		}
 		if typ == websocket.MessageText {
-			c.readChannel <- c.serializer.Deserialize(msg)
+			c.readChannel <- message
 		}
 	}
 }

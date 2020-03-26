@@ -16,11 +16,11 @@ type Message interface {
 }
 
 type Serializer interface {
-	Serialize(message Message) []byte
+	Serialize(message Message) ([]byte, error)
 }
 
 type Deserializer interface {
-	Deserialize([]byte) Message
+	Deserialize([]byte) (Message, error)
 }
 
 // Simple message is a container for web-socket messages.
@@ -62,7 +62,7 @@ type ByteSerializer struct{}
 
 const uint64Size = uint64(8)
 
-func (s ByteSerializer) Serialize(m Message) []byte {
+func (s ByteSerializer) Serialize(m Message) ([]byte, error) {
 	room := []byte(m.Room())
 	typ := []byte(m.Type())
 	payload := m.Payload()
@@ -75,10 +75,10 @@ func (s ByteSerializer) Serialize(m Message) []byte {
 	writeBytes(data, typ, &offset)
 	writeBytes(data, payload, &offset)
 
-	return data
+	return data, nil
 }
 
-func (s ByteSerializer) Deserialize(data []byte) Message {
+func (s ByteSerializer) Deserialize(data []byte) (Message, error) {
 	var m SimpleMessage
 
 	offset := uint64(0)
@@ -87,7 +87,7 @@ func (s ByteSerializer) Deserialize(data []byte) Message {
 	m.typ = string(readBytes(data, &offset))
 	m.payload = readBytes(data, &offset)
 
-	return m
+	return m, nil
 }
 
 func readBytes(data []byte, offset *uint64) (value []byte) {

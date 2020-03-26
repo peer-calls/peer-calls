@@ -16,8 +16,10 @@ func TestMessageSerializeDeserialize(t *testing.T) {
 	assert.Equal(t, payload, m1.Payload())
 	assert.Equal(t, room, m1.Room())
 	var s wsmessage.ByteSerializer
-	serialized := s.Serialize(m1)
-	m2 := s.Deserialize(serialized)
+	serialized, err := s.Serialize(m1)
+	assert.Nil(t, err)
+	m2, err := s.Deserialize(serialized)
+	assert.Nil(t, err)
 	assert.Equal(t, typ, m2.Type())
 	assert.Equal(t, payload, m2.Payload())
 	assert.Equal(t, room, m2.Room())
