@@ -12,7 +12,9 @@ import (
 )
 
 func Test_routeIndex(t *testing.T) {
-	mux := routes.NewMux("/test", "v0.0.0", "[]")
+	mrm := NewMockRoomManager()
+	defer mrm.close()
+	mux := routes.NewMux("/test", "v0.0.0", "[]", mrm)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -23,7 +25,9 @@ func Test_routeIndex(t *testing.T) {
 }
 
 func Test_routeIndex_noBaseURL(t *testing.T) {
-	mux := routes.NewMux("", "v0.0.0", "[]")
+	mrm := NewMockRoomManager()
+	defer mrm.close()
+	mux := routes.NewMux("", "v0.0.0", "[]", mrm)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -34,7 +38,9 @@ func Test_routeIndex_noBaseURL(t *testing.T) {
 }
 
 func Test_routeNewCall_name(t *testing.T) {
-	mux := routes.NewMux("/test", "v0.0.0", "[]")
+	mrm := NewMockRoomManager()
+	defer mrm.close()
+	mux := routes.NewMux("/test", "v0.0.0", "[]", mrm)
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("POST", "/test/call", reader)
@@ -47,7 +53,9 @@ func Test_routeNewCall_name(t *testing.T) {
 }
 
 func Test_routeNewCall_random(t *testing.T) {
-	mux := routes.NewMux("/test", "v0.0.0", "[]")
+	mrm := NewMockRoomManager()
+	defer mrm.close()
+	mux := routes.NewMux("/test", "v0.0.0", "[]", mrm)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test/call", nil)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -60,7 +68,9 @@ func Test_routeNewCall_random(t *testing.T) {
 }
 
 func Test_routeCall(t *testing.T) {
-	mux := routes.NewMux("/test", "v0.0.0", "[{\"urls\":\"stun:\"}]")
+	mrm := NewMockRoomManager()
+	defer mrm.close()
+	mux := routes.NewMux("/test", "v0.0.0", "[{\"urls\":\"stun:\"}]", mrm)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test/call/abc", nil)
 	mux.ServeHTTP(w, r)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/jeremija/peer-calls/src/server-go/ws"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
@@ -21,14 +20,12 @@ type RoomManager interface {
 }
 
 type WSS struct {
-	rooms  RoomManager
-	logger *log.Logger
+	rooms RoomManager
 }
 
 func NewWSS(rooms RoomManager) *WSS {
 	return &WSS{
-		rooms:  rooms,
-		logger: log.New(os.Stdout, "wsroute ", log.LstdFlags),
+		rooms: rooms,
 	}
 }
 
@@ -40,7 +37,7 @@ type ReadyMessage struct {
 func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
-		wss.logger.Printf("Error accepting websocket connection: %s", err)
+		log.Printf("Error accepting websocket connection: %s", err)
 		return
 	}
 
@@ -55,14 +52,14 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer wss.rooms.Exit(room)
 	err = adapter.Add(client)
 	if err != nil {
-		wss.logger.Printf("Error adding client to room: %s", err)
+		log.Printf("Error adding client to room: %s", err)
 		return
 	}
 
 	defer func() {
 		err := adapter.Remove(clientID)
 		if err != nil {
-			wss.logger.Printf("Error removing client from adapter: %s", err)
+			log.Printf("Error removing client from adapter: %s", err)
 		}
 	}()
 
@@ -71,9 +68,9 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "ready":
 			clients, err := adapter.Clients()
 			if err != nil {
-				wss.logger.Printf("Error retrieving clients: %s", err)
+				log.Printf("Error retrieving clients: %s", err)
 			}
-			wss.logger.Printf("Got clients: %s", clients)
+			log.Printf("Got clients: %s", clients)
 			client.WriteChannel() <- wsmessage.NewMessage("users", room, clients)
 		case "signal":
 			payload, _ := msg.Payload.(map[string]interface{})
@@ -95,6 +92,6 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		wss.logger.Printf("Subscription error: %s", err)
+		log.Printf("Subscription error: %s", err)
 	}
 }

@@ -23,7 +23,12 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.handler.ServeHTTP(w, r)
 }
 
-func NewMux(baseURL string, version string, iceServersJSON string) *Mux {
+func NewMux(
+	baseURL string,
+	version string,
+	iceServersJSON string,
+	rooms RoomManager,
+) *Mux {
 	box := packr.NewBox("../templates")
 	templates := render.ParseTemplates(box)
 	renderer := render.NewRenderer(templates, baseURL, version)
@@ -48,6 +53,8 @@ func NewMux(baseURL string, version string, iceServersJSON string) *Mux {
 		router.Handle("/res/*", static(baseURL+"/res", "../../../res"))
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
+
+		router.Mount("/ws", NewWSS(rooms))
 	})
 
 	return mux

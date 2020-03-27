@@ -1,25 +1,24 @@
 package render
 
 import (
-	"log"
 	"net/http"
-	"os"
 
+	"github.com/jeremija/peer-calls/src/server-go/logger"
 	"github.com/oxtoacart/bpool"
 )
 
 type Renderer struct {
 	bufPool   *bpool.BufferPool
-	logger    *log.Logger
 	templates Templates
 	Version   string
 	BaseURL   string
 }
 
+var log = logger.GetLogger("render")
+
 func NewRenderer(templates Templates, baseURL string, version string) *Renderer {
 	return &Renderer{
 		bufPool:   bpool.NewBufferPool(128),
-		logger:    log.New(os.Stdout, "REND ", log.LstdFlags),
 		templates: templates,
 		Version:   version,
 		BaseURL:   baseURL,
@@ -39,13 +38,13 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		}
 		template, ok := tr.templates.Get(templateName)
 		if !ok {
-			tr.logger.Println("Template not found:", templateName)
+			log.Println("Template not found:", templateName)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err != nil {
-			tr.logger.Println("An error occurred:", err)
+			log.Println("An error occurred:", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -57,10 +56,10 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 
 		buf := tr.bufPool.Get()
 		defer tr.bufPool.Put(buf)
-		tr.logger.Println("Rendering template:", templateName)
+		log.Println("Rendering template:", templateName)
 		err = template.Execute(buf, dataMap)
 		if err != nil {
-			tr.logger.Println("Error rendering template", templateName, err)
+			log.Println("Error rendering template", templateName, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/jeremija/peer-calls/src/server-go/logger"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 )
@@ -24,13 +23,13 @@ type Doner interface {
 }
 
 var serializer wsmessage.ByteSerializer
+var log = logger.GetLogger("wsredis")
 
 type RedisAdapter struct {
 	clientsMu *sync.RWMutex
 	// contains local clients connected to current instance
 	clients map[string]wsadapter.Client
 	// contains IDs of all clients in room, including those from other instances
-	logger   *log.Logger
 	prefix   string
 	room     string
 	pubRedis *redis.Client // TODO replace this with interface
@@ -69,7 +68,6 @@ func NewRedisAdapter(
 	adapter := RedisAdapter{
 		clients:   map[string]wsadapter.Client{},
 		clientsMu: &clientsMu,
-		logger:    log.New(os.Stdout, "wsredis ", log.LstdFlags),
 		prefix:    prefix,
 		room:      room,
 		pubRedis:  pubRedis,
@@ -88,12 +86,12 @@ func NewRedisAdapter(
 
 func (a *RedisAdapter) Add(client wsadapter.Client) (err error) {
 	clientID := client.ID()
-	a.logger.Printf("Add clientID: %s to room: %s", clientID, a.room)
+	log.Printf("Add clientID: %s to room: %s", clientID, a.room)
 	a.clientsMu.Lock()
 	err = a.Broadcast(wsmessage.NewMessageRoomJoin(a.room, clientID, client.Metadata()))
 	if err == nil {
 		a.clients[clientID] = client
-		a.logger.Printf("Add clientID: %s to room: %s done", clientID, a.room)
+		log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
 	}
 	a.clientsMu.Unlock()
 	return
@@ -118,15 +116,15 @@ func (a *RedisAdapter) removeAll() (err error) {
 }
 
 func (a *RedisAdapter) remove(clientID string) (err error) {
-	a.logger.Printf("Remove clientID: %s from room: %s", clientID, a.room)
+	log.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	// can only remove clients connected to this adapter
 	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
-		a.logger.Printf("Error deleting clientID from all clients: %s", err)
+		log.Printf("Error deleting clientID from all clients: %s", err)
 	} else {
 		err = a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
 	}
 	delete(a.clients, clientID)
-	a.logger.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
+	log.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
 	return
 }
 
@@ -137,18 +135,18 @@ func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
 
 // Returns IDs of all known clients connected to this room
 func (a *RedisAdapter) Clients() (map[string]string, error) {
-	a.logger.Printf("Clients")
+	log.Printf("Clients")
 
 	r := a.pubRedis.HGetAll(a.keys.roomClients)
 	allClients, err := r.Result()
 
 	if err != nil {
 		err = fmt.Errorf("Error retrieving clients in room: %s, reason: %w", a.room, err)
-		a.logger.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
+		log.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
 		return allClients, err
 	}
 
-	a.logger.Printf("Clients size: %d", len(allClients))
+	log.Printf("Clients size: %d", len(allClients))
 	return allClients, nil
 }
 
@@ -167,7 +165,7 @@ func (a *RedisAdapter) handleMessage(
 	if err != nil {
 		return fmt.Errorf("RedisAdapter.handleMessage error deserializing redis subscription: %w", err)
 	}
-	a.logger.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type, msg.Payload)
+	log.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s, payload: %s", pattern, channel, msg.Type, msg.Payload)
 	switch {
 	case channel == a.keys.roomChannel:
 		// localBroadcast to all clients
@@ -204,14 +202,14 @@ func (a *RedisAdapter) handleMessage(
 		err = a.localEmit(clientID, msg)
 		a.clientsMu.RUnlock()
 	}
-	a.logger.Printf("RedisAdapter.handleMessage done (err: %s)", err)
+	log.Printf("RedisAdapter.handleMessage done (err: %s)", err)
 	return err
 }
 
 // Reads from subscribed keys and dispatches relevant messages to
 // client websockets. This method blocks until the context is closed.
 func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
-	a.logger.Println("Subscribe", a.keys.roomChannel, a.keys.clientPattern)
+	log.Println("Subscribe", a.keys.roomChannel, a.keys.clientPattern)
 	pubsub := a.subRedis.PSubscribe(a.keys.roomChannel, a.keys.clientPattern)
 	defer pubsub.Close()
 
@@ -236,7 +234,7 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
 			}
 		case <-ctx.Done():
 			err := ctx.Err()
-			a.logger.Println("Subscribe done", err)
+			log.Println("Subscribe done", err)
 			return err
 		}
 	}
@@ -286,12 +284,12 @@ func (a *RedisAdapter) publish(channel string, msg wsmessage.Message) error {
 
 func (a *RedisAdapter) Broadcast(msg wsmessage.Message) error {
 	channel := a.keys.roomChannel
-	a.logger.Printf("Broadcast type: %s, payload: %s to %s", msg.Type, msg.Payload, channel)
+	log.Printf("Broadcast type: %s, payload: %s to %s", msg.Type, msg.Payload, channel)
 	return a.publish(channel, msg)
 }
 
 func (a *RedisAdapter) localBroadcast(msg wsmessage.Message) (err error) {
-	a.logger.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
+	log.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
 	for clientID := range a.clients {
 		if emitErr := a.localEmit(clientID, msg); emitErr != nil && err == nil {
 			err = emitErr
@@ -302,7 +300,7 @@ func (a *RedisAdapter) localBroadcast(msg wsmessage.Message) (err error) {
 
 func (a *RedisAdapter) Emit(clientID string, msg wsmessage.Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
-	a.logger.Printf("Emit clientID: %s, type: %s, payload: %s to %s", clientID, msg.Type, msg, channel)
+	log.Printf("Emit clientID: %s, type: %s, payload: %s to %s", clientID, msg.Type, msg, channel)
 	data, err := serializer.Serialize(msg)
 	if err != nil {
 		return fmt.Errorf("RedisAdapter.Emit - error serializing message: %w", err)

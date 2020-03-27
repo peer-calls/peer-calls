@@ -9,7 +9,9 @@ import (
 	"strconv"
 
 	"github.com/jeremija/peer-calls/src/server-go/config"
+	"github.com/jeremija/peer-calls/src/server-go/factory/adapter"
 	"github.com/jeremija/peer-calls/src/server-go/iceauth"
+	"github.com/jeremija/peer-calls/src/server-go/room"
 	"github.com/jeremija/peer-calls/src/server-go/routes"
 	"github.com/jeremija/peer-calls/src/server-go/server"
 )
@@ -37,7 +39,9 @@ func main() {
 
 	ice, err := json.Marshal(iceauth.GetICEServers(c.ICEServers))
 	panicOnError(err, "Error setting ICE servers")
-	mux := routes.NewMux(c.BaseURL, gitDescribe, string(ice))
+	newAdapter := adapter.NewAdapterFactory(c.Store)
+	rooms := room.NewRoomManager(newAdapter.NewAdapter)
+	mux := routes.NewMux(c.BaseURL, gitDescribe, string(ice), rooms)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)
