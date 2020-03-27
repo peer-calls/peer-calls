@@ -1,7 +1,8 @@
-import SocketIOClient from 'socket.io-client'
-import { baseUrl } from './window'
-import { TypedEmitterKeys, SocketEvent, TypedEmitter } from '../shared'
-export type ClientSocket = Omit<SocketIOClient.Socket, TypedEmitterKeys> &
-  TypedEmitter<SocketEvent>
-const socket: ClientSocket = SocketIOClient('', { path: baseUrl + '/ws' })
-export default socket
+import { baseUrl, callId, userId } from './window'
+import { SocketEvent, TypedEmitter } from '../shared'
+import { SocketClient } from './ws'
+export type ClientSocket = TypedEmitter<SocketEvent>
+
+export default new SocketClient<SocketEvent>(
+  baseUrl + '/ws/' + callId + '/' + userId,
+)

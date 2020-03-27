@@ -1,7 +1,7 @@
-type Callback<A> = (a: A) => void
+export type Callback<A> = (a: A) => void
 
 // eslint-disable-next-line
-type Events = Record<string | symbol, any>
+export type Events = Record<string | symbol, any>
 
 export type TypedEmitterKeys =
   'removeListener' |
@@ -15,6 +15,7 @@ export type TypedEmitterKeys =
 // signatures differ slightly.
 export interface TypedEmitter<E extends Events> {
   removeListener<K extends keyof E>(t: K, callback: Callback<E[K]>): this
+  removeAllListeners(): void
 
   on<K extends keyof E>(t: K, callback: Callback<E[K]>): this
   once<K extends keyof E>(t: K, callback: Callback<E[K]>): this

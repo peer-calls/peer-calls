@@ -12,7 +12,6 @@ import { PEERCALLS, PEER_EVENT_DATA, ME } from '../constants'
 describe('PeerActions', () => {
   function createSocket () {
     const socket = new EventEmitter() as unknown as ClientSocket
-    socket.id = 'socket-id-user-1'
     return socket
   }
 
