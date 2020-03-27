@@ -49,6 +49,7 @@ func (r *RoomManager) Exit(room string) {
 		adapter.count--
 		if adapter.count == 0 {
 			delete(r.rooms, room)
+			adapter.adapter.Close() // FIXME log error
 		}
 	}
 	r.roomsMu.Unlock()
