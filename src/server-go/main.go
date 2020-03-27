@@ -11,6 +11,7 @@ import (
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/factory/adapter"
 	"github.com/jeremija/peer-calls/src/server-go/iceauth"
+	"github.com/jeremija/peer-calls/src/server-go/logger"
 	"github.com/jeremija/peer-calls/src/server-go/room"
 	"github.com/jeremija/peer-calls/src/server-go/routes"
 	"github.com/jeremija/peer-calls/src/server-go/server"
@@ -23,6 +24,8 @@ func panicOnError(err error, message string) {
 		panic(fmt.Errorf("%s: %w", message, err))
 	}
 }
+
+var log = logger.GetLogger("main")
 
 func main() {
 	flags := flag.NewFlagSet("start", flag.ExitOnError)
@@ -45,7 +48,7 @@ func main() {
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)
-	os.Stderr.Write([]byte(fmt.Sprintf("Listening on: %s", addr.String())))
+	log.Printf("Listening on: %s", addr.String())
 	server := server.NewStartStopper(server.ServerParams{
 		TLSCertFile: c.TLS.Cert,
 		TLSKeyFile:  c.TLS.Key,

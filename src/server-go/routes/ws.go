@@ -47,6 +47,7 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	room := r.Header.Get("X-Room-ID")
 	client := ws.NewClientWithID(c, r.Header.Get("X-User-ID"))
 	clientID := client.ID()
+	log.Printf("New websocket connection - room: %s, clientID: %s", room, clientID)
 
 	adapter := wss.rooms.Enter(room)
 	defer wss.rooms.Exit(room)

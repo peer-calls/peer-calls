@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/jeremija/peer-calls/src/server-go/config"
+	"github.com/jeremija/peer-calls/src/server-go/logger"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmemory"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsredis"
@@ -18,22 +19,27 @@ type AdapterFactory struct {
 	NewAdapter func(room string) wsadapter.Adapter
 }
 
+var log = logger.GetLogger("adapterfactory")
+
 func NewAdapterFactory(c config.StoreConfig) *AdapterFactory {
 	f := AdapterFactory{}
 
 	switch c.Type {
 	case config.StoreTypeRedis:
+		addr := net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port))
+		prefix := c.Redis.Prefix
+		log.Printf("Using RedisAdapter: %s with prefix %s", addr, prefix)
 		f.pubClient = redis.NewClient(&redis.Options{
-			Addr: net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port)),
+			Addr: addr,
 		})
 		f.subClient = redis.NewClient(&redis.Options{
-			Addr: net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port)),
+			Addr: addr,
 		})
-		prefix := c.Redis.Prefix
 		f.NewAdapter = func(room string) wsadapter.Adapter {
 			return wsredis.NewRedisAdapter(f.pubClient, f.subClient, prefix, room)
 		}
 	default:
+		log.Printf("Using MemoryAdapter")
 		f.NewAdapter = func(room string) wsadapter.Adapter {
 			return wsmemory.NewMemoryAdapter(room)
 		}

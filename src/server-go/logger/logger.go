@@ -35,7 +35,7 @@ func (l *Logger) Println(values ...interface{}) {
 func (l *Logger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(time.RFC3339)
+	date := time.Now().Format(time.RFC3339Nano)
 	l.out.Write([]byte(date + " [" + l.name + "] " + fmt.Sprintf(message+"\n", values...)))
 }
 
@@ -66,7 +66,7 @@ func NewLoggerFactoryFromEnv(prefix string, out io.Writer) *LoggerFactory {
 	if log == "" {
 		log = "*"
 	}
-	enabled := strings.Split(os.Getenv(prefix+"LOG"), ",")
+	enabled := strings.Split(log, ",")
 	defaultEnabled := map[string]struct{}{}
 	for _, name := range enabled {
 		defaultEnabled[name] = struct{}{}
