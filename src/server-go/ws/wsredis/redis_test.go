@@ -89,8 +89,6 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	stop1 := adapter1.Subscribe()
-	stop2 := adapter2.Subscribe()
 	for _, client := range []*ws.Client{client1, client2} {
 		go func(client *ws.Client) {
 			err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
@@ -121,9 +119,9 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	assert.Equal(t, make([]string, 0), getClientIDs(t, adapter2))
 
 	t.Log("stopping...")
-	for _, stop := range []func() error{stop1, stop2} {
+	for _, stop := range []func() error{adapter1.Close, adapter2.Close} {
 		err := stop()
-		assert.Equal(t, context.Canceled, err)
+		assert.Equal(t, nil, err)
 	}
 	cancel()
 	wg.Wait()

@@ -37,6 +37,10 @@ func (m *MemoryAdapter) Add(client Client) (err error) {
 	return
 }
 
+func (m *MemoryAdapter) Close() error {
+	return nil
+}
+
 // Remove a client from the room
 func (m *MemoryAdapter) Remove(clientID string) (err error) {
 	m.clientsMu.Lock()

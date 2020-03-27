@@ -2,6 +2,7 @@ package wsredis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -43,17 +44,21 @@ type RedisAdapter struct {
 		roomClients   string
 		clientPattern string
 	}
+	stop func() error
 }
 
 func getRoomChannelName(prefix string, room string) string {
+	// TODO escape room name, what if it has ":" in the name?
 	return prefix + ":room:" + room + ":broadcast"
 }
 
 func getClientChannelName(prefix string, room string, clientID string) string {
+	// TODO escape room name, what if it has ":" in the name?
 	return prefix + ":room:" + room + ":client:" + clientID
 }
 
 func getRoomClientsName(prefix string, room string) string {
+	// TODO escape room name, what if it has ":" in the name?
 	return prefix + ":room:" + room + ":clients"
 }
 
@@ -73,11 +78,14 @@ func NewRedisAdapter(
 		room:      room,
 		pubRedis:  pubRedis,
 		subRedis:  subRedis,
+		stop:      nil,
 	}
 
 	adapter.keys.roomChannel = getRoomChannelName(prefix, room)
 	adapter.keys.clientPattern = getClientChannelName(prefix, room, "*")
 	adapter.keys.roomClients = getRoomClientsName(prefix, room)
+
+	adapter.subscribeUntilReady()
 
 	return &adapter
 }
@@ -96,19 +104,33 @@ func (a *RedisAdapter) Add(client Client) (err error) {
 }
 
 func (a *RedisAdapter) Remove(clientID string) (err error) {
-	a.logger.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	a.clientsMu.Lock()
 	if _, ok := a.clients[clientID]; ok {
-		// can only remove clients connected to this adapter
-		if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
-			a.logger.Printf("Error deleting clientID from all clients: %s", err)
-		} else {
-			err = a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
-		}
-		delete(a.clients, clientID)
+		err = a.remove(clientID)
 	}
-	a.logger.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
 	a.clientsMu.Unlock()
+	return
+}
+
+func (a *RedisAdapter) removeAll() (err error) {
+	for clientID := range a.clients {
+		if removeErr := a.remove(clientID); removeErr != nil && err == nil {
+			err = removeErr
+		}
+	}
+	return
+}
+
+func (a *RedisAdapter) remove(clientID string) (err error) {
+	a.logger.Printf("Remove clientID: %s from room: %s", clientID, a.room)
+	// can only remove clients connected to this adapter
+	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
+		a.logger.Printf("Error deleting clientID from all clients: %s", err)
+	} else {
+		err = a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
+	}
+	delete(a.clients, clientID)
+	a.logger.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
 	return
 }
 
@@ -225,7 +247,7 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
 	}
 }
 
-func (a *RedisAdapter) Subscribe() (stop func() error) {
+func (a *RedisAdapter) subscribeUntilReady() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	errChan := make(chan error)
@@ -236,10 +258,27 @@ func (a *RedisAdapter) Subscribe() (stop func() error) {
 		close(errChan)
 	}()
 	wg.Wait()
-	return func() error {
+
+	a.stop = func() error {
 		cancel()
-		return <-errChan
+		err, _ := <-errChan
+		return err
 	}
+}
+
+func (a *RedisAdapter) Close() (err error) {
+	a.clientsMu.Lock()
+	if removeErr := a.removeAll(); removeErr != nil && err == nil {
+		err = removeErr
+	}
+	if a.stop != nil {
+		if stopErr := a.stop(); !errors.Is(stopErr, context.Canceled) && err == nil {
+			err = stopErr
+		}
+		a.stop = nil
+	}
+	a.clientsMu.Unlock()
+	return
 }
 
 func (a *RedisAdapter) publish(channel string, msg wsmessage.Message) error {
