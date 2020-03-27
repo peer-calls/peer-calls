@@ -2,7 +2,6 @@ package routes_test
 
 import (
 	"context"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -96,12 +95,7 @@ const clientID = "user1234"
 
 func mustDialWS(t *testing.T, ctx context.Context, url string) *websocket.Conn {
 	t.Helper()
-	opts := &websocket.DialOptions{
-		HTTPHeader: http.Header{},
-	}
-	opts.HTTPHeader.Add("X-Room-ID", roomName)
-	opts.HTTPHeader.Add("X-User-ID", clientID)
-	ws, _, err := websocket.Dial(ctx, url, opts)
+	ws, _, err := websocket.Dial(ctx, url, nil)
 	require.Nil(t, err)
 	return ws
 }
@@ -128,7 +122,7 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) wsmessage
 func setupServer(rooms routes.RoomManager) (server *httptest.Server, url string) {
 	wss := routes.NewWSS(rooms)
 	server = httptest.NewServer(wss)
-	url = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	url = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + roomName + "/" + clientID
 	return
 }
 

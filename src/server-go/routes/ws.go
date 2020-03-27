@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"path"
 
 	"github.com/jeremija/peer-calls/src/server-go/ws"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
@@ -41,12 +42,13 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clientID := path.Base(r.URL.Path)
+	room := path.Base(path.Dir(r.URL.Path))
+
 	defer c.Close(websocket.StatusInternalError, "")
 	ctx := r.Context()
 
-	room := r.Header.Get("X-Room-ID")
-	client := ws.NewClientWithID(c, r.Header.Get("X-User-ID"))
-	clientID := client.ID()
+	client := ws.NewClientWithID(c, clientID)
 	log.Printf("New websocket connection - room: %s, clientID: %s", room, clientID)
 
 	adapter := wss.rooms.Enter(room)
