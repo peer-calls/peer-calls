@@ -32,8 +32,11 @@ func NewMessage(typ string, room string, payload interface{}) Message {
 	return Message{Type: typ, Room: room, Payload: payload}
 }
 
-func NewMessageRoomJoin(room string, clientID string) Message {
-	return NewMessage(MessageTypeRoomJoin, room, clientID)
+func NewMessageRoomJoin(room string, clientID string, metadata string) Message {
+	return NewMessage(MessageTypeRoomJoin, room, map[string]string{
+		"clientID": clientID,
+		"metadata": metadata,
+	})
 }
 
 func NewMessageRoomLeave(room string, clientID string) Message {

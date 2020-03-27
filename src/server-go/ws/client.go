@@ -27,19 +27,25 @@ type WSReadWriter interface {
 type Client struct {
 	id           string
 	conn         WSReadWriter
+	metadata     string
 	writeChannel chan wsmessage.Message
 	readChannel  chan wsmessage.Message
 	serializer   wsmessage.ByteSerializer
 }
 
 // Creates a new websocket client.
-func NewClient(conn WSReadWriter) *Client {
+func NewClient(conn WSReadWriter, metadata string) *Client {
 	return &Client{
 		id:           uuid.New().String(),
 		conn:         conn,
+		metadata:     metadata,
 		writeChannel: make(chan wsmessage.Message, 16),
 		readChannel:  make(chan wsmessage.Message, 16),
 	}
+}
+
+func (c *Client) Metadata() string {
+	return c.metadata
 }
 
 // Writes a message to websocket with timeout.

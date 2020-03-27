@@ -16,6 +16,7 @@ import (
 type Client interface {
 	ID() string
 	WriteChannel() chan<- wsmessage.Message
+	Metadata() string
 }
 
 type JSONMessage struct {
@@ -94,7 +95,7 @@ func (a *RedisAdapter) Add(client Client) (err error) {
 	clientID := client.ID()
 	a.logger.Printf("Add clientID: %s to room: %s", clientID, a.room)
 	a.clientsMu.Lock()
-	err = a.Broadcast(wsmessage.NewMessageRoomJoin(a.room, clientID))
+	err = a.Broadcast(wsmessage.NewMessageRoomJoin(a.room, clientID, client.Metadata()))
 	if err == nil {
 		a.clients[clientID] = client
 		a.logger.Printf("Add clientID: %s to room: %s done", clientID, a.room)
@@ -135,7 +136,7 @@ func (a *RedisAdapter) remove(clientID string) (err error) {
 }
 
 // Returns IDs of all known clients connected to this room
-func (a *RedisAdapter) Clients() (clientIDs []string, err error) {
+func (a *RedisAdapter) Clients() (map[string]string, error) {
 	a.logger.Printf("Clients")
 
 	r := a.pubRedis.HGetAll(a.keys.roomClients)
@@ -144,17 +145,11 @@ func (a *RedisAdapter) Clients() (clientIDs []string, err error) {
 	if err != nil {
 		err = fmt.Errorf("Error retrieving clients in room: %s, reason: %w", a.room, err)
 		a.logger.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
-		return
+		return allClients, err
 	}
 
-	clientIDs = make([]string, len(allClients))
-	i := 0
-	for clientID := range allClients {
-		clientIDs[i] = clientID
-		i++
-	}
-	a.logger.Printf("Clients size: %d", len(clientIDs))
-	return
+	a.logger.Printf("Clients size: %d", len(allClients))
+	return allClients, nil
 }
 
 // Returns count of all known clients connected to this room
@@ -179,9 +174,9 @@ func (a *RedisAdapter) handleMessage(
 		switch msg.Type {
 		case wsmessage.MessageTypeRoomJoin:
 			a.clientsMu.Lock()
-			clientID, ok := msg.Payload.(string)
+			payload, ok := msg.Payload.(map[string]interface{})
 			if ok {
-				err = a.pubRedis.HSet(a.keys.roomClients, clientID, "").Err()
+				err = a.pubRedis.HSet(a.keys.roomClients, payload["clientID"], payload["metadata"]).Err()
 				if err == nil {
 					err = a.localBroadcast(msg)
 				}

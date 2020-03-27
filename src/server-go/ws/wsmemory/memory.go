@@ -10,6 +10,7 @@ import (
 type Client interface {
 	ID() string
 	WriteChannel() chan<- wsmessage.Message
+	Metadata() string
 }
 
 type MemoryAdapter struct {
@@ -32,7 +33,7 @@ func (m *MemoryAdapter) Add(client Client) (err error) {
 	m.clientsMu.Lock()
 	clientID := client.ID()
 	m.clients[clientID] = client
-	err = m.broadcast(wsmessage.NewMessageRoomJoin(m.room, clientID))
+	err = m.broadcast(wsmessage.NewMessageRoomJoin(m.room, clientID, client.Metadata()))
 	m.clientsMu.Unlock()
 	return
 }
@@ -50,10 +51,12 @@ func (m *MemoryAdapter) Remove(clientID string) (err error) {
 	return
 }
 
-func (m *MemoryAdapter) Clients() (clientIDs []string, err error) {
+// Returns clients with metadata
+func (m *MemoryAdapter) Clients() (clientIDs map[string]string, err error) {
 	m.clientsMu.RLock()
-	for clientID := range m.clients {
-		clientIDs = append(clientIDs, clientID)
+	clientIDs = map[string]string{}
+	for clientID, client := range m.clients {
+		clientIDs[clientID] = client.Metadata()
 	}
 	m.clientsMu.RUnlock()
 	return

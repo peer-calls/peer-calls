@@ -28,10 +28,14 @@ func TestMessageSerializeDeserialize(t *testing.T) {
 func TestNewMessageRoomJoin(t *testing.T) {
 	room := "test"
 	clientID := "client1"
-	m1 := wsmessage.NewMessageRoomJoin(room, clientID)
+	metadata := "mydata"
+	m1 := wsmessage.NewMessageRoomJoin(room, clientID, metadata)
 	assert.Equal(t, wsmessage.MessageTypeRoomJoin, m1.Type)
 	assert.Equal(t, room, m1.Room)
-	assert.Equal(t, clientID, m1.Payload)
+	payload, ok := m1.Payload.(map[string]string)
+	assert.True(t, ok)
+	assert.Equal(t, clientID, payload["clientID"])
+	assert.Equal(t, metadata, payload["metadata"])
 }
 
 func TestNewMessageRoomLeave(t *testing.T) {
