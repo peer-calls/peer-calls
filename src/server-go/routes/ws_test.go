@@ -16,9 +16,10 @@ import (
 )
 
 type MockRoomManager struct {
-	enter chan string
-	exit  chan string
-	emit  chan Emit
+	enter     chan string
+	exit      chan string
+	emit      chan Emit
+	broadcast chan wsmessage.Message
 }
 
 type Emit struct {
@@ -28,15 +29,16 @@ type Emit struct {
 
 func NewMockRoomManager() *MockRoomManager {
 	return &MockRoomManager{
-		enter: make(chan string, 10),
-		exit:  make(chan string, 10),
-		emit:  make(chan Emit, 10),
+		enter:     make(chan string, 10),
+		exit:      make(chan string, 10),
+		emit:      make(chan Emit, 10),
+		broadcast: make(chan wsmessage.Message, 10),
 	}
 }
 
 func (r *MockRoomManager) Enter(room string) wsadapter.Adapter {
 	r.enter <- room
-	return &MockAdapter{room: room, emit: r.emit}
+	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}
 }
 
 func (r *MockRoomManager) Exit(room string) {
@@ -47,11 +49,13 @@ func (r *MockRoomManager) close() {
 	close(r.enter)
 	close(r.exit)
 	close(r.emit)
+	close(r.broadcast)
 }
 
 type MockAdapter struct {
-	room string
-	emit chan Emit
+	room      string
+	emit      chan Emit
+	broadcast chan wsmessage.Message
 }
 
 func (m *MockAdapter) Add(client wsadapter.Client) error {
@@ -63,6 +67,7 @@ func (m *MockAdapter) Remove(clientID string) error {
 }
 
 func (m *MockAdapter) Broadcast(message wsmessage.Message) error {
+	m.broadcast <- message
 	return nil
 }
 
@@ -153,16 +158,17 @@ func TestWS_event_ready(t *testing.T) {
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
 	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("ready", "test-room", nil))
-	msg := mustReadWS(t, ctx, ws)
+	// msg := mustReadWS(t, ctx, ws)
+	msg := <-rooms.broadcast
 	assert.Equal(t, "users", msg.Type)
 	payload, ok := msg.Payload.(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, map[string]interface{}{
 		"initiator": clientID,
-		"users": []interface{}{
-			map[string]interface{}{
-				"userId":   "client1",
-				"clientId": "client1",
+		"users": []routes.User{
+			routes.User{
+				UserID:   "client1",
+				ClientID: "client1",
 			},
 		},
 	}, payload)

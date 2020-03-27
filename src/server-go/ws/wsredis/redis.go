@@ -120,10 +120,9 @@ func (a *RedisAdapter) remove(clientID string) (err error) {
 	// can only remove clients connected to this adapter
 	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
 		log.Printf("Error deleting clientID from all clients: %s", err)
-	} else {
-		err = a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
 	}
 	delete(a.clients, clientID)
+	err = a.Broadcast(wsmessage.NewMessageRoomLeave(a.room, clientID))
 	log.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
 	return
 }

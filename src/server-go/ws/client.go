@@ -96,14 +96,15 @@ func (c *Client) subscribeRead(ctx context.Context) error {
 	}
 }
 
+func (c *Client) Close() {
+	close(c.readChannel)
+	close(c.writeChannel)
+}
+
 func (c *Client) Subscribe(ctx context.Context, handle func(wsmessage.Message)) error {
 	ctx, cancel := context.WithCancel(ctx)
 
-	defer func() {
-		cancel()
-		close(c.readChannel)
-		close(c.writeChannel)
-	}()
+	defer cancel()
 
 	readErr := make(chan error)
 	go func() {

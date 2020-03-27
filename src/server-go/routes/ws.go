@@ -48,16 +48,20 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	room := path.Base(path.Dir(r.URL.Path))
 
 	defer func() {
-		log.Printf("Closing channel room: %s, clientID: %s", room, clientID)
+		log.Printf("Closing websocket connection room: %s, clientID: %s", room, clientID)
 		c.Close(websocket.StatusInternalError, "")
 	}()
 	ctx := r.Context()
 
 	client := ws.NewClientWithID(c, clientID)
+	defer client.Close()
 	log.Printf("New websocket connection - room: %s, clientID: %s", room, clientID)
 
 	adapter := wss.rooms.Enter(room)
-	defer wss.rooms.Exit(room)
+	defer func() {
+		log.Printf("wss.rooms.Exit room: %s, clientID: %s", room, clientID)
+		wss.rooms.Exit(room)
+	}()
 	err = adapter.Add(client)
 	if err != nil {
 		log.Printf("Error adding client to room: %s", err)
@@ -65,6 +69,7 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() {
+		log.Printf("adapter.Remove room: %s, clientID: %s", room, clientID)
 		err := adapter.Remove(clientID)
 		if err != nil {
 			log.Printf("Error removing client from adapter: %s", err)
@@ -79,15 +84,18 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Error retrieving clients: %s", err)
 			}
 			log.Printf("Got clients: %s", clients)
-			client.WriteChannel() <- wsmessage.NewMessage("users", room, map[string]interface{}{
-				"initiator": clientID,
-				"users":     clientsToUsers(clients),
-			})
+			adapter.Broadcast(
+				wsmessage.NewMessage("users", room, map[string]interface{}{
+					"initiator": clientID,
+					"users":     clientsToUsers(clients),
+				}),
+			)
 		case "signal":
 			payload, _ := msg.Payload.(map[string]interface{})
 			signal, _ := payload["signal"].(string)
 			targetClientID, _ := payload["userId"].(string)
 
+			log.Printf("Send signal from: %s to %s", clientID, targetClientID)
 			adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]string{
 				"userId": clientID,
 				"signal": signal,
