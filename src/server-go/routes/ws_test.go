@@ -157,7 +157,15 @@ func TestWS_event_ready(t *testing.T) {
 	assert.Equal(t, "users", msg.Type)
 	payload, ok := msg.Payload.(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, map[string]interface{}{"client1": "abc"}, payload)
+	assert.Equal(t, map[string]interface{}{
+		"initiator": clientID,
+		"users": []interface{}{
+			map[string]interface{}{
+				"userId":   "client1",
+				"clientId": "client1",
+			},
+		},
+	}, payload)
 }
 
 func TestWS_event_signal(t *testing.T) {

@@ -21,31 +21,39 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   }
 
   protected connect() {
-    const ws = new WebSocket(this.url)
+    debug('connecting to: %s', this.url)
+    const ws = this.ws = new WebSocket(this.url)
 
-    ws.addEventListener('close', () => {
-      debug('websocket connection closed')
-      this.emitter.emit('disconnect')
-      this.emitter.removeAllListeners()
+    ws.addEventListener('close', this.wsHandleClose)
+    ws.addEventListener('open', this.wsHandleOpen)
+    ws.addEventListener('message', this.wsHandleMessage)
+  }
 
-      if (this.reconnectTimeout) {
-        setTimeout(() => this.connect(), this.reconnectTimeout)
-      }
-    })
+  protected wsHandleClose = () => {
+    debug('websocket connection closed')
+    this.emitter.emit('disconnect')
+    this.emitter.removeAllListeners()
 
-    ws.addEventListener('open', () => {
-      debug('websocket connected')
-      this.emitter.emit('connect')
-    })
+    if (this.reconnectTimeout) {
+      setTimeout(() => this.connect(), this.reconnectTimeout)
+    }
+  }
 
-    ws.addEventListener('message', (e: MessageEvent) => {
-      const message: Message = JSON.parse(e.data)
-      this.emitter.emit(message.type, message.payload)
-    })
+  protected wsHandleOpen = () => {
+    debug('websocket connected')
+    this.emitter.emit('connect')
+  }
+
+  protected wsHandleMessage = (e: MessageEvent) => {
+    const message: Message = JSON.parse(e.data)
+    this.emitter.emit(message.type, message.payload)
   }
 
   removeAllListeners() {
     this.emitter.removeAllListeners()
+    // this.ws.removeEventListener('close', this.wsHandleClose)
+    // this.ws.removeEventListener('open', this.wsHandleOpen)
+    // this.ws.removeEventListener('message', this.wsHandleMessage)
   }
 
   removeListener<K extends keyof E>(name: K, callback: Callback<E[K]>): this {

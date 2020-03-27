@@ -3,10 +3,10 @@ package routes
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"path"
 
+	"github.com/jeremija/peer-calls/src/server-go/logger"
 	"github.com/jeremija/peer-calls/src/server-go/ws"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
@@ -14,6 +14,8 @@ import (
 )
 
 type AdapterFactory func(room string) wsadapter.Adapter
+
+var log = logger.GetLogger("ws")
 
 type RoomManager interface {
 	Enter(room string) wsadapter.Adapter
@@ -45,7 +47,10 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clientID := path.Base(r.URL.Path)
 	room := path.Base(path.Dir(r.URL.Path))
 
-	defer c.Close(websocket.StatusInternalError, "")
+	defer func() {
+		log.Printf("Closing channel room: %s, clientID: %s", room, clientID)
+		c.Close(websocket.StatusInternalError, "")
+	}()
 	ctx := r.Context()
 
 	client := ws.NewClientWithID(c, clientID)
@@ -74,7 +79,10 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Error retrieving clients: %s", err)
 			}
 			log.Printf("Got clients: %s", clients)
-			client.WriteChannel() <- wsmessage.NewMessage("users", room, clients)
+			client.WriteChannel() <- wsmessage.NewMessage("users", room, map[string]interface{}{
+				"initiator": clientID,
+				"users":     clientsToUsers(clients),
+			})
 		case "signal":
 			payload, _ := msg.Payload.(map[string]interface{})
 			signal, _ := payload["signal"].(string)
@@ -97,4 +105,19 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Subscription error: %s", err)
 	}
+}
+
+type User struct {
+	UserID   string `json:"userId"`
+	ClientID string `json:"clientId"`
+}
+
+func clientsToUsers(clients map[string]string) (users []User) {
+	for clientID := range clients {
+		users = append(users, User{
+			UserID:   clientID,
+			ClientID: clientID,
+		})
+	}
+	return
 }
