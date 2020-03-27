@@ -34,14 +34,24 @@ type Client struct {
 }
 
 // Creates a new websocket client.
-func NewClient(conn WSReadWriter, metadata string) *Client {
+func NewClient(conn WSReadWriter) *Client {
+	return NewClientWithID(conn, "")
+}
+
+func NewClientWithID(conn WSReadWriter, id string) *Client {
+	if id == "" {
+		id = uuid.New().String()
+	}
 	return &Client{
-		id:           uuid.New().String(),
+		id:           id,
 		conn:         conn,
-		metadata:     metadata,
 		writeChannel: make(chan wsmessage.Message, 16),
 		readChannel:  make(chan wsmessage.Message, 16),
 	}
+}
+
+func (c *Client) SetMetadata(metadata string) {
+	c.metadata = metadata
 }
 
 func (c *Client) Metadata() string {

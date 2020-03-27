@@ -48,7 +48,8 @@ func serialize(t *testing.T, msg wsmessage.Message) []byte {
 func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
-	client := ws.NewClient(mockWriter, "a")
+	client := ws.NewClient(mockWriter)
+	client.SetMetadata("a")
 	clientID := client.ID()
 	err := adapter.Add(client)
 	assert.Nil(t, err)
@@ -71,7 +72,7 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	defer close(mockWriter.out)
-	client := ws.NewClient(mockWriter, "")
+	client := ws.NewClient(mockWriter)
 	adapter.Add(client)
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -101,9 +102,9 @@ func TestMemoryAdapter_emitMissing(t *testing.T) {
 func TestMemoryAdapter_Brodacast(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter1 := NewMockWriter()
-	client1 := ws.NewClient(mockWriter1, "")
+	client1 := ws.NewClient(mockWriter1)
 	mockWriter2 := NewMockWriter()
-	client2 := ws.NewClient(mockWriter2, "")
+	client2 := ws.NewClient(mockWriter2)
 	defer close(mockWriter1.out)
 	defer close(mockWriter2.out)
 	assert.Nil(t, adapter.Add(client1))

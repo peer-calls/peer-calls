@@ -4,18 +4,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 )
 
-type Client interface {
-	ID() string
-	WriteChannel() chan<- wsmessage.Message
-	Metadata() string
-}
-
 type MemoryAdapter struct {
 	clientsMu *sync.RWMutex
-	clients   map[string]Client
+	clients   map[string]wsadapter.Client
 	room      string
 }
 
@@ -23,13 +18,13 @@ func NewMemoryAdapter(room string) *MemoryAdapter {
 	var clientsMu sync.RWMutex
 	return &MemoryAdapter{
 		clientsMu: &clientsMu,
-		clients:   map[string]Client{},
+		clients:   map[string]wsadapter.Client{},
 		room:      room,
 	}
 }
 
 // Add a client to the room
-func (m *MemoryAdapter) Add(client Client) (err error) {
+func (m *MemoryAdapter) Add(client wsadapter.Client) (err error) {
 	m.clientsMu.Lock()
 	clientID := client.ID()
 	m.clients[clientID] = client
@@ -48,6 +43,14 @@ func (m *MemoryAdapter) Remove(clientID string) (err error) {
 	err = m.broadcast(wsmessage.NewMessageRoomLeave(m.room, clientID))
 	delete(m.clients, clientID)
 	m.clientsMu.Unlock()
+	return
+}
+
+func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
+	client, ok := m.clients[clientID]
+	if ok {
+		metadata = client.Metadata()
+	}
 	return
 }
 
@@ -97,13 +100,13 @@ func (m *MemoryAdapter) Emit(clientID string, msg wsmessage.Message) error {
 func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) error {
 	client, ok := m.clients[clientID]
 	if !ok {
-		return fmt.Errorf("Client not found, clientID: %s", clientID)
+		return fmt.Errorf("wsadapter.Client not found, clientID: %s", clientID)
 	}
 	select {
 	case client.WriteChannel() <- msg:
 		return nil
 	default:
-		return fmt.Errorf("Client buffer full, clientID: %s", clientID)
+		return fmt.Errorf("wsadapter.Client buffer full, clientID: %s", clientID)
 		// if the client buffer is full, it will not be sent
 	}
 }

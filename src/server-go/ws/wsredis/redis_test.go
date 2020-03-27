@@ -72,10 +72,12 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	adapter2 := wsredis.NewRedisAdapter(pub, sub, "peercalls", room)
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
-	client1 := ws.NewClient(mockWriter1, "a")
+	client1 := ws.NewClient(mockWriter1)
+	client1.SetMetadata("a")
 	mockWriter2 := NewMockWriter()
 	defer close(mockWriter2.out)
-	client2 := ws.NewClient(mockWriter2, "b")
+	client2 := ws.NewClient(mockWriter2)
+	client2.SetMetadata("b")
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup

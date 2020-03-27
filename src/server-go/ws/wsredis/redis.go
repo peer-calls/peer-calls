@@ -10,14 +10,9 @@ import (
 	"sync"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 )
-
-type Client interface {
-	ID() string
-	WriteChannel() chan<- wsmessage.Message
-	Metadata() string
-}
 
 type JSONMessage struct {
 	Type    string `json:"type"`
@@ -33,7 +28,7 @@ var serializer wsmessage.ByteSerializer
 type RedisAdapter struct {
 	clientsMu *sync.RWMutex
 	// contains local clients connected to current instance
-	clients map[string]Client
+	clients map[string]wsadapter.Client
 	// contains IDs of all clients in room, including those from other instances
 	logger   *log.Logger
 	prefix   string
@@ -72,7 +67,7 @@ func NewRedisAdapter(
 	var clientsMu sync.RWMutex
 
 	adapter := RedisAdapter{
-		clients:   map[string]Client{},
+		clients:   map[string]wsadapter.Client{},
 		clientsMu: &clientsMu,
 		logger:    log.New(os.Stdout, "wsredis ", log.LstdFlags),
 		prefix:    prefix,
@@ -91,7 +86,7 @@ func NewRedisAdapter(
 	return &adapter
 }
 
-func (a *RedisAdapter) Add(client Client) (err error) {
+func (a *RedisAdapter) Add(client wsadapter.Client) (err error) {
 	clientID := client.ID()
 	a.logger.Printf("Add clientID: %s to room: %s", clientID, a.room)
 	a.clientsMu.Lock()
@@ -133,6 +128,11 @@ func (a *RedisAdapter) remove(clientID string) (err error) {
 	delete(a.clients, clientID)
 	a.logger.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
 	return
+}
+
+func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
+	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
+	return metadata, err != nil
 }
 
 // Returns IDs of all known clients connected to this room
