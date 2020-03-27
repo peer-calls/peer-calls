@@ -38,9 +38,16 @@ func main() {
 		err := config.ReadFiles([]string{configFilename}, &c)
 		panicOnError(err, "Error reading config file")
 	}
+	if len(c.ICEServers) == 0 {
+		c.ICEServers = append(c.ICEServers, config.ICEServer{
+			URLs:     []string{"stun:stun.l.google.com:19302"},
+			AuthType: config.AuthTypeNone,
+		})
+	}
 	config.ReadEnv("PEERCALLS_", &c)
 
 	ice, err := json.Marshal(iceauth.GetICEServers(c.ICEServers))
+	log.Printf("Using ice servers: %s", ice)
 	panicOnError(err, "Error setting ICE servers")
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)

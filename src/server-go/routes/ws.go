@@ -92,11 +92,11 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			)
 		case "signal":
 			payload, _ := msg.Payload.(map[string]interface{})
-			signal, _ := payload["signal"].(string)
+			signal, _ := payload["signal"]
 			targetClientID, _ := payload["userId"].(string)
 
 			log.Printf("Send signal from: %s to %s", clientID, targetClientID)
-			adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]string{
+			adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
 				"userId": clientID,
 				"signal": signal,
 			}))

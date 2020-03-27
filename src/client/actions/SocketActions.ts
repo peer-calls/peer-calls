@@ -36,7 +36,7 @@ class SocketHandler {
   handleSignal = ({ userId, signal }: SocketEvent['signal']) => {
     const { getState } = this
     const peer = getState().peers[userId]
-    // debug('socket signal, userId: %s, signal: %o', userId, signal);
+    debug('socket signal, userId: %s, signal: %o', userId, signal)
     if (!peer) return debug('user: %s, no peer found', userId)
     peer.signal(signal)
   }

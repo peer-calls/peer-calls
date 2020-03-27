@@ -183,8 +183,8 @@ func TestWS_event_signal(t *testing.T) {
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
 	otherClientID := "other-user"
-	signal := "a-signal"
-	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("signal", "test-room", map[string]string{
+	var signal interface{} = "a-signal"
+	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("signal", "test-room", map[string]interface{}{
 		"userId": otherClientID,
 		"signal": signal,
 	}))
@@ -192,7 +192,7 @@ func TestWS_event_signal(t *testing.T) {
 	require.True(t, ok, "rooms.emit channel is closed")
 	assert.Equal(t, emit.clientID, otherClientID)
 	assert.Equal(t, "signal", emit.message.Type)
-	payload, ok := emit.message.Payload.(map[string]string)
+	payload, ok := emit.message.Payload.(map[string]interface{})
 	require.True(t, ok, "unexpected payload type: %s", emit.message.Payload)
 	assert.Equal(t, signal, payload["signal"])
 	assert.Equal(t, clientID, payload["userId"])

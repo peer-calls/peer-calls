@@ -14,7 +14,7 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
 
   protected readonly emitter = new EventEmitter()
   protected ws!: WebSocket
-  reconnectTimeout = 0
+  reconnectTimeout = 2000
 
   constructor(readonly url: string) {
     this.connect()

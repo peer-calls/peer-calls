@@ -68,7 +68,11 @@ func ReadEnv(prefix string, c *Config) {
 
 func setEnvSlice(dest *[]string, name string) {
 	value := os.Getenv(name)
-	*dest = append(*dest, strings.Split(value, ",")...)
+	for _, v := range strings.Split(value, ",") {
+		if v != "" {
+			*dest = append(*dest, v)
+		}
+	}
 }
 
 func setEnvString(dest *string, name string) {
