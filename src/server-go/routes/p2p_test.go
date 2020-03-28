@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jeremija/peer-calls/src/server-go/routes"
+	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"github.com/stretchr/testify/assert"
@@ -125,7 +126,7 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) wsmessage
 }
 
 func setupServer(rooms routes.RoomManager) (server *httptest.Server, url string) {
-	handler := routes.NewRoomHandler(routes.NewWSS(rooms))
+	handler := routes.NewPeerToPeerRoomHandler(wsserver.NewWSS(rooms))
 	server = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + roomName + "/" + clientID
 	return

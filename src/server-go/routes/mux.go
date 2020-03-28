@@ -11,6 +11,7 @@ import (
 	"github.com/gobuffalo/packr"
 	"github.com/google/uuid"
 	"github.com/jeremija/peer-calls/src/server-go/render"
+	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 )
 
 type Mux struct {
@@ -54,7 +55,7 @@ func NewMux(
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
-		router.Mount("/ws", NewRoomHandler(NewWSS(rooms)))
+		router.Mount("/ws", NewPeerToPeerRoomHandler(wsserver.NewWSS(rooms)))
 	})
 
 	return mux
