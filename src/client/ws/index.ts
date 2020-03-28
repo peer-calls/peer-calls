@@ -32,7 +32,6 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   protected wsHandleClose = () => {
     debug('websocket connection closed')
     this.emitter.emit('disconnect')
-    this.emitter.removeAllListeners()
 
     if (this.reconnectTimeout) {
       setTimeout(() => this.connect(), this.reconnectTimeout)
