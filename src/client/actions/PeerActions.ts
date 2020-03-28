@@ -145,7 +145,7 @@ class PeerHandler {
 export interface CreatePeerOptions {
   socket: ClientSocket
   user: { id: string }
-  initiator: string
+  initiator: boolean
   stream?: MediaStream
 }
 
@@ -162,7 +162,9 @@ export function createPeer (options: CreatePeerOptions) {
 
   return (dispatch: Dispatch, getState: GetState) => {
     const userId = user.id
-    debug('create peer: %s, stream:', userId, stream)
+    debug(
+      'create peer: %s, hasStream: %s, initiator: %s',
+      userId, !!stream, initiator)
     dispatch(NotifyActions.warning('Connecting to peer...'))
 
     const oldPeer = getState().peers[userId]
@@ -173,7 +175,7 @@ export function createPeer (options: CreatePeerOptions) {
     }
 
     const peer = new Peer({
-      initiator: userId === initiator,
+      initiator,
       config: { iceServers },
       // Allow the peer to receive video, even if it's not sending stream:
       // https://github.com/feross/simple-peer/issues/95
