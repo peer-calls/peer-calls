@@ -125,8 +125,8 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) wsmessage
 }
 
 func setupServer(rooms routes.RoomManager) (server *httptest.Server, url string) {
-	wss := routes.NewWSS(rooms)
-	server = httptest.NewServer(wss)
+	handler := routes.NewRoomHandler(routes.NewWSS(rooms))
+	server = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + roomName + "/" + clientID
 	return
 }

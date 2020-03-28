@@ -54,7 +54,7 @@ func NewMux(
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
-		router.Mount("/ws", NewWSS(rooms))
+		router.Mount("/ws", NewRoomHandler(NewWSS(rooms)))
 	})
 
 	return mux

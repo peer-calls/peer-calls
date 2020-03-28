@@ -37,7 +37,14 @@ type ReadyMessage struct {
 	Room   string `json:"room"`
 }
 
-func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type RoomEvent struct {
+	ClientID string
+	Room     string
+	Adapter  wsadapter.Adapter
+	Message  wsmessage.Message
+}
+
+func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent)) {
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		log.Printf("Error accepting websocket connection: %s", err)
@@ -76,31 +83,13 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	err = client.Subscribe(ctx, func(msg wsmessage.Message) {
-		switch msg.Type {
-		case "ready":
-			clients, err := adapter.Clients()
-			if err != nil {
-				log.Printf("Error retrieving clients: %s", err)
-			}
-			log.Printf("Got clients: %s", clients)
-			adapter.Broadcast(
-				wsmessage.NewMessage("users", room, map[string]interface{}{
-					"initiator": clientID,
-					"users":     clientsToUsers(clients),
-				}),
-			)
-		case "signal":
-			payload, _ := msg.Payload.(map[string]interface{})
-			signal, _ := payload["signal"]
-			targetClientID, _ := payload["userId"].(string)
-
-			log.Printf("Send signal from: %s to %s", clientID, targetClientID)
-			adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
-				"userId": clientID,
-				"signal": signal,
-			}))
-		}
+	err = client.Subscribe(ctx, func(message wsmessage.Message) {
+		handleMessage(RoomEvent{
+			ClientID: clientID,
+			Room:     room,
+			Adapter:  adapter,
+			Message:  message,
+		})
 	})
 
 	if errors.Is(err, context.Canceled) {
@@ -113,6 +102,43 @@ func (wss *WSS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Subscription error: %s", err)
 	}
+}
+
+func NewRoomHandler(wss *WSS) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		wss.HandleRoom(w, r, func(event RoomEvent) {
+			msg := event.Message
+			adapter := event.Adapter
+			room := event.Room
+			clientID := event.ClientID
+
+			switch msg.Type {
+			case "ready":
+				clients, err := adapter.Clients()
+				if err != nil {
+					log.Printf("Error retrieving clients: %s", err)
+				}
+				log.Printf("Got clients: %s", clients)
+				adapter.Broadcast(
+					wsmessage.NewMessage("users", room, map[string]interface{}{
+						"initiator": clientID,
+						"users":     clientsToUsers(clients),
+					}),
+				)
+			case "signal":
+				payload, _ := msg.Payload.(map[string]interface{})
+				signal, _ := payload["signal"]
+				targetClientID, _ := payload["userId"].(string)
+
+				log.Printf("Send signal from: %s to %s", clientID, targetClientID)
+				adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
+					"userId": clientID,
+					"signal": signal,
+				}))
+			}
+		})
+	}
+	return http.HandlerFunc(fn)
 }
 
 type User struct {
