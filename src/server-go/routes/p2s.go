@@ -2,12 +2,19 @@ package routes
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v2"
+)
+
+const (
+	rtcpPLIInterval = time.Second * 3
 )
 
 var peers = map[string]string{}
@@ -94,6 +101,41 @@ func NewPeerToServerRoomHandler(
 						},
 					},
 				}))
+			})
+
+			peerConnection.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+				// Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
+				// This can be less wasteful by processing incoming RTCP events, then we would emit a NACK/PLI when a viewer requests it
+				go func() {
+					ticker := time.NewTicker(rtcpPLIInterval)
+					for range ticker.C {
+						if rtcpSendErr := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: remoteTrack.SSRC()}}); rtcpSendErr != nil {
+							log.Printf("Error sending rtcp PLI: %s", rtcpSendErr)
+						}
+					}
+				}()
+
+				// Create a local track, all our SFU clients will be fed via this track
+				localTrack, newTrackErr := peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), "video", "pion")
+				if newTrackErr != nil {
+					panic(newTrackErr)
+				}
+
+				// FIXME notify other peers in same room that we got a new track!
+				// localTrackChan <- localTrack
+
+				rtpBuf := make([]byte, 1400)
+				for {
+					i, readErr := remoteTrack.Read(rtpBuf)
+					if readErr != nil {
+						panic(readErr)
+					}
+
+					// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
+					if _, err = localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
+						panic(err)
+					}
+				}
 			})
 		}
 
