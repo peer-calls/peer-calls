@@ -21,8 +21,17 @@ type Candidate struct {
 	Candidate webrtc.ICECandidateInit `json:"candidate"`
 }
 
+type PeerConnection interface {
+	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
+	OnICECandidate(func(*webrtc.ICECandidate))
+	AddICECandidate(webrtc.ICECandidateInit) error
+	SetRemoteDescription(webrtc.SessionDescription) error
+	SetLocalDescription(webrtc.SessionDescription) error
+	CreateAnswer(*webrtc.AnswerOptions) (webrtc.SessionDescription, error)
+}
+
 type Signaller struct {
-	peerConnection    *webrtc.PeerConnection
+	peerConnection    PeerConnection
 	localPeerID       string
 	onSignalSDP       func(signal SignalSDP) error
 	onSignalCandidate func(signal SignalCandidate)
@@ -31,7 +40,7 @@ type Signaller struct {
 var log = logger.GetLogger("wrtc")
 
 func NewSignaller(
-	peerConnection *webrtc.PeerConnection,
+	peerConnection PeerConnection,
 	localPeerID string,
 	onSignalSDP func(signal SignalSDP) error,
 	onSignalCandidate func(signal SignalCandidate),
