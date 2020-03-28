@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -10,6 +9,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
 	"github.com/google/uuid"
+	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/render"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 )
@@ -27,6 +27,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewMux(
 	baseURL string,
 	version string,
+	iceServers []config.ICEServer,
 	iceServersJSON string,
 	rooms RoomManager,
 ) *Mux {
@@ -56,6 +57,7 @@ func NewMux(
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
 		router.Mount("/ws", NewPeerToPeerRoomHandler(wsserver.NewWSS(rooms)))
+		router.Mount("/ws-server", NewPeerToServerRoomHandler(wsserver.NewWSS(rooms), iceServers))
 	})
 
 	return mux
@@ -81,7 +83,6 @@ func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, inte
 }
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
-	fmt.Println("routeCall")
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := uuid.New().String()
 	data := map[string]interface{}{

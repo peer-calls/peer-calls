@@ -51,7 +51,7 @@ func main() {
 	panicOnError(err, "Error setting ICE servers")
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)
-	mux := routes.NewMux(c.BaseURL, gitDescribe, string(ice), rooms)
+	mux := routes.NewMux(c.BaseURL, gitDescribe, c.ICEServers, string(ice), rooms)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

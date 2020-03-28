@@ -38,6 +38,10 @@ type RoomEvent struct {
 }
 
 func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent)) {
+	wss.HandleRoomWithCleanup(w, r, handleMessage, nil)
+}
+
+func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent), cleanup func()) {
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		log.Printf("Error accepting websocket connection: %s", err)
@@ -75,6 +79,10 @@ func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage
 			log.Printf("Error removing client from adapter: %s", err)
 		}
 	}()
+
+	if cleanup != nil {
+		defer cleanup()
+	}
 
 	err = client.Subscribe(ctx, func(message wsmessage.Message) {
 		handleMessage(RoomEvent{
