@@ -16,6 +16,8 @@ type Logger struct {
 	Enabled bool
 }
 
+var TimeFormat = "2006-01-02T15:04:05.000000Z07:00"
+
 func NewLogger(name string, out io.Writer, enabled bool) *Logger {
 	return &Logger{name: name, out: out, Enabled: enabled}
 }
@@ -35,14 +37,14 @@ func (l *Logger) Println(values ...interface{}) {
 func (l *Logger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(time.RFC3339Nano)
+	date := time.Now().Format(TimeFormat)
 	l.out.Write([]byte(date + " [" + l.name + "] " + fmt.Sprintf(message+"\n", values...)))
 }
 
 func (l *Logger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(time.RFC3339)
+	date := time.Now().Format(TimeFormat)
 	l.out.Write([]byte(date + " [" + l.name + "] " + fmt.Sprintln(values...)))
 }
 
