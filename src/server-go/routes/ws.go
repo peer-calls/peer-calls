@@ -112,15 +112,19 @@ func NewRoomHandler(wss *WSS) http.Handler {
 			room := event.Room
 			clientID := event.ClientID
 
+			var responseEventName string
+			var err error
+
 			switch msg.Type {
 			case "ready":
 				clients, err := adapter.Clients()
 				if err != nil {
 					log.Printf("Error retrieving clients: %s", err)
 				}
+				responseEventName = "users"
 				log.Printf("Got clients: %s", clients)
-				adapter.Broadcast(
-					wsmessage.NewMessage("users", room, map[string]interface{}{
+				err = adapter.Broadcast(
+					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
 						"initiator": clientID,
 						"users":     clientsToUsers(clients),
 					}),
@@ -130,11 +134,16 @@ func NewRoomHandler(wss *WSS) http.Handler {
 				signal, _ := payload["signal"]
 				targetClientID, _ := payload["userId"].(string)
 
+				responseEventName = "signal"
 				log.Printf("Send signal from: %s to %s", clientID, targetClientID)
-				adapter.Emit(targetClientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
+				err = adapter.Emit(targetClientID, wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
 					"userId": clientID,
 					"signal": signal,
 				}))
+			}
+
+			if err != nil {
+				log.Printf("Error sending event (event: %s, room: %s, source: %s)", responseEventName, room, clientID)
 			}
 		})
 	}
