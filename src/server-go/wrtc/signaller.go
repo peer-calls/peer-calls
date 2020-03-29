@@ -73,7 +73,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 }
 
 func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
-	log.Printf("Got signal: %#v", payload)
+	// log.Printf("Got signal: %#v", payload)
 
 	signal, _ := payload["signal"].(map[string]interface{})
 	remotePeerID, _ := payload["userId"].(string)
@@ -94,7 +94,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 }
 
 func (s *Signaller) handleSignalCandidate(targetClientID string, candidate interface{}) (err error) {
-	log.Printf("Got client ice candidate: %#v", candidate)
+	// log.Printf("Got client ice candidate: %#v", candidate)
 	candidateMap, ok := candidate.(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("Expected ice candidate to be a map")
@@ -154,7 +154,7 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 		UserID: s.localPeerID,
 		Signal: answer,
 	}
-	log.Printf("Sending answer: %#v", answerSignalSDP)
+	// log.Printf("Sending answer: %#v", answerSignalSDP)
 	err = s.onSignalSDP(answerSignalSDP)
 	return err
 }
