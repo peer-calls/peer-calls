@@ -34,7 +34,7 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 
 	for otherClientID, otherPeerInRoom := range t.peers {
 		if otherClientID != clientID {
-			otherPeerInRoom.peer.RemoveTrack(track)
+			otherPeerInRoom.peer.AddTrack(track)
 		}
 	}
 
