@@ -53,6 +53,8 @@ func NewPeer(
 	return p
 }
 
+// FIXME add support for data channel messages for sending chat messages, and images/files
+
 func (p *Peer) ClientID() string {
 	return p.clientID
 }
@@ -75,10 +77,14 @@ func (p *Peer) RemoveTrack(track *webrtc.Track) error {
 }
 
 func (p *Peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
-	log.Printf("Peer connection state changed %s", connectionState.String())
+	log.Printf("Peer connection state changed, clientID: %s, state: %s",
+		p.clientID,
+		connectionState.String(),
+	)
 	if connectionState == webrtc.ICEConnectionStateClosed ||
 		connectionState == webrtc.ICEConnectionStateDisconnected ||
 		connectionState == webrtc.ICEConnectionStateFailed {
+		// TODO prevent this method from being called twice (state disconnected, then failed)
 		p.onClose(p.clientID)
 	}
 }

@@ -42,6 +42,8 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 }
 
 func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection) {
+	log.Printf("Add peer to TrackManager room: %s, clientID: %s", room, clientID)
+
 	peer := NewPeer(
 		clientID,
 		peerConnection,
@@ -56,7 +58,6 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 		peer: peer,
 		room: room,
 	}
-	t.peers[clientID] = peerJoiningRoom
 
 	peersSet, ok := t.peerIDsByRoom[room]
 	if !ok {
@@ -64,9 +65,13 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 		t.peerIDsByRoom[room] = peersSet
 	}
 
-	for existingPeerClientID := range t.peerIDsByRoom {
-		existingPeer := t.peers[existingPeerClientID].peer
-		for _, track := range existingPeer.Tracks() {
+	for existingPeerClientID := range peersSet {
+		existingPeerInRoom, ok := t.peers[existingPeerClientID]
+		if !ok {
+			log.Printf("Cannot find existing peer with clientID: %s", existingPeerClientID)
+			continue
+		}
+		for _, track := range existingPeerInRoom.peer.Tracks() {
 			err := peerJoiningRoom.peer.AddTrack(track)
 			if err != nil {
 				log.Printf(
@@ -80,11 +85,13 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 		}
 	}
 
+	t.peers[clientID] = peerJoiningRoom
 	peersSet[clientID] = struct{}{}
 	t.mu.Unlock()
 }
 
 func (t *TracksManager) removePeer(clientID string) {
+	log.Printf("removePeer: %s", clientID)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	peerLeavingRoom, ok := t.peers[clientID]
@@ -105,6 +112,8 @@ func (t *TracksManager) removePeer(clientID string) {
 }
 
 func (t *TracksManager) removePeerTracks(peerLeavingRoom peerInRoom) {
+	leavingClientID := peerLeavingRoom.peer.ClientID()
+	log.Printf("Remove all peer tracks for clientID: %s", leavingClientID)
 	clientIDs, ok := t.peerIDsByRoom[peerLeavingRoom.room]
 	if !ok {
 		log.Println("Cannot find any peers in room", peerLeavingRoom.room)
@@ -113,10 +122,25 @@ func (t *TracksManager) removePeerTracks(peerLeavingRoom peerInRoom) {
 
 	tracks := peerLeavingRoom.peer.Tracks()
 	for clientID := range clientIDs {
-		if clientID != peerLeavingRoom.peer.ClientID() {
+		if clientID != leavingClientID {
 			otherPeerInRoom := t.peers[clientID]
 			for _, track := range tracks {
-				otherPeerInRoom.peer.RemoveTrack(track)
+				log.Printf(
+					"Removing track: %s from peer clientID: %s (source clientID: %s)",
+					track.ID(),
+					clientID,
+					leavingClientID,
+				)
+				err := otherPeerInRoom.peer.RemoveTrack(track)
+				if err != nil {
+					log.Printf(
+						"Error removing track: %s from peer clientID: %s (source clientID: %s): %s",
+						track.ID(),
+						clientID,
+						leavingClientID,
+						err,
+					)
+				}
 			}
 		}
 	}
