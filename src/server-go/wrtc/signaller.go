@@ -68,7 +68,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 		},
 	}
 
-	log.Printf("Got ice candidate from sever peer: %s", payload)
+	log.Printf("Got ice candidate from server peer: %s", payload)
 	s.onSignalCandidate(payload)
 }
 
@@ -92,12 +92,24 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 }
 
 func (s *Signaller) handleSignalCandidate(targetClientID string, candidate interface{}) (err error) {
-	log.Printf("Got client ice candidate: %s", candidate)
-	candidateString, ok := candidate.(string)
+	log.Printf("Got client ice candidate: %#v", candidate)
+	candidateMap, ok := candidate.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("Expected ice candidate to be staring")
+		return fmt.Errorf("Expected ice candidate to be a map")
 	}
-	iceCandidate := webrtc.ICECandidateInit{Candidate: candidateString}
+
+	candidateString, _ := candidateMap["candidate"].(string)
+	sdpMLineIndex, _ := candidateMap["sdpMLineIndex"].(uint16)
+	sdpMid, _ := candidateMap["sdpMid"].(string)
+
+	iceCandidate := webrtc.ICECandidateInit{
+		Candidate:     candidateString,
+		SDPMLineIndex: &sdpMLineIndex,
+		SDPMid:        &sdpMid,
+	}
+
+	// log.Printf("Parsed ice candidate: %#v", iceCandidate)
+
 	err = s.peerConnection.AddICECandidate(iceCandidate)
 	return
 }
@@ -107,7 +119,7 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 	sdpString, _ := sdp.(string)
 	sessionDescription := webrtc.SessionDescription{}
 	sessionDescription.SDP = sdpString
-	log.Printf("Got client signal: %s", sdp)
+	log.Printf("Got client signal type: %s", sdpType)
 
 	switch sdpTypeString {
 	case "offer":
@@ -132,6 +144,7 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 	if err != nil {
 		return fmt.Errorf("Error creating answer: %w", err)
 	}
+	log.Println("Setting local description")
 	if err := s.peerConnection.SetLocalDescription(answer); err != nil {
 		return fmt.Errorf("Error setting local description: %w", err)
 	}
