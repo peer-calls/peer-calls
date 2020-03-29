@@ -61,6 +61,7 @@ func (p *Peer) ClientID() string {
 }
 
 func (p *Peer) AddTrack(track *webrtc.Track) error {
+	log.Printf("Add track: %s to peer clientID: %s", track.ID(), p.clientID)
 	rtpSender, err := p.peerConnection.AddTrack(track)
 	if err != nil {
 		return fmt.Errorf("Error adding track: %s to peer clientID: %s", track.ID(), p.clientID)
@@ -70,6 +71,7 @@ func (p *Peer) AddTrack(track *webrtc.Track) error {
 }
 
 func (p *Peer) RemoveTrack(track *webrtc.Track) error {
+	log.Printf("Remove track: %s from peer clientID: %s", track.ID(), p.clientID)
 	rtpSender, ok := p.rtpSenderByTrack[track]
 	if !ok {
 		return fmt.Errorf("Cannot find sender for track: %s, clientID: %s", track.ID(), p.clientID)
@@ -101,6 +103,7 @@ func (p *Peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.localTracks = append(p.localTracks, localTrack)
 	p.localTracksMu.Unlock()
 
+	log.Printf("Add track to list of local tracks: %s for clientID: %s", localTrack.ID(), p.clientID)
 	p.onTrack(p.clientID, localTrack)
 }
 
@@ -109,21 +112,15 @@ func (p *Peer) Tracks() []*webrtc.Track {
 }
 
 func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, error) {
-	log.Printf("startCopyingTrack: %s for peer clientID: %s", remoteTrack.ID(), p.clientID)
+	localTrackID := "copy:" + remoteTrack.ID()
+	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s", remoteTrack.ID(), localTrackID, p.clientID)
 
 	// Create a local track, all our SFU clients will be fed via this track
-	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), "video", "pion")
+	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), localTrackID, remoteTrack.Label())
 	if err != nil {
 		err = fmt.Errorf("startCopyingTrack: error creating new track, trackID: %s, clientID: %s, error: %s", remoteTrack.ID(), p.clientID, err)
 		return nil, err
 	}
-
-	log.Printf(
-		"startCopyingTrack: remote track %s to new local track: %s for clientID: %s",
-		remoteTrack.ID(),
-		localTrack.ID(),
-		p.clientID,
-	)
 
 	// Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
 	// This can be less wasteful by processing incoming RTCP events, then we would emit a NACK/PLI when a viewer requests it
@@ -140,7 +137,7 @@ func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 			)
 			if err != nil {
 				log.Printf("Error sending rtcp PLI for local track: %s for clientID: %s: %s",
-					localTrack.ID(),
+					localTrackID,
 					p.clientID,
 					err,
 				)
@@ -167,7 +164,7 @@ func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 			if _, err = localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
 				log.Printf(
 					"Error writing to local track: %s for clientID: %s: %s",
-					localTrack.ID(),
+					localTrackID,
 					p.clientID,
 					err,
 				)
