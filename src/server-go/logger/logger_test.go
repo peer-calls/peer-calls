@@ -18,7 +18,7 @@ func TestGetLogger_Printf(t *testing.T) {
 	logC := loggerFactory.GetLogger("c")
 	logB.Printf("Test B: %s", "test b")
 	logC.Printf("Test C: %s", "test c")
-	assert.Regexp(t, " \\[b] Test B: test b\n", out.String())
+	assert.Regexp(t, " \\[              b] Test B: test b\n", out.String())
 }
 
 func TestGetLogger_Println(t *testing.T) {
@@ -30,7 +30,7 @@ func TestGetLogger_Println(t *testing.T) {
 	logC := loggerFactory.GetLogger("c")
 	logB.Println(1, "one")
 	logC.Println(2, "two")
-	assert.Regexp(t, " \\[b] 1 one\n", out.String())
+	assert.Regexp(t, " \\[              b] 1 one\n", out.String())
 }
 
 func TestGetLogger_default(t *testing.T) {
@@ -39,5 +39,5 @@ func TestGetLogger_default(t *testing.T) {
 	loggerFactory := logger.NewLoggerFactoryFromEnv("TESTLOG_", &out)
 	logB := loggerFactory.GetLogger("b")
 	logB.Println(1, "one")
-	assert.Regexp(t, " \\[b] 1 one\n", out.String())
+	assert.Regexp(t, " \\[              b] 1 one\n", out.String())
 }
