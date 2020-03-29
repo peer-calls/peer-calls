@@ -51,7 +51,7 @@ func NewSignaller(
 		onSignalCandidate: onSignalCandidate,
 	}
 
-	peerConnection.OnICECandidate(s.handleICECandidate)
+	// peerConnection.OnICECandidate(s.handleICECandidate)
 
 	return &s
 }
@@ -73,6 +73,8 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 }
 
 func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
+	log.Printf("Got signal: %#v", payload)
+
 	signal, _ := payload["signal"].(map[string]interface{})
 	remotePeerID, _ := payload["userId"].(string)
 
@@ -85,7 +87,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 	} else if sdpTypeString, ok := signal["type"]; ok {
 		err = s.handleSDP(sdpTypeString, signal["sdp"])
 	} else {
-		err = fmt.Errorf("Unexpected signal message")
+		err = fmt.Errorf("Unexpected signal message: %#v", payload)
 	}
 
 	return
@@ -144,14 +146,15 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 	if err != nil {
 		return fmt.Errorf("Error creating answer: %w", err)
 	}
-	log.Println("Setting local description")
 	if err := s.peerConnection.SetLocalDescription(answer); err != nil {
 		return fmt.Errorf("Error setting local description: %w", err)
 	}
 
-	err = s.onSignalSDP(SignalSDP{
+	answerSignalSDP := SignalSDP{
 		UserID: s.localPeerID,
 		Signal: answer,
-	})
+	}
+	log.Printf("Sending answer: %#v", answerSignalSDP)
+	err = s.onSignalSDP(answerSignalSDP)
 	return err
 }

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/jeremija/peer-calls/src/server-go/config"
@@ -40,10 +41,12 @@ func NewPeerToServerRoomHandler(
 	webrtcConfig := webrtc.Configuration{
 		ICEServers: webrtcICEServers,
 	}
+	mediaEngine := webrtc.MediaEngine{}
+	mediaEngine.RegisterDefaultCodecs()
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
-		mediaEngine := webrtc.MediaEngine{}
+		// mediaEngine := webrtc.MediaEngine{}
 		settingEngine := webrtc.SettingEngine{}
 		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
@@ -71,6 +74,31 @@ func NewPeerToServerRoomHandler(
 		peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 			log.Printf("ICE gathering state changed: %s", state)
 		})
+
+		_, err = peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeVideo,
+			// webrtc.RtpTransceiverInit{
+			// 	Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			// },
+		)
+		if err != nil {
+			log.Printf("Error adding video transceiver: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Printf("Error adding audio transceiver: %s", err)
+			return
+		}
+		// TODO add one more video transceiver for screen sharing
+		_, err = peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeAudio,
+			// webrtc.RtpTransceiverInit{
+			// 	Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			// },
+		)
+		if err != nil {
+			log.Printf("Error adding audio transceiver: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		handleMessage := func(event wsserver.RoomEvent) {
 			msg := event.Message
@@ -110,7 +138,11 @@ func NewPeerToServerRoomHandler(
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})
-				err = signaller.Signal(payload)
+				if signaller == nil {
+					err = fmt.Errorf("Ignoring signal because signaller is not initialized")
+				} else {
+					err = signaller.Signal(payload)
+				}
 			}
 
 			if err != nil {

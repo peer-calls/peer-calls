@@ -48,6 +48,7 @@ func NewPeer(
 	}
 
 	peerConnection.OnICEConnectionStateChange(p.handleICEConnectionStateChange)
+	log.Printf("Adding track listener for clientID: %s", clientID)
 	peerConnection.OnTrack(p.handleTrack)
 
 	return p
