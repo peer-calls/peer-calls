@@ -22,7 +22,6 @@ type Candidate struct {
 }
 
 type PeerConnection interface {
-	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
 	OnICECandidate(func(*webrtc.ICECandidate))
 	AddICECandidate(webrtc.ICECandidateInit) error
 	SetRemoteDescription(webrtc.SessionDescription) error
@@ -52,14 +51,9 @@ func NewSignaller(
 		onSignalCandidate: onSignalCandidate,
 	}
 
-	peerConnection.OnICEConnectionStateChange(s.handleICEConnectionStateChange)
 	peerConnection.OnICECandidate(s.handleICECandidate)
 
 	return &s
-}
-
-func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
-	log.Printf("Peer connection state changed %s", connectionState.String())
 }
 
 func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {

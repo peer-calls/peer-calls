@@ -15,6 +15,7 @@ import (
 	"github.com/jeremija/peer-calls/src/server-go/room"
 	"github.com/jeremija/peer-calls/src/server-go/routes"
 	"github.com/jeremija/peer-calls/src/server-go/server"
+	"github.com/jeremija/peer-calls/src/server-go/wrtc/tracks"
 )
 
 var gitDescribe string = "v0.0.0"
@@ -51,7 +52,8 @@ func main() {
 	panicOnError(err, "Error setting ICE servers")
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)
-	mux := routes.NewMux(c.BaseURL, gitDescribe, c.ICEServers, string(ice), rooms)
+	tracks := tracks.NewTracksManager()
+	mux := routes.NewMux(c.BaseURL, gitDescribe, c.ICEServers, string(ice), rooms, tracks)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

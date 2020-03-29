@@ -30,6 +30,7 @@ func NewMux(
 	iceServers []config.ICEServer,
 	iceServersJSON string,
 	rooms RoomManager,
+	tracks TracksManager,
 ) *Mux {
 	box := packr.NewBox("../templates")
 	templates := render.ParseTemplates(box)
@@ -57,7 +58,7 @@ func NewMux(
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
 		router.Mount("/ws", NewPeerToPeerRoomHandler(wsserver.NewWSS(rooms)))
-		router.Mount("/ws-server", NewPeerToServerRoomHandler(wsserver.NewWSS(rooms), iceServers))
+		router.Mount("/ws-server", NewPeerToServerRoomHandler(wsserver.NewWSS(rooms), iceServers, tracks))
 	})
 
 	return mux
