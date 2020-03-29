@@ -38,14 +38,14 @@ func (l *Logger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
 	date := time.Now().Format(TimeFormat)
-	l.out.Write([]byte(date + " [" + l.name + "] " + fmt.Sprintf(message+"\n", values...)))
+	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
 }
 
 func (l *Logger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
 	date := time.Now().Format(TimeFormat)
-	l.out.Write([]byte(date + " [" + l.name + "] " + fmt.Sprintln(values...)))
+	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
 }
 
 type LoggerFactory struct {
