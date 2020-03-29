@@ -177,6 +177,7 @@ export function createPeer (options: CreatePeerOptions) {
     const peer = new Peer({
       initiator,
       config: { iceServers },
+      trickle: false,
       // Allow the peer to receive video, even if it's not sending stream:
       // https://github.com/feross/simple-peer/issues/95
       offerConstraints: {

@@ -45,7 +45,7 @@ func NewPeerToServerRoomHandler(
 
 		mediaEngine := webrtc.MediaEngine{}
 		settingEngine := webrtc.SettingEngine{}
-		settingEngine.SetTrickle(true)
+		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
 			webrtc.WithMediaEngine(mediaEngine),
 			webrtc.WithSettingEngine(settingEngine),
@@ -56,9 +56,6 @@ func NewPeerToServerRoomHandler(
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-			log.Printf("Peer connection state changed %s", connectionState.String())
-		})
 
 		// make chan
 
@@ -70,6 +67,10 @@ func NewPeerToServerRoomHandler(
 		}
 
 		var signaller *wrtc.Signaller
+
+		peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+			log.Printf("ICE gathering state changed: %s", state)
+		})
 
 		handleMessage := func(event wsserver.RoomEvent) {
 			msg := event.Message
