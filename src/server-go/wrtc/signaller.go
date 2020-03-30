@@ -26,6 +26,7 @@ type PeerConnection interface {
 	AddICECandidate(webrtc.ICECandidateInit) error
 	SetRemoteDescription(webrtc.SessionDescription) error
 	SetLocalDescription(webrtc.SessionDescription) error
+	CreateOffer(*webrtc.OfferOptions) (webrtc.SessionDescription, error)
 	CreateAnswer(*webrtc.AnswerOptions) (webrtc.SessionDescription, error)
 }
 
@@ -73,8 +74,6 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 }
 
 func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
-	// log.Printf("Got signal: %#v", payload)
-
 	signal, _ := payload["signal"].(map[string]interface{})
 	remotePeerID, _ := payload["userId"].(string)
 
@@ -83,9 +82,14 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 	}
 
 	if candidate, ok := signal["candidate"]; ok {
+		log.Printf("Got remote ice candidate")
 		err = s.handleSignalCandidate(remotePeerID, candidate)
-	} else if sdpTypeString, ok := signal["type"]; ok {
-		err = s.handleSDP(sdpTypeString, signal["sdp"])
+	} else if _, ok := signal["renegotiate"]; ok {
+		log.Printf("Got renegotiation request")
+		s.Negotiate()
+	} else if sdpType, ok := signal["type"]; ok {
+		log.Printf("Got remote signal (type: %s)", sdpType)
+		err = s.handleSDP(sdpType, signal["sdp"])
 	} else {
 		err = fmt.Errorf("Unexpected signal message: %#v", payload)
 	}
@@ -121,24 +125,28 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 	sdpString, _ := sdp.(string)
 	sessionDescription := webrtc.SessionDescription{}
 	sessionDescription.SDP = sdpString
-	log.Printf("Got client signal type: %s", sdpType)
 
 	switch sdpTypeString {
 	case "offer":
 		sessionDescription.Type = webrtc.SDPTypeOffer
+		return s.handleOffer(sessionDescription)
 		// mediaEngine.PopulateFromSDP(sdp) TODO figure out if we need this
 		// videoCodecs := mediaEngine.GetCodecsByKind(webrtc.RTPCodecTypeVideo)
 		// audioCodecs := mediaEngine.GetCodecsByKind(webrtc.RTPCodecTypeAudio)
 	case "answer":
 		sessionDescription.Type = webrtc.SDPTypeAnswer
+		return s.handleAnswer(sessionDescription)
 	case "pranswer":
-		sessionDescription.Type = webrtc.SDPTypePranswer
+		return fmt.Errorf("Handling of pranswer signal implemented")
 	case "rollback":
-		sessionDescription.Type = webrtc.SDPTypeRollback
+		return fmt.Errorf("Handling of rollback signal not implemented")
 	default:
 		return fmt.Errorf("Unknown sdp type: %s", sdpString)
 	}
 
+}
+
+func (s *Signaller) handleOffer(sessionDescription webrtc.SessionDescription) (err error) {
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
 		return fmt.Errorf("Error setting remote description: %w", err)
 	}
@@ -157,4 +165,28 @@ func (s *Signaller) handleSDP(sdpType interface{}, sdp interface{}) (err error) 
 	// log.Printf("Sending answer: %#v", answerSignalSDP)
 	err = s.onSignalSDP(answerSignalSDP)
 	return err
+}
+
+// TODO check offer voice activation detection feature of webrtc
+
+// Create an offer and send it to remote peer
+func (s *Signaller) Negotiate() (err error) {
+	offer, err := s.peerConnection.CreateOffer(nil)
+	if err != nil {
+		return fmt.Errorf("Error creating offer: %w", err)
+	}
+	s.peerConnection.SetLocalDescription(offer)
+	offerSignalSDP := SignalSDP{
+		UserID: s.localPeerID,
+		Signal: offer,
+	}
+	err = s.onSignalSDP(offerSignalSDP)
+	return
+}
+
+func (s *Signaller) handleAnswer(sessionDescription webrtc.SessionDescription) (err error) {
+	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
+		return fmt.Errorf("Error setting remote description: %w", err)
+	}
+	return nil
 }
