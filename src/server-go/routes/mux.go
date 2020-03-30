@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
-	"github.com/google/uuid"
+	"github.com/jeremija/peer-calls/src/server-go/basen"
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/render"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
@@ -73,7 +73,7 @@ func static(prefix string, path string) http.Handler {
 func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	callID := r.PostFormValue("call")
 	if callID == "" {
-		callID = uuid.New().String()
+		callID = basen.NewUUIDBase62()
 	}
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
 	http.Redirect(w, r, url, 302)
@@ -85,7 +85,7 @@ func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, inte
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
-	userID := uuid.New().String()
+	userID := basen.NewUUIDBase62()
 	data := map[string]interface{}{
 		"CallID":     callID,
 		"UserID":     userID,

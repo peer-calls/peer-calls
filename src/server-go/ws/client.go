@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jeremija/peer-calls/src/server-go/basen"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"nhooyr.io/websocket"
 )
@@ -40,7 +40,7 @@ func NewClient(conn WSReadWriter) *Client {
 
 func NewClientWithID(conn WSReadWriter, id string) *Client {
 	if id == "" {
-		id = uuid.New().String()
+		id = basen.NewUUIDBase62()
 	}
 	return &Client{
 		id:           id,
