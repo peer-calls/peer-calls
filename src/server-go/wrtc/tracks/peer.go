@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jeremija/peer-calls/src/server-go/basen"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v2"
 )
@@ -114,7 +115,11 @@ func (p *Peer) Tracks() []*webrtc.Track {
 }
 
 func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, error) {
-	localTrackID := "copy:" + remoteTrack.ID()
+	remoteTrackID := remoteTrack.ID()
+	if remoteTrackID == "" {
+		remoteTrackID = basen.NewUUIDBase62()
+	}
+	localTrackID := "copy:" + p.clientID + ":" + remoteTrackID
 	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s", remoteTrack.ID(), localTrackID, p.clientID)
 
 	// Create a local track, all our SFU clients will be fed via this track
