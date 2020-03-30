@@ -40,10 +40,13 @@ func main() {
 		panicOnError(err, "Error reading config file")
 	}
 	if len(c.ICEServers) == 0 {
-		c.ICEServers = append(c.ICEServers, config.ICEServer{
+		c.ICEServers = []config.ICEServer{{
 			URLs:     []string{"stun:stun.l.google.com:19302"},
 			AuthType: config.AuthTypeNone,
-		})
+		}, {
+			URLs:     []string{"stun:global.stun.twilio.com:3478?transport=udp"},
+			AuthType: config.AuthTypeNone,
+		}}
 	}
 	config.ReadEnv("PEERCALLS_", &c)
 
