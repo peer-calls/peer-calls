@@ -84,10 +84,12 @@ func (p *Peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 		p.clientID,
 		connectionState.String(),
 	)
-	if connectionState == webrtc.ICEConnectionStateClosed ||
-		connectionState == webrtc.ICEConnectionStateDisconnected ||
-		connectionState == webrtc.ICEConnectionStateFailed {
-		// TODO prevent this method from being called twice (state disconnected, then failed)
+	// if connectionState == webrtc.ICEConnectionStateClosed ||
+	// 	connectionState == webrtc.ICEConnectionStateDisconnected ||
+	// 	connectionState == webrtc.ICEConnectionStateFailed {
+	// }
+
+	if connectionState == webrtc.ICEConnectionStateDisconnected {
 		p.onClose(p.clientID)
 	}
 }
