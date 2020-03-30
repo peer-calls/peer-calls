@@ -42,7 +42,9 @@ func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage
 }
 
 func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent), cleanup func()) {
-	c, err := websocket.Accept(w, r, nil)
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		CompressionMode: websocket.CompressionDisabled,
+	})
 	if err != nil {
 		log.Printf("Error accepting websocket connection: %s", err)
 		return
