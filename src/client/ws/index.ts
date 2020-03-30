@@ -14,6 +14,7 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
 
   protected readonly emitter = new EventEmitter()
   protected ws!: WebSocket
+  protected connected = false
   reconnectTimeout = 2000
 
   constructor(readonly url: string) {
@@ -30,8 +31,13 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   }
 
   protected wsHandleClose = () => {
-    debug('websocket connection closed')
-    this.emitter.emit('disconnect')
+    if (this.connected) {
+      debug('websocket connection closed')
+      this.emitter.emit('disconnect')
+      this.connected = false
+    } else {
+      debug('websocket failed to connect')
+    }
 
     if (this.reconnectTimeout) {
       setTimeout(() => this.connect(), this.reconnectTimeout)
@@ -40,6 +46,7 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
 
   protected wsHandleOpen = () => {
     debug('websocket connected')
+    this.connected = true
     this.emitter.emit('connect')
   }
 
