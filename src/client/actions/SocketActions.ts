@@ -57,7 +57,8 @@ class SocketHandler {
         // users without id should be filtered out
         id: user.userId!,
       },
-      initiator: initiator === this.userId,
+      // initiator: initiator === this.userId,
+      initiator: false,
       stream,
     })(dispatch, getState))
   }

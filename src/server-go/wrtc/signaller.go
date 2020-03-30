@@ -24,6 +24,7 @@ type Candidate struct {
 type PeerConnection interface {
 	OnICECandidate(func(*webrtc.ICECandidate))
 	AddICECandidate(webrtc.ICECandidateInit) error
+	AddTransceiverFromKind(codecType webrtc.RTPCodecType, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
 	SetRemoteDescription(webrtc.SessionDescription) error
 	SetLocalDescription(webrtc.SessionDescription) error
 	CreateOffer(*webrtc.OfferOptions) (webrtc.SessionDescription, error)
@@ -87,6 +88,8 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 	} else if _, ok := signal["renegotiate"]; ok {
 		log.Printf("Got renegotiation request")
 		s.Negotiate()
+	} else if transceiverRequest, ok := signal["transceiverRequest"]; ok {
+		err = s.handleTransceiverRequest(transceiverRequest)
 	} else if sdpType, ok := signal["type"]; ok {
 		log.Printf("Got remote signal (type: %s)", sdpType)
 		err = s.handleSDP(sdpType, signal["sdp"])
@@ -95,6 +98,51 @@ func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
 	}
 
 	return
+}
+
+func (s *Signaller) handleTransceiverRequest(transceiverRequest interface{}) (err error) {
+	transceiverRequestMap, ok := transceiverRequest.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("Invalid transceiver request type:  %#v", transceiverRequest)
+	}
+	kind, ok := transceiverRequestMap["kind"]
+	if !ok {
+		return fmt.Errorf("No kind field for transceiver request: %#v", transceiverRequest)
+	}
+	kindString, ok := kind.(string)
+	if !ok {
+		return fmt.Errorf("Invalid kind field type for transceiver request: %s", kind)
+	}
+	// TODO ignoring direction and sendencodings
+	switch kindString {
+	case "video":
+		log.Printf("Got transceiver request (type: video)")
+		_, err = s.peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeVideo,
+			webrtc.RtpTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly},
+		)
+		if err != nil {
+			return fmt.Errorf("Error adding video transceiver: %s", err)
+		}
+		if err := s.Negotiate(); err != nil {
+			return fmt.Errorf("Error renegotiating for video transceiver: %s", err)
+		}
+	case "audio":
+		log.Printf("Got transceiver request (type: audio)")
+		_, err = s.peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeAudio,
+			webrtc.RtpTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly},
+		)
+		if err != nil {
+			return fmt.Errorf("Error adding audio transceiver: %s", err)
+		}
+		if err := s.Negotiate(); err != nil {
+			return fmt.Errorf("Error renegotiating for audio transceiver: %s", err)
+		}
+	default:
+		return fmt.Errorf("invalid transceiver kind: %s", kindString)
+	}
+	return nil
 }
 
 func (s *Signaller) handleSignalCandidate(targetClientID string, candidate interface{}) (err error) {

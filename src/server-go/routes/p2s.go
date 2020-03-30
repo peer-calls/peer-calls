@@ -15,7 +15,7 @@ import (
 const localPeerID = "__SERVER__"
 
 type TracksManager interface {
-	Add(room string, clientID string, peerConnection tracks.PeerConnection)
+	Add(room string, clientID string, peerConnection tracks.PeerConnection, onTrack func(kind string))
 }
 
 func NewPeerToServerRoomHandler(
@@ -54,10 +54,18 @@ func NewPeerToServerRoomHandler(
 			webrtc.WithSettingEngine(settingEngine),
 		)
 		peerConnection, err := api.NewPeerConnection(webrtcConfig)
+
 		if err != nil {
 			log.Printf("Error creating peer connection: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		}
+
+		// need to do this to connect with simple peer
+		// only when we are the initiator
+		_, err = peerConnection.CreateDataChannel("test", nil)
+		if err != nil {
+			log.Printf("Error creating data channel")
 		}
 
 		// make chan
@@ -75,30 +83,29 @@ func NewPeerToServerRoomHandler(
 			log.Printf("ICE gathering state changed: %s", state)
 		})
 
-		_, err = peerConnection.AddTransceiverFromKind(
-			webrtc.RTPCodecTypeVideo,
-			// webrtc.RtpTransceiverInit{
-			// 	Direction: webrtc.RTPTransceiverDirectionRecvonly,
-			// },
-		)
-		if err != nil {
-			log.Printf("Error adding video transceiver: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Error adding audio transceiver: %s", err)
-			return
-		}
-		// TODO add one more video transceiver for screen sharing
-		_, err = peerConnection.AddTransceiverFromKind(
-			webrtc.RTPCodecTypeAudio,
-			// webrtc.RtpTransceiverInit{
-			// 	Direction: webrtc.RTPTransceiverDirectionRecvonly,
-			// },
-		)
-		if err != nil {
-			log.Printf("Error adding audio transceiver: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		// _, err = peerConnection.AddTransceiverFromKind(
+		// 	webrtc.RTPCodecTypeVideo,
+		// 	webrtc.RtpTransceiverInit{
+		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
+		// 	},
+		// )
+		// if err != nil {
+		// 	log.Printf("Error adding video transceiver: %s", err)
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	return
+		// }
+		// // TODO add one more video transceiver for screen sharing
+		// _, err = peerConnection.AddTransceiverFromKind(
+		// 	webrtc.RTPCodecTypeAudio,
+		// 	webrtc.RtpTransceiverInit{
+		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
+		// 	},
+		// )
+		// if err != nil {
+		// 	log.Printf("Error adding audio transceiver: %s", err)
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	return
+		// }
 
 		handleMessage := func(event wsserver.RoomEvent) {
 			msg := event.Message
@@ -125,16 +132,31 @@ func NewPeerToServerRoomHandler(
 						peerConnection,
 						localPeerID,
 						func(signal wrtc.SignalSDP) error {
+							log.Printf("Sending local signal to remote (type: %s)", signal.Signal.Type)
 							return adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 						},
 						func(signal wrtc.SignalCandidate) {
+							log.Printf("Sending local ice candidate to remote")
 							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 							if err != nil {
 								log.Printf("Error emitting signal candidate to clientID: %s: %s", clientID, err)
 							}
 						},
 					)
-					tracksManager.Add(room, clientID, peerConnection)
+					tracksManager.Add(room, clientID, peerConnection, func(kind string) {
+						// adapter.Emit(clientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
+						// 	"userId": localPeerID,
+						// 	"signal": map[string]interface{}{
+						// 		"transceiverRequest": map[string]string{"kind": kind},
+						// 	},
+						// }))
+						if err := signaller.Negotiate(); err != nil {
+							log.Printf("Error renegotiating after track add: %s", err)
+						}
+					})
+					if err := signaller.Negotiate(); err != nil {
+						log.Printf("Error during first negotiation: %s", err)
+					}
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})
