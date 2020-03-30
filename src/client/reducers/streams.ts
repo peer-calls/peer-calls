@@ -12,7 +12,7 @@ function safeCreateObjectURL (stream: MediaStream) {
   try {
     return createObjectURL(stream)
   } catch (err) {
-    debug('Error using createObjectURL: %s', err)
+    // debug('Error using createObjectURL: %s', err)
     return undefined
   }
 }
