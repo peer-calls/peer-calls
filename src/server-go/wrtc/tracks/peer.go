@@ -119,11 +119,15 @@ func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 	if remoteTrackID == "" {
 		remoteTrackID = basen.NewUUIDBase62()
 	}
-	localTrackID := "copy:" + p.clientID + ":" + remoteTrackID
+	remoteTrackLabel := remoteTrack.Label()
+	if remoteTrackLabel == "" {
+		remoteTrackLabel = remoteTrackID
+	}
+	localTrackID := "copy-" + p.clientID + "-" + remoteTrackID
 	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s", remoteTrack.ID(), localTrackID, p.clientID)
 
 	// Create a local track, all our SFU clients will be fed via this track
-	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), localTrackID, remoteTrack.Label())
+	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), localTrackID, remoteTrackLabel)
 	if err != nil {
 		err = fmt.Errorf("startCopyingTrack: error creating new track, trackID: %s, clientID: %s, error: %s", remoteTrack.ID(), p.clientID, err)
 		return nil, err
