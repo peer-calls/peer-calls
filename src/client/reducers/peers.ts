@@ -1,10 +1,13 @@
 import forEach from 'lodash/forEach'
+import _debug from 'debug'
 import omit from 'lodash/omit'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { RemoveStreamAction, StreamType } from '../actions/StreamActions'
+
+const debug = _debug('peercalls')
 
 export type PeersState = Record<string, Peer.Instance>
 
@@ -50,6 +53,10 @@ function handleMediaStream(
       })
       const stream = action.payload.stream
       stream.getTracks().forEach(track => {
+        debug(
+          'Add track to peer, id: %s, kind: %s, label: %s',
+          track.id, track.kind, track.label,
+        )
         peer.addTrack(track, stream)
       })
     })
