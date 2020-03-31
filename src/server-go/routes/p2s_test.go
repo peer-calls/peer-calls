@@ -18,7 +18,7 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection) {
+func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection, onTrack func(string)) {
 	m.added <- addedPeer{
 		room:           room,
 		clientID:       clientID,

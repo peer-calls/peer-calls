@@ -69,7 +69,7 @@ func Test_routeNewCall_random(t *testing.T) {
 
 	mux.ServeHTTP(w, r)
 
-	uuid := "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+	uuid := "[0-9a-z-A-Z]+$"
 	require.Equal(t, 302, w.Code, "expected 302 redirect")
 	require.Regexp(t, "/test/call/"+uuid, w.Header().Get("Location"))
 }
