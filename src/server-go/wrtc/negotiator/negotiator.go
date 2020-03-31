@@ -66,22 +66,24 @@ func (n *Negotiator) Negotiate() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.isNegotiating {
+		log.Printf("Negotiate: already negotiating, queueing for later")
 		n.queuedNegotiation = true
 		return
 	}
 
+	log.Printf("Negotiate: start")
 	n.isNegotiating = true
 	n.negotiate()
 }
 
 func (n *Negotiator) negotiate() {
 	if !n.initiator {
-		log.Printf("Requesting renegotiation from initiator")
+		log.Printf("negotiate: requesting from initiator")
 		n.requestNegotiation()
 		return
 	}
 
-	log.Printf("Starting negotiation")
+	log.Printf("negotiate: creating offfer")
 	offer, err := n.peerConnection.CreateOffer(nil)
 	if err != nil {
 		n.onOffer(offer, err)

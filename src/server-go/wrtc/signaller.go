@@ -51,6 +51,7 @@ func NewSignaller(
 	s.negotiator = negotiator
 
 	if initiator {
+		log.Println("Peer is initiator, starting negotiation")
 		s.negotiator.Negotiate()
 	}
 	// peerConnection.OnICECandidate(s.handleICECandidate)
@@ -83,13 +84,17 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 
 	switch signal := signalPayload.Signal.(type) {
 	case signals.Candidate:
+		log.Printf("Remote signal.canidate: %s", signal.Candidate)
 		return s.peerConnection.AddICECandidate(signal.Candidate)
 	case signals.Renegotiate:
+		log.Printf("Remote signal.renegotiate")
 		s.Negotiate()
 		return nil
 	case signals.TransceiverRequest:
+		log.Printf("Remote signal.transceiverRequest: %s", signal.TransceiverRequest.Kind)
 		return s.handleTransceiverRequest(signal)
 	case webrtc.SessionDescription:
+		log.Printf("Remote signal.type: %s, signal.sdp: %s", signal.Type, signal.SDP)
 		return s.handleRemoteSDP(signal)
 	default:
 		return fmt.Errorf("Unexpected signal: %#v", signal)
@@ -137,7 +142,7 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 		return fmt.Errorf("Error setting local description: %w", err)
 	}
 
-	// log.Printf("Sending answer: %#v", answerSignalSDP)
+	log.Printf("Local signal.type: %s, signal.sdp: %s", answer.Type, answer.SDP)
 	s.onSignal(signals.NewPayloadSDP(s.localPeerID, answer))
 	return nil
 }
@@ -148,7 +153,7 @@ func (s *Signaller) handleLocalRequestNegotiation() {
 }
 
 func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
-	log.Println("Created local offer")
+	log.Printf("Local signal.type: %s, signal.sdp: %s", offer.Type, offer.SDP)
 	if err != nil {
 		log.Printf("Error creating local offer: %s", err)
 		// TODO abort connection
