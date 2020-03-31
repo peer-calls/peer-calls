@@ -156,6 +156,7 @@ func NewPeerToServerRoomHandler(
 						// 		"transceiverRequest": map[string]string{"kind": kind},
 						// 	},
 						// }))
+						log.Printf("Calling signaller.Negotiate() because a new %s track was added", kind)
 						signaller.Negotiate()
 					})
 				}

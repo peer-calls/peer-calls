@@ -51,7 +51,7 @@ func NewSignaller(
 	s.negotiator = negotiator
 
 	if initiator {
-		log.Println("Peer is initiator, starting negotiation")
+		log.Println("Peer is initiator, calling Negotiate()")
 		s.negotiator.Negotiate()
 	}
 	// peerConnection.OnICECandidate(s.handleICECandidate)
@@ -88,6 +88,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 		return s.peerConnection.AddICECandidate(signal.Candidate)
 	case signals.Renegotiate:
 		log.Printf("Remote signal.renegotiate")
+		log.Printf("Calling signaller.Negotiate() because remote peer wanted to negotiate")
 		s.Negotiate()
 		return nil
 	case signals.TransceiverRequest:
@@ -102,7 +103,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 }
 
 func (s *Signaller) handleTransceiverRequest(transceiverRequest signals.TransceiverRequest) (err error) {
-	log.Printf("Got transceiver request %s", transceiverRequest)
+	log.Printf("Got transceiver request %v", transceiverRequest)
 
 	codecType := transceiverRequest.TransceiverRequest.Kind
 	if init := transceiverRequest.TransceiverRequest.Init; init != nil {
@@ -115,6 +116,7 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest signals.Transcei
 		return fmt.Errorf("Error adding transceiver type %s: %s", codecType, err)
 	}
 
+	log.Printf("Calling signaller.Negotiate() because a new transceiver was added")
 	s.Negotiate()
 	return nil
 }
