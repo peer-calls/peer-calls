@@ -61,13 +61,6 @@ func NewPeerToServerRoomHandler(
 			return
 		}
 
-		// need to do this to connect with simple peer
-		// only when we are the initiator
-		_, err = peerConnection.CreateDataChannel("test", nil)
-		if err != nil {
-			log.Printf("Error creating data channel")
-		}
-
 		// make chan
 
 		// peerConnection, err := api.NewPeerConnection(config)
@@ -114,13 +107,13 @@ func NewPeerToServerRoomHandler(
 			clientID := event.ClientID
 			initiator := localPeerID
 
-			log.Printf("Initiator for clientID: %s is: %s", clientID, initiator)
-
 			var responseEventName string
 			var err error
 
 			switch msg.Type {
 			case "ready":
+				log.Printf("Initiator for clientID: %s is: %s", clientID, initiator)
+
 				responseEventName = "users"
 				err = adapter.Broadcast(
 					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
@@ -129,6 +122,17 @@ func NewPeerToServerRoomHandler(
 						"users": []User{{UserID: localPeerID, ClientID: localPeerID}},
 					}),
 				)
+
+				if initiator == localPeerID {
+					// need to do this to connect with simple peer
+					// only when we are the initiator
+					_, err = peerConnection.CreateDataChannel("test", nil)
+					if err != nil {
+						log.Printf("Error creating data channel")
+						// TODO abort connection
+					}
+				}
+
 				// TODO use this to get all client IDs and request all tracks of all users
 				// adapter.Clients()
 				if signaller == nil {
@@ -154,7 +158,6 @@ func NewPeerToServerRoomHandler(
 						// }))
 						signaller.Negotiate()
 					})
-
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})
