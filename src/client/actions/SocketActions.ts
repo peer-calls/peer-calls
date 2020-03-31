@@ -47,6 +47,9 @@ class SocketHandler {
     const { peers } = this.getState()
     debug('active peers: %o', Object.keys(peers))
 
+    const isInitiator = initiator === this.userId
+    debug('isInitiator', isInitiator)
+
     users
     .filter(
       user =>
@@ -57,8 +60,7 @@ class SocketHandler {
         // users without id should be filtered out
         id: user.userId!,
       },
-      // initiator: initiator === this.userId,
-      initiator: false,
+      initiator: isInitiator,
       stream,
     })(dispatch, getState))
   }
