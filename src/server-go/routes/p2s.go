@@ -112,6 +112,9 @@ func NewPeerToServerRoomHandler(
 			adapter := event.Adapter
 			room := event.Room
 			clientID := event.ClientID
+			initiator := localPeerID
+
+			log.Printf("Initiator for clientID: %s is: %s", clientID, initiator)
 
 			var responseEventName string
 			var err error
@@ -121,25 +124,24 @@ func NewPeerToServerRoomHandler(
 				responseEventName = "users"
 				err = adapter.Broadcast(
 					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
-						"initiator": clientID,
-						"users":     []User{{UserID: localPeerID, ClientID: localPeerID}},
+						"initiator": initiator,
+						// "initiator": clientID,
+						"users": []User{{UserID: localPeerID, ClientID: localPeerID}},
 					}),
 				)
 				// TODO use this to get all client IDs and request all tracks of all users
 				// adapter.Clients()
 				if signaller == nil {
 					signaller = wrtc.NewSignaller(
+						initiator == localPeerID,
 						peerConnection,
 						localPeerID,
-						func(signal wrtc.SignalSDP) error {
-							log.Printf("Sending local signal to remote (type: %s)", signal.Signal.Type)
-							return adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
-						},
-						func(signal wrtc.SignalCandidate) {
-							log.Printf("Sending local ice candidate to remote")
+						func(signal interface{}) {
+							log.Printf("Sending local signal to remote clientID: %s", clientID)
 							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 							if err != nil {
-								log.Printf("Error emitting signal candidate to clientID: %s: %s", clientID, err)
+								log.Printf("Error sending local signal to remote clientID: %s: %s", clientID, err)
+								// TODO abort connection
 							}
 						},
 					)
@@ -150,13 +152,9 @@ func NewPeerToServerRoomHandler(
 						// 		"transceiverRequest": map[string]string{"kind": kind},
 						// 	},
 						// }))
-						if err := signaller.Negotiate(); err != nil {
-							log.Printf("Error renegotiating after track add: %s", err)
-						}
+						signaller.Negotiate()
 					})
-					if err := signaller.Negotiate(); err != nil {
-						log.Printf("Error during first negotiation: %s", err)
-					}
+
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})

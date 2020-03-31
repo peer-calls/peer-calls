@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/jeremija/peer-calls/src/server-go/logger"
+	"github.com/jeremija/peer-calls/src/server-go/wrtc/negotiator"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -17,12 +18,34 @@ type SignalSDP struct {
 	Signal webrtc.SessionDescription `json:"signal"`
 }
 
+type SignalRenegotiate struct {
+	UserID string      `json:"userId"`
+	Signal Renegotiate `json:"signal"`
+}
+
+type SignalTransceiverRequest struct {
+	UserID string             `json:"userId"`
+	Signal TransceiverRequest `json:"signal"`
+}
+
+type TransceiverRequest struct {
+	TransceiverRequest struct {
+		Kind string                    `json:"kind"`
+		Init webrtc.RtpTransceiverInit `json:"init"`
+	} `json:"transceiverRequest"`
+}
+
+type Renegotiate struct {
+	Renegotiate bool `json:"renegotiate"`
+}
+
 type Candidate struct {
 	Candidate webrtc.ICECandidateInit `json:"candidate"`
 }
 
 type PeerConnection interface {
 	OnICECandidate(func(*webrtc.ICECandidate))
+	OnSignalingStateChange(func(webrtc.SignalingState))
 	AddICECandidate(webrtc.ICECandidateInit) error
 	AddTransceiverFromKind(codecType webrtc.RTPCodecType, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
 	SetRemoteDescription(webrtc.SessionDescription) error
@@ -32,27 +55,38 @@ type PeerConnection interface {
 }
 
 type Signaller struct {
-	peerConnection    PeerConnection
-	localPeerID       string
-	onSignalSDP       func(signal SignalSDP) error
-	onSignalCandidate func(signal SignalCandidate)
+	peerConnection PeerConnection
+	localPeerID    string
+	onSignal       func(signal interface{})
+	negotiator     *negotiator.Negotiator
 }
 
 var log = logger.GetLogger("wrtc")
 
 func NewSignaller(
+	initiator bool,
 	peerConnection PeerConnection,
 	localPeerID string,
-	onSignalSDP func(signal SignalSDP) error,
-	onSignalCandidate func(signal SignalCandidate),
+	onSignal func(signal interface{}),
 ) *Signaller {
 	s := Signaller{
-		peerConnection:    peerConnection,
-		localPeerID:       localPeerID,
-		onSignalSDP:       onSignalSDP,
-		onSignalCandidate: onSignalCandidate,
+		peerConnection: peerConnection,
+		localPeerID:    localPeerID,
+		onSignal:       onSignal,
 	}
 
+	negotiator := negotiator.NewNegotiator(
+		initiator,
+		peerConnection,
+		s.handleLocalOffer,
+		s.handleLocalRequestNegotiation,
+	)
+
+	s.negotiator = negotiator
+
+	if initiator {
+		s.negotiator.Negotiate()
+	}
 	// peerConnection.OnICECandidate(s.handleICECandidate)
 
 	return &s
@@ -71,7 +105,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 	}
 
 	log.Printf("Got ice candidate from server peer: %s", payload)
-	s.onSignalCandidate(payload)
+	s.onSignal(payload)
 }
 
 func (s *Signaller) Signal(payload map[string]interface{}) (err error) {
@@ -124,9 +158,7 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest interface{}) (er
 		if err != nil {
 			return fmt.Errorf("Error adding video transceiver: %s", err)
 		}
-		if err := s.Negotiate(); err != nil {
-			return fmt.Errorf("Error renegotiating for video transceiver: %s", err)
-		}
+		s.Negotiate()
 	case "audio":
 		log.Printf("Got transceiver request (type: audio)")
 		_, err = s.peerConnection.AddTransceiverFromKind(
@@ -136,9 +168,7 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest interface{}) (er
 		if err != nil {
 			return fmt.Errorf("Error adding audio transceiver: %s", err)
 		}
-		if err := s.Negotiate(); err != nil {
-			return fmt.Errorf("Error renegotiating for audio transceiver: %s", err)
-		}
+		s.Negotiate()
 	default:
 		return fmt.Errorf("invalid transceiver kind: %s", kindString)
 	}
@@ -211,25 +241,47 @@ func (s *Signaller) handleOffer(sessionDescription webrtc.SessionDescription) (e
 		Signal: answer,
 	}
 	// log.Printf("Sending answer: %#v", answerSignalSDP)
-	err = s.onSignalSDP(answerSignalSDP)
-	return err
+	s.onSignal(answerSignalSDP)
+	return nil
+}
+
+func (s *Signaller) handleLocalRequestNegotiation() {
+	log.Println("Sending renegotiation request to initiator")
+	s.onSignal(SignalRenegotiate{
+		UserID: s.localPeerID,
+		Signal: Renegotiate{
+			Renegotiate: true,
+		},
+	})
+}
+
+func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
+	log.Println("Created local offer")
+	if err != nil {
+		log.Printf("Error creating local offer: %s", err)
+		// TODO abort connection
+		return
+	}
+
+	err = s.peerConnection.SetLocalDescription(offer)
+	if err != nil {
+		log.Printf("Error setting local description from local offer: %s", err)
+		// TODO abort connection
+		return
+	}
+
+	offerSignalSDP := SignalSDP{
+		UserID: s.localPeerID,
+		Signal: offer,
+	}
+	s.onSignal(offerSignalSDP)
 }
 
 // TODO check offer voice activation detection feature of webrtc
 
 // Create an offer and send it to remote peer
-func (s *Signaller) Negotiate() (err error) {
-	offer, err := s.peerConnection.CreateOffer(nil)
-	if err != nil {
-		return fmt.Errorf("Error creating offer: %w", err)
-	}
-	s.peerConnection.SetLocalDescription(offer)
-	offerSignalSDP := SignalSDP{
-		UserID: s.localPeerID,
-		Signal: offer,
-	}
-	err = s.onSignalSDP(offerSignalSDP)
-	return
+func (s *Signaller) Negotiate() {
+	s.negotiator.Negotiate()
 }
 
 func (s *Signaller) handleAnswer(sessionDescription webrtc.SessionDescription) (err error) {
