@@ -49,24 +49,36 @@ func newCandidate(candidate interface{}) (c Candidate, err error) {
 		return
 	}
 
-	candidateString, ok := candidateMap["candidate"].(string)
+	candidateValue, ok := candidateMap["candidate"]
+	if !ok {
+		err = fmt.Errorf("Expected candidate.candidate %#v", candidate)
+	}
+
+	candidateString, ok := candidateValue.(string)
 	if !ok {
 		err = fmt.Errorf("Expected candidate.candidate to be a string: %#v", candidate)
 		return
 	}
-	sdpMLineIndex, ok := candidateMap["sdpMLineIndex"].(uint16)
+	sdpMLineIndexValue, ok := candidateMap["sdpMLineIndex"]
 	if !ok {
-		err = fmt.Errorf("Expected candidate.sdpMLineIndex to be uint16: %#v", candidate)
+		err = fmt.Errorf("Expected candidate.sdpMLineIndex to exist: %#v", sdpMLineIndexValue)
 		return
 	}
+	sdpMLineIndex, ok := sdpMLineIndexValue.(float64)
+	if !ok {
+		err = fmt.Errorf("Expected candidate.sdpMLineIndex be float64: %T", sdpMLineIndexValue)
+		return
+	}
+
 	sdpMid, ok := candidateMap["sdpMid"].(string)
 	if !ok {
 		err = fmt.Errorf("Expected candidate.sdpMid to be string: %#v", candidate)
 		return
 	}
 
+	sdpMLineIndexUint16 := uint16(sdpMLineIndex)
 	c.Candidate.Candidate = candidateString
-	c.Candidate.SDPMLineIndex = &sdpMLineIndex
+	c.Candidate.SDPMLineIndex = &sdpMLineIndexUint16
 	c.Candidate.SDPMid = &sdpMid
 
 	return
