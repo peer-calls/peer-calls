@@ -25,17 +25,22 @@ func NewTracksManager() *TracksManager {
 }
 
 type peerInRoom struct {
-	peer *Peer
-	room string
+	peer    *Peer
+	room    string
+	onTrack (func(kind string))
 }
 
 func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
 	t.mu.Lock()
 
-	// for otherClientID, otherPeerInRoom := range t.peers {
-	for _, otherPeerInRoom := range t.peers {
+	for otherClientID, otherPeerInRoom := range t.peers {
 		// if otherClientID != clientID {
-		otherPeerInRoom.peer.AddTrack(track)
+		err := otherPeerInRoom.peer.AddTrack(track)
+		if err != nil {
+			log.Printf("TracksManager.addTrack Error adding track: %s to clientID: %s (source clientID: %s): %s)", track.ID(), otherClientID, clientID, err)
+			continue
+		}
+		otherPeerInRoom.onTrack(track.Kind().String())
 		// }
 	}
 
@@ -50,15 +55,15 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 		peerConnection,
 		func(clientID string, track *webrtc.Track) {
 			t.addTrack(room, clientID, track)
-			onTrack(track.Kind().String())
 		},
 		t.removePeer,
 	)
 
 	t.mu.Lock()
 	peerJoiningRoom := peerInRoom{
-		peer: peer,
-		room: room,
+		peer:    peer,
+		room:    room,
+		onTrack: onTrack,
 	}
 
 	peersSet, ok := t.peerIDsByRoom[room]

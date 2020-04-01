@@ -65,7 +65,7 @@ func (p *Peer) AddTrack(track *webrtc.Track) error {
 	log.Printf("Add track: %s to peer clientID: %s", track.ID(), p.clientID)
 	rtpSender, err := p.peerConnection.AddTrack(track)
 	if err != nil {
-		return fmt.Errorf("Error adding track: %s to peer clientID: %s", track.ID(), p.clientID)
+		return fmt.Errorf("Peer.AddTrack Error adding track: %s to peer clientID: %s: %s", track.ID(), p.clientID, err)
 	}
 	p.rtpSenderByTrack[track] = rtpSender
 	return nil
