@@ -85,10 +85,6 @@ func (n *Negotiator) negotiate() {
 
 	log.Printf("negotiate: creating offfer")
 	offer, err := n.peerConnection.CreateOffer(nil)
-	if err != nil {
-		n.onOffer(offer, err)
-		return
-	}
 	n.onOffer(offer, err)
 }
 

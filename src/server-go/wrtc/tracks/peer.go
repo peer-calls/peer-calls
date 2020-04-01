@@ -17,6 +17,7 @@ const (
 
 type PeerConnection interface {
 	AddTrack(*webrtc.Track) (*webrtc.RTPSender, error)
+	AddTransceiverFromTrack(track *webrtc.Track, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
 	RemoveTrack(*webrtc.RTPSender) error
 	OnTrack(func(*webrtc.Track, *webrtc.RTPReceiver))
 	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
@@ -63,11 +64,21 @@ func (p *Peer) ClientID() string {
 
 func (p *Peer) AddTrack(track *webrtc.Track) error {
 	log.Printf("Add track: %s to peer clientID: %s", track.ID(), p.clientID)
-	rtpSender, err := p.peerConnection.AddTrack(track)
+
+	// rtpSender, err := p.peerConnection.AddTrack(track)
+	t, err := p.peerConnection.AddTransceiverFromTrack(
+		track,
+		webrtc.RtpTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionSendonly,
+		},
+	)
+
 	if err != nil {
 		return fmt.Errorf("Peer.AddTrack Error adding track: %s to peer clientID: %s: %s", track.ID(), p.clientID, err)
 	}
-	p.rtpSenderByTrack[track] = rtpSender
+
+	p.rtpSenderByTrack[track] = t.Sender()
+	// p.rtpSenderByTrack[track] = rtpSender
 	return nil
 }
 

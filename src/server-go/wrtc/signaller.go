@@ -106,11 +106,18 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest signals.Transcei
 	log.Printf("Got transceiver request %v", transceiverRequest)
 
 	codecType := transceiverRequest.TransceiverRequest.Kind
-	if init := transceiverRequest.TransceiverRequest.Init; init != nil {
-		_, err = s.peerConnection.AddTransceiverFromKind(codecType, *init)
-	} else {
-		_, err = s.peerConnection.AddTransceiverFromKind(codecType)
-	}
+	var t *webrtc.RTPTransceiver
+	// if init := transceiverRequest.TransceiverRequest.Init; init != nil {
+	// 	t, err = s.peerConnection.AddTransceiverFromKind(codecType, *init)
+	// } else {
+	t, err = s.peerConnection.AddTransceiverFromKind(
+		codecType,
+		webrtc.RtpTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+		},
+	)
+	// }
+	log.Printf("Added %s transceiver, direction: %s", codecType, t.Direction())
 
 	if err != nil {
 		return fmt.Errorf("Error adding transceiver type %s: %s", codecType, err)
