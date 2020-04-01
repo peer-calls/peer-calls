@@ -13,6 +13,15 @@ type TransceiverRequest struct {
 	} `json:"transceiverRequest"`
 }
 
+type TransceiverRequestJSON struct {
+	TransceiverRequest struct {
+		Kind string `json:"kind"`
+		Init struct {
+			Direction string `json:"direction,omitempty"`
+		} `json:"init"`
+	} `json:"transceiverRequest"`
+}
+
 type Renegotiate struct {
 	Renegotiate bool `json:"renegotiate"`
 }
@@ -39,6 +48,18 @@ func NewPayloadRenegotiate(userID string) Payload {
 		Signal: Renegotiate{
 			Renegotiate: true,
 		},
+	}
+}
+
+func NewTransceiverRequest(userID string, kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) Payload {
+	signal := TransceiverRequestJSON{}
+
+	signal.TransceiverRequest.Kind = kind.String()
+	signal.TransceiverRequest.Init.Direction = direction.String()
+
+	return Payload{
+		UserID: userID,
+		Signal: signal,
 	}
 }
 

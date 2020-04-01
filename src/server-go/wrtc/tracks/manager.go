@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/jeremija/peer-calls/src/server-go/logger"
+	"github.com/jeremija/peer-calls/src/server-go/wrtc"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -25,9 +26,9 @@ func NewTracksManager() *TracksManager {
 }
 
 type peerInRoom struct {
-	peer    *Peer
-	room    string
-	onTrack (func(kind string))
+	peer      *Peer
+	room      string
+	signaller *wrtc.Signaller
 }
 
 func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
@@ -40,14 +41,25 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 			log.Printf("TracksManager.addTrack Error adding track: %s to clientID: %s (source clientID: %s): %s)", track.ID(), otherClientID, clientID, err)
 			continue
 		}
-		otherPeerInRoom.onTrack(track.Kind().String())
+
+		kind := track.Kind()
+		signaller := otherPeerInRoom.signaller
+		log.Printf("Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", kind)
+		// adapter.Emit(clientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
+		// 	"userId": localPeerID,
+		// 	"signal": map[string]interface{}{
+		// 		"transceiverRequest": map[string]string{"kind": kind},
+		// 	},
+		// }))
+		signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
+		signaller.Negotiate()
 		// }
 	}
 
 	t.mu.Unlock()
 }
 
-func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, onTrack func(kind string)) {
+func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller *wrtc.Signaller) {
 	log.Printf("Add peer to TrackManager room: %s, clientID: %s", room, clientID)
 
 	peer := NewPeer(
@@ -61,9 +73,9 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 
 	t.mu.Lock()
 	peerJoiningRoom := peerInRoom{
-		peer:    peer,
-		room:    room,
-		onTrack: onTrack,
+		peer:      peer,
+		room:      room,
+		signaller: signaller,
 	}
 
 	peersSet, ok := t.peerIDsByRoom[room]

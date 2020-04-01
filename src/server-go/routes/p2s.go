@@ -15,7 +15,7 @@ import (
 const localPeerID = "__SERVER__"
 
 type TracksManager interface {
-	Add(room string, clientID string, peerConnection tracks.PeerConnection, onTrack func(kind string))
+	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller *wrtc.Signaller)
 }
 
 func NewPeerToServerRoomHandler(
@@ -61,10 +61,6 @@ func NewPeerToServerRoomHandler(
 			return
 		}
 
-		// make chan
-
-		// peerConnection, err := api.NewPeerConnection(config)
-
 		cleanup := func() {
 			// TODO maybe cleanup is not necessary as we can still keep peer
 			// connections after websocket conn closes
@@ -76,36 +72,13 @@ func NewPeerToServerRoomHandler(
 			log.Printf("ICE gathering state changed: %s", state)
 		})
 
-		// _, err = peerConnection.AddTransceiverFromKind(
-		// 	webrtc.RTPCodecTypeVideo,
-		// 	webrtc.RtpTransceiverInit{
-		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		// 	},
-		// )
-		// if err != nil {
-		// 	log.Printf("Error adding video transceiver: %s", err)
-		// 	w.WriteHeader(http.StatusInternalServerError)
-		// 	return
-		// }
-		// // TODO add one more video transceiver for screen sharing
-		// _, err = peerConnection.AddTransceiverFromKind(
-		// 	webrtc.RTPCodecTypeAudio,
-		// 	webrtc.RtpTransceiverInit{
-		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		// 	},
-		// )
-		// if err != nil {
-		// 	log.Printf("Error adding audio transceiver: %s", err)
-		// 	w.WriteHeader(http.StatusInternalServerError)
-		// 	return
-		// }
-
 		handleMessage := func(event wsserver.RoomEvent) {
 			msg := event.Message
 			adapter := event.Adapter
 			room := event.Room
 			clientID := event.ClientID
-			initiator := localPeerID
+			initiator := clientID
+			// initiator := localPeerID
 
 			var responseEventName string
 			var err error
@@ -136,7 +109,7 @@ func NewPeerToServerRoomHandler(
 				// TODO use this to get all client IDs and request all tracks of all users
 				// adapter.Clients()
 				if signaller == nil {
-					signaller = wrtc.NewSignaller(
+					signaller, err = wrtc.NewSignaller(
 						initiator == localPeerID,
 						peerConnection,
 						localPeerID,
@@ -149,16 +122,11 @@ func NewPeerToServerRoomHandler(
 							}
 						},
 					)
-					tracksManager.Add(room, clientID, peerConnection, func(kind string) {
-						// adapter.Emit(clientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
-						// 	"userId": localPeerID,
-						// 	"signal": map[string]interface{}{
-						// 		"transceiverRequest": map[string]string{"kind": kind},
-						// 	},
-						// }))
-						log.Printf("Calling signaller.Negotiate() because a new %s track was added", kind)
-						signaller.Negotiate()
-					})
+					if err != nil {
+						err = fmt.Errorf("Error initializing signaller: %s", err)
+						break
+					}
+					tracksManager.Add(room, clientID, peerConnection, signaller)
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})

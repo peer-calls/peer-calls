@@ -22,6 +22,7 @@ type PeerConnection interface {
 
 type Signaller struct {
 	peerConnection PeerConnection
+	initiator      bool
 	localPeerID    string
 	onSignal       func(signal interface{})
 	negotiator     *negotiator.Negotiator
@@ -34,7 +35,7 @@ func NewSignaller(
 	peerConnection PeerConnection,
 	localPeerID string,
 	onSignal func(signal interface{}),
-) *Signaller {
+) (*Signaller, error) {
 	s := Signaller{
 		peerConnection: peerConnection,
 		localPeerID:    localPeerID,
@@ -50,13 +51,40 @@ func NewSignaller(
 
 	s.negotiator = negotiator
 
-	if initiator {
+	if !initiator {
+		_, err := peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeVideo,
+			webrtc.RtpTransceiverInit{
+				Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error adding video transceiver: %s", err)
+		}
+		// // TODO add one more video transceiver for screen sharing
+		// // TODO add audio
+		// _, err = peerConnection.AddTransceiverFromKind(
+		// 	webrtc.RTPCodecTypeAudio,
+		// 	webrtc.RtpTransceiverInit{
+		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
+		// 	},
+		// )
+		// if err != nil {
+		// 	log.Printf("Error adding audio transceiver: %s", err)
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	return
+		// }
+	} else {
 		log.Println("Peer is initiator, calling Negotiate()")
 		s.negotiator.Negotiate()
 	}
 	// peerConnection.OnICECandidate(s.handleICECandidate)
 
-	return &s
+	return &s, nil
+}
+
+func (s *Signaller) Initiator() bool {
+	return s.initiator
 }
 
 func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
@@ -177,6 +205,13 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 	}
 
 	s.onSignal(signals.NewPayloadSDP(s.localPeerID, offer))
+}
+
+func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) {
+	if !s.initiator {
+		log.Println("Sending transceiver request to initiator")
+		s.onSignal(signals.NewTransceiverRequest(s.localPeerID, kind, direction))
+	}
 }
 
 // TODO check offer voice activation detection feature of webrtc
