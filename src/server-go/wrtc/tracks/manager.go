@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/jeremija/peer-calls/src/server-go/logger"
-	"github.com/jeremija/peer-calls/src/server-go/wrtc"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -18,6 +17,12 @@ type TracksManager struct {
 	peerIDsByRoom map[string]map[string]struct{}
 }
 
+type Signaller interface {
+	Initiator() bool
+	SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection)
+	Negotiate()
+}
+
 func NewTracksManager() *TracksManager {
 	return &TracksManager{
 		peers:         map[string]peerInRoom{},
@@ -28,7 +33,7 @@ func NewTracksManager() *TracksManager {
 type peerInRoom struct {
 	peer      *Peer
 	room      string
-	signaller *wrtc.Signaller
+	signaller Signaller
 }
 
 func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
@@ -62,7 +67,7 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 	t.mu.Unlock()
 }
 
-func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller *wrtc.Signaller) {
+func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) {
 	log.Printf("Add peer to TrackManager room: %s, clientID: %s", room, clientID)
 
 	peer := NewPeer(

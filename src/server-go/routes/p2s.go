@@ -17,7 +17,7 @@ import (
 const localPeerID = "__SERVER__"
 
 type TracksManager interface {
-	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller *wrtc.Signaller)
+	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller)
 }
 
 const serverIsInitiator = false
