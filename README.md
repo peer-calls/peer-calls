@@ -13,7 +13,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 
 [peer-calls]: https://peercalls.com
 
-Experimental work is currently being done in the `server-go` branch. The server has been completely rewriten in Go and the original functionality. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads.
+Experimental work is currently being done in the `server-go` branch. The server has been completely rewriten in Go and all the original functionality works. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads. Once implemented, it will be released as `Peer Calls v4`.
 
 # Requirements
 
