@@ -256,7 +256,7 @@ sudo systemctl start coturn
 - [ ] Enable node cluster support (to scale vertically).
 - [x] Add Socket.IO support for Redis (to scale horizontally).
 - [ ] Add support for browser push notifications
-- [ ] Allow other methods of connectivity, beside mesh.
+- [ ] Allow other methods of connectivity, beside mesh. Experimental work done in `server-go` branch.
 
 # Contributing
 
