@@ -22,6 +22,7 @@ type PeerConnection interface {
 
 type Signaller struct {
 	peerConnection PeerConnection
+	mediaEngine    *webrtc.MediaEngine
 	initiator      bool
 	localPeerID    string
 	onSignal       func(signal interface{})
@@ -33,11 +34,13 @@ var log = logger.GetLogger("wrtc")
 func NewSignaller(
 	initiator bool,
 	peerConnection PeerConnection,
+	mediaEngine *webrtc.MediaEngine,
 	localPeerID string,
 	onSignal func(signal interface{}),
 ) (*Signaller, error) {
 	s := Signaller{
 		peerConnection: peerConnection,
+		mediaEngine:    mediaEngine,
 		localPeerID:    localPeerID,
 		onSignal:       onSignal,
 	}
@@ -75,6 +78,8 @@ func NewSignaller(
 		// 	return
 		// }
 	} else {
+		log.Println("Registering default codecs")
+		s.mediaEngine.RegisterDefaultCodecs()
 		log.Println("Peer is initiator, calling Negotiate()")
 		s.negotiator.Negotiate()
 	}
@@ -168,6 +173,15 @@ func (s *Signaller) handleRemoteSDP(sessionDescription webrtc.SessionDescription
 }
 
 func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescription) (err error) {
+	if err = s.mediaEngine.PopulateFromSDP(sessionDescription); err != nil {
+		return fmt.Errorf("Error populating codec info from SDP: %s", err)
+	}
+
+	log.Printf("Printing available codecs")
+	for _, codec := range s.mediaEngine.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
+		log.Println("codec", codec.PayloadType, codec.Name, codec.ClockRate)
+	}
+
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
 		return fmt.Errorf("Error setting remote description: %w", err)
 	}
@@ -207,6 +221,7 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 	s.onSignal(signals.NewPayloadSDP(s.localPeerID, offer))
 }
 
+// Sends a request for a new transceiver, only if the peer is not the initiator.
 func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) {
 	if !s.initiator {
 		log.Println("Sending transceiver request to initiator")

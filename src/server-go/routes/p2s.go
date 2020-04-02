@@ -3,6 +3,8 @@ package routes
 import (
 	"fmt"
 	"net/http"
+	"reflect"
+	"unsafe"
 
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
@@ -17,6 +19,8 @@ const localPeerID = "__SERVER__"
 type TracksManager interface {
 	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller *wrtc.Signaller)
 }
+
+const serverIsInitiator = false
 
 func NewPeerToServerRoomHandler(
 	wss *wsserver.WSS,
@@ -42,7 +46,6 @@ func NewPeerToServerRoomHandler(
 		ICEServers: webrtcICEServers,
 	}
 	mediaEngine := webrtc.MediaEngine{}
-	mediaEngine.RegisterDefaultCodecs()
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
@@ -53,6 +56,18 @@ func NewPeerToServerRoomHandler(
 			webrtc.WithMediaEngine(mediaEngine),
 			webrtc.WithSettingEngine(settingEngine),
 		)
+
+		// Hack to be able to update dynamic codec payload IDs with every new sdp
+		// renegotiation of passive (non-server initiated) peer connections.
+		field := reflect.ValueOf(api).Elem().FieldByName("mediaEngine")
+		unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+
+		mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
+		if !ok {
+			log.Printf("Error in hack to obtain mediaEngine")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		peerConnection, err := api.NewPeerConnection(webrtcConfig)
 
 		if err != nil {
@@ -77,8 +92,11 @@ func NewPeerToServerRoomHandler(
 			adapter := event.Adapter
 			room := event.Room
 			clientID := event.ClientID
-			initiator := clientID
-			// initiator := localPeerID
+
+			initiator := localPeerID
+			if !serverIsInitiator {
+				initiator = clientID
+			}
 
 			var responseEventName string
 			var err error
@@ -112,6 +130,7 @@ func NewPeerToServerRoomHandler(
 					signaller, err = wrtc.NewSignaller(
 						initiator == localPeerID,
 						peerConnection,
+						mediaEngine,
 						localPeerID,
 						func(signal interface{}) {
 							log.Printf("Sending local signal to remote clientID: %s", clientID)
