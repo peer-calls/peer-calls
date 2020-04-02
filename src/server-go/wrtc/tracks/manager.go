@@ -51,8 +51,11 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 		// 		"transceiverRequest": map[string]string{"kind": kind},
 		// 	},
 		// }))
-		signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
-		signaller.Negotiate()
+		if signaller.Initiator() {
+			signaller.Negotiate()
+		} else {
+			signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
+		}
 		// }
 	}
 
