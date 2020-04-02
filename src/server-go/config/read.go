@@ -67,6 +67,8 @@ func ReadEnv(prefix string, c *Config) {
 	setEnvInt(&c.Store.Redis.Port, prefix+"STORE_REDIS_PORT")
 	setEnvString(&c.Store.Redis.Prefix, prefix+"STORE_REDIS_PREFIX")
 
+	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
+
 	var ice ICEServer
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
 	if len(ice.URLs) > 0 {

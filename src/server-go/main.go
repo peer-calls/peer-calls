@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -39,24 +38,14 @@ func main() {
 		err := config.ReadFiles([]string{configFilename}, &c)
 		panicOnError(err, "Error reading config file")
 	}
-	if len(c.ICEServers) == 0 {
-		c.ICEServers = []config.ICEServer{{
-			URLs:     []string{"stun:stun.l.google.com:19302"},
-			AuthType: config.AuthTypeNone,
-		}, {
-			URLs:     []string{"stun:global.stun.twilio.com:3478?transport=udp"},
-			AuthType: config.AuthTypeNone,
-		}}
-	}
 	config.ReadEnv("PEERCALLS_", &c)
 
-	ice, err := json.Marshal(iceauth.GetICEServers(c.ICEServers))
-	log.Printf("Using ice servers: %s", ice)
-	panicOnError(err, "Error setting ICE servers")
+	iceServers := iceauth.GetICEServers(c.ICEServers)
+	log.Printf("Using ice servers: %s", iceServers)
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)
 	tracks := tracks.NewTracksManager()
-	mux := routes.NewMux(c.BaseURL, gitDescribe, c.ICEServers, string(ice), rooms, tracks)
+	mux := routes.NewMux(c.BaseURL, gitDescribe, c.Network.Type, iceServers, rooms, tracks)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

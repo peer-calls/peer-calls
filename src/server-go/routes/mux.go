@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"github.com/gobuffalo/packr"
 	"github.com/jeremija/peer-calls/src/server-go/basen"
 	"github.com/jeremija/peer-calls/src/server-go/config"
+	"github.com/jeremija/peer-calls/src/server-go/iceauth"
 	"github.com/jeremija/peer-calls/src/server-go/render"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 )
@@ -27,8 +29,8 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewMux(
 	baseURL string,
 	version string,
-	iceServers []config.ICEServer,
-	iceServersJSON string,
+	networkType config.NetworkType,
+	iceServers []iceauth.ICEServer,
 	rooms RoomManager,
 	tracks TracksManager,
 ) *Mux {
@@ -36,11 +38,13 @@ func NewMux(
 	templates := render.ParseTemplates(box)
 	renderer := render.NewRenderer(templates, baseURL, version)
 
+	iceServersJSON, _ := json.Marshal(iceServers)
+
 	handler := chi.NewRouter()
 	mux := &Mux{
 		BaseURL:    baseURL,
 		handler:    handler,
-		iceServers: iceServersJSON,
+		iceServers: string(iceServersJSON),
 	}
 
 	var root string
@@ -50,6 +54,13 @@ func NewMux(
 		root = baseURL
 	}
 
+	wsHandler := newWebSocketHandler(
+		networkType,
+		wsserver.NewWSS(rooms),
+		iceServers,
+		tracks,
+	)
+
 	handler.Route(root, func(router chi.Router) {
 		router.Get("/", renderer.Render(mux.routeIndex))
 		router.Handle("/static/*", static(baseURL+"/static", "../../../build"))
@@ -57,11 +68,26 @@ func NewMux(
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
-		router.Mount("/ws", NewPeerToPeerRoomHandler(wsserver.NewWSS(rooms)))
-		router.Mount("/ws-server", NewPeerToServerRoomHandler(wsserver.NewWSS(rooms), iceServers, tracks))
+		router.Mount("/ws", wsHandler)
 	})
 
 	return mux
+}
+
+func newWebSocketHandler(
+	networkType config.NetworkType,
+	wss *wsserver.WSS,
+	iceServers []iceauth.ICEServer,
+	tracks TracksManager,
+) http.Handler {
+	switch networkType {
+	case config.NetworkTypeSFU:
+		log.Println("Using network type sfu")
+		return NewPeerToServerRoomHandler(wss, iceServers, tracks)
+	default:
+		log.Println("Using network type mesh")
+		return NewPeerToPeerRoomHandler(wss)
+	}
 }
 
 func static(prefix string, path string) http.Handler {

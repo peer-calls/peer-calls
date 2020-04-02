@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/jeremija/peer-calls/src/server-go/config"
+	"github.com/jeremija/peer-calls/src/server-go/iceauth"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 	"github.com/jeremija/peer-calls/src/server-go/wrtc/signals"
 	"github.com/jeremija/peer-calls/src/server-go/wrtc/tracks"
@@ -24,21 +24,21 @@ const serverIsInitiator = false
 
 func NewPeerToServerRoomHandler(
 	wss *wsserver.WSS,
-	iceServers []config.ICEServer,
+	iceServers []iceauth.ICEServer,
 	tracksManager TracksManager,
 ) http.Handler {
 
 	webrtcICEServers := []webrtc.ICEServer{}
 	for _, iceServer := range iceServers {
 		var c webrtc.ICECredentialType
-		if iceServer.AuthType == config.AuthTypeSecret {
+		if iceServer.Username != "" && iceServer.Credential != "" {
 			c = webrtc.ICECredentialTypePassword
 		}
 		webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
 			URLs:           iceServer.URLs,
 			CredentialType: c,
-			Username:       iceServer.AuthSecret.Username,
-			Credential:     iceServer.AuthSecret.Secret,
+			Username:       iceServer.Username,
+			Credential:     iceServer.Credential,
 		})
 	}
 
