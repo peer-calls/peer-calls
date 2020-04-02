@@ -117,7 +117,7 @@ func (p *Peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.localTracks = append(p.localTracks, localTrack)
 	p.localTracksMu.Unlock()
 
-	log.Printf("Add track to list of local tracks: %s for clientID: %s", localTrack.ID(), p.clientID)
+	log.Printf("handleTrack add track to list of local tracks: %s for clientID: %s", localTrack.ID(), p.clientID)
 	p.onTrack(p.clientID, localTrack)
 }
 
@@ -135,7 +135,7 @@ func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 		remoteTrackLabel = remoteTrackID
 	}
 	localTrackID := "copy-" + p.clientID + "-" + remoteTrackID
-	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s", remoteTrack.ID(), localTrackID, p.clientID)
+	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s, ssrc: %d", remoteTrack.ID(), localTrackID, p.clientID, remoteTrack.SSRC())
 
 	// Create a local track, all our SFU clients will be fed via this track
 	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), localTrackID, remoteTrackLabel)
