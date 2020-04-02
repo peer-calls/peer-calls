@@ -11,8 +11,13 @@ import (
 )
 
 func TestRead(t *testing.T) {
-	_, err := config.Read([]string{})
+	c, err := config.Read([]string{})
 	assert.Nil(t, err, "error reading config")
+	assert.Equal(t, 2, len(c.ICEServers))
+	assert.Equal(t, []string{"stun:stun.l.google.com:19302"}, c.ICEServers[0].URLs)
+	assert.Equal(t, []string{"stun:global.stun.twilio.com:3478?transport=udp"}, c.ICEServers[1].URLs)
+	assert.Equal(t, config.NetworkTypeMesh, c.Network.Type)
+	assert.Equal(t, config.StoreTypeMemory, c.Store.Type)
 }
 
 func TestReadFiles(t *testing.T) {

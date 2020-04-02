@@ -39,11 +39,23 @@ type StoreConfig struct {
 	Redis RedisConfig `yaml:"redis"`
 }
 
+type NetworkType string
+
+const (
+	NetworkTypeMesh NetworkType = "mesh"
+	NetworkTypeSFU  NetworkType = "sfu"
+)
+
+type NetworkConfig struct {
+	Type NetworkType `yaml:"type"`
+}
+
 type Config struct {
-	BaseURL    string      `yaml:"base_url"`
-	BindHost   string      `yaml:"bind_host"`
-	BindPort   int         `yaml:"bind_port"`
-	ICEServers []ICEServer `yaml:"ice_servers"`
-	TLS        TLSConfig   `yaml:"tls"`
-	Store      StoreConfig `yaml:"store"`
+	BaseURL    string        `yaml:"base_url"`
+	BindHost   string        `yaml:"bind_host"`
+	BindPort   int           `yaml:"bind_port"`
+	ICEServers []ICEServer   `yaml:"ice_servers"`
+	TLS        TLSConfig     `yaml:"tls"`
+	Store      StoreConfig   `yaml:"store"`
+	Network    NetworkConfig `yaml:"network"`
 }

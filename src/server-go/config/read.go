@@ -30,7 +30,18 @@ func ReadFiles(filenames []string, c *Config) (err error) {
 	return err
 }
 
+func Init(c *Config) {
+	c.Network.Type = NetworkTypeMesh
+	c.Store.Type = StoreTypeMemory
+	c.ICEServers = []ICEServer{{
+		URLs: []string{"stun:stun.l.google.com:19302"},
+	}, {
+		URLs: []string{"stun:global.stun.twilio.com:3478?transport=udp"},
+	}}
+}
+
 func Read(filenames []string) (c Config, err error) {
+	Init(&c)
 	err = ReadFiles(filenames, &c)
 	ReadEnv("PEERCALLS", &c)
 	return c, err
@@ -94,8 +105,18 @@ func setEnvAuthType(authType *AuthType, name string) {
 	switch AuthType(value) {
 	case AuthTypeSecret:
 		*authType = AuthTypeSecret
-	default:
+	case AuthTypeNone:
 		*authType = AuthTypeNone
+	}
+}
+
+func setEnvNetworkType(networkType *NetworkType, name string) {
+	value := os.Getenv(name)
+	switch NetworkType(value) {
+	case NetworkTypeMesh:
+		*networkType = NetworkTypeMesh
+	case NetworkTypeSFU:
+		*networkType = NetworkTypeSFU
 	}
 }
 
@@ -104,7 +125,7 @@ func setEnvStoreType(storeType *StoreType, name string) {
 	switch StoreType(value) {
 	case StoreTypeRedis:
 		*storeType = StoreTypeRedis
-	default:
+	case StoreTypeMemory:
 		*storeType = StoreTypeMemory
 	}
 }
