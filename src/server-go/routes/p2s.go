@@ -8,7 +8,7 @@ import (
 
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
-	"github.com/jeremija/peer-calls/src/server-go/wrtc"
+	"github.com/jeremija/peer-calls/src/server-go/wrtc/signals"
 	"github.com/jeremija/peer-calls/src/server-go/wrtc/tracks"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
 	"github.com/pion/webrtc/v2"
@@ -81,7 +81,7 @@ func NewPeerToServerRoomHandler(
 			// connections after websocket conn closes
 		}
 
-		var signaller *wrtc.Signaller
+		var signaller *signals.Signaller
 
 		peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 			log.Printf("ICE gathering state changed: %s", state)
@@ -127,7 +127,7 @@ func NewPeerToServerRoomHandler(
 				// TODO use this to get all client IDs and request all tracks of all users
 				// adapter.Clients()
 				if signaller == nil {
-					signaller, err = wrtc.NewSignaller(
+					signaller, err = signals.NewSignaller(
 						initiator == localPeerID,
 						peerConnection,
 						mediaEngine,
