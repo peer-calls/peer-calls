@@ -16,6 +16,7 @@ type PeerConnection interface {
 
 type Negotiator struct {
 	initiator            bool
+	remotePeerID         string
 	peerConnection       PeerConnection
 	onOffer              func(webrtc.SessionDescription, error)
 	onRequestNegotiation func()
@@ -28,12 +29,14 @@ type Negotiator struct {
 func NewNegotiator(
 	initiator bool,
 	peerConnection PeerConnection,
+	remotePeerID string,
 	onOffer func(webrtc.SessionDescription, error),
 	onRequestNegotiation func(),
 ) *Negotiator {
 	n := &Negotiator{
 		initiator:            initiator,
 		peerConnection:       peerConnection,
+		remotePeerID:         remotePeerID,
 		onOffer:              onOffer,
 		onRequestNegotiation: onRequestNegotiation,
 	}
@@ -45,7 +48,7 @@ func NewNegotiator(
 func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 	// TODO check if we need to have a check for first stable state
 	// like simple-peer has.
-	log.Printf("Signaling state change: %s", state)
+	log.Printf("Signaling state change for clientID: %s: %s", n.remotePeerID, state)
 
 	if state == webrtc.SignalingStateStable {
 		n.mu.Lock()
@@ -54,7 +57,7 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 
 		if n.queuedNegotiation {
 			n.isNegotiating = true
-			log.Printf("Executing queued negotiation")
+			log.Printf("Executing queued negotiation for clientID: %s", n.remotePeerID)
 			n.queuedNegotiation = false
 			n.negotiate()
 		}
@@ -67,7 +70,7 @@ func (n *Negotiator) Negotiate() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.isNegotiating {
-		log.Printf("Negotiate: already negotiating, queueing for later")
+		log.Printf("Negotiate: already negotiating, queueing for later for clientID: %s", n.remotePeerID)
 		n.queuedNegotiation = true
 		return
 	}
@@ -79,12 +82,12 @@ func (n *Negotiator) Negotiate() {
 
 func (n *Negotiator) negotiate() {
 	if !n.initiator {
-		log.Printf("negotiate: requesting from initiator")
+		log.Printf("negotiate: requesting from initiator clientID: %s", n.remotePeerID)
 		n.requestNegotiation()
 		return
 	}
 
-	log.Printf("negotiate: creating offfer")
+	log.Printf("negotiate: creating offfer for clientID: %s", n.remotePeerID)
 	offer, err := n.peerConnection.CreateOffer(nil)
 	n.onOffer(offer, err)
 }

@@ -132,6 +132,7 @@ func NewPeerToServerRoomHandler(
 						peerConnection,
 						mediaEngine,
 						localPeerID,
+						clientID,
 						func(signal interface{}) {
 							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 							if err != nil {
