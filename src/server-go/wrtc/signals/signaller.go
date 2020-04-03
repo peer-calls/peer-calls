@@ -29,6 +29,7 @@ type Signaller struct {
 }
 
 var log = logger.GetLogger("signals")
+var sdpLog = logger.GetLogger("sdp")
 
 func NewSignaller(
 	initiator bool,
@@ -127,7 +128,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 		log.Printf("Remote signal.transceiverRequest: %s", signal.TransceiverRequest.Kind)
 		return s.handleTransceiverRequest(signal)
 	case webrtc.SessionDescription:
-		log.Printf("Remote signal.type: %s, signal.sdp: %s", signal.Type, signal.SDP)
+		sdpLog.Printf("Remote signal.type: %s, signal.sdp: %s", signal.Type, signal.SDP)
 		return s.handleRemoteSDP(signal)
 	default:
 		return fmt.Errorf("Unexpected signal: %#v", signal)
@@ -176,11 +177,6 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 		return fmt.Errorf("Error populating codec info from SDP: %s", err)
 	}
 
-	log.Printf("Printing available codecs")
-	for _, codec := range s.mediaEngine.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
-		log.Println("codec", codec.PayloadType, codec.Name, codec.ClockRate)
-	}
-
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
 		return fmt.Errorf("Error setting remote description: %w", err)
 	}
@@ -192,7 +188,7 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 		return fmt.Errorf("Error setting local description: %w", err)
 	}
 
-	log.Printf("Local signal.type: %s, signal.sdp: %s", answer.Type, answer.SDP)
+	sdpLog.Printf("Local signal.type: %s, signal.sdp: %s", answer.Type, answer.SDP)
 	s.onSignal(NewPayloadSDP(s.localPeerID, answer))
 	return nil
 }
@@ -203,7 +199,7 @@ func (s *Signaller) handleLocalRequestNegotiation() {
 }
 
 func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
-	log.Printf("Local signal.type: %s, signal.sdp: %s", offer.Type, offer.SDP)
+	sdpLog.Printf("Local signal.type: %s, signal.sdp: %s", offer.Type, offer.SDP)
 	if err != nil {
 		log.Printf("Error creating local offer: %s", err)
 		// TODO abort connection
