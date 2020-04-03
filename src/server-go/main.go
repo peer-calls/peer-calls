@@ -33,12 +33,12 @@ func main() {
 	flags.StringVar(&configFilename, "c", "", "Config file to use")
 	flags.Parse(os.Args)
 
-	var c config.Config
+	configFiles := []string{}
 	if configFilename != "" {
-		err := config.ReadFiles([]string{configFilename}, &c)
-		panicOnError(err, "Error reading config file")
+		configFiles = append(configFiles, configFilename)
 	}
-	config.ReadEnv("PEERCALLS_", &c)
+	c, err := config.Read(configFiles)
+	panicOnError(err, "Error reading config")
 
 	iceServers := iceauth.GetICEServers(c.ICEServers)
 	log.Printf("Using ice servers: %s", iceServers)

@@ -43,7 +43,7 @@ func Init(c *Config) {
 func Read(filenames []string) (c Config, err error) {
 	Init(&c)
 	err = ReadFiles(filenames, &c)
-	ReadEnv("PEERCALLS", &c)
+	ReadEnv("PEERCALLS_", &c)
 	return c, err
 }
 
