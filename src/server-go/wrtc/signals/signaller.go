@@ -28,7 +28,7 @@ type Signaller struct {
 	negotiator     *negotiator.Negotiator
 }
 
-var log = logger.GetLogger("wrtc")
+var log = logger.GetLogger("signals")
 
 func NewSignaller(
 	initiator bool,

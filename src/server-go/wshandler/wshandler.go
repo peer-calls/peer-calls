@@ -13,7 +13,7 @@ import (
 	"nhooyr.io/websocket"
 )
 
-var log = logger.GetLogger("ws")
+var log = logger.GetLogger("wshandler")
 
 type RoomManager interface {
 	Enter(room string) wsadapter.Adapter
