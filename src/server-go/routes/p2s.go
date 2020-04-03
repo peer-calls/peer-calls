@@ -103,7 +103,8 @@ func NewPeerToServerRoomHandler(
 				log.Printf("Initiator for clientID: %s is: %s", clientID, initiator)
 
 				responseEventName = "users"
-				err = adapter.Broadcast(
+				err = adapter.Emit(
+					clientID,
 					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
 						"initiator": initiator,
 						// "initiator": clientID,
