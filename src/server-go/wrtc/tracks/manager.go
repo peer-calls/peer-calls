@@ -31,7 +31,7 @@ func NewTracksManager() *TracksManager {
 }
 
 type peerInRoom struct {
-	peer      *Peer
+	peer      *peer
 	room      string
 	signaller Signaller
 }
@@ -70,7 +70,7 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) {
 	log.Printf("Add peer to TrackManager room: %s, clientID: %s", room, clientID)
 
-	peer := NewPeer(
+	peer := newPeer(
 		clientID,
 		peerConnection,
 		func(clientID string, track *webrtc.Track) {

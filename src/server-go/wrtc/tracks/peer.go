@@ -25,7 +25,7 @@ type PeerConnection interface {
 	NewTrack(uint8, uint32, string, string) (*webrtc.Track, error)
 }
 
-type Peer struct {
+type peer struct {
 	clientID         string
 	peerConnection   PeerConnection
 	localTracks      []*webrtc.Track
@@ -35,13 +35,13 @@ type Peer struct {
 	onClose          func(clientID string)
 }
 
-func NewPeer(
+func newPeer(
 	clientID string,
 	peerConnection PeerConnection,
 	onTrack func(clientID string, track *webrtc.Track),
 	onClose func(clientID string),
-) *Peer {
-	p := &Peer{
+) *peer {
+	p := &peer{
 		clientID:         clientID,
 		peerConnection:   peerConnection,
 		onTrack:          onTrack,
@@ -58,11 +58,11 @@ func NewPeer(
 
 // FIXME add support for data channel messages for sending chat messages, and images/files
 
-func (p *Peer) ClientID() string {
+func (p *peer) ClientID() string {
 	return p.clientID
 }
 
-func (p *Peer) AddTrack(track *webrtc.Track) error {
+func (p *peer) AddTrack(track *webrtc.Track) error {
 	log.Printf("Add track: %s to peer clientID: %s", track.ID(), p.clientID)
 
 	// rtpSender, err := p.peerConnection.AddTrack(track)
@@ -82,7 +82,7 @@ func (p *Peer) AddTrack(track *webrtc.Track) error {
 	return nil
 }
 
-func (p *Peer) RemoveTrack(track *webrtc.Track) error {
+func (p *peer) RemoveTrack(track *webrtc.Track) error {
 	log.Printf("Remove track: %s from peer clientID: %s", track.ID(), p.clientID)
 	rtpSender, ok := p.rtpSenderByTrack[track]
 	if !ok {
@@ -91,7 +91,7 @@ func (p *Peer) RemoveTrack(track *webrtc.Track) error {
 	return p.peerConnection.RemoveTrack(rtpSender)
 }
 
-func (p *Peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
+func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
 	log.Printf("Peer connection state changed, clientID: %s, state: %s",
 		p.clientID,
 		connectionState.String(),
@@ -106,7 +106,7 @@ func (p *Peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 	}
 }
 
-func (p *Peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
 	log.Printf("handleTrack %s for clientID: %s (type: %s)", remoteTrack.ID(), p.clientID, remoteTrack.Kind())
 	localTrack, err := p.startCopyingTrack(remoteTrack)
 	if err != nil {
@@ -121,11 +121,11 @@ func (p *Peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.onTrack(p.clientID, localTrack)
 }
 
-func (p *Peer) Tracks() []*webrtc.Track {
+func (p *peer) Tracks() []*webrtc.Track {
 	return p.localTracks
 }
 
-func (p *Peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, error) {
+func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, error) {
 	remoteTrackID := remoteTrack.ID()
 	if remoteTrackID == "" {
 		remoteTrackID = basen.NewUUIDBase62()
