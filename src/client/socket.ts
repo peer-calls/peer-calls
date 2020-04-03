@@ -4,6 +4,6 @@ import { SocketClient } from './ws'
 export type ClientSocket = TypedEmitter<SocketEvent>
 
 const wsUrl = location.origin.replace(/^http/, 'ws') +
-  baseUrl + '/ws-server/' + callId + '/' + userId
+  baseUrl + '/ws/' + callId + '/' + userId
 
 export default new SocketClient<SocketEvent>(wsUrl)
