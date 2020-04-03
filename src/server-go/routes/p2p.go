@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/jeremija/peer-calls/src/server-go/logger"
-	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsadapter"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
+	"github.com/jeremija/peer-calls/src/server-go/wshandler"
 )
 
 type AdapterFactory func(room string) wsadapter.Adapter
@@ -23,9 +23,9 @@ type ReadyMessage struct {
 	Room   string `json:"room"`
 }
 
-func NewPeerToPeerRoomHandler(wss *wsserver.WSS) http.Handler {
+func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		wss.HandleRoom(w, r, func(event wsserver.RoomEvent) {
+		wss.HandleRoom(w, r, func(event wshandler.RoomEvent) {
 			msg := event.Message
 			adapter := event.Adapter
 			room := event.Room

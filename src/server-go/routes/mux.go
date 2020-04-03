@@ -13,7 +13,7 @@ import (
 	"github.com/jeremija/peer-calls/src/server-go/config"
 	"github.com/jeremija/peer-calls/src/server-go/iceauth"
 	"github.com/jeremija/peer-calls/src/server-go/render"
-	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
+	"github.com/jeremija/peer-calls/src/server-go/wshandler"
 )
 
 type Mux struct {
@@ -56,7 +56,7 @@ func NewMux(
 
 	wsHandler := newWebSocketHandler(
 		networkType,
-		wsserver.NewWSS(rooms),
+		wshandler.NewWSS(rooms),
 		iceServers,
 		tracks,
 	)
@@ -76,7 +76,7 @@ func NewMux(
 
 func newWebSocketHandler(
 	networkType config.NetworkType,
-	wss *wsserver.WSS,
+	wss *wshandler.WSS,
 	iceServers []iceauth.ICEServer,
 	tracks TracksManager,
 ) http.Handler {

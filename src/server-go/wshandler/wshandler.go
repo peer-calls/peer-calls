@@ -1,4 +1,4 @@
-package wsserver
+package wshandler
 
 import (
 	"context"

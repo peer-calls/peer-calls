@@ -7,10 +7,10 @@ import (
 	"unsafe"
 
 	"github.com/jeremija/peer-calls/src/server-go/iceauth"
-	"github.com/jeremija/peer-calls/src/server-go/routes/wsserver"
 	"github.com/jeremija/peer-calls/src/server-go/wrtc/signals"
 	"github.com/jeremija/peer-calls/src/server-go/wrtc/tracks"
 	"github.com/jeremija/peer-calls/src/server-go/ws/wsmessage"
+	"github.com/jeremija/peer-calls/src/server-go/wshandler"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -23,7 +23,7 @@ type TracksManager interface {
 const serverIsInitiator = false
 
 func NewPeerToServerRoomHandler(
-	wss *wsserver.WSS,
+	wss *wshandler.WSS,
 	iceServers []iceauth.ICEServer,
 	tracksManager TracksManager,
 ) http.Handler {
@@ -87,7 +87,7 @@ func NewPeerToServerRoomHandler(
 			log.Printf("ICE gathering state changed: %s", state)
 		})
 
-		handleMessage := func(event wsserver.RoomEvent) {
+		handleMessage := func(event wshandler.RoomEvent) {
 			msg := event.Message
 			adapter := event.Adapter
 			room := event.Room
