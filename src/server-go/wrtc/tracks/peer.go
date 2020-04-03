@@ -64,6 +64,8 @@ func (p *peer) ClientID() string {
 
 func (p *peer) AddTrack(track *webrtc.Track) error {
 	log.Printf("Add track: %s to peer clientID: %s", track.ID(), p.clientID)
+	p.localTracksMu.Lock()
+	defer p.localTracksMu.Unlock()
 
 	// rtpSender, err := p.peerConnection.AddTrack(track)
 	t, err := p.peerConnection.AddTransceiverFromTrack(
@@ -84,10 +86,13 @@ func (p *peer) AddTrack(track *webrtc.Track) error {
 
 func (p *peer) RemoveTrack(track *webrtc.Track) error {
 	log.Printf("Remove track: %s from peer clientID: %s", track.ID(), p.clientID)
+	p.localTracksMu.Lock()
+	defer p.localTracksMu.Unlock()
 	rtpSender, ok := p.rtpSenderByTrack[track]
 	if !ok {
 		return fmt.Errorf("Cannot find sender for track: %s, clientID: %s", track.ID(), p.clientID)
 	}
+	delete(p.rtpSenderByTrack, track)
 	return p.peerConnection.RemoveTrack(rtpSender)
 }
 
