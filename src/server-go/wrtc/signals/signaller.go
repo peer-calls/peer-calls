@@ -41,6 +41,7 @@ func NewSignaller(
 	onSignal func(signal interface{}),
 ) (*Signaller, error) {
 	s := Signaller{
+		initiator:      initiator,
 		peerConnection: peerConnection,
 		mediaEngine:    mediaEngine,
 		localPeerID:    localPeerID,
