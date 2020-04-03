@@ -43,7 +43,7 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 	for otherClientID, otherPeerInRoom := range t.peers {
 		if otherClientID != clientID {
 			if err := addTrackToPeer(otherPeerInRoom, track); err != nil {
-				log.Printf("TracksManager.addTrack Error adding track: %s", err)
+				log.Printf("[%s] TracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
 			}
 		}
@@ -55,12 +55,12 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
 	peer := peerInRoom.peer
 	if err := peer.AddTrack(track); err != nil {
-		return fmt.Errorf("addTrackToPeer Error adding track: %s to clientID: %s: %s", track.ID(), peer.ClientID(), err)
+		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %s: %s", peer.ClientID(), track.ID(), err)
 	}
 
 	kind := track.Kind()
 	signaller := peerInRoom.signaller
-	log.Printf("Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", kind)
+	log.Printf("[%s] addTrackToPeer Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", peer.ClientID(), kind)
 	if signaller.Initiator() {
 		signaller.Negotiate()
 	} else {
@@ -70,7 +70,7 @@ func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
 }
 
 func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) {
-	log.Printf("Add peer to TrackManager room: %s, clientID: %s", room, clientID)
+	log.Printf("[%s] TrackManager.Add peer to room: %s", clientID, room)
 
 	peer := newPeer(
 		clientID,
@@ -97,7 +97,7 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 	for existingPeerClientID := range peersSet {
 		existingPeerInRoom, ok := t.peers[existingPeerClientID]
 		if !ok {
-			log.Printf("Cannot find existing peer with clientID: %s", existingPeerClientID)
+			log.Printf("[%s] Cannot find existing peer", existingPeerClientID)
 			continue
 		}
 		for _, track := range existingPeerInRoom.peer.Tracks() {

@@ -48,7 +48,7 @@ func NewNegotiator(
 func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 	// TODO check if we need to have a check for first stable state
 	// like simple-peer has.
-	log.Printf("Signaling state change for clientID: %s: %s", n.remotePeerID, state)
+	log.Printf("[%s] Signaling state change for: %s", n.remotePeerID, state)
 
 	if state == webrtc.SignalingStateStable {
 		n.mu.Lock()
@@ -57,7 +57,7 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 
 		if n.queuedNegotiation {
 			n.isNegotiating = true
-			log.Printf("Executing queued negotiation for clientID: %s", n.remotePeerID)
+			log.Printf("[%s] Executing queued negotiation", n.remotePeerID)
 			n.queuedNegotiation = false
 			n.negotiate()
 		}
@@ -65,29 +65,29 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 }
 
 func (n *Negotiator) Negotiate() {
-	log.Printf("Negotiate")
+	log.Printf("[%s] Negotiate", n.remotePeerID)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.isNegotiating {
-		log.Printf("Negotiate: already negotiating, queueing for later for clientID: %s", n.remotePeerID)
+		log.Printf("[%s] Negotiate: already negotiating, queueing for later", n.remotePeerID)
 		n.queuedNegotiation = true
 		return
 	}
 
-	log.Printf("Negotiate: start")
+	log.Printf("[%s] Negotiate: start", n.remotePeerID)
 	n.isNegotiating = true
 	n.negotiate()
 }
 
 func (n *Negotiator) negotiate() {
 	if !n.initiator {
-		log.Printf("negotiate: requesting from initiator clientID: %s", n.remotePeerID)
+		log.Printf("[%s] negotiate: requesting from initiator", n.remotePeerID)
 		n.requestNegotiation()
 		return
 	}
 
-	log.Printf("negotiate: creating offfer for clientID: %s", n.remotePeerID)
+	log.Printf("[%s] negotiate: creating offer", n.remotePeerID)
 	offer, err := n.peerConnection.CreateOffer(nil)
 	n.onOffer(offer, err)
 }

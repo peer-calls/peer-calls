@@ -40,7 +40,7 @@ func NewSignaller(
 	remotePeerID string,
 	onSignal func(signal interface{}),
 ) (*Signaller, error) {
-	s := Signaller{
+	s := &Signaller{
 		initiator:      initiator,
 		peerConnection: peerConnection,
 		mediaEngine:    mediaEngine,
@@ -59,16 +59,22 @@ func NewSignaller(
 
 	s.negotiator = negotiator
 
-	if !initiator {
-		log.Printf("NewSignaller: Non-Initiator add recvonly transceiver for clientID: %s", remotePeerID)
-		_, err := peerConnection.AddTransceiverFromKind(
+	// peerConnection.OnICECandidate(s.handleICECandidate)
+
+	return s, s.initialize()
+}
+
+func (s *Signaller) initialize() error {
+	if !s.initiator {
+		log.Printf("[%s] NewSignaller: Non-Initiator add recvonly transceiver", s.remotePeerID)
+		_, err := s.peerConnection.AddTransceiverFromKind(
 			webrtc.RTPCodecTypeVideo,
 			webrtc.RtpTransceiverInit{
 				Direction: webrtc.RTPTransceiverDirectionRecvonly,
 			},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("Error adding video transceiver: %s", err)
+			return fmt.Errorf("[%s] NewSignaller: Error adding video transceiver: %s", s.remotePeerID, err)
 		}
 		// // TODO add one more video transceiver for screen sharing
 		// // TODO add audio
@@ -79,19 +85,18 @@ func NewSignaller(
 		// 	},
 		// )
 		// if err != nil {
-		// 	log.Printf("Error adding audio transceiver: %s", err)
+		// 	log.Printf("[%s] Error adding audio transceiver: %s", err)
 		// 	w.WriteHeader(http.StatusInternalServerError)
 		// 	return
 		// }
 	} else {
-		log.Printf("NewSignaller: Initiator registering default codecs for clientID: %s", s.remotePeerID)
+		log.Printf("[%s] NewSignaller: Initiator registering default codecs", s.remotePeerID)
 		s.mediaEngine.RegisterDefaultCodecs()
-		log.Printf("NewSignaller: Initiator calling Negotiate() for clientID: %s", s.remotePeerID)
+		log.Printf("[%s] NewSignaller: Initiator calling Negotiate()", s.remotePeerID)
 		s.negotiator.Negotiate()
 	}
-	// peerConnection.OnICECandidate(s.handleICECandidate)
 
-	return &s, nil
+	return nil
 }
 
 func (s *Signaller) Initiator() bool {
@@ -110,7 +115,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 		},
 	}
 
-	log.Printf("Got ice candidate from server peer: %s for clientID: %s", payload, s.remotePeerID)
+	log.Printf("[%s] Got ice candidate from server peer: %s", payload, s.remotePeerID)
 	s.onSignal(payload)
 }
 
@@ -123,26 +128,26 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 
 	switch signal := signalPayload.Signal.(type) {
 	case Candidate:
-		log.Printf("Remote signal.canidate: %s from clientID: %s", signal.Candidate, s.remotePeerID)
+		log.Printf("[%s] Remote signal.canidate: %s ", signal.Candidate, s.remotePeerID)
 		return s.peerConnection.AddICECandidate(signal.Candidate)
 	case Renegotiate:
-		log.Printf("Remote signal.renegotiate from clientID: %s", s.remotePeerID)
-		log.Printf("Calling signaller.Negotiate() because remote peer wanted to negotiate")
+		log.Printf("[%s] Remote signal.renegotiate ", s.remotePeerID)
+		log.Printf("[%s] Calling signaller.Negotiate() because remote peer wanted to negotiate", s.remotePeerID)
 		s.Negotiate()
 		return nil
 	case TransceiverRequest:
-		log.Printf("Remote signal.transceiverRequest: %s from clientID: %s", signal.TransceiverRequest.Kind, s.remotePeerID)
+		log.Printf("[%s] Remote signal.transceiverRequest: %s", s.remotePeerID, signal.TransceiverRequest.Kind)
 		return s.handleTransceiverRequest(signal)
 	case webrtc.SessionDescription:
-		sdpLog.Printf("Remote signal.type: %s, signal.sdp: %s from clientID: %s", signal.Type, signal.SDP, s.remotePeerID)
+		sdpLog.Printf("[%s] Remote signal.type: %s, signal.sdp: %s", s.remotePeerID, signal.Type, signal.SDP)
 		return s.handleRemoteSDP(signal)
 	default:
-		return fmt.Errorf("Unexpected signal: %#v from clientID: %s", signal, s.remotePeerID)
+		return fmt.Errorf("[%s] Unexpected signal: %#v ", s.remotePeerID, signal)
 	}
 }
 
 func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverRequest) (err error) {
-	log.Printf("Add recvonly transceiver per request %v from clientID: %s", transceiverRequest, s.remotePeerID)
+	log.Printf("[%s] Add recvonly transceiver per request %v", s.remotePeerID, transceiverRequest)
 
 	codecType := transceiverRequest.TransceiverRequest.Kind
 	var t *webrtc.RTPTransceiver
@@ -156,13 +161,13 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverReque
 		},
 	)
 	// }
-	log.Printf("Added %s transceiver, direction: %s for clientID: %s", codecType, t.Direction(), s.remotePeerID)
+	log.Printf("[%s] Added %s transceiver, direction: %s", s.remotePeerID, codecType, t.Direction())
 
 	if err != nil {
-		return fmt.Errorf("Error adding transceiver type %s for clientID: %s: %s", codecType, s.remotePeerID, err)
+		return fmt.Errorf("[%s] Error adding transceiver type %s: %s", s.remotePeerID, codecType, err)
 	}
 
-	log.Printf("Calling signaller.Negotiate() because a new transceiver was added for clientID: %s", s.remotePeerID)
+	log.Printf("[%s] Calling signaller.Negotiate() because a new transceiver was added", s.remotePeerID)
 	s.Negotiate()
 	return nil
 }
@@ -174,47 +179,47 @@ func (s *Signaller) handleRemoteSDP(sessionDescription webrtc.SessionDescription
 	case webrtc.SDPTypeAnswer:
 		return s.handleRemoteAnswer(sessionDescription)
 	default:
-		return fmt.Errorf("Unexpected sdp type: %s from clientID: %s", sessionDescription.Type, s.remotePeerID)
+		return fmt.Errorf("[%s] Unexpected sdp type: %s", s.remotePeerID, sessionDescription.Type)
 	}
 }
 
 func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescription) (err error) {
 	if err = s.mediaEngine.PopulateFromSDP(sessionDescription); err != nil {
-		return fmt.Errorf("Error populating codec info from SDP: %s", err)
+		return fmt.Errorf("[%s] Error populating codec info from SDP: %s", s.remotePeerID, err)
 	}
 
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
-		return fmt.Errorf("Error setting remote description: %w", err)
+		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
 	}
 	answer, err := s.peerConnection.CreateAnswer(nil)
 	if err != nil {
-		return fmt.Errorf("Error creating answer: %w", err)
+		return fmt.Errorf("[%s] Error creating answer: %w", s.remotePeerID, err)
 	}
 	if err := s.peerConnection.SetLocalDescription(answer); err != nil {
-		return fmt.Errorf("Error setting local description: %w", err)
+		return fmt.Errorf("[%s] Error setting local description: %w", s.remotePeerID, err)
 	}
 
-	sdpLog.Printf("Local signal.type: %s, signal.sdp: %s for clientID: %s", answer.Type, answer.SDP, s.remotePeerID)
+	sdpLog.Printf("[%s] Local signal.type: %s, signal.sdp: %s", s.remotePeerID, answer.Type, answer.SDP)
 	s.onSignal(NewPayloadSDP(s.localPeerID, answer))
 	return nil
 }
 
 func (s *Signaller) handleLocalRequestNegotiation() {
-	log.Printf("Sending renegotiation request to initiator clientID: %s", s.remotePeerID)
+	log.Printf("[%s] Sending renegotiation request to initiator", s.remotePeerID)
 	s.onSignal(NewPayloadRenegotiate(s.localPeerID))
 }
 
 func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
-	sdpLog.Printf("Local signal.type: %s for clientID: %s, signal.sdp: %s", offer.Type, s.remotePeerID, offer.SDP)
+	sdpLog.Printf("[%s] Local signal.type: %s, signal.sdp: %s", s.remotePeerID, offer.Type, offer.SDP)
 	if err != nil {
-		log.Printf("Error creating local offer for clientID: %s: %s", s.remotePeerID, err)
+		log.Printf("[%s] Error creating local offer: %s", s.remotePeerID, err)
 		// TODO abort connection
 		return
 	}
 
 	err = s.peerConnection.SetLocalDescription(offer)
 	if err != nil {
-		log.Printf("Error setting local description from local offer for clientID: %s: %s", s.remotePeerID, err)
+		log.Printf("[%s] Error setting local description from local offer: %s", s.remotePeerID, err)
 		// TODO abort connection
 		return
 	}
@@ -225,7 +230,7 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 // Sends a request for a new transceiver, only if the peer is not the initiator.
 func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) {
 	if !s.initiator {
-		log.Printf("Sending transceiver request to initiator clientID: %s", s.remotePeerID)
+		log.Printf("[%s] Sending transceiver request to initiator", s.remotePeerID)
 		s.onSignal(NewTransceiverRequest(s.localPeerID, kind, direction))
 	}
 }
@@ -239,7 +244,7 @@ func (s *Signaller) Negotiate() {
 
 func (s *Signaller) handleRemoteAnswer(sessionDescription webrtc.SessionDescription) (err error) {
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
-		return fmt.Errorf("Error setting remote description from clientID: %s: %w", s.remotePeerID, err)
+		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
 	}
 	return nil
 }

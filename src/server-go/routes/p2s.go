@@ -100,7 +100,7 @@ func NewPeerToServerRoomHandler(
 
 			switch msg.Type {
 			case "ready":
-				log.Printf("Initiator for clientID: %s is: %s", clientID, initiator)
+				log.Printf("[%s] Initiator: %s", clientID, initiator)
 
 				responseEventName = "users"
 				err = adapter.Emit(
@@ -117,7 +117,7 @@ func NewPeerToServerRoomHandler(
 					// only when we are the initiator
 					_, err = peerConnection.CreateDataChannel("test", nil)
 					if err != nil {
-						log.Printf("Error creating data channel")
+						log.Printf("[%s] Error creating data channel", clientID)
 						// TODO abort connection
 					}
 				}
@@ -134,13 +134,13 @@ func NewPeerToServerRoomHandler(
 						func(signal interface{}) {
 							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 							if err != nil {
-								log.Printf("Error sending local signal to remote clientID: %s: %s", clientID, err)
+								log.Printf("[%s] Error sending local signal: %s", clientID, err)
 								// TODO abort connection
 							}
 						},
 					)
 					if err != nil {
-						err = fmt.Errorf("Error initializing signaller: %s", err)
+						err = fmt.Errorf("[%s] Error initializing signaller: %s", clientID, err)
 						break
 					}
 					tracksManager.Add(room, clientID, peerConnection, signaller)
@@ -148,14 +148,14 @@ func NewPeerToServerRoomHandler(
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})
 				if signaller == nil {
-					err = fmt.Errorf("Ignoring signal because signaller is not initialized")
+					err = fmt.Errorf("[%s] Ignoring signal because signaller is not initialized", clientID)
 				} else {
 					err = signaller.Signal(payload)
 				}
 			}
 
 			if err != nil {
-				log.Printf("Error handling event (event: %s, room: %s, source: %s): %s", msg.Type, room, clientID, err)
+				log.Printf("[%s] Error handling event (event: %s, room: %s): %s", clientID, msg.Type, room, err)
 			}
 		}
 

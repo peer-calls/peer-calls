@@ -50,7 +50,7 @@ func newPeer(
 	}
 
 	peerConnection.OnICEConnectionStateChange(p.handleICEConnectionStateChange)
-	log.Printf("Setting PeerConnection.OnTrack listener for clientID: %s", clientID)
+	log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
 	peerConnection.OnTrack(p.handleTrack)
 
 	return p
@@ -66,7 +66,7 @@ func (p *peer) AddTrack(track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 
-	log.Printf("peer.AddTrack: add sendonly transceiver for track: %s to peer clientID: %s", track.ID(), p.clientID)
+	log.Printf("[%s] peer.AddTrack: add sendonly transceiver for track: %s: %s", p.clientID, track.ID())
 	// rtpSender, err := p.peerConnection.AddTrack(track)
 	t, err := p.peerConnection.AddTransceiverFromTrack(
 		track,
@@ -76,7 +76,7 @@ func (p *peer) AddTrack(track *webrtc.Track) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("peer.AddTrack: error adding track: %s to peer clientID: %s: %s", track.ID(), p.clientID, err)
+		return fmt.Errorf("[%s] peer.AddTrack: error adding track: %s: %s", p.clientID, track.ID(), err)
 	}
 
 	p.rtpSenderByTrack[track] = t.Sender()
@@ -87,20 +87,17 @@ func (p *peer) AddTrack(track *webrtc.Track) error {
 func (p *peer) RemoveTrack(track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
-	log.Printf("peer.RemoveTrack: %s from peer clientID: %s", track.ID(), p.clientID)
+	log.Printf("[%s] peer.RemoveTrack: %s", p.clientID, track.ID())
 	rtpSender, ok := p.rtpSenderByTrack[track]
 	if !ok {
-		return fmt.Errorf("peer.RemoveTrack: cannot find sender for track: %s, clientID: %s", track.ID(), p.clientID)
+		return fmt.Errorf("[%s] peer.RemoveTrack: cannot find sender for track: %s", p.clientID, track.ID())
 	}
 	delete(p.rtpSenderByTrack, track)
 	return p.peerConnection.RemoveTrack(rtpSender)
 }
 
 func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
-	log.Printf("Peer connection state changed, clientID: %s, state: %s",
-		p.clientID,
-		connectionState.String(),
-	)
+	log.Printf("[%s] Peer connection state changed: %s", p.clientID, connectionState.String())
 	// if connectionState == webrtc.ICEConnectionStateClosed ||
 	// 	connectionState == webrtc.ICEConnectionStateDisconnected ||
 	// 	connectionState == webrtc.ICEConnectionStateFailed {
@@ -112,7 +109,7 @@ func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 }
 
 func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
-	log.Printf("handleTrack %s for clientID: %s (type: %s)", remoteTrack.ID(), p.clientID, remoteTrack.Kind())
+	log.Printf("[%s] peer.handleTrack %s (type: %s)", p.clientID, remoteTrack.ID(), remoteTrack.Kind())
 	localTrack, err := p.startCopyingTrack(remoteTrack)
 	if err != nil {
 		log.Printf("Error copying remote track: %s", err)
@@ -122,7 +119,7 @@ func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.localTracks = append(p.localTracks, localTrack)
 	p.localTracksMu.Unlock()
 
-	log.Printf("handleTrack add track to list of local tracks: %s for clientID: %s", localTrack.ID(), p.clientID)
+	log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
 	p.onTrack(p.clientID, localTrack)
 }
 
@@ -140,12 +137,13 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 		remoteTrackLabel = remoteTrackID
 	}
 	localTrackID := "copy-" + p.clientID + "-" + remoteTrackID
-	log.Printf("startCopyingTrack: %s to %s for peer clientID: %s, ssrc: %d", remoteTrack.ID(), localTrackID, p.clientID, remoteTrack.SSRC())
+	log.Printf("[%s] peer.startCopyingTrack: %s to %s, ssrc: %d", p.clientID, remoteTrack.ID(), localTrackID, remoteTrack.SSRC())
 
+	ssrc := remoteTrack.SSRC()
 	// Create a local track, all our SFU clients will be fed via this track
-	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), remoteTrack.SSRC(), localTrackID, remoteTrackLabel)
+	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), ssrc, localTrackID, remoteTrackLabel)
 	if err != nil {
-		err = fmt.Errorf("startCopyingTrack: error creating new track, trackID: %s, clientID: %s, error: %s", remoteTrack.ID(), p.clientID, err)
+		err = fmt.Errorf("[%s] peer.startCopyingTrack: error creating new track, trackID: %s, error: %s", p.clientID, remoteTrack.ID(), err)
 		return nil, err
 	}
 
@@ -158,14 +156,14 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 			err := p.peerConnection.WriteRTCP(
 				[]rtcp.Packet{
 					&rtcp.PictureLossIndication{
-						MediaSSRC: remoteTrack.SSRC(),
+						MediaSSRC: ssrc,
 					},
 				},
 			)
 			if err != nil {
-				log.Printf("Error sending rtcp PLI for local track: %s for clientID: %s: %s",
-					localTrackID,
+				log.Printf("[%s] Error sending rtcp PLI for local track: %s: %s",
 					p.clientID,
+					localTrackID,
 					err,
 				)
 			}
@@ -179,9 +177,9 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 			i, err := remoteTrack.Read(rtpBuf)
 			if err != nil {
 				log.Printf(
-					"Error reading from remote track: %s for clientID: %s: %s",
-					remoteTrack.ID(),
+					"[%s] Error reading from remote track: %s: %s",
 					p.clientID,
+					remoteTrack.ID(),
 					err,
 				)
 				return
@@ -190,9 +188,9 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			if _, err = localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
 				log.Printf(
-					"Error writing to local track: %s for clientID: %s: %s",
-					localTrackID,
+					"[%s] Error writing to local track: %s: %s",
 					p.clientID,
+					localTrackID,
 					err,
 				)
 				return
