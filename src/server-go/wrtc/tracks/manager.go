@@ -101,6 +101,7 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 			continue
 		}
 		for _, track := range existingPeerInRoom.peer.Tracks() {
+			// TODO what if tracks list changes in the meantime?
 			err := addTrackToPeer(peerJoiningRoom, track)
 			if err != nil {
 				log.Printf(
