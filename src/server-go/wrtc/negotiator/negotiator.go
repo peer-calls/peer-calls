@@ -53,6 +53,7 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 		n.isNegotiating = false
 
 		if n.queuedNegotiation {
+			n.isNegotiating = true
 			log.Printf("Executing queued negotiation")
 			n.queuedNegotiation = false
 			n.negotiate()
