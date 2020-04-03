@@ -60,6 +60,7 @@ func NewSignaller(
 	s.negotiator = negotiator
 
 	if !initiator {
+		log.Printf("NewSignaller: Non-Initiator add recvonly transceiver for clientID: %s", remotePeerID)
 		_, err := peerConnection.AddTransceiverFromKind(
 			webrtc.RTPCodecTypeVideo,
 			webrtc.RtpTransceiverInit{
@@ -83,9 +84,9 @@ func NewSignaller(
 		// 	return
 		// }
 	} else {
-		log.Printf("Registering default codecs for clientID: %s", s.remotePeerID)
+		log.Printf("NewSignaller: Initiator registering default codecs for clientID: %s", s.remotePeerID)
 		s.mediaEngine.RegisterDefaultCodecs()
-		log.Printf("Peer is initiator, calling Negotiate() for clientID: %s", s.remotePeerID)
+		log.Printf("NewSignaller: Initiator calling Negotiate() for clientID: %s", s.remotePeerID)
 		s.negotiator.Negotiate()
 	}
 	// peerConnection.OnICECandidate(s.handleICECandidate)
@@ -141,7 +142,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 }
 
 func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverRequest) (err error) {
-	log.Printf("Got transceiver request %v from clientID: %s", transceiverRequest, s.remotePeerID)
+	log.Printf("Add recvonly transceiver per request %v from clientID: %s", transceiverRequest, s.remotePeerID)
 
 	codecType := transceiverRequest.TransceiverRequest.Kind
 	var t *webrtc.RTPTransceiver
