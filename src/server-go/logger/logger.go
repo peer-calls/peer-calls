@@ -82,11 +82,12 @@ func (l *LoggerFactory) GetLogger(name string) *Logger {
 	logger, ok := l.loggers[name]
 	if !ok {
 		_, enabled := l.defaultEnabled[name]
+		_, disabled := l.defaultEnabled["-"+name]
 		_, allEnabled := l.defaultEnabled["*"]
-		logger = NewLogger(name, l.out, enabled || allEnabled)
+		logger = NewLogger(name, l.out, enabled || allEnabled && !disabled)
 		l.loggers[name] = logger
 	}
 	return logger
 }
 
-var GetLogger = NewLoggerFactoryFromEnv("", os.Stderr).GetLogger
+var GetLogger = NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr).GetLogger
