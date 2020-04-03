@@ -1,6 +1,7 @@
 package tracks
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/jeremija/peer-calls/src/server-go/logger"
@@ -40,31 +41,32 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 	t.mu.Lock()
 
 	for otherClientID, otherPeerInRoom := range t.peers {
-		// if otherClientID != clientID {
-		err := otherPeerInRoom.peer.AddTrack(track)
-		if err != nil {
-			log.Printf("TracksManager.addTrack Error adding track: %s to clientID: %s (source clientID: %s): %s)", track.ID(), otherClientID, clientID, err)
-			continue
+		if otherClientID != clientID {
+			if err := addTrackToPeer(otherPeerInRoom, track); err != nil {
+				log.Printf("TracksManager.addTrack Error adding track: %s", err)
+				continue
+			}
 		}
-
-		kind := track.Kind()
-		signaller := otherPeerInRoom.signaller
-		log.Printf("Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", kind)
-		// adapter.Emit(clientID, wsmessage.NewMessage("signal", room, map[string]interface{}{
-		// 	"userId": localPeerID,
-		// 	"signal": map[string]interface{}{
-		// 		"transceiverRequest": map[string]string{"kind": kind},
-		// 	},
-		// }))
-		if signaller.Initiator() {
-			signaller.Negotiate()
-		} else {
-			signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
-		}
-		// }
 	}
 
 	t.mu.Unlock()
+}
+
+func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
+	peer := peerInRoom.peer
+	if err := peer.AddTrack(track); err != nil {
+		return fmt.Errorf("addTrackToPeer Error adding track: %s to clientID: %s: %s", track.ID(), peer.ClientID(), err)
+	}
+
+	kind := track.Kind()
+	signaller := peerInRoom.signaller
+	log.Printf("Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", kind)
+	if signaller.Initiator() {
+		signaller.Negotiate()
+	} else {
+		signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
+	}
+	return nil
 }
 
 func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) {
@@ -99,7 +101,7 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 			continue
 		}
 		for _, track := range existingPeerInRoom.peer.Tracks() {
-			err := peerJoiningRoom.peer.AddTrack(track)
+			err := addTrackToPeer(peerJoiningRoom, track)
 			if err != nil {
 				log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
@@ -107,7 +109,6 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 					clientID,
 					err,
 				)
-				continue
 			}
 		}
 	}
