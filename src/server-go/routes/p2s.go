@@ -20,7 +20,7 @@ type TracksManager interface {
 	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller)
 }
 
-const serverIsInitiator = false
+const serverIsInitiator = true
 
 func NewPeerToServerRoomHandler(
 	wss *wshandler.WSS,
@@ -45,15 +45,12 @@ func NewPeerToServerRoomHandler(
 	webrtcConfig := webrtc.Configuration{
 		ICEServers: webrtcICEServers,
 	}
-	mediaEngine := webrtc.MediaEngine{}
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
-
-		// mediaEngine := webrtc.MediaEngine{}
 		settingEngine := webrtc.SettingEngine{}
 		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
-			webrtc.WithMediaEngine(mediaEngine),
+			webrtc.WithMediaEngine(webrtc.MediaEngine{}),
 			webrtc.WithSettingEngine(settingEngine),
 		)
 
