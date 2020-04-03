@@ -133,7 +133,6 @@ func NewPeerToServerRoomHandler(
 						mediaEngine,
 						localPeerID,
 						func(signal interface{}) {
-							log.Printf("Sending local signal to remote clientID: %s", clientID)
 							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
 							if err != nil {
 								log.Printf("Error sending local signal to remote clientID: %s: %s", clientID, err)
