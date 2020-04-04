@@ -1,3 +1,4 @@
+import _debug from 'debug'
 import forEach from 'lodash/forEach'
 import omit from 'lodash/omit'
 import Peer from 'simple-peer'
@@ -5,6 +6,8 @@ import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { RemoveStreamAction, StreamType } from '../actions/StreamActions'
+
+const debug = _debug('peercalls')
 
 export type PeersState = Record<string, Peer.Instance>
 
@@ -15,6 +18,18 @@ let localStreams: Record<StreamType, MediaStream | undefined> = {
   desktop: undefined,
 }
 
+function removeTrackFromPeer(
+  peer: Peer.Instance,
+  track: MediaStreamTrack,
+  stream: MediaStream,
+) {
+  try {
+    peer.removeTrack(track, stream)
+  } catch (err) {
+    debug('peer.removeTrack: %s', err)
+  }
+}
+
 function handleRemoveStream(
   state: PeersState,
   action: RemoveStreamAction,
@@ -23,7 +38,7 @@ function handleRemoveStream(
   if (action.payload.userId === constants.ME) {
     forEach(state, peer => {
       stream.getTracks().forEach(track => {
-        peer.removeTrack(track, stream)
+        removeTrackFromPeer(peer, track, stream)
       })
     })
   }
@@ -46,7 +61,7 @@ function handleMediaStream(
     forEach(state, peer => {
       const localStream = localStreams[streamType]
       localStream && localStream.getTracks().forEach(track => {
-        peer.removeTrack(track, localStream)
+        removeTrackFromPeer(peer, track, localStream)
       })
       const stream = action.payload.stream
       stream.getTracks().forEach(track => {
