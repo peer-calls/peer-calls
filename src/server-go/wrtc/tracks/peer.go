@@ -66,21 +66,21 @@ func (p *peer) AddTrack(track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 
-	log.Printf("[%s] peer.AddTrack: add sendonly transceiver for track: %s: %s", p.clientID, track.ID())
-	// rtpSender, err := p.peerConnection.AddTrack(track)
-	t, err := p.peerConnection.AddTransceiverFromTrack(
-		track,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendonly,
-		},
-	)
+	log.Printf("[%s] peer.AddTrack: add sendonly transceiver for track: %s", p.clientID, track.ID())
+	rtpSender, err := p.peerConnection.AddTrack(track)
+	// t, err := p.peerConnection.AddTransceiverFromTrack(
+	// 	track,
+	// 	webrtc.RtpTransceiverInit{
+	// 		Direction: webrtc.RTPTransceiverDirectionSendonly,
+	// 	},
+	// )
 
 	if err != nil {
 		return fmt.Errorf("[%s] peer.AddTrack: error adding track: %s: %s", p.clientID, track.ID(), err)
 	}
 
-	p.rtpSenderByTrack[track] = t.Sender()
-	// p.rtpSenderByTrack[track] = rtpSender
+	// p.rtpSenderByTrack[track] = t.Sender()
+	p.rtpSenderByTrack[track] = rtpSender
 	return nil
 }
 

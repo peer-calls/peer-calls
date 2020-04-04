@@ -70,7 +70,7 @@ func (s *Signaller) initialize() error {
 		_, err := s.peerConnection.AddTransceiverFromKind(
 			webrtc.RTPCodecTypeVideo,
 			webrtc.RtpTransceiverInit{
-				Direction: webrtc.RTPTransceiverDirectionRecvonly,
+				Direction: webrtc.RTPTransceiverDirectionSendrecv,
 			},
 		)
 		if err != nil {
