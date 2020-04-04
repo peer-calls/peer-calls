@@ -18,7 +18,6 @@ matrix:
     install:
       - echo do nothing
     script:
-      - cd src/server-go
       - go build ./...
       - go test ./... -coverprofile=coverage.out
       - go tool cover -func=coverage.out

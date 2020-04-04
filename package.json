@@ -9,8 +9,8 @@
     "peer-calls": "./lib/index.js"
   },
   "scripts": {
-    "start": "cd src/server && go run main.go",
-    "start:server": "cd src/server && go run main.go",
+    "start": "go run src/server/main.go",
+    "start:server": "go run src/server/main.go",
     "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
     "build": "npm run css && npm run ts && npm run js && npm run js:uglify",
