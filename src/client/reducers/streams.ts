@@ -1,18 +1,15 @@
-import _debug from 'debug'
 import omit from 'lodash/omit'
 import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction } from '../actions/StreamActions'
 import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
 
-const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
 
 function safeCreateObjectURL (stream: MediaStream) {
   try {
     return createObjectURL(stream)
   } catch (err) {
-    // debug('Error using createObjectURL: %s', err)
     return undefined
   }
 }

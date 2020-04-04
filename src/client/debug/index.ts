@@ -1,6 +1,17 @@
-import { config, ICEServer } from '../../server/config'
+type ICEServer = {
+  urls: string[]
+  auth: 'secret'
+  username: string
+  secret: string
+} | {
+  urls: string[]
+  auth: undefined
+}
 
-async function checkTURNServer (turnConfig: ICEServer, timeoutDuration = 5000) {
+export async function checkTURNServer (
+  turnConfig: ICEServer,
+  timeoutDuration = 5000,
+) {
   console.log('checking turn server', turnConfig)
 
   const timeout = new Promise<unknown>((resolve, reject) => {
@@ -42,7 +53,3 @@ async function checkTURNServer (turnConfig: ICEServer, timeoutDuration = 5000) {
 
   return Promise.race([ timeout, start() ])
 }
-
-checkTURNServer(config.iceServers[0], 10000)
-.then(console.log.bind(console))
-.catch(console.error.bind(console))
