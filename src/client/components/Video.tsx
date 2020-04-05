@@ -3,6 +3,7 @@ import classnames from 'classnames'
 import { StreamWithURL } from '../reducers/streams'
 import { NicknameMessage } from '../actions/PeerActions'
 import { Nickname } from './Nickname'
+import { Dropdown } from './Dropdown'
 
 export interface VideoProps {
   // videos: Record<string, unknown>
@@ -20,34 +21,13 @@ export interface VideoProps {
 
 export default class Video extends React.PureComponent<VideoProps> {
   videoRef = React.createRef<HTMLVideoElement>()
-  timeout?: number
 
   static defaultProps = {
     muted: false,
     mirrored: false,
   }
   handleClick: ReactEventHandler<HTMLVideoElement> = e => {
-    const { onClick, userId } = this.props
-    if (this.timeout) {
-      // if the timeout was cancelled, execute click
-      this.props.play()
-      onClick(userId)
-    }
-    this.timeout = undefined
-  }
-  handleMouseDown: ReactEventHandler<HTMLVideoElement> = e => {
-    clearTimeout(this.timeout)
-    this.timeout = window.setTimeout(this.toggleCover, 300)
-  }
-  handleMouseUp: ReactEventHandler<HTMLVideoElement> = e => {
-    clearTimeout(this.timeout)
-  }
-  toggleCover = () => {
-    this.timeout = undefined
-    const v = this.videoRef.current
-    if (v) {
-      v.style.objectFit = v.style.objectFit ? '' : 'cover'
-    }
+    this.props.play()
   }
   componentDidMount () {
     this.componentDidUpdate()
@@ -65,19 +45,31 @@ export default class Video extends React.PureComponent<VideoProps> {
       video.src = url || ''
     }
   }
+  handleMaximize = () => {
+    this.props.onClick(this.props.userId)
+  }
+  handleToggleCover = () => {
+    const v = this.videoRef.current
+    if (v) {
+      v.style.objectFit = v.style.objectFit ? '' : 'cover'
+    }
+  }
   render () {
     const { active, mirrored, muted, userId } = this.props
     const className = classnames('video-container', { active, mirrored })
+
     return (
       <div className={className}>
+        <div className='video-buttons'>
+          <Dropdown label={'☰'}>
+            <li onClick={this.handleMaximize}>Maximize</li>
+            <li onClick={this.handleToggleCover}>Fit to screen</li>
+          </Dropdown>
+        </div>
         <video
           id={`video-${userId}`}
           autoPlay
           onClick={this.handleClick}
-          onMouseDown={this.handleMouseDown}
-          onTouchStart={this.handleMouseDown}
-          onMouseUp={this.handleMouseUp}
-          onTouchEnd={this.handleMouseUp}
           onLoadedMetadata={() => this.props.play()}
           playsInline
           ref={this.videoRef}
