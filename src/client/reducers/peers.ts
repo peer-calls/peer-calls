@@ -1,6 +1,5 @@
 import _debug from 'debug'
 import forEach from 'lodash/forEach'
-import _debug from 'debug'
 import omit from 'lodash/omit'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
