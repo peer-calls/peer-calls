@@ -96,7 +96,8 @@ describe('App', () => {
         },
       }
       state.peers = {
-        test: {} as any,
+        [constants.ME]: {} as any,
+        'other-user': {} as any,
       }
       state.notifications = {
         'notification1': {

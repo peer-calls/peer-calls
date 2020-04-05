@@ -126,6 +126,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           play={this.props.play}
           active={this.props.active}
           nicknames={this.props.nicknames}
+          peers={this.props.peers}
           toggleActive={this.props.toggleActive}
         />
       </div>

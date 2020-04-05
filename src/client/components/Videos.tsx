@@ -12,6 +12,7 @@ export interface VideosProps {
   onChangeNickname: (message: NicknameMessage) => void
   nicknames: Nicknames
   play: () => void
+  peers: Record<string, unknown>
   streams: StreamsState
   toggleActive: (userId: string) => void
 }
@@ -19,7 +20,7 @@ export interface VideosProps {
 interface StreamProps {
   active: boolean
   key: string
-  stream: StreamWithURL
+  stream?: StreamWithURL
   userId: string
   muted?: boolean
   localUser?: boolean
@@ -28,19 +29,40 @@ interface StreamProps {
 
 export default class Videos extends React.PureComponent<VideosProps> {
   private getStreams() {
-    const { active } = this.props
+    const { active, peers, streams } = this.props
     let activeProps: StreamProps | undefined
     const otherProps: StreamProps[] = []
-    forEach(this.props.streams, (userStreams, userId) => {
+
+    function addStreamsByUser(userId: string) {
       const localUser = userId === ME
+
+      const userStreams = streams[userId]
+
+      if (!userStreams) {
+        const key = userId + '_0'
+        const isActive = active === key
+        const props: StreamProps = {
+          active: isActive,
+          key,
+          userId,
+          localUser,
+        }
+        if (isActive) {
+          activeProps = props
+        } else {
+          otherProps.push(props)
+        }
+        return
+      }
+
       userStreams.streams.forEach((stream, i) => {
-        const key = userStreams.userId + '_' + i
+        const key = userId + '_' + i
         const isActive = active === key
         const props: StreamProps = {
           active: isActive,
           key,
           stream: stream,
-          userId: userStreams.userId,
+          userId,
           mirrored: localUser && stream.type === 'camera',
           muted: localUser,
           localUser,
@@ -51,7 +73,11 @@ export default class Videos extends React.PureComponent<VideosProps> {
           otherProps.push(props)
         }
       })
-    })
+    }
+
+    addStreamsByUser(ME)
+    forEach(peers, (_, userId) => addStreamsByUser(userId))
+
     return { activeProps, otherProps }
   }
   render() {
