@@ -48,6 +48,17 @@ export interface RemoveStreamTrackAction {
   payload: RemoveStreamTrackPayload
 }
 
+export interface AddStreamTrackPayload {
+  userId: string
+  stream: MediaStream
+  track: MediaStreamTrack
+}
+
+export interface AddStreamTrackAction {
+  type: 'PEER_STREAM_TRACK_ADD'
+  payload: AddStreamTrackPayload
+}
+
 export interface UserIdPayload {
   userId: string
 }
@@ -63,6 +74,13 @@ export const removeStream = (
 ): RemoveStreamAction => ({
   type: constants.STREAM_REMOVE,
   payload: { userId, stream },
+})
+
+export const addTrack = (
+  payload: AddStreamTrackPayload,
+): AddStreamTrackAction => ({
+  type: constants.STREAM_TRACK_ADD,
+  payload,
 })
 
 export const removeTrack = (
@@ -87,4 +105,5 @@ export type StreamAction =
   RemoveStreamAction |
   SetActiveStreamAction |
   ToggleActiveStreamAction |
-  RemoveStreamTrackAction
+  RemoveStreamTrackAction |
+  AddStreamTrackAction

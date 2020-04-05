@@ -1,7 +1,7 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
-import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE } from '../constants'
+import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction, AddStreamTrackAction } from '../actions/StreamActions'
+import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE, STREAM_TRACK_ADD } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
 
@@ -120,6 +120,28 @@ function removeStreamTrack(
   return state
 }
 
+function addStreamTrack(
+  state: StreamsState, payload: AddStreamTrackAction['payload'],
+): StreamsState {
+  const { userId, stream, track } = payload
+  const userStreams = state[userId]
+  const existingUserStream =
+    userStreams && userStreams.streams.find(s => s.stream === stream)
+
+  if (!stream.getTracks().includes(track)) {
+    stream.addTrack(track)
+  }
+
+  if (!existingUserStream) {
+    return addStream(state, {
+      stream: payload.stream,
+      userId: payload.userId,
+    })
+  }
+
+  return state
+}
+
 export default function streams(
   state = defaultState,
     action: StreamAction | MediaStreamAction,
@@ -129,6 +151,8 @@ export default function streams(
       return addStream(state, action.payload)
     case STREAM_REMOVE:
       return removeStream(state, action.payload)
+    case STREAM_TRACK_ADD:
+      return addStreamTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
     case MEDIA_STREAM:

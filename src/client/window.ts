@@ -14,3 +14,4 @@ export const iceServers = JSON.parse(valueOf('iceServers')!)
 export const nickname = valueOf('nickname')!
 
 export const MediaStream = window.MediaStream
+export const MediaStreamTrack = window.MediaStreamTrack

@@ -3,26 +3,25 @@ export const createObjectURL = jest.fn()
 export const revokeObjectURL = jest.fn()
 
 export class MediaStream {
-  getTracks() {
-    return [{
-      stop: jest.fn(),
-    }, {
-      stop: jest.fn(),
-    }]
-  }
-  getVideoTracks () {
-    return [{
-      enabled: true,
-      stop: jest.fn(),
-    }]
-  }
-  getAudioTracks () {
-    return [{
-      stop: jest.fn(),
-      enabled: true,
-    }]
-  }
+  addTrack = jest.fn()
+  removeTrack = jest.fn()
+  getTracks = jest.fn().mockReturnValue([{
+    stop: jest.fn(),
+  }, {
+    stop: jest.fn(),
+  }])
+  getVideoTracks = jest.fn().mockReturnValue([{
+    enabled: true,
+    stop: jest.fn(),
+  }])
+  getAudioTracks = jest.fn().mockReturnValue([{
+    stop: jest.fn(),
+    enabled: true,
+  }])
 }
+
+export class MediaStreamTrack {}
+
 export const navigator = window.navigator
 
 ;(window as any).navigator.mediaDevices = {}
