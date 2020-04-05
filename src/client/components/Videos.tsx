@@ -95,6 +95,12 @@ export default class Videos extends React.PureComponent<VideosProps> {
       />
     )
 
+    if (otherProps.length) {
+      for (let i = 0; i < 10; i++) {
+        otherProps.push(otherProps[0])
+      }
+    }
+
     const otherVideos = (
       <div className="videos" key="videos">
         {otherProps.map(props => (
