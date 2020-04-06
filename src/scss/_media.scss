@@ -3,23 +3,10 @@
   max-width: 450px;
   text-align: center;
 
-  & > * {
-    & + * {
-      margin-top: 1rem;
-    }
-    @media(max-width: 650px) {
-      display: block;
-      width: 100%;
-    }
-    @media(min-width: 651px) {
-      & + * {
-        margin-left: 1rem;
-      }
-    }
+  display: flex;
+  flex-direction: column;
 
-  }
-
-  select {
+  select, input {
     padding: 15px 10px;
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -27,9 +14,12 @@
     border: none;
     border-radius: 4px;
     border-bottom: 2px solid darken(#fff, 10%);
-    text-align: center;
     color: black;
     background-color: white;
+    margin-bottom: 1rem
+  }
+
+  select {
     cursor: pointer;
     &:hover {
       background-color: darken(white, 5%);
@@ -39,7 +29,7 @@
     }
   }
 
-  select, button {
+  select, input, button {
     font-size: 1.2rem;
   }
 

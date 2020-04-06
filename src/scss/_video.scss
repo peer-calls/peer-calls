@@ -71,10 +71,9 @@ $shadow-size: 2px;
   flex: 1 1 25%;
 }
 
-@media(max-width: 600px) {
+@media(max-width: 1200px) {
   .videos-grid {
     .video-container {
-      flex: 1 1 50%;
 
       &:first-child:nth-last-child(2) ~ .video-container {
         // split vertically when only two children
@@ -82,13 +81,20 @@ $shadow-size: 2px;
       }
     }
   }
+}
 
+@media(max-width: 600px) {
+  .videos-grid {
+    .video-container {
+      flex: 1 1 50%;
+    }
+  }
 }
 
 .videos-toolbar {
   display: flex;
   flex-wrap: nowrap;
-  justify-content: end;
+  justify-content: flex-end;
   overflow-x: auto;
   overflow-y: hidden;
   z-index: 0;

@@ -6,6 +6,7 @@ import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { RemoveStreamAction, StreamType } from '../actions/StreamActions'
+import { HangUpAction } from '../actions/CallActions'
 
 const debug = _debug('peercalls')
 
@@ -75,7 +76,7 @@ function handleMediaStream(
 
 export default function peers(
   state = defaultState,
-  action: PeerAction | MediaStreamAction | RemoveStreamAction,
+  action: PeerAction | MediaStreamAction | RemoveStreamAction | HangUpAction,
 ): PeersState {
   switch (action.type) {
     case constants.PEER_ADD:
@@ -85,12 +86,14 @@ export default function peers(
       }
     case constants.PEER_REMOVE:
       return omit(state, [action.payload.userId])
-    case constants.PEERS_DESTROY:
+    case constants.HANG_UP:
       localStreams = {
         camera: undefined,
         desktop: undefined,
       }
-      forEach(state, peer => peer.destroy())
+      setTimeout(() => {
+        forEach(state, peer => peer.destroy())
+      })
       return defaultState
     case constants.STREAM_REMOVE:
       return handleRemoveStream(state, action)

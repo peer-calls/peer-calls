@@ -236,18 +236,9 @@ export const removePeer = (userId: string): RemovePeerAction => ({
   payload: { userId },
 })
 
-export interface DestroyPeersAction {
-  type: 'PEERS_DESTROY'
-}
-
-export const destroyPeers = (): DestroyPeersAction => ({
-  type: constants.PEERS_DESTROY,
-})
-
 export type PeerAction =
   AddPeerAction |
-  RemovePeerAction |
-  DestroyPeersAction
+  RemovePeerAction
 
 export interface TextMessage {
   type: 'text'
@@ -306,8 +297,6 @@ export const sendMessage = (message: Message) =>
         userId: constants.ME,
         nickname: message.payload.nickname,
       }))
-      window.localStorage &&
-        (window.localStorage.nickname = message.payload.nickname)
       break
     default:
       dispatch(ChatActions.addMessage({
