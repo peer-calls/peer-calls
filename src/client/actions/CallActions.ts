@@ -1,11 +1,10 @@
+import { makeAction, GetAsyncAction } from '../async'
+import { DIAL, SOCKET_EVENT_READY, SOCKET_EVENT_USERS } from '../constants'
 import socket from '../socket'
 import { ThunkResult } from '../store'
 import { callId, userId } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
-import _debug from 'debug'
-
-const debug = _debug('peercalls')
 
 export interface InitAction {
   type: 'INIT'
@@ -39,10 +38,16 @@ async (dispatch, getState) => {
   })
 }
 
-export const dial = () => {
-  debug('dial: emit ready for room: %s', callId)
-  socket.emit('ready', {
-    room: callId,
-    userId,
-  })
-}
+export const dial = makeAction(
+  DIAL,
+  () => new Promise<void>((resolve, reject) => {
+    socket.emit(SOCKET_EVENT_READY, {
+      room: callId,
+      userId,
+    })
+    socket.once(SOCKET_EVENT_USERS, () => resolve())
+    setTimeout(reject, 10000, new Error('Dial timed out!'))
+  }),
+)
+
+export type DialAction = GetAsyncAction<ReturnType<typeof dial>>

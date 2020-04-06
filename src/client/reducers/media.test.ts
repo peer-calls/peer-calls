@@ -1,9 +1,14 @@
 jest.mock('simple-peer')
+jest.mock('../socket')
+jest.useFakeTimers()
 
 import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
+import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, DIAL_STATE_HUNG_UP, DIAL_STATE_DIALLING, DIAL_STATE_IN_CALL } from '../constants'
 import { createStore, Store } from '../store'
 import SimplePeer from 'simple-peer'
+import { dial } from '../actions/CallActions'
+import socket from '../socket'
+import { destroyPeers } from '../actions/PeerActions'
 
 describe('media', () => {
 
@@ -218,6 +223,47 @@ describe('media', () => {
       expect(localStreams.streams.length).toBe(1)
       expect(localStreams.streams[0].type).toBe(STREAM_TYPE_DESKTOP)
       expect(localStreams.streams[0].stream).toBe(stream)
+    })
+  })
+
+  describe('dialState', () => {
+    async function successfulDial() {
+      const promise = store.dispatch(dial())
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_DIALLING)
+      socket.emit('users', {
+        initiator: 'test',
+        users: [],
+      })
+      jest.runAllTimers()
+      await promise
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_IN_CALL)
+    }
+
+    it('has dialState HUNG_UP by default', () => {
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
+    })
+    it('changes state from DIALLING to HUNG_UP', async () => {
+      const promise = store.dispatch(dial())
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_DIALLING)
+      jest.runAllTimers()
+      let err!: Error
+      try {
+        await promise
+      } catch (e) {
+        err = e
+      }
+      expect(err).toBeTruthy()
+      expect(err.message).toMatch(/Dial timed out/)
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
+    })
+    it('changes state from DIALLING to IN_CALL', async () => {
+      await successfulDial()
+    })
+
+    it('cahnges state to HUNG_UP when destroyPeers is called', async() => {
+      await successfulDial()
+      store.dispatch(destroyPeers())
+      expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
     })
   })
 

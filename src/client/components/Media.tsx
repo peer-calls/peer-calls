@@ -5,12 +5,13 @@ import { MediaState } from '../reducers/media'
 import { State } from '../store'
 import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
-import { ME, STREAM_TYPE_CAMERA } from '../constants'
+import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
 import { setNickname } from '../actions/NicknameActions'
 
 export type MediaProps = MediaState & {
-  onDial: () => void
+  dial: typeof dial
+  dialState: DialState
   visible: boolean
   enumerateDevices: typeof enumerateDevices
   onSetVideoConstraint: typeof setVideoConstraint
@@ -25,20 +26,16 @@ export type MediaProps = MediaState & {
 }
 
 function mapStateToProps(state: State) {
-  const localStream = state.streams[ME]
-  const hidden = !!localStream &&
-    localStream.streams.filter(s => s.type === STREAM_TYPE_CAMERA).length > 0
-  const visible = !hidden
   return {
     ...state.media,
     nickname: state.nicknames[ME],
-    visible,
+    visible: state.media.dialState === DIAL_STATE_HUNG_UP,
   }
 }
 
 const mapDispatchToProps = {
   enumerateDevices,
-  onDial: dial,
+  dial,
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
   onSetNickname: setNickname,
@@ -58,16 +55,20 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
 
   React.useMemo(async () => await props.enumerateDevices(), [])
 
-  async function onSave(event: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const { audio, video } = props
     try {
       await props.getMediaStream({ audio, video })
     } catch (err) {
-      props.logError('Error: {0}', err)
-    } finally {
-      props.logInfo('Dialling...')
-      props.onDial()
+      props.logError('Error getting media stream: {0}', err)
+    }
+
+    props.logInfo('Dialling...')
+    try {
+      await props.dial()
+    } catch (err) {
+      props.logError('Error dialling: {0}', err)
     }
   }
 
@@ -81,17 +82,23 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
     props.onSetAudioConstraint(constraint)
   }
 
+  function onNicknameChange(event: React.ChangeEvent<HTMLInputElement>) {
+    props.onSetNickname({
+      nickname: event.target.value,
+      userId: ME,
+    })
+  }
+
   const videoId = JSON.stringify(props.video)
   const audioId = JSON.stringify(props.audio)
 
   return (
-    <form className='media' onSubmit={onSave}>
+    <form className='media' onSubmit={onSubmit}>
       <input
+        name='nickname'
         type='text'
-        onChange={e => props.onSetNickname({
-          nickname: e.target.value,
-          userId: ME,
-        })}
+        placeholder='Nickname'
+        onChange={onNicknameChange}
         value={props.nickname}
       />
 
@@ -176,7 +183,7 @@ function Options(props: OptionsProps) {
   const label = labels[props.type]
   return (
     <React.Fragment>
-      <option value='false'>Disable {label}</option>
+      <option value='false'>No {label}</option>
       <option value={props.default}>Default {label}</option>
       {
         props.devices

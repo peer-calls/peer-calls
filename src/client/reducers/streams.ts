@@ -1,9 +1,10 @@
 import _debug from 'debug'
 import omit from 'lodash/omit'
 import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction, AddStreamTrackAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE, STREAM_TRACK_ADD } from '../constants'
+import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE, STREAM_TRACK_ADD, PEERS_DESTROY } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
+import { DestroyPeersAction } from '../actions/PeerActions'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -144,7 +145,7 @@ function addStreamTrack(
 
 export default function streams(
   state = defaultState,
-    action: StreamAction | MediaStreamAction,
+    action: StreamAction | MediaStreamAction | DestroyPeersAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
@@ -155,6 +156,8 @@ export default function streams(
       return addStreamTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
+    case PEERS_DESTROY:
+      return defaultState
     case MEDIA_STREAM:
       if (action.status === 'resolved') {
         return addStream(state, action.payload)
