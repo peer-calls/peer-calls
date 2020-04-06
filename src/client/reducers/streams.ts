@@ -5,6 +5,7 @@ import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE, STREAM_TR
 import { createObjectURL, revokeObjectURL } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { DestroyPeersAction } from '../actions/PeerActions'
+import forEach from 'lodash/forEach'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -144,8 +145,8 @@ function addStreamTrack(
 }
 
 export default function streams(
-  state = defaultState,
-    action: StreamAction | MediaStreamAction | DestroyPeersAction,
+  state: StreamsState = defaultState,
+  action: StreamAction | MediaStreamAction | DestroyPeersAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
@@ -157,6 +158,14 @@ export default function streams(
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
     case PEERS_DESTROY:
+      forEach(state, userStreams => {
+        userStreams.streams.forEach(s => {
+          s.stream.getTracks().forEach(track => {
+            track.onmute = null
+            track.onunmute = null
+          })
+        })
+      })
       return defaultState
     case MEDIA_STREAM:
       if (action.status === 'resolved') {

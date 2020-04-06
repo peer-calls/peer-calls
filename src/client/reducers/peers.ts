@@ -90,7 +90,9 @@ export default function peers(
         camera: undefined,
         desktop: undefined,
       }
-      forEach(state, peer => peer.destroy())
+      setTimeout(() => {
+        forEach(state, peer => peer.destroy())
+      })
       return defaultState
     case constants.STREAM_REMOVE:
       return handleRemoveStream(state, action)
