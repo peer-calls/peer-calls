@@ -88,7 +88,7 @@ $shadow-size: 2px;
 .videos-toolbar {
   display: flex;
   flex-wrap: nowrap;
-  justify-content: end;
+  justify-content: flex-end;
   overflow-x: auto;
   overflow-y: hidden;
   z-index: 0;
