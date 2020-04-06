@@ -50,7 +50,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
       const userStreams = streams[userId]
 
       if (!userStreams) {
-        const key = userId
+        const key = getStreamKey(userId, undefined)
         const props: StreamProps = {
           key,
           userId,
