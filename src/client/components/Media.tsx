@@ -48,15 +48,13 @@ const mapDispatchToProps = {
 
 const c = connect(mapStateToProps, mapDispatchToProps)
 
-export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
-  if (!props.visible) {
-    return null
+export class MediaForm extends React.PureComponent<MediaProps> {
+  componentDidMount() {
+    this.props.enumerateDevices()
   }
-
-  React.useMemo(async () => await props.enumerateDevices(), [])
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const { props } = this
     const { audio, video } = props
     try {
       await props.getMediaStream({ audio, video })
@@ -71,67 +69,72 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
       props.logError('Error dialling: {0}', err)
     }
   }
-
-  function onVideoChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  handleVideoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const constraint: VideoConstraint = JSON.parse(event.target.value)
-    props.onSetVideoConstraint(constraint)
+    this.props.onSetVideoConstraint(constraint)
   }
 
-  function onAudioChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  handleAudioChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const constraint: AudioConstraint = JSON.parse(event.target.value)
-    props.onSetAudioConstraint(constraint)
+    this.props.onSetAudioConstraint(constraint)
   }
 
-  function onNicknameChange(event: React.ChangeEvent<HTMLInputElement>) {
-    props.onSetNickname({
+  handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.props.onSetNickname({
       nickname: event.target.value,
       userId: ME,
     })
   }
+  render() {
+    const { props } = this
+    if (!props.visible) {
+      return null
+    }
 
-  const videoId = JSON.stringify(props.video)
-  const audioId = JSON.stringify(props.audio)
+    const videoId = JSON.stringify(props.video)
+    const audioId = JSON.stringify(props.audio)
 
-  return (
-    <form className='media' onSubmit={onSubmit}>
-      <input
-        name='nickname'
-        type='text'
-        placeholder='Nickname'
-        onChange={onNicknameChange}
-        value={props.nickname}
-      />
-
-      <select
-        name='video-input'
-        onChange={onVideoChange}
-        value={videoId}
-      >
-        <Options
-          devices={props.devices}
-          default='{"facingMode":"user"}'
-          type='videoinput'
+    return (
+      <form className='media' onSubmit={this.handleSubmit}>
+        <input
+          name='nickname'
+          type='text'
+          placeholder='Nickname'
+          onChange={this.handleNicknameChange}
+          value={props.nickname}
         />
-      </select>
 
-      <select
-        name='audio-input'
-        onChange={onAudioChange}
-        value={audioId}
-      >
-        <Options
-          devices={props.devices}
-          default='true'
-          type='audioinput'
-        />
-      </select>
+        <select
+          name='video-input'
+          onChange={this.handleVideoChange}
+          value={videoId}
+        >
+          <Options
+            devices={props.devices}
+            default='{"facingMode":"user"}'
+            type='videoinput'
+          />
+        </select>
 
-      <button type='submit'>
-        Join Call
-      </button>
-    </form>
-  )
-})
+        <select
+          name='audio-input'
+          onChange={this.handleAudioChange}
+          value={audioId}
+        >
+          <Options
+            devices={props.devices}
+            default='true'
+            type='audioinput'
+          />
+        </select>
+
+        <button type='submit'>
+          Join Call
+        </button>
+      </form>
+    )
+  }
+}
 
 export interface AutoplayProps {
   play: () => void
