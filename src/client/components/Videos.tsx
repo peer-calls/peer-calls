@@ -6,32 +6,43 @@ import { getNickname } from '../nickname'
 import Video from './Video'
 import { Nicknames } from '../reducers/nicknames'
 import { NicknameMessage } from '../actions/PeerActions'
+import { getStreamKey, WindowStates, WindowState } from '../reducers/windowStates'
+import { MinimizeTogglePayload } from '../actions/StreamActions'
 
 export interface VideosProps {
-  active: string | null
   onChangeNickname: (message: NicknameMessage) => void
   nicknames: Nicknames
   play: () => void
   peers: Record<string, unknown>
   streams: StreamsState
-  toggleActive: (userId: string) => void
+  onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  windowStates: WindowStates
 }
 
 interface StreamProps {
-  active: boolean
   key: string
   stream?: StreamWithURL
   userId: string
   muted?: boolean
   localUser?: boolean
   mirrored?: boolean
+  windowState: WindowState
 }
 
 export default class Videos extends React.PureComponent<VideosProps> {
   private getStreams() {
-    const { active, peers, streams } = this.props
-    let activeProps: StreamProps | undefined
-    const otherProps: StreamProps[] = []
+    const { windowStates, peers, streams } = this.props
+
+    const minimized: StreamProps[] = []
+    const maximized: StreamProps[] = []
+
+    function addStreamProps(props: StreamProps) {
+      if (props.windowState === 'minimized') {
+        minimized.push(props)
+      } else {
+        maximized.push(props)
+      }
+    }
 
     function addStreamsByUser(userId: string) {
       const localUser = userId === ME
@@ -39,70 +50,47 @@ export default class Videos extends React.PureComponent<VideosProps> {
       const userStreams = streams[userId]
 
       if (!userStreams) {
-        const key = userId + '_0'
-        const isActive = active === key
+        const key = userId
         const props: StreamProps = {
-          active: isActive,
           key,
           userId,
           localUser,
+          windowState: windowStates[key],
         }
-        if (isActive) {
-          activeProps = props
-        } else {
-          otherProps.push(props)
-        }
+        addStreamProps(props)
         return
       }
 
       userStreams.streams.forEach((stream, i) => {
-        const key = userId + '_' + i
-        const isActive = active === key
+        const key = getStreamKey(userId, stream.stream.id)
         const props: StreamProps = {
-          active: isActive,
           key,
           stream: stream,
           userId,
           mirrored: localUser && stream.type === 'camera',
           muted: localUser,
           localUser,
+          windowState: windowStates[key],
         }
-        if (isActive) {
-          activeProps = props
-        } else {
-          otherProps.push(props)
-        }
+        addStreamProps(props)
       })
     }
 
     addStreamsByUser(ME)
     forEach(peers, (_, userId) => addStreamsByUser(userId))
 
-    return { activeProps, otherProps }
+    return { minimized, maximized }
   }
   render() {
-    const { activeProps, otherProps } = this.getStreams()
+    const { minimized, maximized } = this.getStreams()
 
-    const activeVideo = activeProps && (
-      <Video
-        {...activeProps}
-        key={activeProps.key}
-        userId={activeProps.key}
-        onClick={this.props.toggleActive}
-        play={this.props.play}
-        nickname={getNickname(this.props.nicknames, activeProps.userId)}
-        onChangeNickname={this.props.onChangeNickname}
-      />
-    )
-
-    const otherVideos = (
-      <div className="videos" key="videos">
-        {otherProps.map(props => (
+    const videosToolbar = (
+      <div className="videos videos-toolbar" key="videos-toolbar">
+        {minimized.map(props => (
           <Video
             {...props}
-            userId={props.key}
             key={props.key}
-            onClick={this.props.toggleActive}
+            onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
             nickname={getNickname(this.props.nicknames, props.userId)}
             onChangeNickname={this.props.onChangeNickname}
@@ -110,6 +98,22 @@ export default class Videos extends React.PureComponent<VideosProps> {
         ))}
       </div>
     )
-    return [activeVideo, otherVideos]
+
+    const videosGrid = (
+      <div className="videos videos-grid" key="videos-grid">
+        {maximized.map(props => (
+          <Video
+            {...props}
+            key={props.key}
+            onMinimizeToggle={this.props.onMinimizeToggle}
+            play={this.props.play}
+            nickname={getNickname(this.props.nicknames, props.userId)}
+            onChangeNickname={this.props.onChangeNickname}
+          />
+        ))}
+      </div>
+    )
+
+    return [videosToolbar, videosGrid]
   }
 }

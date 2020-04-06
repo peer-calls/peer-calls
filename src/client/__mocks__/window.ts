@@ -2,7 +2,10 @@ export const createObjectURL = jest.fn()
 .mockImplementation(object => 'blob://' + String(object))
 export const revokeObjectURL = jest.fn()
 
+let count = 0
+
 export class MediaStream {
+  id: string
   addTrack = jest.fn()
   removeTrack = jest.fn()
   getTracks = jest.fn().mockReturnValue([{
@@ -18,6 +21,10 @@ export class MediaStream {
     stop: jest.fn(),
     enabled: true,
   }])
+
+  constructor() {
+    this.id = String(++count)
+  }
 }
 
 export class MediaStreamTrack {}

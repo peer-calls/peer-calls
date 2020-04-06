@@ -23,18 +23,14 @@ export interface RemoveStreamPayload {
   stream: MediaStream
 }
 
-export interface SetActiveStreamPayload {
+export interface MinimizeTogglePayload {
   userId: string
+  streamId?: string
 }
 
-export interface SetActiveStreamAction {
-  type: 'ACTIVE_SET'
-  payload: SetActiveStreamPayload
-}
-
-export interface ToggleActiveStreamAction {
-  type: 'ACTIVE_TOGGLE'
-  payload: UserIdPayload
+export interface MinimizeToggleAction {
+  type: 'MINIMIZE_TOGGLE'
+  payload: MinimizeTogglePayload
 }
 
 export interface RemoveStreamTrackPayload {
@@ -90,20 +86,16 @@ export const removeTrack = (
   payload,
 })
 
-export const setActive = (userId: string): SetActiveStreamAction => ({
-  type: constants.ACTIVE_SET,
-  payload: { userId },
-})
-
-export const toggleActive = (userId: string): ToggleActiveStreamAction => ({
-  type: constants.ACTIVE_TOGGLE,
-  payload: { userId },
+export const minimizeToggle = (
+  payload: MinimizeTogglePayload,
+): MinimizeToggleAction => ({
+  type: constants.MINIMIZE_TOGGLE,
+  payload,
 })
 
 export type StreamAction =
   AddStreamAction |
   RemoveStreamAction |
-  SetActiveStreamAction |
-  ToggleActiveStreamAction |
+  MinimizeToggleAction |
   RemoveStreamTrackAction |
   AddStreamTrackAction

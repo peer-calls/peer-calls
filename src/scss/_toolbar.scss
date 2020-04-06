@@ -10,7 +10,7 @@
     height: 48px;
     border-radius: 48px;
     background-color: rgba(0, 0, 0, 0.2);
-    box-shadow: 2px 2px 24px #444;
+    box-shadow: 2px 2px 24px rgba(black, 0.3);
     transition: all .1s;
     transition-timing-function: ease-in-out;
 
@@ -61,7 +61,7 @@
 
     &:hover {
       .icon {
-        box-shadow: 4px 4px 48px #666;
+        box-shadow: 2px 2px 24px rgba(white, 0.1);
         cursor: pointer;
         background-color: #407cf7;
       }
