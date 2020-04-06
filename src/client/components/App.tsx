@@ -1,23 +1,24 @@
 import classnames from 'classnames'
-import keyBy from 'lodash/keyBy'
 import forEach from 'lodash/forEach'
+import keyBy from 'lodash/keyBy'
 import React from 'react'
 import Peer from 'simple-peer'
+import { hangUp } from '../actions/CallActions'
 import { Message } from '../actions/ChatActions'
+import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
-import { Message as MessageType, destroyPeers } from '../actions/PeerActions'
-import { removeStream, MinimizeTogglePayload } from '../actions/StreamActions'
+import { Message as MessageType } from '../actions/PeerActions'
+import { MinimizeTogglePayload, removeStream } from '../actions/StreamActions'
 import * as constants from '../constants'
+import { Nicknames } from '../reducers/nicknames'
+import { StreamsState } from '../reducers/streams'
+import { WindowStates } from '../reducers/windowStates'
 import Chat from './Chat'
 import { Media } from './Media'
 import Notifications from './Notifications'
 import { Side } from './Side'
 import Toolbar from './Toolbar'
 import Videos from './Videos'
-import { getDesktopStream } from '../actions/MediaActions'
-import { StreamsState } from '../reducers/streams'
-import { WindowStates } from '../reducers/windowStates'
-import { Nicknames } from '../reducers/nicknames'
 
 export interface AppProps {
   dismissNotification: typeof dismissNotification
@@ -35,7 +36,7 @@ export interface AppProps {
   onSendFile: (file: File) => void
   windowStates: WindowStates
   minimizeToggle: (payload: MinimizeTogglePayload) => void
-  destroyPeers: typeof destroyPeers
+  hangUp: typeof hangUp
 }
 
 export interface AppState {
@@ -70,7 +71,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     forEach(localStreams, s => {
       this.props.removeStream(constants.ME, s.stream)
     })
-    this.props.destroyPeers()
+    this.props.hangUp()
   }
   getLocalStreams() {
     const ls = this.props.streams[constants.ME]

@@ -1,7 +1,7 @@
-import { makeAction, GetAsyncAction } from '../async'
-import { DIAL, SOCKET_EVENT_READY, SOCKET_EVENT_USERS } from '../constants'
+import { GetAsyncAction, makeAction } from '../async'
+import { DIAL, HANG_UP, SOCKET_EVENT_USERS } from '../constants'
 import socket from '../socket'
-import { ThunkResult } from '../store'
+import store, { ThunkResult } from '../store'
 import { callId, userId } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
@@ -19,16 +19,10 @@ const initialize = (): InitializeAction => ({
   type: 'INIT',
 })
 
-export const init = (): ThunkResult<Promise<void>> =>
-async (dispatch, getState) => {
+export const init = (): ThunkResult<Promise<void>> => async dispatch => {
   return new Promise(resolve => {
     socket.on('connect', () => {
       dispatch(NotifyActions.warning('Connected to server socket'))
-      dispatch(SocketActions.handshake({
-        socket,
-        roomName: callId,
-        userId,
-      }))
       dispatch(initialize())
       resolve()
     })
@@ -41,13 +35,26 @@ async (dispatch, getState) => {
 export const dial = makeAction(
   DIAL,
   () => new Promise<void>((resolve, reject) => {
-    socket.emit(SOCKET_EVENT_READY, {
-      room: callId,
+    SocketActions.handshake({
+      socket,
+      roomName: callId,
       userId,
+      store,
     })
     socket.once(SOCKET_EVENT_USERS, () => resolve())
     setTimeout(reject, 10000, new Error('Dial timed out!'))
   }),
 )
+
+export type HangUpAction = {
+  type: 'HANG_UP'
+}
+
+export const hangUp = (): HangUpAction => {
+  SocketActions.removeEventListeners(socket)
+  return {
+    type: HANG_UP,
+  }
+}
 
 export type DialAction = GetAsyncAction<ReturnType<typeof dial>>

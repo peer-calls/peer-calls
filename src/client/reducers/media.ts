@@ -1,7 +1,6 @@
-import { DialAction } from '../actions/CallActions'
+import { DialAction, HangUpAction } from '../actions/CallActions'
 import { AudioConstraint, MediaAction, MediaDevice, MediaEnumerateAction, MediaPlayAction, MediaStreamAction, VideoConstraint } from '../actions/MediaActions'
-import { DestroyPeersAction } from '../actions/PeerActions'
-import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEERS_DESTROY } from '../constants'
+import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
 
 export interface MediaState {
   devices: MediaDevice[]
@@ -116,7 +115,7 @@ export function handleDial(state: MediaState, action: DialAction): MediaState {
 
 export default function media(
   state = defaultState,
-  action: MediaAction | DialAction | DestroyPeersAction,
+  action: MediaAction | DialAction | HangUpAction,
 ): MediaState {
   switch (action.type) {
     case MEDIA_ENUMERATE:
@@ -137,7 +136,7 @@ export default function media(
       return handlePlay(state, action)
     case DIAL:
       return handleDial(state, action)
-    case PEERS_DESTROY:
+    case HANG_UP:
       return {
         ...state,
         dialState: DIAL_STATE_HUNG_UP,

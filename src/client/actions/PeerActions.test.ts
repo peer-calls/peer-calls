@@ -1,5 +1,6 @@
 jest.mock('../window')
 jest.mock('simple-peer')
+jest.useFakeTimers()
 
 import * as PeerActions from './PeerActions'
 import Peer from 'simple-peer'
@@ -7,7 +8,7 @@ import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
-import { PEERCALLS, PEER_EVENT_DATA, ME } from '../constants'
+import { PEERCALLS, PEER_EVENT_DATA, ME, HANG_UP } from '../constants'
 
 describe('PeerActions', () => {
   function createSocket () {
@@ -157,7 +158,11 @@ describe('PeerActions', () => {
         socket, user: { id: 'user3' }, initiator: 'user3', stream,
       })(dispatch, getState)
 
-      store.dispatch(PeerActions.destroyPeers())
+      store.dispatch({
+        type: HANG_UP,
+      })
+
+      jest.runAllTimers()
 
       expect((instances[0].destroy as jest.Mock).mock.calls.length).toEqual(1)
       expect((instances[1].destroy as jest.Mock).mock.calls.length).toEqual(1)

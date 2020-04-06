@@ -11,6 +11,8 @@ export const DIAL_STATE_HUNG_UP: DialState = 'hung-up'
 export const DIAL_STATE_DIALLING: DialState = 'dialling'
 export const DIAL_STATE_IN_CALL: DialState = 'in-call'
 
+export const HANG_UP = 'HANG_UP'
+
 export const INIT = 'INIT'
 
 export const ME = '_me_'
@@ -32,7 +34,6 @@ export const NICKNAME_SET = 'NICKNAME_SET'
 
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'
-export const PEERS_DESTROY = 'PEERS_DESTROY'
 
 export const PEER_EVENT_ERROR = 'error'
 export const PEER_EVENT_CONNECT = 'connect'

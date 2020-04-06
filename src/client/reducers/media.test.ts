@@ -2,13 +2,12 @@ jest.mock('simple-peer')
 jest.mock('../socket')
 jest.useFakeTimers()
 
-import * as MediaActions from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_STREAM, ME, PEERS_DESTROY, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, DIAL_STATE_HUNG_UP, DIAL_STATE_DIALLING, DIAL_STATE_IN_CALL } from '../constants'
-import { createStore, Store } from '../store'
 import SimplePeer from 'simple-peer'
-import { dial } from '../actions/CallActions'
+import { dial, hangUp } from '../actions/CallActions'
+import * as MediaActions from '../actions/MediaActions'
+import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, ME, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import socket from '../socket'
-import { destroyPeers } from '../actions/PeerActions'
+import { createStore, Store } from '../store'
 
 describe('media', () => {
 
@@ -137,7 +136,7 @@ describe('media', () => {
 
         beforeEach(() => {
           store.dispatch({
-            type: PEERS_DESTROY,
+            type: HANG_UP,
           })
           store.dispatch({
             type: PEER_ADD,
@@ -157,7 +156,7 @@ describe('media', () => {
 
         afterEach(() => {
           store.dispatch({
-            type: PEERS_DESTROY,
+            type: HANG_UP,
           })
         })
 
@@ -262,7 +261,7 @@ describe('media', () => {
 
     it('cahnges state to HUNG_UP when destroyPeers is called', async() => {
       await successfulDial()
-      store.dispatch(destroyPeers())
+      store.dispatch(hangUp())
       expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
     })
   })

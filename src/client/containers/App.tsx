@@ -1,8 +1,8 @@
 import { connect } from 'react-redux'
-import { init } from '../actions/CallActions'
+import { init, hangUp } from '../actions/CallActions'
 import { getDesktopStream, play } from '../actions/MediaActions'
 import { dismissNotification } from '../actions/NotifyActions'
-import { destroyPeers, sendFile, sendMessage } from '../actions/PeerActions'
+import { sendFile, sendMessage } from '../actions/PeerActions'
 import { minimizeToggle, removeStream } from '../actions/StreamActions'
 import App from '../components/App'
 import { State } from '../store'
@@ -20,7 +20,7 @@ function mapStateToProps (state: State) {
 }
 
 const mapDispatchToProps = {
-  destroyPeers,
+  hangUp,
   minimizeToggle,
   sendMessage,
   dismissNotification,

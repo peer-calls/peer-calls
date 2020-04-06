@@ -236,18 +236,9 @@ export const removePeer = (userId: string): RemovePeerAction => ({
   payload: { userId },
 })
 
-export interface DestroyPeersAction {
-  type: 'PEERS_DESTROY'
-}
-
-export const destroyPeers = (): DestroyPeersAction => ({
-  type: constants.PEERS_DESTROY,
-})
-
 export type PeerAction =
   AddPeerAction |
-  RemovePeerAction |
-  DestroyPeersAction
+  RemovePeerAction
 
 export interface TextMessage {
   type: 'text'

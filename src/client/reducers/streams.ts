@@ -1,11 +1,11 @@
 import _debug from 'debug'
-import omit from 'lodash/omit'
-import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction, AddStreamTrackAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE, STREAM_TRACK_ADD, PEERS_DESTROY } from '../constants'
-import { createObjectURL, revokeObjectURL } from '../window'
-import { MediaStreamAction } from '../actions/MediaActions'
-import { DestroyPeersAction } from '../actions/PeerActions'
 import forEach from 'lodash/forEach'
+import omit from 'lodash/omit'
+import { HangUpAction } from '../actions/CallActions'
+import { MediaStreamAction } from '../actions/MediaActions'
+import { AddStreamAction, AddStreamTrackAction, RemoveStreamAction, RemoveStreamTrackAction, StreamAction, StreamType } from '../actions/StreamActions'
+import { HANG_UP, MEDIA_STREAM, STREAM_ADD, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
+import { createObjectURL, revokeObjectURL } from '../window'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -146,7 +146,7 @@ function addStreamTrack(
 
 export default function streams(
   state: StreamsState = defaultState,
-  action: StreamAction | MediaStreamAction | DestroyPeersAction,
+  action: StreamAction | MediaStreamAction | HangUpAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
@@ -157,7 +157,7 @@ export default function streams(
       return addStreamTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
-    case PEERS_DESTROY:
+    case HANG_UP:
       forEach(state, userStreams => {
         userStreams.streams.forEach(s => {
           s.stream.getTracks().forEach(track => {
