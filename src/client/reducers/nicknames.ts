@@ -18,6 +18,8 @@ export default function nicknames(
     case PEER_REMOVE:
       return omit(state, [action.payload.userId])
     case NICKNAME_SET:
+      window.localStorage &&
+        (window.localStorage.nickname = action.payload.nickname)
       return {
         ...state,
         [action.payload.userId]: action.payload.nickname,

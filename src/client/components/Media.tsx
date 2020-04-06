@@ -6,8 +6,11 @@ import { State } from '../store'
 import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
 import { ME, STREAM_TYPE_CAMERA } from '../constants'
+import { dial } from '../actions/CallActions'
+import { setNickname } from '../actions/NicknameActions'
 
 export type MediaProps = MediaState & {
+  onDial: () => void
   visible: boolean
   enumerateDevices: typeof enumerateDevices
   onSetVideoConstraint: typeof setVideoConstraint
@@ -17,6 +20,8 @@ export type MediaProps = MediaState & {
   logInfo: typeof info
   logWarning: typeof warning
   logError: typeof error
+  onSetNickname: typeof setNickname
+  nickname?: string
 }
 
 function mapStateToProps(state: State) {
@@ -26,14 +31,17 @@ function mapStateToProps(state: State) {
   const visible = !hidden
   return {
     ...state.media,
+    nickname: state.nicknames[ME],
     visible,
   }
 }
 
 const mapDispatchToProps = {
   enumerateDevices,
+  onDial: dial,
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
+  onSetNickname: setNickname,
   getMediaStream,
   play,
   logInfo: info,
@@ -57,6 +65,9 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
       await props.getMediaStream({ audio, video })
     } catch (err) {
       props.logError('Error: {0}', err)
+    } finally {
+      props.logInfo('Dialling...')
+      props.onDial()
     }
   }
 
@@ -75,6 +86,15 @@ export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
 
   return (
     <form className='media' onSubmit={onSave}>
+      <input
+        type='text'
+        onChange={e => props.onSetNickname({
+          nickname: e.target.value,
+          userId: ME,
+        })}
+        value={props.nickname}
+      />
+
       <select
         name='video-input'
         onChange={onVideoChange}

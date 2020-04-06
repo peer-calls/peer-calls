@@ -5,7 +5,7 @@ import React from 'react'
 import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
-import { Message as MessageType } from '../actions/PeerActions'
+import { Message as MessageType, destroyPeers } from '../actions/PeerActions'
 import { removeStream, MinimizeTogglePayload } from '../actions/StreamActions'
 import * as constants from '../constants'
 import Chat from './Chat'
@@ -35,6 +35,7 @@ export interface AppProps {
   onSendFile: (file: File) => void
   windowStates: WindowStates
   minimizeToggle: (payload: MinimizeTogglePayload) => void
+  destroyPeers: typeof destroyPeers
 }
 
 export interface AppState {
@@ -69,6 +70,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     forEach(localStreams, s => {
       this.props.removeStream(constants.ME, s.stream)
     })
+    this.props.destroyPeers()
   }
   getLocalStreams() {
     const ls = this.props.streams[constants.ME]

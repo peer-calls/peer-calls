@@ -306,8 +306,6 @@ export const sendMessage = (message: Message) =>
         userId: constants.ME,
         nickname: message.payload.nickname,
       }))
-      window.localStorage &&
-        (window.localStorage.nickname = message.payload.nickname)
       break
     default:
       dispatch(ChatActions.addMessage({

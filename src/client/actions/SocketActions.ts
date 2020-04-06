@@ -91,11 +91,6 @@ export function handshake (options: HandshakeOptions) {
     socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
 
     debug('userId: %s', userId)
-    debug('emit ready for room: %s', roomName)
     dispatch(NotifyActions.info('Ready for connections'))
-    socket.emit('ready', {
-      room: roomName,
-      userId,
-    })
   }
 }
