@@ -21,6 +21,7 @@ import Toolbar from './Toolbar'
 import Videos from './Videos'
 
 export interface AppProps {
+  dialState: constants.DialState
   dismissNotification: typeof dismissNotification
   init: () => void
   nicknames: Nicknames
@@ -99,6 +100,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         <Side align='flex-end' left zIndex={2}>
           <Toolbar
             chatVisible={this.state.chatVisible}
+            dialState={this.props.dialState}
             messagesCount={messagesCount}
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}

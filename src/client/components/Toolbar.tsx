@@ -4,13 +4,14 @@ import screenfull from 'screenfull'
 import { removeStream } from '../actions/StreamActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { StreamWithURL } from '../reducers/streams'
-import { ME } from '../constants'
+import { ME, DIAL_STATE_IN_CALL, DialState } from '../constants'
 
 const hidden = {
   display: 'none',
 }
 
 export interface ToolbarProps {
+  dialState: DialState
   messagesCount: number
   stream: StreamWithURL
   desktopStream: StreamWithURL | undefined
@@ -196,7 +197,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           title='Toggle Fullscreen'
         />
 
-          {this.props.stream && this.props.stream.stream && (
+          {this.props.dialState === DIAL_STATE_IN_CALL && (
             <ToolbarButton
               onClick={this.props.onHangup}
               className='hangup'

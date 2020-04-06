@@ -9,6 +9,7 @@ import { State } from '../store'
 
 function mapStateToProps (state: State) {
   return {
+    dialState: state.media.dialState,
     streams: state.streams,
     peers: state.peers,
     notifications: state.notifications,
