@@ -224,6 +224,7 @@ describe('PeerActions', () => {
       .toEqual([{
         message: 'Connecting to peer...',
         userId: PEERCALLS,
+        system: true,
         timestamp: jasmine.any(String),
       }, {
         message: 'hello',
@@ -246,14 +247,17 @@ describe('PeerActions', () => {
       .toEqual([{
         message: 'Connecting to peer...',
         userId: PEERCALLS,
+        system: true,
         timestamp: jasmine.any(String),
       }, {
         message: 'User user2 is now known as john',
+        system: true,
         userId: PEERCALLS,
         image: undefined,
         timestamp: jasmine.any(String),
       }, {
         message: 'User john is now known as john2',
+        system: true,
         userId: PEERCALLS,
         image: undefined,
         timestamp: jasmine.any(String),

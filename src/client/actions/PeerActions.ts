@@ -122,6 +122,7 @@ class PeerHandler {
           message: 'User ' + getNickname(state.nicknames, user.id) +
             ' is now known as ' + (message.payload.nickname || user.id),
           timestamp: new Date().toLocaleString(),
+          system: true,
           image: undefined,
         }))
         dispatch(NicknameActions.setNickname({
@@ -298,6 +299,7 @@ export const sendMessage = (message: Message) =>
         userId: constants.PEERCALLS,
         message: 'You are now known as: ' + message.payload.nickname,
         timestamp: new Date().toLocaleString(),
+        system: true,
         image: undefined,
       }))
       dispatch(NicknameActions.setNickname({

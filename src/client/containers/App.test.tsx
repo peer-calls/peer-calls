@@ -114,13 +114,26 @@ describe('App', () => {
         dispatchSpy.mockClear()
       })
 
-      it.only('can be activated', () => {
+      it('forces play on click', () => {
         const video = node.querySelector('video')!
         TestUtils.Simulate.mouseDown(video)
         TestUtils.Simulate.mouseUp(video)
         TestUtils.Simulate.click(video)
         expect(dispatchSpy.mock.calls[0][0].type).toBe(constants.MEDIA_PLAY)
-        expect(dispatchSpy.mock.calls.slice(1)).toEqual([[{
+      })
+
+    })
+
+    describe('video menu', () => {
+      beforeEach(() => {
+        dispatchSpy.mockClear()
+      })
+
+      it('activates (maximizes) the video on "Maximize" click', () => {
+        const item = node.querySelector('.dropdown .action-maximize')!
+        expect(item).toBeTruthy()
+        TestUtils.Simulate.click(item)
+        expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.ACTIVE_TOGGLE,
           payload: { userId: constants.ME + '_0' },
         }]])
@@ -128,15 +141,14 @@ describe('App', () => {
         expect(active).toBeTruthy()
       })
 
-      it('can toggle object-fit to/from cover by long-pressing', () => {
-        ['cover', ''].forEach(objectFit => {
-          const video = node.querySelector('video')!
-          TestUtils.Simulate.mouseDown(video)
-          jest.runAllTimers()
-          TestUtils.Simulate.mouseUp(video)
-          TestUtils.Simulate.click(video)
-          expect(video.style.objectFit).toBe(objectFit)
-          expect(dispatchSpy.mock.calls.slice(1)).toEqual([])
+      it('toggles object-fit on "Toggle Fit" click', () => {
+        ['contain', ''].forEach(objectFit => {
+          const item = node.querySelector('.dropdown .action-toggle-fit')!
+          expect(item).toBeTruthy()
+          TestUtils.Simulate.click(item)
+          const video = node.querySelector('video')! as HTMLVideoElement
+          expect((video).style.objectFit).toBe(objectFit)
+          expect(dispatchSpy.mock.calls).toEqual([])
         })
       })
     })

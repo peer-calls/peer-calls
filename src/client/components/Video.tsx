@@ -77,8 +77,12 @@ export default class Video extends React.PureComponent<VideoProps> {
             localUser={this.props.localUser}
           />
           <Dropdown label={'☰'}>
-            <li onClick={this.handleMaximize}>Maximize</li>
-            <li onClick={this.handleToggleCover}>Fit to screen</li>
+            <li className='action-maximize' onClick={this.handleMaximize}>
+              Maximize
+            </li>
+            <li className='action-toggle-fit' onClick={this.handleToggleCover}>
+              Toggle Fit
+            </li>
           </Dropdown>
         </div>
       </div>
