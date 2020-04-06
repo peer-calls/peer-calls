@@ -18,14 +18,6 @@ $shadow-size: 2px;
   z-index: 0;
 }
 
-.video-container.active + .videos {
-  bottom: inherit;
-  display: block;
-  height: $video-size;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
 .video-container {
   flex: 1 1 25%;
   background-color: rgba($color-bg, 0.8);
@@ -94,6 +86,22 @@ $shadow-size: 2px;
     cursor: inherit;
     // object-fit: contain;
   }
+}
+
+.video-container.active + .videos {
+  left: inherit;
+  bottom: inherit;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.video-container.active + .videos .video-container {
+  flex: 0 0 $video-size;
+  width: $video-size;
+  height: $video-size;
 }
 
 .video-container.mirrored video {
