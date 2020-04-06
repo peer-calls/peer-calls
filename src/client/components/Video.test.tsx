@@ -7,6 +7,8 @@ import { MediaStream } from '../window'
 import { STREAM_TYPE_CAMERA } from '../constants'
 import { StreamWithURL } from '../reducers/streams'
 import { NicknameMessage } from '../actions/PeerActions'
+import { WindowState } from '../reducers/windowStates'
+import { MinimizeTogglePayload } from '../actions/StreamActions'
 
 describe('components/Video', () => {
 
@@ -26,22 +28,23 @@ describe('components/Video', () => {
     render () {
       return <Video
         ref={this.ref}
-        active={this.props.active}
         stream={this.state.stream || this.props.stream}
-        onClick={this.props.onClick}
+        onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}
         userId="test"
         muted={this.props.muted}
         mirrored={this.props.mirrored}
         nickname={this.props.nickname}
         onChangeNickname={this.props.onChangeNickname}
+        windowState={this.props.windowState}
       />
     }
   }
 
   let component: VideoWrapper
   let video: Video
-  let onClick: jest.MockedFunction<(userId: string) => void>
+  let onMinimizeToggle:
+    jest.MockedFunction<(payload: MinimizeTogglePayload) => void>
   let onChangeNickname: jest.MockedFunction<(message: NicknameMessage) => void>
   let mediaStream: MediaStream
   let url: string
@@ -49,19 +52,19 @@ describe('components/Video', () => {
   let nickname: string
 
   interface Flags {
-    active: boolean
     muted: boolean
     mirrored: boolean
+    windowState: WindowState
   }
   const defaultFlags: Flags = {
-    active: false,
     muted: false,
     mirrored: false,
+    windowState: undefined,
   }
   async function render (args?: Partial<Flags>) {
     nickname = 'john'
     const flags: Flags = Object.assign({}, defaultFlags, args)
-    onClick = jest.fn()
+    onMinimizeToggle = jest.fn()
     onChangeNickname = jest.fn()
     mediaStream = new MediaStream()
     const div = document.createElement('div')
@@ -74,15 +77,15 @@ describe('components/Video', () => {
       ReactDOM.render(
         <VideoWrapper
           ref={instance => resolve(instance!)}
-          active={flags.active}
           stream={stream}
-          onClick={onClick}
           play={play}
           userId="test"
           muted={flags.muted}
           mirrored={flags.mirrored}
           onChangeNickname={onChangeNickname}
+          onMinimizeToggle={onMinimizeToggle}
           nickname={nickname}
+          windowState={flags.windowState}
         />,
         div,
       )
@@ -96,9 +99,14 @@ describe('components/Video', () => {
       await render()
     })
 
-    it('Mirrored and active propogate to rendered classes', async () => {
-      await render({ active: true, mirrored: true })
-      expect(wrapper.className).toBe('video-container active mirrored')
+    it('Mirrored and widnowState propogate to rendered classes', async () => {
+      await render({ mirrored: true })
+      expect(wrapper.className).toBe('video-container mirrored')
+    })
+
+    it('Mirrored and windowState propogate to rendered classes', async () => {
+      await render({ mirrored: true, windowState: 'minimized' })
+      expect(wrapper.className).toBe('video-container minimized mirrored')
     })
   })
 

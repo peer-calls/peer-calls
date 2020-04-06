@@ -96,7 +96,6 @@ describe('App', () => {
         },
       }
       state.peers = {
-        [constants.ME]: {} as any,
         'other-user': {} as any,
       }
       state.notifications = {
@@ -129,16 +128,28 @@ describe('App', () => {
         dispatchSpy.mockClear()
       })
 
-      it('activates (maximizes) the video on "Maximize" click', () => {
-        const item = node.querySelector('.dropdown .action-maximize')!
+      it('minimizes the video on "Maximize" click', () => {
+        let minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(0)
+        let maximized = node.querySelectorAll('.videos-grid video')
+        expect(maximized.length).toBe(2)
+
+        const item = node.querySelector('.dropdown .action-minimize')!
         expect(item).toBeTruthy()
         TestUtils.Simulate.click(item)
         expect(dispatchSpy.mock.calls).toEqual([[{
-          type: constants.ACTIVE_TOGGLE,
-          payload: { userId: constants.ME + '_0' },
+          type: constants.MINIMIZE_TOGGLE,
+          payload: {
+            userId: constants.ME,
+            streamId: store.getState()
+            .streams![constants.ME].streams[0].stream.id,
+          },
         }]])
-        const active = node.querySelector('.video-container.active')!
-        expect(active).toBeTruthy()
+
+        minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(1)
+        maximized = node.querySelectorAll('.videos-grid video')
+        expect(maximized.length).toBe(1)
       })
 
       it('toggles object-fit on "Toggle Fit" click', () => {

@@ -6,7 +6,7 @@ import Peer from 'simple-peer'
 import { Message } from '../actions/ChatActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
 import { Message as MessageType } from '../actions/PeerActions'
-import { removeStream } from '../actions/StreamActions'
+import { removeStream, MinimizeTogglePayload } from '../actions/StreamActions'
 import * as constants from '../constants'
 import Chat from './Chat'
 import { Media } from './Media'
@@ -16,10 +16,10 @@ import Toolbar from './Toolbar'
 import Videos from './Videos'
 import { getDesktopStream } from '../actions/MediaActions'
 import { StreamsState } from '../reducers/streams'
+import { WindowStates } from '../reducers/windowStates'
 import { Nicknames } from '../reducers/nicknames'
 
 export interface AppProps {
-  active: string | null
   dismissNotification: typeof dismissNotification
   init: () => void
   nicknames: Nicknames
@@ -33,7 +33,8 @@ export interface AppProps {
   getDesktopStream: typeof getDesktopStream
   removeStream: typeof removeStream
   onSendFile: (file: File) => void
-  toggleActive: (userId: string) => void
+  windowStates: WindowStates
+  minimizeToggle: (payload: MinimizeTogglePayload) => void
 }
 
 export interface AppState {
@@ -122,12 +123,12 @@ export default class App extends React.PureComponent<AppProps, AppState> {
 
         <Videos
           onChangeNickname={sendMessage}
+          onMinimizeToggle={this.props.minimizeToggle}
           streams={this.props.streams}
           play={this.props.play}
-          active={this.props.active}
           nicknames={this.props.nicknames}
           peers={this.props.peers}
-          toggleActive={this.props.toggleActive}
+          windowStates={this.props.windowStates}
         />
       </div>
     )

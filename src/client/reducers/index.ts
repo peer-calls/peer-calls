@@ -1,4 +1,4 @@
-import active from './active'
+import windowStates from './windowStates'
 import notifications from './notifications'
 import messages from './messages'
 import peers from './peers'
@@ -8,11 +8,11 @@ import nicknames from './nicknames'
 import { combineReducers } from 'redux'
 
 export default combineReducers({
-  active,
   notifications,
   messages,
   media,
   nicknames,
   peers,
   streams,
+  windowStates,
 })

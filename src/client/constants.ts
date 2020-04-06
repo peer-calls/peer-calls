@@ -1,5 +1,4 @@
-export const ACTIVE_SET = 'ACTIVE_SET'
-export const ACTIVE_TOGGLE = 'ACTIVE_TOGGLE'
+export const MINIMIZE_TOGGLE = 'MINIMIZE_TOGGLE'
 
 export const ALERT = 'ALERT'
 export const ALERT_DISMISS = 'ALERT_DISMISS'

@@ -2,24 +2,23 @@ $video-size: 100px;
 $shadow-size: 2px;
 
 .videos {
+  white-space: nowrap;
+}
+
+.videos-grid {
   position: absolute;
-  // padding: $shadow-size 0;
   bottom: 0;
   left: 0;
   right: 0;
   top: 0;
-  text-align: right;
-  transition: right cubic-bezier(0.55, 0, 0, 1) 500ms;
-  white-space: nowrap;
 
   display: flex;
   flex-wrap: wrap;
 
-  z-index: 0;
+  z-index: -1;
 }
 
 .video-container {
-  flex: 1 1 25%;
   background-color: rgba($color-bg, 0.8);
   box-shadow: 0px 0px 1px rgba(black, 0.3);
   position: relative;
@@ -68,37 +67,34 @@ $shadow-size: 2px;
   }
 }
 
-.video-container.active {
-  background-color: transparent;
-  box-shadow: none;
-  border-radius: 0;
-  position: fixed;
-  width: 100%;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  z-index: -1;
-  transform: none;
-
-  video {
-    border-radius: 0;
-    cursor: inherit;
-    // object-fit: contain;
-  }
+.videos-grid .video-container {
+  flex: 1 1 25%;
 }
 
-.video-container.active + .videos {
-  left: inherit;
-  bottom: inherit;
-  max-width: 100%;
+@media(max-width: 600px) {
+  .videos-grid {
+    .video-container {
+      flex: 1 1 50%;
+
+      &:first-child:nth-last-child(2) ~ .video-container {
+        // split vertically when only two children
+        flex: 1 1 100%;
+      }
+    }
+  }
+
+}
+
+.videos-toolbar {
   display: flex;
   flex-wrap: nowrap;
+  justify-content: end;
   overflow-x: auto;
   overflow-y: hidden;
+  z-index: 0;
 }
 
-.video-container.active + .videos .video-container {
+.videos-toolbar .video-container {
   flex: 0 0 $video-size;
   width: $video-size;
   height: $video-size;
