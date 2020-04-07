@@ -97,10 +97,6 @@ class PeerHandler {
         track,
       }))
     }
-    dispatch(StreamActions.addStream({
-      userId,
-      stream,
-    }))
   }
   handleData = (buffer: ArrayBuffer) => {
     const { dispatch, getState, user } = this

@@ -5,29 +5,51 @@ export const revokeObjectURL = jest.fn()
 let count = 0
 
 export class MediaStream {
-  id: string
-  addTrack = jest.fn()
-  removeTrack = jest.fn()
-  getTracks = jest.fn().mockReturnValue([{
-    stop: jest.fn(),
-  }, {
-    stop: jest.fn(),
-  }])
-  getVideoTracks = jest.fn().mockReturnValue([{
-    enabled: true,
-    stop: jest.fn(),
-  }])
-  getAudioTracks = jest.fn().mockReturnValue([{
-    stop: jest.fn(),
-    enabled: true,
-  }])
+  readonly id: string
+  private tracks: MediaStreamTrack[] = []
+
+  readonly addTrack: (track: MediaStreamTrack) => void
+  readonly removeTrack: (track: MediaStreamTrack) => void
+  readonly getTracks: () => MediaStreamTrack[]
+  readonly getAudioTracks: () => MediaStreamTrack[]
+  readonly getVideoTracks: () => MediaStreamTrack[]
 
   constructor() {
     this.id = String(++count)
+
+    this.addTrack = jest.fn().mockImplementation((track: MediaStreamTrack) => {
+      this.tracks.push(track)
+    })
+
+    this.removeTrack = jest.fn()
+    .mockImplementation((track: MediaStreamTrack) => {
+      this.tracks = this.tracks.filter(t => t !== track)
+    })
+
+    this.getTracks = jest.fn().mockImplementation(() => {
+      return [...this.tracks]
+    })
+
+    this.getVideoTracks = jest.fn().mockImplementation(() => {
+      return this.tracks.filter(t => t.kind === 'video')
+    })
+
+    this.getAudioTracks = jest.fn().mockImplementation(() => {
+      return this.tracks.filter(t => t.kind === 'audio')
+    })
   }
 }
 
-export class MediaStreamTrack {}
+export class MediaStreamTrack {
+  kind = 'video'
+  readonly id: string
+  readonly stop: () => void
+
+  constructor() {
+    this.id = String(++count)
+    this.stop = jest.fn()
+  }
+}
 
 export const navigator = window.navigator
 

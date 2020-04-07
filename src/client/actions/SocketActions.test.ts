@@ -5,10 +5,9 @@ import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore, Store, GetState } from '../store'
+import { createStore, Store } from '../store'
 import { ClientSocket } from '../socket'
-import { Dispatch } from 'redux'
-import { MediaStream } from '../window'
+import { MediaStream, MediaStreamTrack } from '../window'
 import { SocketEvent } from '../../shared'
 
 describe('SocketActions', () => {
@@ -16,16 +15,12 @@ describe('SocketActions', () => {
 
   let socket: ClientSocket
   let store: Store
-  let dispatch: Dispatch
-  let getState: GetState
   let instances: Peer.Instance[]
   beforeEach(() => {
     socket = new EventEmitter() as any;
     (socket as any).id = 'a'
 
     store = createStore()
-    getState = store.getState
-    dispatch = store.dispatch
 
     instances = (Peer as any).instances = []
   })
@@ -144,16 +139,17 @@ describe('SocketActions', () => {
       })
     })
 
-    describe('stream', () => {
+    describe('track unmute event', () => {
       it('adds a stream to streamStore', () => {
-        const stream = {
-          getTracks() {
-            return [{
-              stop: jest.fn(),
-            }]
-          },
-        }
-        peer.emit(constants.PEER_EVENT_TRACK, stream.getTracks()[0], stream)
+        const stream = new MediaStream()
+        const track = new MediaStreamTrack()
+        stream.addTrack(track)
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
+
+        expect(track.onunmute).toBeDefined()
+        // browsers should call onunmute after 'track' event, when track is
+        // ready
+        track.onunmute!(new Event('unmute'))
 
         expect(store.getState().streams).toEqual({
           [userB.userId]: {
@@ -168,13 +164,30 @@ describe('SocketActions', () => {
       })
     })
 
+    describe('track mute event', () => {
+      it('removes track and stream from store', () => {
+        const stream = new MediaStream()
+        const track = new MediaStreamTrack()
+        stream.addTrack(track)
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
+        expect(track.onunmute).toBeDefined()
+        track.onunmute!(new Event('unmute'))
+        expect(track.onmute).toBeDefined()
+        track.onmute!(new Event('mute'))
+        expect(store.getState().streams).toEqual({})
+      })
+    })
+
     describe('close', () => {
       beforeEach(() => {
         const stream = new MediaStream()
-        const track = {} as unknown as MediaStreamTrack
+        const track = new MediaStreamTrack()
         peer.emit(constants.PEER_EVENT_TRACK, track, stream)
-        // test stream with two tracks
-        peer.emit(constants.PEER_EVENT_TRACK, track, stream)
+
+        track.onunmute!(new Event('unmute'))
+        track.onunmute!(new Event('unmute'))
+
+        expect(stream.getTracks().length).toBe(1)
         expect(store.getState().streams).toEqual({
           [userB.userId]: {
             userId: userB.userId,
