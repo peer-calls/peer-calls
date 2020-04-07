@@ -1,5 +1,6 @@
 jest.mock('../window')
 jest.mock('simple-peer')
+jest.useFakeTimers()
 
 import * as PeerActions from './PeerActions'
 import Peer from 'simple-peer'
@@ -7,7 +8,7 @@ import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
-import { PEERCALLS, PEER_EVENT_DATA, ME } from '../constants'
+import { PEERCALLS, PEER_EVENT_DATA, ME, HANG_UP } from '../constants'
 
 describe('PeerActions', () => {
   function createSocket () {
@@ -156,7 +157,11 @@ describe('PeerActions', () => {
         socket, user: { id: 'user3' }, initiator: false, stream,
       })(dispatch, getState)
 
-      store.dispatch(PeerActions.destroyPeers())
+      store.dispatch({
+        type: HANG_UP,
+      })
+
+      jest.runAllTimers()
 
       expect((instances[0].destroy as jest.Mock).mock.calls.length).toEqual(1)
       expect((instances[1].destroy as jest.Mock).mock.calls.length).toEqual(1)
@@ -223,6 +228,7 @@ describe('PeerActions', () => {
       .toEqual([{
         message: 'Connecting to peer...',
         userId: PEERCALLS,
+        system: true,
         timestamp: jasmine.any(String),
       }, {
         message: 'hello',
@@ -245,14 +251,17 @@ describe('PeerActions', () => {
       .toEqual([{
         message: 'Connecting to peer...',
         userId: PEERCALLS,
+        system: true,
         timestamp: jasmine.any(String),
       }, {
         message: 'User user2 is now known as john',
+        system: true,
         userId: PEERCALLS,
         image: undefined,
         timestamp: jasmine.any(String),
       }, {
         message: 'User john is now known as john2',
+        system: true,
         userId: PEERCALLS,
         image: undefined,
         timestamp: jasmine.any(String),

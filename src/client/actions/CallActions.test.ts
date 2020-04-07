@@ -6,7 +6,6 @@ import * as CallActions from './CallActions'
 import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import socket from '../socket'
-import { callId, userId } from '../window'
 import { bindActionCreators, createStore, AnyAction, combineReducers, applyMiddleware } from 'redux'
 import reducers from '../reducers'
 import { middlewares } from '../middlewares'
@@ -43,7 +42,7 @@ describe('CallActions', () => {
 
   describe('init', () => {
 
-    it('calls handshake.init when connected & got camera stream', async () => {
+    it('dispatches init action when connected', async () => {
       const promise = callActions.init()
       socket.emit('connect', undefined)
       await promise
@@ -57,11 +56,6 @@ describe('CallActions', () => {
       }, {
         type: constants.INIT,
       }])
-      expect((SocketActions.handshake as jest.Mock).mock.calls).toEqual([[{
-        socket,
-        roomName: callId,
-        userId: userId,
-      }]])
     })
 
     it('calls dispatches disconnect message on disconnect', async () => {

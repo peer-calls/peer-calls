@@ -19,3 +19,4 @@ export const nickname = valueOf('nickname')!
 debug('Using ice servers: %s', iceServers)
 
 export const MediaStream = window.MediaStream
+export const MediaStreamTrack = window.MediaStreamTrack

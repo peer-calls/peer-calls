@@ -78,12 +78,20 @@ class PeerHandler {
   handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
     const { user, dispatch } = this
     const userId = user.id
-    debug('peer: %s, track: %s', userId, track.id, track.label)
+    debug('peer: %s, track: %s', userId, track.id)
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {
-      debug('peer: %s, track muted', userId)
+      debug('peer: %s, track muted: %s', userId, track.id)
       dispatch(StreamActions.removeTrack({
+        userId,
+        stream,
+        track,
+      }))
+    }
+    track.onunmute = () => {
+      debug('peer: %s, track unmuted: %s', userId, track.id)
+      dispatch(StreamActions.addTrack({
         userId,
         stream,
         track,
@@ -114,6 +122,7 @@ class PeerHandler {
           message: 'User ' + getNickname(state.nicknames, user.id) +
             ' is now known as ' + (message.payload.nickname || user.id),
           timestamp: new Date().toLocaleString(),
+          system: true,
           image: undefined,
         }))
         dispatch(NicknameActions.setNickname({
@@ -230,18 +239,9 @@ export const removePeer = (userId: string): RemovePeerAction => ({
   payload: { userId },
 })
 
-export interface DestroyPeersAction {
-  type: 'PEERS_DESTROY'
-}
-
-export const destroyPeers = (): DestroyPeersAction => ({
-  type: constants.PEERS_DESTROY,
-})
-
 export type PeerAction =
   AddPeerAction |
-  RemovePeerAction |
-  DestroyPeersAction
+  RemovePeerAction
 
 export interface TextMessage {
   type: 'text'
@@ -293,14 +293,13 @@ export const sendMessage = (message: Message) =>
         userId: constants.PEERCALLS,
         message: 'You are now known as: ' + message.payload.nickname,
         timestamp: new Date().toLocaleString(),
+        system: true,
         image: undefined,
       }))
       dispatch(NicknameActions.setNickname({
         userId: constants.ME,
         nickname: message.payload.nickname,
       }))
-      window.localStorage &&
-        (window.localStorage.nickname = message.payload.nickname)
       break
     default:
       dispatch(ChatActions.addMessage({

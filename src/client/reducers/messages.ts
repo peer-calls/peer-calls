@@ -16,6 +16,7 @@ function convertNotificationToMessage(action: NotificationAddAction): Message {
   return {
     userId: '[PeerCalls]',
     message: action.payload.message,
+    system: true,
     timestamp: new Date().toLocaleString(),
   }
 }
@@ -31,7 +32,7 @@ export default function messages (
       }
     case constants.MESSAGE_ADD:
       return {
-        count: state.count + 1,
+        count: action.payload.system ? state.count : state.count + 1,
         list: [...state.list, action.payload],
       }
     default:

@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
 import { getDesktopStream } from '../actions/MediaActions'
 import { AddStreamPayload, removeStream } from '../actions/StreamActions'
-import { STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
+import { STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, DIAL_STATE_IN_CALL, DialState } from '../constants'
 import { StreamWithURL } from '../reducers/streams'
 import { MediaStream } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
@@ -23,6 +23,7 @@ describe('components/Toolbar', () => {
     render () {
       return <Toolbar
         chatVisible={this.props.chatVisible}
+        dialState={this.props.dialState}
         onToggleChat={this.props.onToggleChat}
         onHangup={this.props.onHangup}
         onGetDesktopStream={this.props.onGetDesktopStream}
@@ -44,7 +45,9 @@ describe('components/Toolbar', () => {
   let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
   let onRemoveStream: jest.MockedFunction<typeof removeStream>
   let desktopStream: StreamWithURL | undefined
+  let dialState: DialState
   async function render () {
+    dialState = DIAL_STATE_IN_CALL
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
     onSendFile = jest.fn()
@@ -61,6 +64,7 @@ describe('components/Toolbar', () => {
       ReactDOM.render(
         <ToolbarWrapper
           ref={instance => resolve(instance!)}
+          dialState={dialState}
           chatVisible
           onHangup={onHangup}
           onToggleChat={onToggleChat}

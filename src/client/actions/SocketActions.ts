@@ -2,9 +2,10 @@ import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
 import _debug from 'debug'
-import { Dispatch, GetState } from '../store'
+import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { SocketEvent } from '../../shared'
+import { EventEmitter } from 'events'
 
 const debug = _debug('peercalls')
 
@@ -68,37 +69,39 @@ class SocketHandler {
 
 export interface HandshakeOptions {
   socket: ClientSocket
+  store: Store
   roomName: string
   userId: string
   stream?: MediaStream
 }
 
 export function handshake (options: HandshakeOptions) {
-  const { socket, roomName, stream, userId } = options
+  const { socket, roomName, stream, userId, store } = options
 
-  return (dispatch: Dispatch, getState: GetState) => {
-    const handler = new SocketHandler({
-      socket,
-      roomName,
-      stream,
-      dispatch,
-      getState,
-      userId,
-    })
+  const handler = new SocketHandler({
+    socket,
+    roomName,
+    stream,
+    dispatch: store.dispatch,
+    getState: store.getState,
+    userId,
+  })
 
-    // remove listeneres to make seocket reusable
-    socket.removeListener(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
-    socket.removeListener(constants.SOCKET_EVENT_USERS, handler.handleUsers)
+  // remove listeneres to make socket reusable
+  removeEventListeners(socket)
 
-    socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
-    socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
+  socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
+  socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
 
-    debug('userId: %s', userId)
-    debug('emit ready for room: %s', roomName)
-    dispatch(NotifyActions.info('Ready for connections'))
-    socket.emit('ready', {
-      room: roomName,
-      userId,
-    })
-  }
+  debug('userId: %s', userId)
+  socket.emit(constants.SOCKET_EVENT_READY, {
+    room: roomName,
+    userId,
+  })
+}
+
+export function removeEventListeners (socket: ClientSocket) {
+  const ee = socket as unknown as EventEmitter
+  ;(ee.removeAllListeners)(constants.SOCKET_EVENT_SIGNAL)
+  ;(ee.removeAllListeners)(constants.SOCKET_EVENT_USERS)
 }

@@ -1,8 +1,10 @@
+import forEach from 'lodash/forEach'
 import omit from 'lodash/omit'
-import { AddStreamAction, RemoveStreamAction, StreamAction, StreamType, RemoveStreamTrackAction } from '../actions/StreamActions'
-import { STREAM_ADD, STREAM_REMOVE, MEDIA_STREAM, STREAM_TRACK_REMOVE } from '../constants'
-import { createObjectURL, revokeObjectURL } from '../window'
+import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction } from '../actions/MediaActions'
+import { AddStreamAction, AddStreamTrackAction, RemoveStreamAction, RemoveStreamTrackAction, StreamAction, StreamType } from '../actions/StreamActions'
+import { HANG_UP, MEDIA_STREAM, STREAM_ADD, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
+import { createObjectURL, revokeObjectURL } from '../window'
 
 const defaultState = Object.freeze({})
 
@@ -117,17 +119,51 @@ function removeStreamTrack(
   return state
 }
 
+function addStreamTrack(
+  state: StreamsState, payload: AddStreamTrackAction['payload'],
+): StreamsState {
+  const { userId, stream, track } = payload
+  const userStreams = state[userId]
+  const existingUserStream =
+    userStreams && userStreams.streams.find(s => s.stream === stream)
+
+  if (!stream.getTracks().includes(track)) {
+    stream.addTrack(track)
+  }
+
+  if (!existingUserStream) {
+    return addStream(state, {
+      stream: payload.stream,
+      userId: payload.userId,
+    })
+  }
+
+  return state
+}
+
 export default function streams(
-  state = defaultState,
-    action: StreamAction | MediaStreamAction,
+  state: StreamsState = defaultState,
+  action: StreamAction | MediaStreamAction | HangUpAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
       return addStream(state, action.payload)
     case STREAM_REMOVE:
       return removeStream(state, action.payload)
+    case STREAM_TRACK_ADD:
+      return addStreamTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
+    case HANG_UP:
+      forEach(state, userStreams => {
+        userStreams.streams.forEach(s => {
+          s.stream.getTracks().forEach(track => {
+            track.onmute = null
+            track.onunmute = null
+          })
+        })
+      })
+      return defaultState
     case MEDIA_STREAM:
       if (action.status === 'resolved') {
         return addStream(state, action.payload)

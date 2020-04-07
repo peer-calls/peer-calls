@@ -3,13 +3,15 @@ import classnames from 'classnames'
 import { StreamWithURL } from '../reducers/streams'
 import { NicknameMessage } from '../actions/PeerActions'
 import { Nickname } from './Nickname'
+import { Dropdown } from './Dropdown'
+import { WindowState } from '../reducers/windowStates'
+import { MinimizeTogglePayload } from '../actions/StreamActions'
 
 export interface VideoProps {
-  // videos: Record<string, unknown>
-  onClick: (userId: string) => void
+  onMinimizeToggle: (payload: MinimizeTogglePayload) => void
   onChangeNickname: (message: NicknameMessage) => void
   nickname: string
-  active: boolean
+  windowState: WindowState
   stream?: StreamWithURL
   userId: string
   muted: boolean
@@ -20,34 +22,13 @@ export interface VideoProps {
 
 export default class Video extends React.PureComponent<VideoProps> {
   videoRef = React.createRef<HTMLVideoElement>()
-  timeout?: number
 
   static defaultProps = {
     muted: false,
     mirrored: false,
   }
   handleClick: ReactEventHandler<HTMLVideoElement> = e => {
-    const { onClick, userId } = this.props
-    if (this.timeout) {
-      // if the timeout was cancelled, execute click
-      this.props.play()
-      onClick(userId)
-    }
-    this.timeout = undefined
-  }
-  handleMouseDown: ReactEventHandler<HTMLVideoElement> = e => {
-    clearTimeout(this.timeout)
-    this.timeout = window.setTimeout(this.toggleCover, 300)
-  }
-  handleMouseUp: ReactEventHandler<HTMLVideoElement> = e => {
-    clearTimeout(this.timeout)
-  }
-  toggleCover = () => {
-    this.timeout = undefined
-    const v = this.videoRef.current
-    if (v) {
-      v.style.objectFit = v.style.objectFit ? '' : 'cover'
-    }
+    this.props.play()
   }
   componentDidMount () {
     this.componentDidUpdate()
@@ -65,29 +46,52 @@ export default class Video extends React.PureComponent<VideoProps> {
       video.src = url || ''
     }
   }
+  handleMinimize = () => {
+    this.props.onMinimizeToggle({
+      userId: this.props.userId,
+      streamId: this.props.stream && this.props.stream.stream.id,
+    })
+  }
+  handleToggleCover = () => {
+    const v = this.videoRef.current
+    if (v) {
+      v.style.objectFit = v.style.objectFit ? '' : 'contain'
+    }
+  }
   render () {
-    const { active, mirrored, muted, userId } = this.props
-    const className = classnames('video-container', { active, mirrored })
+    const { mirrored, muted, userId, windowState } = this.props
+    const className = classnames('video-container', {
+      minimized: windowState === 'minimized',
+      mirrored,
+    })
+
+
     return (
       <div className={className}>
         <video
           id={`video-${userId}`}
           autoPlay
           onClick={this.handleClick}
-          onMouseDown={this.handleMouseDown}
-          onTouchStart={this.handleMouseDown}
-          onMouseUp={this.handleMouseUp}
-          onTouchEnd={this.handleMouseUp}
           onLoadedMetadata={() => this.props.play()}
           playsInline
           ref={this.videoRef}
           muted={muted}
         />
-        <Nickname
-          value={this.props.nickname}
-          onChange={this.props.onChangeNickname}
-          localUser={this.props.localUser}
-        />
+        <div className='video-footer'>
+          <Nickname
+            value={this.props.nickname}
+            onChange={this.props.onChangeNickname}
+            localUser={this.props.localUser}
+          />
+          <Dropdown label={'☰'}>
+            <li className='action-minimize' onClick={this.handleMinimize}>
+              Toggle Minimize
+            </li>
+            <li className='action-toggle-fit' onClick={this.handleToggleCover}>
+              Toggle Fit
+            </li>
+          </Dropdown>
+        </div>
       </div>
     )
   }

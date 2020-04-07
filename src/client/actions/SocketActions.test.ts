@@ -49,8 +49,7 @@ describe('SocketActions', () => {
   describe('handshake', () => {
     describe('users', () => {
       beforeEach(() => {
-        SocketActions
-        .handshake({ socket, roomName, userId })(dispatch, getState)
+        SocketActions.handshake({ socket, roomName, userId, store })
         const payload = {
           users: [userA, userB],
           initiator: userA.userId,
@@ -77,8 +76,7 @@ describe('SocketActions', () => {
       let data: Peer.SignalData
       beforeEach(() => {
         data = {} as any
-        SocketActions
-        .handshake({ socket, roomName, userId })(dispatch, getState)
+        SocketActions.handshake({ socket, roomName, userId, store })
         socket.emit('users', {
           initiator: userA.userId,
           users: [userA, userB],
@@ -113,8 +111,7 @@ describe('SocketActions', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      SocketActions
-      .handshake({ socket, roomName, userId })(dispatch, getState)
+      SocketActions.handshake({ socket, roomName, userId, store })
 
       socket.emit('users', {
         initiator: userA.userId,

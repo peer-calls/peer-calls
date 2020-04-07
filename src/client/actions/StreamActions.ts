@@ -23,18 +23,14 @@ export interface RemoveStreamPayload {
   stream: MediaStream
 }
 
-export interface SetActiveStreamPayload {
+export interface MinimizeTogglePayload {
   userId: string
+  streamId?: string
 }
 
-export interface SetActiveStreamAction {
-  type: 'ACTIVE_SET'
-  payload: SetActiveStreamPayload
-}
-
-export interface ToggleActiveStreamAction {
-  type: 'ACTIVE_TOGGLE'
-  payload: UserIdPayload
+export interface MinimizeToggleAction {
+  type: 'MINIMIZE_TOGGLE'
+  payload: MinimizeTogglePayload
 }
 
 export interface RemoveStreamTrackPayload {
@@ -46,6 +42,17 @@ export interface RemoveStreamTrackPayload {
 export interface RemoveStreamTrackAction {
   type: 'PEER_STREAM_TRACK_REMOVE'
   payload: RemoveStreamTrackPayload
+}
+
+export interface AddStreamTrackPayload {
+  userId: string
+  stream: MediaStream
+  track: MediaStreamTrack
+}
+
+export interface AddStreamTrackAction {
+  type: 'PEER_STREAM_TRACK_ADD'
+  payload: AddStreamTrackPayload
 }
 
 export interface UserIdPayload {
@@ -65,6 +72,13 @@ export const removeStream = (
   payload: { userId, stream },
 })
 
+export const addTrack = (
+  payload: AddStreamTrackPayload,
+): AddStreamTrackAction => ({
+  type: constants.STREAM_TRACK_ADD,
+  payload,
+})
+
 export const removeTrack = (
   payload: RemoveStreamTrackPayload,
 ): RemoveStreamTrackAction => ({
@@ -72,19 +86,16 @@ export const removeTrack = (
   payload,
 })
 
-export const setActive = (userId: string): SetActiveStreamAction => ({
-  type: constants.ACTIVE_SET,
-  payload: { userId },
-})
-
-export const toggleActive = (userId: string): ToggleActiveStreamAction => ({
-  type: constants.ACTIVE_TOGGLE,
-  payload: { userId },
+export const minimizeToggle = (
+  payload: MinimizeTogglePayload,
+): MinimizeToggleAction => ({
+  type: constants.MINIMIZE_TOGGLE,
+  payload,
 })
 
 export type StreamAction =
   AddStreamAction |
   RemoveStreamAction |
-  SetActiveStreamAction |
-  ToggleActiveStreamAction |
-  RemoveStreamTrackAction
+  MinimizeToggleAction |
+  RemoveStreamTrackAction |
+  AddStreamTrackAction

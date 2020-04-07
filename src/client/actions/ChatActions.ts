@@ -10,6 +10,8 @@ export interface Message {
   message: string
   timestamp: string
   image?: string
+  // Indicates whether or not the message should be counted
+  system?: boolean
 }
 
 export const addMessage = (message: Message): MessageAddAction => ({

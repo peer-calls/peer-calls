@@ -1,10 +1,12 @@
-import { MediaDevice, AudioConstraint, VideoConstraint, MediaAction, MediaEnumerateAction, MediaStreamAction, MediaPlayAction } from '../actions/MediaActions'
-import { MEDIA_ENUMERATE, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_STREAM, MEDIA_PLAY } from '../constants'
+import { DialAction, HangUpAction } from '../actions/CallActions'
+import { AudioConstraint, MediaAction, MediaDevice, MediaEnumerateAction, MediaPlayAction, MediaStreamAction, VideoConstraint } from '../actions/MediaActions'
+import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
 
 export interface MediaState {
   devices: MediaDevice[]
   video: VideoConstraint
   audio: AudioConstraint
+  dialState: DialState
   loading: boolean
   error: string
   autoplayError: boolean
@@ -14,6 +16,7 @@ const defaultState: MediaState = {
   devices: [],
   video: { facingMode: 'user'},
   audio: true,
+  dialState: DIAL_STATE_HUNG_UP,
   loading: false,
   error: '',
   autoplayError: false,
@@ -75,6 +78,10 @@ export function handlePlay(
         autoplayError: false,
       }
     case 'rejected':
+      console.log('play rejected', action.payload.name)
+      if (action.payload.name !== 'NotAllowedError') {
+        return state
+      }
       return {
         ...state,
         autoplayError: true,
@@ -84,9 +91,31 @@ export function handlePlay(
   }
 }
 
+export function handleDial(state: MediaState, action: DialAction): MediaState {
+  switch(action.status) {
+    case 'pending':
+      return {
+        ...state,
+        dialState: DIAL_STATE_DIALLING,
+      }
+    case 'resolved':
+      return {
+        ...state,
+        dialState: DIAL_STATE_IN_CALL,
+      }
+    case 'rejected':
+      return {
+        ...state,
+        dialState: DIAL_STATE_HUNG_UP,
+      }
+    default:
+      return state
+  }
+}
+
 export default function media(
   state = defaultState,
-  action: MediaAction,
+  action: MediaAction | DialAction | HangUpAction,
 ): MediaState {
   switch (action.type) {
     case MEDIA_ENUMERATE:
@@ -105,6 +134,13 @@ export default function media(
       return handleMediaStream(state, action)
     case MEDIA_PLAY:
       return handlePlay(state, action)
+    case DIAL:
+      return handleDial(state, action)
+    case HANG_UP:
+      return {
+        ...state,
+        dialState: DIAL_STATE_HUNG_UP,
+      }
     default:
       return state
   }

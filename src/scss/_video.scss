@@ -2,102 +2,109 @@ $video-size: 100px;
 $shadow-size: 2px;
 
 .videos {
+  white-space: nowrap;
+}
 
+.videos-grid {
   position: absolute;
-  height: $video-size + $shadow-size;
-  padding: $shadow-size 0;
-  bottom: 1rem;
+  bottom: 0;
   left: 0;
   right: 0;
-  text-align: right;
-  transition: right cubic-bezier(0.55, 0, 0, 1) 500ms;
-  white-space: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  z-index: 0;
+  top: 0;
+
+  display: flex;
+  flex-wrap: wrap;
+
+  z-index: -1;
 }
 
 .video-container {
-  background-color: black;
-  box-shadow: 0px 0px $shadow-size black;
-  border-radius: 10px;
-  display: inline-block;
-  width: $video-size;
-  height: 100%;
-  z-index: 3;
-  margin-right: 1rem;
+  background-color: rgba($color-bg, 0.8);
+  box-shadow: 0px 0px 1px rgba(black, 0.3);
   position: relative;
+  display: flex;
 
-  .nickname {
-    border: none;
-    background: transparent;
-    font-size: 0.8rem;
-    padding: 2px 4px 2px 4px;
+  .video-footer {
     position: absolute;
     left: 0;
     bottom: 0;
     right: 0;
-    width: 100%;
+
+    display: flex;
+    flex: 1 1 100%;
+  }
+
+  .nickname {
+    border: none;
+    background: transparent;
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 2px 4px 2px 4px;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
     color: white;
     text-shadow: 0 0px 2px black;
     text-align: center;
+    margin-left: 1.75rem;
 
-    &:hover,
-    &:focus {
-      background-color: rgba(black, 0.5);
-      border-radius: 0 0 10px 10px;
-    }
+  }
+  input.nickname:hover,
+  input.nickname:focus {
+    background-color: rgba(black, 0.5);
   }
 
   video {
-    border-radius: 10px;
-    cursor: pointer;
     object-fit: cover;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
     height: 100%;
-  }
-
-  .video-actions {
-    display: none;
+    z-index: 0;
   }
 }
 
-.video-container.active {
-  background-color: transparent;
-  box-shadow: none;
-  border-radius: 0;
-  position: fixed;
-  width: 100%;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  z-index: -1;
-  transform: none;
+.videos-grid .video-container {
+  flex: 1 1 25%;
+}
 
-  video {
-    border-radius: 0;
-    cursor: inherit;
-    object-fit: contain;
-  }
+@media(max-width: 1200px) {
+  .videos-grid {
+    .video-container {
 
-  .video-actions {
-    display: inherit;
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    padding: 1rem;
-    font-family: monospace;
-    user-select: none;
-
-    .action:hover {
-      cursor: pointer;
-      color: white;
+      &:first-child:nth-last-child(2) ~ .video-container {
+        // split vertically when only two children
+        flex: 1 1 100%;
+      }
     }
   }
+}
+
+@media(max-width: 600px) {
+  .videos-grid {
+    .video-container {
+      flex: 1 1 50%;
+    }
+  }
+}
+
+.videos-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  overflow-x: auto;
+  overflow-y: hidden;
+  z-index: 0;
+  padding-bottom: 1px;
+}
+
+.videos-toolbar .video-container {
+  flex: 0 0 $video-size;
+  width: $video-size;
+  height: $video-size;
 }
 
 .video-container.mirrored video {

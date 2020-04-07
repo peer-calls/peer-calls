@@ -5,9 +5,13 @@ import { MediaState } from '../reducers/media'
 import { State } from '../store'
 import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
-import { ME, STREAM_TYPE_CAMERA } from '../constants'
+import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
+import { dial } from '../actions/CallActions'
+import { setNickname } from '../actions/NicknameActions'
 
 export type MediaProps = MediaState & {
+  dial: typeof dial
+  dialState: DialState
   visible: boolean
   enumerateDevices: typeof enumerateDevices
   onSetVideoConstraint: typeof setVideoConstraint
@@ -17,23 +21,24 @@ export type MediaProps = MediaState & {
   logInfo: typeof info
   logWarning: typeof warning
   logError: typeof error
+  onSetNickname: typeof setNickname
+  nickname?: string
 }
 
 function mapStateToProps(state: State) {
-  const localStream = state.streams[ME]
-  const hidden = !!localStream &&
-    localStream.streams.filter(s => s.type === STREAM_TYPE_CAMERA).length > 0
-  const visible = !hidden
   return {
     ...state.media,
-    visible,
+    nickname: state.nicknames[ME],
+    visible: state.media.dialState === DIAL_STATE_HUNG_UP,
   }
 }
 
 const mapDispatchToProps = {
   enumerateDevices,
+  dial,
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
+  onSetNickname: setNickname,
   getMediaStream,
   play,
   logInfo: info,
@@ -43,68 +48,94 @@ const mapDispatchToProps = {
 
 const c = connect(mapStateToProps, mapDispatchToProps)
 
-export const MediaForm = React.memo(function MediaForm(props: MediaProps) {
-  if (!props.visible) {
-    return null
+export class MediaForm extends React.PureComponent<MediaProps> {
+  componentDidMount() {
+    this.props.enumerateDevices()
   }
-
-  React.useMemo(async () => await props.enumerateDevices(), [])
-
-  async function onSave(event: React.FormEvent<HTMLFormElement>) {
+  handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const { props } = this
     const { audio, video } = props
     try {
       await props.getMediaStream({ audio, video })
     } catch (err) {
-      props.logError('Error: {0}', err)
+      props.logError('Error getting media stream: {0}', err)
+    }
+
+    props.logInfo('Dialling...')
+    try {
+      await props.dial()
+    } catch (err) {
+      props.logError('Error dialling: {0}', err)
     }
   }
-
-  function onVideoChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  handleVideoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const constraint: VideoConstraint = JSON.parse(event.target.value)
-    props.onSetVideoConstraint(constraint)
+    this.props.onSetVideoConstraint(constraint)
   }
 
-  function onAudioChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  handleAudioChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const constraint: AudioConstraint = JSON.parse(event.target.value)
-    props.onSetAudioConstraint(constraint)
+    this.props.onSetAudioConstraint(constraint)
   }
 
-  const videoId = JSON.stringify(props.video)
-  const audioId = JSON.stringify(props.audio)
+  handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.props.onSetNickname({
+      nickname: event.target.value,
+      userId: ME,
+    })
+  }
+  render() {
+    const { props } = this
+    if (!props.visible) {
+      return null
+    }
 
-  return (
-    <form className='media' onSubmit={onSave}>
-      <select
-        name='video-input'
-        onChange={onVideoChange}
-        value={videoId}
-      >
-        <Options
-          devices={props.devices}
-          default='{"facingMode":"user"}'
-          type='videoinput'
+    const videoId = JSON.stringify(props.video)
+    const audioId = JSON.stringify(props.audio)
+
+    return (
+      <form className='media' onSubmit={this.handleSubmit}>
+        <input
+          required
+          name='nickname'
+          type='text'
+          placeholder='Nickname'
+          onChange={this.handleNicknameChange}
+          value={props.nickname}
         />
-      </select>
 
-      <select
-        name='audio-input'
-        onChange={onAudioChange}
-        value={audioId}
-      >
-        <Options
-          devices={props.devices}
-          default='true'
-          type='audioinput'
-        />
-      </select>
+        <select
+          name='video-input'
+          onChange={this.handleVideoChange}
+          value={videoId}
+        >
+          <Options
+            devices={props.devices}
+            default='{"facingMode":"user"}'
+            type='videoinput'
+          />
+        </select>
 
-      <button type='submit'>
-        Join Call
-      </button>
-    </form>
-  )
-})
+        <select
+          name='audio-input'
+          onChange={this.handleAudioChange}
+          value={audioId}
+        >
+          <Options
+            devices={props.devices}
+            default='true'
+            type='audioinput'
+          />
+        </select>
+
+        <button type='submit'>
+          Join Call
+        </button>
+      </form>
+    )
+  }
+}
 
 export interface AutoplayProps {
   play: () => void
@@ -156,7 +187,7 @@ function Options(props: OptionsProps) {
   const label = labels[props.type]
   return (
     <React.Fragment>
-      <option value='false'>Disable {label}</option>
+      <option value='false'>No {label}</option>
       <option value={props.default}>Default {label}</option>
       {
         props.devices
