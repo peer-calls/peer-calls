@@ -13,7 +13,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 
 [peer-calls]: https://peercalls.com
 
-Work in progress.
+Experimental work is currently being done in the `server-go` branch. The server has been completely rewriten in Go and all the original functionality works. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads. Once implemented, it will be released as `Peer Calls v4`.
 
 # Requirements
 
@@ -255,9 +255,8 @@ sudo systemctl start coturn
 - [x] Add ability to share files (Fixed in 3877893)
 - [ ] Enable node cluster support (to scale vertically).
 - [x] Add Socket.IO support for Redis (to scale horizontally).
-- [ ] Generate public keys for each client, and allow each client to accept,
-      deny, and remember allowed/denied connections to specific peers.
 - [ ] Add support for browser push notifications
+- [ ] Allow other methods of connectivity, beside mesh. Experimental work done in `server-go` branch.
 
 # Contributing
 

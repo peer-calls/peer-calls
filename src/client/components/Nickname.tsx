@@ -1,5 +1,6 @@
 import React from 'react'
 import { NicknameMessage } from '../actions/PeerActions'
+import { nickname } from '../window'
 
 export interface NicknameProps {
   value: string
@@ -41,9 +42,14 @@ function EditableNickname(props: EditableNicknameProps) {
   }
 
   function update() {
+    let nick = value
+    if (!value) {
+      setValue(nickname)
+      nick = nickname
+    }
     props.onChange({
       type: 'nickname',
-      payload: { nickname: value },
+      payload: { nickname: nick },
     })
   }
 

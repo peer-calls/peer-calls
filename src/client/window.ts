@@ -14,6 +14,7 @@ export const baseUrl = valueOf('baseUrl')!
 export const callId = valueOf('callId')!
 export const userId = valueOf('userId')!
 export const iceServers = JSON.parse(valueOf('iceServers')!)
+export const nickname = valueOf('nickname')!
 
 debug('Using ice servers: %s', iceServers)
 
