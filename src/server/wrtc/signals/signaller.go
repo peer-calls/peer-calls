@@ -157,7 +157,7 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverReque
 	t, err = s.peerConnection.AddTransceiverFromKind(
 		codecType,
 		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			Direction: webrtc.RTPTransceiverDirectionSendrecv,
 		},
 	)
 	// }
