@@ -171,6 +171,7 @@ func (t *TracksManager) removePeerTracks(peerLeavingRoom peerInRoom) {
 					)
 				}
 			}
+			otherPeerInRoom.signaller.Negotiate()
 		}
 	}
 }

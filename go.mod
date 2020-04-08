@@ -15,3 +15,5 @@ require (
 	gopkg.in/yaml.v2 v2.2.8
 	nhooyr.io/websocket v1.8.4
 )
+
+replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.5-0.20200408110440-172d555bb9eb

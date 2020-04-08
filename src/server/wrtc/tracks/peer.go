@@ -109,7 +109,8 @@ func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 }
 
 func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
-	log.Printf("[%s] peer.handleTrack %s (type: %s)", p.clientID, remoteTrack.ID(), remoteTrack.Kind())
+	log.Printf("[%s] peer.handleTrack (id: %s, label: %s, type: %s)",
+		p.clientID, remoteTrack.ID(), remoteTrack.Label(), remoteTrack.Kind())
 	localTrack, err := p.startCopyingTrack(remoteTrack)
 	if err != nil {
 		log.Printf("Error copying remote track: %s", err)
@@ -132,16 +133,22 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 	if remoteTrackID == "" {
 		remoteTrackID = basen.NewUUIDBase62()
 	}
+	// this is the media stream ID we add the p.clientID in the string to know
+	// which user the video came from and the remoteTrack.Label() so we can
+	// associate audio/video tracks from the same MediaStream
 	remoteTrackLabel := remoteTrack.Label()
 	if remoteTrackLabel == "" {
-		remoteTrackLabel = remoteTrackID
+		remoteTrackLabel = basen.NewUUIDBase62()
 	}
-	localTrackID := "copy-" + p.clientID + "-" + remoteTrackID
-	log.Printf("[%s] peer.startCopyingTrack: %s to %s, ssrc: %d", p.clientID, remoteTrack.ID(), localTrackID, remoteTrack.SSRC())
+	localTrackLabel := "sfu__" + p.clientID + "__" + remoteTrackLabel
+
+	localTrackID := "sfu__" + remoteTrackID
+	log.Printf("[%s] peer.startCopyingTrack: (id: %s, label: %s) to (id: %s, label: %s), ssrc: %d",
+		p.clientID, remoteTrack.ID(), remoteTrack.Label(), localTrackID, localTrackLabel, remoteTrack.SSRC())
 
 	ssrc := remoteTrack.SSRC()
 	// Create a local track, all our SFU clients will be fed via this track
-	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), ssrc, localTrackID, remoteTrackLabel)
+	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), ssrc, localTrackID, localTrackLabel)
 	if err != nil {
 		err = fmt.Errorf("[%s] peer.startCopyingTrack: error creating new track, trackID: %s, error: %s", p.clientID, remoteTrack.ID(), err)
 		return nil, err

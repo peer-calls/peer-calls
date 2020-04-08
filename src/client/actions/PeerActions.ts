@@ -69,7 +69,7 @@ class PeerHandler {
   handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
     const { user, dispatch } = this
     const userId = user.id
-    debug('peer: %s, track: %s', userId, track.id)
+    debug('peer: %s, track: %s, stream: %s', userId, track.id, stream.id)
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {

@@ -1,5 +1,6 @@
 jest.mock('simple-peer')
 jest.mock('../socket')
+jest.mock('../window')
 jest.useFakeTimers()
 
 import SimplePeer from 'simple-peer'
@@ -8,6 +9,7 @@ import * as MediaActions from '../actions/MediaActions'
 import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, ME, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
 import socket from '../socket'
 import { createStore, Store } from '../store'
+import { MediaStream, MediaStreamTrack } from '../window'
 
 describe('media', () => {
 
@@ -97,12 +99,9 @@ describe('media', () => {
   })
 
   describe(MEDIA_STREAM, () => {
-    const track: MediaStreamTrack = {} as unknown as MediaStreamTrack
-    const stream: MediaStream = {
-      getTracks() {
-        return [track]
-      },
-    } as MediaStream
+    const track = new MediaStreamTrack()
+    const stream = new MediaStream()
+    stream.addTrack(track)
     describe('using navigator.mediaDevices.getUserMedia', () => {
 
       beforeEach(() => {
@@ -206,7 +205,7 @@ describe('media', () => {
   })
 
   describe('getDesktopStream (getDisplayMedia)', () => {
-    const stream: MediaStream = {} as MediaStream
+    const stream: MediaStream = new MediaStream()
     beforeEach(() => {
       (navigator.mediaDevices as any).getDisplayMedia = async () => stream
     })

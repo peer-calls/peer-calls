@@ -1,3 +1,4 @@
+import _debug from 'debug'
 import forEach from 'lodash/forEach'
 import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
@@ -6,6 +7,7 @@ import { AddStreamAction, AddStreamTrackAction, RemoveStreamAction, RemoveStream
 import { HANG_UP, MEDIA_STREAM, STREAM_ADD, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 
+const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
 
 function safeCreateObjectURL (stream: MediaStream) {
@@ -31,10 +33,29 @@ export interface StreamsState {
   [userId: string]: UserStreams
 }
 
+interface StreamWithUserId {
+  stream: MediaStream
+  userId: string
+}
+
+function getStreamWithUserId(payload: StreamWithUserId): StreamWithUserId {
+  const { stream } = payload
+  const streamIdPayload = stream.id.split('__')
+  if (streamIdPayload.length === 3) {
+    const userId = streamIdPayload[1]
+    debug(
+      'getStreamWithUserId: converting MediaStream.id from %s to %s',
+      stream.id, userId,
+    )
+    return { stream, userId }
+  }
+  return payload
+}
+
 function addStream (
   state: StreamsState, payload: AddStreamAction['payload'],
 ): StreamsState {
-  const { userId, stream } = payload
+  const { userId, stream } = getStreamWithUserId(payload)
 
   const userStreams = state[userId] || {
     userId,
@@ -63,7 +84,7 @@ function addStream (
 function removeStream (
   state: StreamsState, payload: RemoveStreamAction['payload'],
 ): StreamsState {
-  const { userId, stream } = payload
+  const { userId, stream } = getStreamWithUserId(payload)
   const userStreams = state[userId]
   if (!userStreams) {
     return state
@@ -101,7 +122,8 @@ function removeStream (
 function removeStreamTrack(
   state: StreamsState, payload: RemoveStreamTrackAction['payload'],
 ): StreamsState {
-  const { userId, stream, track } = payload
+  const { userId, stream } = getStreamWithUserId(payload)
+  const { track } = payload
   const userStreams = state[userId]
   if (!userStreams) {
     return state
@@ -122,7 +144,8 @@ function removeStreamTrack(
 function addStreamTrack(
   state: StreamsState, payload: AddStreamTrackAction['payload'],
 ): StreamsState {
-  const { userId, stream, track } = payload
+  const { userId, stream } = getStreamWithUserId(payload)
+  const { track } = payload
   const userStreams = state[userId]
   const existingUserStream =
     userStreams && userStreams.streams.find(s => s.stream === stream)
