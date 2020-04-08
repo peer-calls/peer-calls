@@ -47,7 +47,7 @@ class SocketHandler {
     debug('socket remote peerIds: %o', peerIds)
 
     this.dispatch(NotifyActions.info(
-      'Connected users: %s', Object.keys(nicknames).length))
+      'Connected users: {0}', Object.keys(nicknames).length))
     const { peers } = this.getState()
     debug('active peers: %o', Object.keys(peers))
 

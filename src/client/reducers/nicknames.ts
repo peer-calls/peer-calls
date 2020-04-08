@@ -26,6 +26,7 @@ export default function nicknames(
       return defaultState
     case NICKNAMES_SET:
       return Object.keys(action.payload).reduce((obj, key) => {
+      const value = action.payload[key]
         if (key !== userId) {
           obj[key] = action.payload[key]
         }

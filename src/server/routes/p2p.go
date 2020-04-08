@@ -40,7 +40,7 @@ func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
 
-				clients, err := adapter.Clients()
+				clients, err := getReadyClients(adapter)
 				if err != nil {
 					log.Printf("Error retrieving clients: %s", err)
 				}
@@ -74,8 +74,24 @@ func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func getReadyClients(adapter wsadapter.Adapter) (map[string]string, error) {
+	filteredClients := map[string]string{}
+	clients, err := adapter.Clients()
+	if err != nil {
+		return filteredClients, err
+	}
+	for clientID, nickname := range clients {
+		// if nickame hasn't been set, the peer hasn't emitted ready yet so we
+		// don't connect to that peer.
+		if nickname != "" {
+			filteredClients[clientID] = nickname
+		}
+	}
+	return filteredClients, nil
+}
+
 func clientsToPeerIDs(clients map[string]string) (peers []string) {
-	for clientID := range clients {
+	for clientID, _ := range clients {
 		peers = append(peers, clientID)
 	}
 	return

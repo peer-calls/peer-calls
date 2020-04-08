@@ -106,7 +106,7 @@ func NewPeerToServerRoomHandler(
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
 
-				clients, err := adapter.Clients()
+				clients, err := getReadyClients(adapter)
 				if err != nil {
 					log.Printf("[%s] Error retrieving clients: %s", clientID, err)
 				}

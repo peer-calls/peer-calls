@@ -52,6 +52,8 @@ export class MediaForm extends React.PureComponent<MediaProps> {
     this.props.enumerateDevices()
   }
   handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    const nickname = this.nicknameRef.current!.value
+    localStorage && (localStorage.nickname = nickname)
     event.preventDefault()
     const { props } = this
     const { audio, video } = props
@@ -64,7 +66,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
     props.logInfo('Dialling...')
     try {
       await props.dial({
-        nickname: this.nicknameRef.current!.value,
+        nickname,
       })
     } catch (err) {
       props.logError('Error dialling: {0}', err)
