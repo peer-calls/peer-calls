@@ -55,10 +55,10 @@ func NewNegotiator(
 
 func (n *Negotiator) AddTransceiverFromKind(t TransceiverRequest) {
 	n.mu.Lock()
-	log.Printf("[%s] Added %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
+	log.Printf("[%s] Queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
 	n.queuedTransceiverRequests = append(n.queuedTransceiverRequests, t)
 	n.mu.Unlock()
-	log.Printf("[%s] Calling Negotiate() because a new transceiver request request was received", n.remotePeerID)
+	log.Printf("[%s] Calling Negotiate because a %s transceiver was queued", n.remotePeerID, t.CodecType)
 	n.Negotiate()
 }
 
@@ -100,10 +100,10 @@ func (n *Negotiator) Negotiate() {
 
 func (n *Negotiator) addQueuedTransceivers() {
 	for _, t := range n.queuedTransceiverRequests {
-		log.Printf("[%s] add queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
+		log.Printf("[%s] Adding queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
 		_, err := n.peerConnection.AddTransceiverFromKind(t.CodecType, t.Init)
 		if err != nil {
-			log.Printf("[%s] error adding %s transceiver: %s", n.remotePeerID, err)
+			log.Printf("[%s] Error adding %s transceiver: %s", n.remotePeerID, err)
 		}
 	}
 	n.queuedTransceiverRequests = []TransceiverRequest{}

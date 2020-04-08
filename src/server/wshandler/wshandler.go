@@ -37,11 +37,17 @@ type RoomEvent struct {
 	Message  wsmessage.Message
 }
 
+type CleanupEvent struct {
+	ClientID string
+	Room     string
+	Adapter  wsadapter.Adapter
+}
+
 func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent)) {
 	wss.HandleRoomWithCleanup(w, r, handleMessage, nil)
 }
 
-func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent), cleanup func()) {
+func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent), cleanup func(CleanupEvent)) {
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		CompressionMode: websocket.CompressionDisabled,
 	})
@@ -74,6 +80,14 @@ func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, ha
 		return
 	}
 
+	if cleanup != nil {
+		defer cleanup(CleanupEvent{
+			ClientID: clientID,
+			Room:     room,
+			Adapter:  adapter,
+		})
+	}
+
 	defer func() {
 		log.Printf("adapter.Remove room: %s, clientID: %s", room, clientID)
 		err := adapter.Remove(clientID)
@@ -81,10 +95,6 @@ func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, ha
 			log.Printf("Error removing client from adapter: %s", err)
 		}
 	}()
-
-	if cleanup != nil {
-		defer cleanup()
-	}
 
 	err = client.Subscribe(ctx, func(message wsmessage.Message) {
 		handleMessage(RoomEvent{

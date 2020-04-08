@@ -14,6 +14,9 @@ export interface SocketEvent {
     // mapping of userId / nickname
     nicknames: Record<string, string>
   }
+  hangUp: {
+    userId: string
+  }
   signal: {
     userId: string
     // eslint-disable-next-line

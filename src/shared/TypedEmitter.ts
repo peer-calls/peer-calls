@@ -15,7 +15,7 @@ export type TypedEmitterKeys =
 // signatures differ slightly.
 export interface TypedEmitter<E extends Events> {
   removeListener<K extends keyof E>(t: K, callback: Callback<E[K]>): this
-  removeAllListeners(): void
+  removeAllListeners(event?: string): void
 
   on<K extends keyof E>(t: K, callback: Callback<E[K]>): this
   once<K extends keyof E>(t: K, callback: Callback<E[K]>): this

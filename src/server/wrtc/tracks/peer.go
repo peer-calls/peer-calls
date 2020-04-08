@@ -109,8 +109,8 @@ func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 }
 
 func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
-	log.Printf("[%s] peer.handleTrack (id: %s, label: %s, type: %s)",
-		p.clientID, remoteTrack.ID(), remoteTrack.Label(), remoteTrack.Kind())
+	log.Printf("[%s] peer.handleTrack (id: %s, label: %s, type: %s, ssrc: %d)",
+		p.clientID, remoteTrack.ID(), remoteTrack.Label(), remoteTrack.Kind(), remoteTrack.SSRC())
 	localTrack, err := p.startCopyingTrack(remoteTrack)
 	if err != nil {
 		log.Printf("Error copying remote track: %s", err)

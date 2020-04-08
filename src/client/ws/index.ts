@@ -55,8 +55,12 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
     this.emitter.emit(message.type, message.payload)
   }
 
-  removeAllListeners() {
-    this.emitter.removeAllListeners()
+  removeAllListeners(event?: string) {
+    if (arguments.length === 0) {
+      this.emitter.removeAllListeners()
+    } else {
+      this.emitter.removeAllListeners(event)
+    }
     // this.ws.removeEventListener('close', this.wsHandleClose)
     // this.ws.removeEventListener('open', this.wsHandleOpen)
     // this.ws.removeEventListener('message', this.wsHandleMessage)

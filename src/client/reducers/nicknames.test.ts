@@ -5,7 +5,7 @@ import { create } from '../middlewares'
 import { userId, nickname } from '../window'
 import reducers from './index'
 import { ME } from '../constants'
-import { setNicknames } from '../actions/NicknameActions'
+import { setNicknames, removeNickname } from '../actions/NicknameActions'
 import { getLocalNickname } from '../reducers/nicknames'
 
 describe('reducers/nicknames', () => {
@@ -55,6 +55,39 @@ describe('reducers/nicknames', () => {
     it('reads data from window.nickname as a fallback', () => {
       expect(getLocalNickname()).toBe(nickname)
     })
+  })
+
+  describe('removeNickname', () => {
+
+    beforeEach(() => {
+      store.dispatch(setNicknames({
+        a: 'one',
+        b: 'two',
+      }))
+      expect(store.getState().nicknames).toEqual({
+        a: 'one',
+        b: 'two',
+        [ME]: nickname,
+      })
+    })
+
+    it('removes a specific nickname', () => {
+      store.dispatch(removeNickname({ userId: 'a' }))
+      expect(store.getState().nicknames).toEqual({
+        b: 'two',
+        [ME]: nickname,
+      })
+    })
+
+    it('does not remove current user\'s nickanme', () => {
+      store.dispatch(removeNickname({ userId: ME }))
+      expect(store.getState().nicknames).toEqual({
+        a: 'one',
+        b: 'two',
+        [ME]: nickname,
+      })
+    })
+
   })
 
 })

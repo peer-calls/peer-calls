@@ -31,6 +31,7 @@ export const MEDIA_AUDIO_CONSTRAINT_SET = 'MEDIA_AUDIO_CONSTRAINT_SET'
 export const MEDIA_PLAY = 'MEDIA_PLAY'
 
 export const NICKNAMES_SET = 'NICKNAMES_SET'
+export const NICKNAME_REMOVE = 'NICKNAME_REMOVE'
 
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'
@@ -45,6 +46,7 @@ export const PEER_EVENT_DATA = 'data'
 export const SOCKET_EVENT_READY = 'ready'
 export const SOCKET_EVENT_SIGNAL = 'signal'
 export const SOCKET_EVENT_USERS = 'users'
+export const SOCKET_EVENT_HANG_UP = 'hangUp'
 
 export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'

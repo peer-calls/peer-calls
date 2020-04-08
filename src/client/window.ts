@@ -16,7 +16,7 @@ export const userId = valueOf('userId')!
 export const iceServers = JSON.parse(valueOf('iceServers')!)
 export const nickname = valueOf('nickname')!
 
-debug('Using ice servers: %s', iceServers)
+debug('Using ice servers: %o', iceServers)
 
 export const MediaStream = window.MediaStream
 export const MediaStreamTrack = window.MediaStreamTrack

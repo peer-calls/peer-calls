@@ -5,8 +5,7 @@ import _debug from 'debug'
 import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { SocketEvent } from '../../shared'
-import { EventEmitter } from 'events'
-import { setNicknames } from './NicknameActions'
+import { setNicknames, removeNickname } from './NicknameActions'
 
 const debug = _debug('peercalls')
 
@@ -41,6 +40,12 @@ class SocketHandler {
     debug('socket signal, userId: %s, signal: %o', userId, signal)
     if (!peer) return debug('user: %s, no peer found', userId)
     peer.signal(signal)
+  }
+  // One user has hung up
+  handleHangUp = ({ userId }: SocketEvent['hangUp']) => {
+    const { dispatch } = this
+    debug('socket hangUp, userId: %s', userId)
+    dispatch(removeNickname({ userId }))
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
@@ -95,6 +100,7 @@ export function handshake (options: HandshakeOptions) {
 
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
+  socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
 
   debug('userId: %s', userId)
   socket.emit(constants.SOCKET_EVENT_READY, {
@@ -105,7 +111,7 @@ export function handshake (options: HandshakeOptions) {
 }
 
 export function removeEventListeners (socket: ClientSocket) {
-  const ee = socket as unknown as EventEmitter
-  ;(ee.removeAllListeners)(constants.SOCKET_EVENT_SIGNAL)
-  ;(ee.removeAllListeners)(constants.SOCKET_EVENT_USERS)
+  socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
+  socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
+  socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)
 }

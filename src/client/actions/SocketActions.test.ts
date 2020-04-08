@@ -1,6 +1,8 @@
 jest.mock('simple-peer')
 jest.mock('../window')
+// jest.mock('../actions/NicknameActions')
 
+import * as NicknameActions from './NicknameActions'
 import * as SocketActions from './SocketActions'
 import * as constants from '../constants'
 import Peer from 'simple-peer'
@@ -177,6 +179,20 @@ describe('SocketActions', () => {
         expect(track.onmute).toBeDefined()
         track.onmute!(new Event('mute'))
         expect(store.getState().streams).toEqual({})
+      })
+    })
+
+    describe('hangUp', () => {
+      beforeEach(() => {
+        SocketActions.handshake({ nickname, socket, roomName, userId, store })
+        store.dispatch(NicknameActions.setNicknames({
+          a: 'A',
+        }))
+      })
+
+      it('emits a removeNickname event', () => {
+        socket.emit(constants.SOCKET_EVENT_HANG_UP, { userId: 'a' })
+        expect(store.getState().nicknames).not.toHaveProperty('a')
       })
     })
 

@@ -73,9 +73,12 @@ func NewPeerToServerRoomHandler(
 			return
 		}
 
-		cleanup := func() {
-			// TODO maybe cleanup is not necessary as we can still keep peer
-			// connections after websocket conn closes
+		cleanup := func(event wshandler.CleanupEvent) {
+			err = event.Adapter.Broadcast(
+				wsmessage.NewMessage("hangUp", event.Room, map[string]string{
+					"userId": event.ClientID,
+				}),
+			)
 		}
 
 		var signaller *signals.Signaller
@@ -106,8 +109,8 @@ func NewPeerToServerRoomHandler(
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
 
-				clients, err := getReadyClients(adapter)
-				if err != nil {
+				clients, clientsError := getReadyClients(adapter)
+				if clientsError != nil {
 					log.Printf("[%s] Error retrieving clients: %s", clientID, err)
 				}
 
