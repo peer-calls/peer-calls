@@ -131,6 +131,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
     const { messagesCount, stream } = this.props
     const unreadCount = messagesCount - this.state.readMessages
     const hasUnread = unreadCount > 0
+    const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
 
     return (
       <div className="toolbar active">
@@ -142,36 +143,46 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           onChange={this.handleSelectFiles}
         />
 
-        <ToolbarButton
-          badge={unreadCount}
-          className='chat'
-          icon='icon-question_answer'
-          blink={!this.props.chatVisible && hasUnread}
-          onClick={this.handleToggleChat}
-          on={this.props.chatVisible}
-          title='Toggle Chat'
-        />
+        {isInCall && (
+          <ToolbarButton
+            badge={unreadCount}
+            className='chat'
+            key='chat'
+            icon='icon-question_answer'
+            blink={!this.props.chatVisible && hasUnread}
+            onClick={this.handleToggleChat}
+            on={this.props.chatVisible}
+            title='Toggle Chat'
+          />
+        )}
 
-        <ToolbarButton
-          className='send-file'
-          icon='icon-file-text2'
-          onClick={this.handleSendFile}
-          title='Send File'
-        />
+        {isInCall && (
+          <ToolbarButton
+            className='send-file'
+            key='send-file'
+            icon='icon-file-text2'
+            onClick={this.handleSendFile}
+            title='Send File'
+          />
+        )}
 
-        <ToolbarButton
-          className='stream-desktop'
-          icon='icon-display'
-          onClick={this.handleToggleShareDesktop}
-          on={!!this.props.desktopStream}
-          title='Share Desktop'
-        />
+        {isInCall && (
+          <ToolbarButton
+            className='stream-desktop'
+            icon='icon-display'
+            onClick={this.handleToggleShareDesktop}
+            on={!!this.props.desktopStream}
+            key='stream-desktop'
+            title='Share Desktop'
+          />
+        )}
 
         {stream && (
           <React.Fragment>
             <ToolbarButton
               onClick={this.handleMicClick}
               className='mute-audio'
+              key='mute-audio'
               on={this.state.micMuted}
               icon='icon-mic_off'
               offIcon='icon-mic'
@@ -180,6 +191,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
             <ToolbarButton
               onClick={this.handleCamClick}
               className='mute-video'
+              key='mute-video'
               on={this.state.camDisabled}
               icon='icon-videocam_off'
               offIcon='icon-videocam'
@@ -191,20 +203,22 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
         <ToolbarButton
           onClick={this.handleFullscreenClick}
           className='fullscreen'
+          key='fullscreen'
           icon='icon-fullscreen_exit'
           offIcon='icon-fullscreen'
           on={this.state.fullScreenEnabled}
           title='Toggle Fullscreen'
         />
 
-          {this.props.dialState === DIAL_STATE_IN_CALL && (
-            <ToolbarButton
-              onClick={this.props.onHangup}
-              className='hangup'
-              icon='icon-call_end'
-              title="Hang Up"
-            />
-          )}
+        {isInCall && (
+          <ToolbarButton
+            onClick={this.props.onHangup}
+            key='hangup'
+            className='hangup'
+            icon='icon-call_end'
+            title="Hang Up"
+          />
+        )}
 
       </div>
     )

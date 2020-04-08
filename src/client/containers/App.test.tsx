@@ -67,6 +67,9 @@ describe('App', () => {
 
   describe('chat toggle', () => {
     it('toggles chat state', async () => {
+      state.media = {
+        dialState: constants.DIAL_STATE_IN_CALL,
+      } as any
       await render()
       const chatButton = node.querySelector('.toolbar .button.chat')!
       expect(chatButton).toBeTruthy()
