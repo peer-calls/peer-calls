@@ -54,6 +54,14 @@ func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
 	return
 }
 
+func (m *MemoryAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
+	client, ok := m.clients[clientID]
+	if ok {
+		client.SetMetadata(metadata)
+	}
+	return ok
+}
+
 // Returns clients with metadata
 func (m *MemoryAdapter) Clients() (clientIDs map[string]string, err error) {
 	m.clientsMu.RLock()

@@ -6,6 +6,7 @@ type Client interface {
 	ID() string
 	WriteChannel() chan<- wsmessage.Message
 	Metadata() string
+	SetMetadata(metadata string)
 }
 
 type Adapter interface {
@@ -13,6 +14,7 @@ type Adapter interface {
 	Remove(clientID string) error
 	Broadcast(msg wsmessage.Message) error
 	Metadata(clientID string) (string, bool)
+	SetMetadata(clientID string, metadata string) bool
 	Emit(clientID string, msg wsmessage.Message) error
 	Clients() (map[string]string, error)
 	Size() (int, error)

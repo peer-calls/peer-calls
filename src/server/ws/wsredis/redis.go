@@ -132,6 +132,12 @@ func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
 	return metadata, err != nil
 }
 
+func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
+	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
+	log.Printf("SetMetadata for clientID: %s, metadata: %s (err: %s)", clientID, metadata, err)
+	return err != nil
+}
+
 // Returns IDs of all known clients connected to this room
 func (a *RedisAdapter) Clients() (map[string]string, error) {
 	log.Printf("Clients")

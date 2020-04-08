@@ -72,6 +72,10 @@ func (m *MockAdapter) Broadcast(message wsmessage.Message) error {
 	return nil
 }
 
+func (m *MockAdapter) SetMetadata(clientID string, metadata string) bool {
+	return true
+}
+
 func (m *MockAdapter) Clients() (map[string]string, error) {
 	return map[string]string{"client1": "abc"}, nil
 }
