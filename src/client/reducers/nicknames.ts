@@ -23,12 +23,14 @@ export default function nicknames(
     case PEER_REMOVE:
       return omit(state, [action.payload.userId])
     case HANG_UP:
-      return defaultState
+      return {[ME]: state[ME]}
     case NICKNAMES_SET:
       return Object.keys(action.payload).reduce((obj, key) => {
-      const value = action.payload[key]
-        if (key !== userId) {
-          obj[key] = action.payload[key]
+        const value = action.payload[key]
+        if (key === userId) {
+          obj[ME] = value
+        } else {
+          obj[key] = value
         }
         return obj
       }, {[ME]: state[ME]} as Nicknames)

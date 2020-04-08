@@ -36,7 +36,7 @@ describe('reducers/nicknames', () => {
       expect(store.getState().nicknames).toEqual({
         a: 'one',
         b: 'two',
-        [ME]: nickname,
+        [ME]: 'three',
       })
     })
   })
