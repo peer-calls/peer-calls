@@ -40,8 +40,9 @@ interface StreamWithUserId {
 
 function getStreamWithUserId(payload: StreamWithUserId): StreamWithUserId {
   const { stream } = payload
-  const streamIdPayload = stream.id.split('__')
-  if (streamIdPayload.length === 3) {
+  const streamId = stream.id
+  const streamIdPayload = streamId.split('_')
+  if (streamId.startsWith('sfu_') && streamIdPayload.length === 3) {
     const userId = streamIdPayload[1]
     debug(
       'getStreamWithUserId: converting MediaStream.id from %s to %s',

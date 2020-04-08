@@ -137,7 +137,8 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 		return nil
 	case TransceiverRequest:
 		log.Printf("[%s] Remote signal.transceiverRequest: %s", s.remotePeerID, signal.TransceiverRequest.Kind)
-		return s.handleTransceiverRequest(signal)
+		s.handleTransceiverRequest(signal)
+		return nil
 	case webrtc.SessionDescription:
 		sdpLog.Printf("[%s] Remote signal.type: %s, signal.sdp: %s", s.remotePeerID, signal.Type, signal.SDP)
 		return s.handleRemoteSDP(signal)
@@ -146,30 +147,17 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 	}
 }
 
-func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverRequest) (err error) {
-	log.Printf("[%s] Add recvonly transceiver per request %v", s.remotePeerID, transceiverRequest)
+func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverRequest) {
+	log.Printf("[%s] handleTransceiverRequest: %v", s.remotePeerID, transceiverRequest)
 
 	codecType := transceiverRequest.TransceiverRequest.Kind
-	var t *webrtc.RTPTransceiver
-	// if init := transceiverRequest.TransceiverRequest.Init; init != nil {
-	// 	t, err = s.peerConnection.AddTransceiverFromKind(codecType, *init)
-	// } else {
-	t, err = s.peerConnection.AddTransceiverFromKind(
-		codecType,
-		webrtc.RtpTransceiverInit{
+
+	s.negotiator.AddTransceiverFromKind(negotiator.TransceiverRequest{
+		CodecType: codecType,
+		Init: webrtc.RtpTransceiverInit{
 			Direction: webrtc.RTPTransceiverDirectionSendrecv,
 		},
-	)
-	// }
-	log.Printf("[%s] Added %s transceiver, direction: %s", s.remotePeerID, codecType, t.Direction())
-
-	if err != nil {
-		return fmt.Errorf("[%s] Error adding transceiver type %s: %s", s.remotePeerID, codecType, err)
-	}
-
-	log.Printf("[%s] Calling signaller.Negotiate() because a new transceiver was added", s.remotePeerID)
-	s.Negotiate()
-	return nil
+	})
 }
 
 func (s *Signaller) handleRemoteSDP(sessionDescription webrtc.SessionDescription) (err error) {

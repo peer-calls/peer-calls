@@ -140,9 +140,9 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 	if remoteTrackLabel == "" {
 		remoteTrackLabel = basen.NewUUIDBase62()
 	}
-	localTrackLabel := "sfu__" + p.clientID + "__" + remoteTrackLabel
+	localTrackLabel := "sfu_" + p.clientID + "_" + remoteTrackLabel
 
-	localTrackID := "sfu__" + remoteTrackID
+	localTrackID := "sfu_" + remoteTrackID
 	log.Printf("[%s] peer.startCopyingTrack: (id: %s, label: %s) to (id: %s, label: %s), ssrc: %d",
 		p.clientID, remoteTrack.ID(), remoteTrack.Label(), localTrackID, localTrackLabel, remoteTrack.SSRC())
 

@@ -12,6 +12,12 @@ var log = logger.GetLogger("negotiator")
 type PeerConnection interface {
 	CreateOffer(*webrtc.OfferOptions) (webrtc.SessionDescription, error)
 	OnSignalingStateChange(func(webrtc.SignalingState))
+	AddTransceiverFromKind(codecType webrtc.RTPCodecType, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
+}
+
+type TransceiverRequest struct {
+	CodecType webrtc.RTPCodecType
+	Init      webrtc.RtpTransceiverInit
 }
 
 type Negotiator struct {
@@ -24,6 +30,8 @@ type Negotiator struct {
 	isNegotiating     bool
 	mu                sync.Mutex
 	queuedNegotiation bool
+
+	queuedTransceiverRequests []TransceiverRequest
 }
 
 func NewNegotiator(
@@ -43,6 +51,15 @@ func NewNegotiator(
 
 	peerConnection.OnSignalingStateChange(n.handleSignalingStateChange)
 	return n
+}
+
+func (n *Negotiator) AddTransceiverFromKind(t TransceiverRequest) {
+	n.mu.Lock()
+	log.Printf("[%s] Added %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
+	n.queuedTransceiverRequests = append(n.queuedTransceiverRequests, t)
+	n.mu.Unlock()
+	log.Printf("[%s] Calling Negotiate() because a new transceiver request request was received", n.remotePeerID)
+	n.Negotiate()
 }
 
 func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
@@ -77,10 +94,24 @@ func (n *Negotiator) Negotiate() {
 
 	log.Printf("[%s] Negotiate: start", n.remotePeerID)
 	n.isNegotiating = true
+
 	n.negotiate()
 }
 
+func (n *Negotiator) addQueuedTransceivers() {
+	for _, t := range n.queuedTransceiverRequests {
+		log.Printf("[%s] add queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
+		_, err := n.peerConnection.AddTransceiverFromKind(t.CodecType, t.Init)
+		if err != nil {
+			log.Printf("[%s] error adding %s transceiver: %s", n.remotePeerID, err)
+		}
+	}
+	n.queuedTransceiverRequests = []TransceiverRequest{}
+}
+
 func (n *Negotiator) negotiate() {
+	n.addQueuedTransceivers()
+
 	if !n.initiator {
 		log.Printf("[%s] negotiate: requesting from initiator", n.remotePeerID)
 		n.requestNegotiation()
