@@ -5,15 +5,12 @@ import { ME } from '../constants'
 import { getNickname } from '../nickname'
 import Video from './Video'
 import { Nicknames } from '../reducers/nicknames'
-import { NicknameMessage } from '../actions/PeerActions'
 import { getStreamKey, WindowStates, WindowState } from '../reducers/windowStates'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 
 export interface VideosProps {
-  onChangeNickname: (message: NicknameMessage) => void
   nicknames: Nicknames
   play: () => void
-  peers: Record<string, unknown>
   streams: StreamsState
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
   windowStates: WindowStates
@@ -31,7 +28,7 @@ interface StreamProps {
 
 export default class Videos extends React.PureComponent<VideosProps> {
   private getStreams() {
-    const { windowStates, peers, streams } = this.props
+    const { windowStates, nicknames, streams } = this.props
 
     const minimized: StreamProps[] = []
     const maximized: StreamProps[] = []
@@ -76,8 +73,8 @@ export default class Videos extends React.PureComponent<VideosProps> {
       })
     }
 
-    addStreamsByUser(ME)
-    forEach(peers, (_, userId) => addStreamsByUser(userId))
+    // this includes ME and other peers
+    forEach(nicknames, (_, userId) => addStreamsByUser(userId))
 
     return { minimized, maximized }
   }
@@ -93,7 +90,6 @@ export default class Videos extends React.PureComponent<VideosProps> {
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
             nickname={getNickname(this.props.nicknames, props.userId)}
-            onChangeNickname={this.props.onChangeNickname}
           />
         ))}
       </div>
@@ -108,7 +104,6 @@ export default class Videos extends React.PureComponent<VideosProps> {
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
             nickname={getNickname(this.props.nicknames, props.userId)}
-            onChangeNickname={this.props.onChangeNickname}
           />
         ))}
       </div>

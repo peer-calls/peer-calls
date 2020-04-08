@@ -11,6 +11,8 @@ import { createStore, Store } from '../store'
 
 describe('media', () => {
 
+  const nickname = 'john'
+
   let store: Store
   beforeEach(() => {
     store = createStore();
@@ -227,11 +229,12 @@ describe('media', () => {
 
   describe('dialState', () => {
     async function successfulDial() {
-      const promise = store.dispatch(dial())
+      const promise = store.dispatch(dial({ nickname }))
       expect(store.getState().media.dialState).toBe(DIAL_STATE_DIALLING)
       socket.emit('users', {
         initiator: 'test',
-        users: [],
+        peerIds: [],
+        nicknames: {},
       })
       jest.runAllTimers()
       await promise
@@ -242,7 +245,7 @@ describe('media', () => {
       expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
     })
     it('changes state from DIALLING to HUNG_UP', async () => {
-      const promise = store.dispatch(dial())
+      const promise = store.dispatch(dial({ nickname }))
       expect(store.getState().media.dialState).toBe(DIAL_STATE_DIALLING)
       jest.runAllTimers()
       let err!: Error

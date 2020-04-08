@@ -127,12 +127,10 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         />
 
         <Videos
-          onChangeNickname={sendMessage}
           onMinimizeToggle={this.props.minimizeToggle}
           streams={this.props.streams}
           play={this.props.play}
           nicknames={this.props.nicknames}
-          peers={this.props.peers}
           windowStates={this.props.windowStates}
         />
       </div>

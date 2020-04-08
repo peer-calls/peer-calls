@@ -25,29 +25,28 @@ describe('SocketActions', () => {
     instances = (Peer as any).instances = []
   })
 
-  const userA = {
-    socketId: 'socket-a',
-    userId: 'user-a',
-  }
-  const userId = userA.userId
+  const peerA = 'peer-a'
+  const userId = peerA
 
-  const userB = {
-    socketId: 'socket-b',
-    userId: 'user-b',
-  }
+  const peerB = 'peer-b'
+  const peerC = 'peer-c'
 
-  const userC = {
-    socketId: 'socket-c',
-    userId: 'user-c',
+  const nickname = 'john'
+
+  const nicknames: Record<string, string> = {
+    [peerA]: 'user one',
+    [peerB]: 'user two',
+    [peerC]: 'user three',
   }
 
   describe('handshake', () => {
     describe('users', () => {
       beforeEach(() => {
-        SocketActions.handshake({ socket, roomName, userId, store })
+        SocketActions.handshake({ nickname, socket, roomName, userId, store })
         const payload = {
-          users: [userA, userB],
-          initiator: userA.userId,
+          initiator: peerA,
+          peerIds: [peerA, peerB],
+          nicknames,
         }
         socket.emit('users', payload)
         expect(instances.length).toBe(1)
@@ -55,8 +54,9 @@ describe('SocketActions', () => {
 
       it('adds a peer for each new user and keeps active connections', () => {
         const payload = {
-          users: [userA, userC],
-          initiator:  userC.userId,
+          peerIds: [peerA, peerC],
+          initiator:  peerC,
+          nicknames,
         }
         socket.emit(constants.SOCKET_EVENT_USERS, payload)
 
@@ -71,16 +71,17 @@ describe('SocketActions', () => {
       let data: Peer.SignalData
       beforeEach(() => {
         data = {} as any
-        SocketActions.handshake({ socket, roomName, userId, store })
+        SocketActions.handshake({ nickname, socket, roomName, userId, store })
         socket.emit('users', {
-          initiator: userA.userId,
-          users: [userA, userB],
+          initiator: peerA,
+          peerIds: [peerA, peerB],
+          nicknames,
         })
       })
 
       it('should forward signal to peer', () => {
         socket.emit('signal', {
-          userId: userB.userId,
+          userId: peerB,
           signal: data,
         })
 
@@ -106,11 +107,12 @@ describe('SocketActions', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      SocketActions.handshake({ socket, roomName, userId, store })
+      SocketActions.handshake({ nickname, socket, roomName, userId, store })
 
       socket.emit('users', {
-        initiator: userA.userId,
-        users: [userA, userB],
+        initiator: peerA,
+        peerIds: [peerA, peerB],
+        nicknames,
       })
       expect(instances.length).toBe(1)
       peer = instances[0]
@@ -130,7 +132,7 @@ describe('SocketActions', () => {
         const signal = { bla: 'bla' }
 
         socket.once('signal', (payload: SocketEvent['signal']) => {
-          expect(payload.userId).toEqual(userB.userId)
+          expect(payload.userId).toEqual(peerB)
           expect(payload.signal).toBe(signal)
           done()
         })
@@ -152,8 +154,8 @@ describe('SocketActions', () => {
         track.onunmute!(new Event('unmute'))
 
         expect(store.getState().streams).toEqual({
-          [userB.userId]: {
-            userId: userB.userId,
+          [peerB]: {
+            userId: peerB,
             streams: [{
               stream,
               type: undefined,
@@ -189,8 +191,8 @@ describe('SocketActions', () => {
 
         expect(stream.getTracks().length).toBe(1)
         expect(store.getState().streams).toEqual({
-          [userB.userId]: {
-            userId: userB.userId,
+          [peerB]: {
+            userId: peerB,
             streams: [{
               stream,
               type: undefined,
@@ -201,7 +203,7 @@ describe('SocketActions', () => {
       })
 
       it('removes stream & peer from store', () => {
-        expect(store.getState().peers).toEqual({ [userB.userId]: peer })
+        expect(store.getState().peers).toEqual({ [peerB]: peer })
         peer.emit('close')
         expect(store.getState().streams).toEqual({})
         expect(store.getState().peers).toEqual({})

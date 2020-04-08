@@ -102,13 +102,21 @@ func NewPeerToServerRoomHandler(
 			case "ready":
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
 
+				// FIXME check for errors
+				payload, _ := msg.Payload.(map[string]interface{})
+				adapter.SetMetadata(clientID, payload["nickname"].(string))
+
+				clients, err := adapter.Clients()
+				if err != nil {
+					log.Printf("[%s] Error retrieving clients: %s", clientID, err)
+				}
+
 				responseEventName = "users"
-				err = adapter.Emit(
-					clientID,
+				err = adapter.Broadcast(
 					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
 						"initiator": initiator,
-						// "initiator": clientID,
-						"users": []User{{UserID: localPeerID, ClientID: localPeerID}},
+						"peerIds":   []string{localPeerID},
+						"nicknames": clients,
 					}),
 				)
 

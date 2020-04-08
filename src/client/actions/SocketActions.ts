@@ -6,6 +6,7 @@ import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { SocketEvent } from '../../shared'
 import { EventEmitter } from 'events'
+import { setNicknames } from './NicknameActions'
 
 const debug = _debug('peercalls')
 
@@ -41,25 +42,26 @@ class SocketHandler {
     if (!peer) return debug('user: %s, no peer found', userId)
     peer.signal(signal)
   }
-  handleUsers = ({ initiator, users }: SocketEvent['users']) => {
+  handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
-    debug('socket users: %o', users)
-    this.dispatch(NotifyActions.info('Connected users: {0}', users.length))
+    debug('socket remote peerIds: %o', peerIds)
+
+    this.dispatch(NotifyActions.info(
+      'Connected users: %s', Object.keys(nicknames).length))
     const { peers } = this.getState()
     debug('active peers: %o', Object.keys(peers))
 
     const isInitiator = initiator === this.userId
     debug('isInitiator', isInitiator)
 
-    users
-    .filter(
-      user =>
-      user.userId && !peers[user.userId] && user.userId !== this.userId)
-    .forEach(user => PeerActions.createPeer({
+    dispatch(setNicknames(nicknames))
+
+    peerIds
+    .filter(peerId => !peers[peerId] && peerId !== this.userId)
+    .forEach(peerId => PeerActions.createPeer({
       socket,
       user: {
-        // users without id should be filtered out
-        id: user.userId!,
+        id: peerId,
       },
       initiator: isInitiator,
       stream,
@@ -71,12 +73,13 @@ export interface HandshakeOptions {
   socket: ClientSocket
   store: Store
   roomName: string
+  nickname: string
   userId: string
   stream?: MediaStream
 }
 
 export function handshake (options: HandshakeOptions) {
-  const { socket, roomName, stream, userId, store } = options
+  const { nickname, socket, roomName, stream, userId, store } = options
 
   const handler = new SocketHandler({
     socket,
@@ -96,6 +99,7 @@ export function handshake (options: HandshakeOptions) {
   debug('userId: %s', userId)
   socket.emit(constants.SOCKET_EVENT_READY, {
     room: roomName,
+    nickname,
     userId,
   })
 }

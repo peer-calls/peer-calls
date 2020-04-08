@@ -54,32 +54,6 @@ describe('components/Input', () => {
         .toEqual([[ { payload: message, type: 'text' } ]])
       })
 
-      it('sends a nickname command', () => {
-        TestUtils.Simulate.change(input, {
-          target: { value: '/nick john' } as any,
-        })
-        TestUtils.Simulate.submit(node)
-        expect(sendMessage.mock.calls)
-        .toEqual([[ { payload: {nickname: 'john'}, type: 'nickname' } ]])
-      })
-
-      it('does not fail when command is empty', () => {
-        TestUtils.Simulate.change(input, {
-          target: { value: '/nick ' } as any,
-        })
-        TestUtils.Simulate.submit(node)
-        expect(sendMessage.mock.calls)
-        .toEqual([[ { payload: {nickname: ''}, type: 'nickname' } ]])
-      })
-
-      it('sends message when command is invalid', () => {
-        TestUtils.Simulate.change(input, {
-          target: { value: '/nick' } as any,
-        })
-        TestUtils.Simulate.submit(node)
-        expect(sendMessage.mock.calls)
-        .toEqual([[ { payload: '/nick', type: 'text' } ]])
-      })
     })
 
     describe('handleKeyPress', () => {

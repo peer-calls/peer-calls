@@ -1,20 +1,19 @@
-import { NICKNAME_SET } from '../constants'
+import { NICKNAMES_SET } from '../constants'
 
-export interface NicknameSetPayload {
-  nickname: string
-  userId: string
+export interface NicknamesSetPayload {
+  [userId: string]: string
 }
 
-export interface NicknameSetAction {
-  type: 'NICKNAME_SET'
-  payload: NicknameSetPayload
+export interface NicknamesSetAction {
+  type: 'NICKNAMES_SET'
+  payload: NicknamesSetPayload
 }
 
-export function setNickname(payload: NicknameSetPayload): NicknameSetAction {
+export function setNicknames(payload: NicknamesSetPayload): NicknamesSetAction {
   return {
-    type: NICKNAME_SET,
+    type: NICKNAMES_SET,
     payload,
   }
 }
 
-export type NicknameActions = NicknameSetAction
+export type NicknameActions = NicknamesSetAction

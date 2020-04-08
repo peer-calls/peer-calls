@@ -98,6 +98,10 @@ describe('App', () => {
       state.peers = {
         'other-user': {} as any,
       }
+      state.nicknames = {
+        [constants.ME]: 'local user',
+        'other-user': 'remote user',
+      }
       state.notifications = {
         'notification1': {
           id: 'notification1',

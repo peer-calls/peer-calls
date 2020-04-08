@@ -7,7 +7,6 @@ import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
 import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
-import { setNickname } from '../actions/NicknameActions'
 
 export type MediaProps = MediaState & {
   dial: typeof dial
@@ -21,7 +20,6 @@ export type MediaProps = MediaState & {
   logInfo: typeof info
   logWarning: typeof warning
   logError: typeof error
-  onSetNickname: typeof setNickname
   nickname?: string
 }
 
@@ -38,7 +36,6 @@ const mapDispatchToProps = {
   dial,
   onSetVideoConstraint: setVideoConstraint,
   onSetAudioConstraint: setAudioConstraint,
-  onSetNickname: setNickname,
   getMediaStream,
   play,
   logInfo: info,
@@ -49,6 +46,8 @@ const mapDispatchToProps = {
 const c = connect(mapStateToProps, mapDispatchToProps)
 
 export class MediaForm extends React.PureComponent<MediaProps> {
+  nicknameRef = React.createRef<HTMLInputElement>()
+
   componentDidMount() {
     this.props.enumerateDevices()
   }
@@ -64,7 +63,9 @@ export class MediaForm extends React.PureComponent<MediaProps> {
 
     props.logInfo('Dialling...')
     try {
-      await props.dial()
+      await props.dial({
+        nickname: this.nicknameRef.current!.value,
+      })
     } catch (err) {
       props.logError('Error dialling: {0}', err)
     }
@@ -79,12 +80,6 @@ export class MediaForm extends React.PureComponent<MediaProps> {
     this.props.onSetAudioConstraint(constraint)
   }
 
-  handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    this.props.onSetNickname({
-      nickname: event.target.value,
-      userId: ME,
-    })
-  }
   render() {
     const { props } = this
     if (!props.visible) {
@@ -101,8 +96,8 @@ export class MediaForm extends React.PureComponent<MediaProps> {
           name='nickname'
           type='text'
           placeholder='Nickname'
-          onChange={this.handleNicknameChange}
-          value={props.nickname}
+          defaultValue={props.nickname}
+          ref={this.nicknameRef}
         />
 
         <select

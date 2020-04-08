@@ -162,7 +162,9 @@ func TestWS_event_ready(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
-	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("ready", "test-room", nil))
+	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("ready", "test-room", map[string]interface{}{
+		"nickname": "abc",
+	}))
 	// msg := mustReadWS(t, ctx, ws)
 	msg := <-rooms.broadcast
 	assert.Equal(t, "users", msg.Type)
@@ -170,11 +172,9 @@ func TestWS_event_ready(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, map[string]interface{}{
 		"initiator": clientID,
-		"users": []routes.User{
-			routes.User{
-				UserID:   "client1",
-				ClientID: "client1",
-			},
+		"peerIds":   []string{"client1"},
+		"nicknames": map[string]string{
+			"client1": "abc",
 		},
 	}, payload)
 }

@@ -36,6 +36,10 @@ func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 
 			switch msg.Type {
 			case "ready":
+				// FIXME check for errors
+				payload, _ := msg.Payload.(map[string]interface{})
+				adapter.SetMetadata(clientID, payload["nickname"].(string))
+
 				clients, err := adapter.Clients()
 				if err != nil {
 					log.Printf("Error retrieving clients: %s", err)
@@ -45,7 +49,8 @@ func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 				err = adapter.Broadcast(
 					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
 						"initiator": clientID,
-						"users":     clientsToUsers(clients),
+						"peerIds":   clientsToPeerIDs(clients),
+						"nicknames": clients,
 					}),
 				)
 			case "signal":
@@ -69,17 +74,9 @@ func NewPeerToPeerRoomHandler(wss *wshandler.WSS) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-type User struct {
-	UserID   string `json:"userId"`
-	ClientID string `json:"clientId"`
-}
-
-func clientsToUsers(clients map[string]string) (users []User) {
+func clientsToPeerIDs(clients map[string]string) (peers []string) {
 	for clientID := range clients {
-		users = append(users, User{
-			UserID:   clientID,
-			ClientID: clientID,
-		})
+		peers = append(peers, clientID)
 	}
 	return
 }

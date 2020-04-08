@@ -1,19 +1,18 @@
 import { SignalData } from 'simple-peer'
 
-export interface User {
-  socketId: string
-  userId?: string
-}
-
 export interface Ready {
   room: string
   userId: string
+  nickname: string
 }
 
 export interface SocketEvent {
   users: {
     initiator: string
-    users: User[]
+    // peers to connect to
+    peerIds: string[]
+    // mapping of userId / nickname
+    nicknames: Record<string, string>
   }
   signal: {
     userId: string

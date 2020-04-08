@@ -13,6 +13,7 @@ import { dial } from '../actions/CallActions'
 describe('Media', () => {
 
   beforeEach(() => {
+    (dial as jest.Mock).mockClear()
     store = createStore()
     store.dispatch({
       type: MEDIA_ENUMERATE,
@@ -120,6 +121,8 @@ describe('Media', () => {
       expect(err).toBeTruthy()
       expect(err.message).toBe('test dial error')
       expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
+      const nickname = store.getState().nicknames[ME]
+      expect((dial as jest.Mock).mock.calls).toEqual([[ { nickname } ]])
     })
   })
 
@@ -146,19 +149,6 @@ describe('Media', () => {
         } as any,
       })
       expect(store.getState().media.audio).toEqual({ deviceId: 456 })
-    })
-  })
-
-  describe('onNicknameChange', () => {
-    it('changes nickname', async () => {
-      const node = await render()
-      const nickname = node.querySelector('input[name="nickname"]')!
-      TestUtils.Simulate.change(nickname, {
-        target: {
-          value: 'john123',
-        } as any,
-      })
-      expect(store.getState().nicknames[ME]).toEqual('john123')
     })
   })
 

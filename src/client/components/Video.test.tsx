@@ -6,7 +6,6 @@ import Video, { VideoProps } from './Video'
 import { MediaStream } from '../window'
 import { STREAM_TYPE_CAMERA } from '../constants'
 import { StreamWithURL } from '../reducers/streams'
-import { NicknameMessage } from '../actions/PeerActions'
 import { WindowState } from '../reducers/windowStates'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 
@@ -35,7 +34,6 @@ describe('components/Video', () => {
         muted={this.props.muted}
         mirrored={this.props.mirrored}
         nickname={this.props.nickname}
-        onChangeNickname={this.props.onChangeNickname}
         windowState={this.props.windowState}
       />
     }
@@ -45,7 +43,6 @@ describe('components/Video', () => {
   let video: Video
   let onMinimizeToggle:
     jest.MockedFunction<(payload: MinimizeTogglePayload) => void>
-  let onChangeNickname: jest.MockedFunction<(message: NicknameMessage) => void>
   let mediaStream: MediaStream
   let url: string
   let wrapper: Element
@@ -65,7 +62,6 @@ describe('components/Video', () => {
     nickname = 'john'
     const flags: Flags = Object.assign({}, defaultFlags, args)
     onMinimizeToggle = jest.fn()
-    onChangeNickname = jest.fn()
     mediaStream = new MediaStream()
     const div = document.createElement('div')
     component = await new Promise<VideoWrapper>(resolve => {
@@ -82,7 +78,6 @@ describe('components/Video', () => {
           userId="test"
           muted={flags.muted}
           mirrored={flags.mirrored}
-          onChangeNickname={onChangeNickname}
           onMinimizeToggle={onMinimizeToggle}
           nickname={nickname}
           windowState={flags.windowState}

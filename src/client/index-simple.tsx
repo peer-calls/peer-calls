@@ -7,7 +7,7 @@ socket.reconnectTimeout = 0
 
 socket.on('connect', () => {
 
-  socket.on('users', ({initiator, users}) => {
+  socket.on('users', ({initiator, peerIds}) => {
     const peer = new Peer({
       initiator: initiator === userId,
       config: { iceServers },
@@ -90,6 +90,7 @@ socket.on('connect', () => {
 
   socket.emit('ready', {
     room: callId,
+    nickname: 'test',
     userId,
   })
 

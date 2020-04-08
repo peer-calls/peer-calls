@@ -32,10 +32,15 @@ export const init = (): ThunkResult<Promise<void>> => async dispatch => {
   })
 }
 
+export interface DialParams {
+  nickname: string
+}
+
 export const dial = makeAction(
   DIAL,
-  () => new Promise<void>((resolve, reject) => {
+  (params: DialParams) => new Promise<void>((resolve, reject) => {
     SocketActions.handshake({
+      nickname: params.nickname,
       socket,
       roomName: callId,
       userId,
