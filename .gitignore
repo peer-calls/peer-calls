@@ -9,3 +9,5 @@ coverage/
 config/local.yaml
 lib/
 tsconfig.tsbuildinfo
+.cache/
+manifest-browser.json

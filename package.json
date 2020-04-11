@@ -83,6 +83,7 @@
     "eslint": "^6.8.0",
     "eslint-plugin-import": "^2.20.1",
     "eslint-plugin-react": "^7.19.0",
+    "fuse-box": "4.0.0-next.424",
     "jest": "^25.1.0",
     "lodash": "^4.17.15",
     "loose-envify": "^1.4.0",
@@ -102,6 +103,7 @@
     "ts-node": "^8.6.2",
     "tsify": "^4.0.1",
     "typescript": "^3.8.3",
+    "util": "0.12.2",
     "watchify": "^3.11.1",
     "webrtc-adapter": "^7.5.0"
   }
