@@ -23,6 +23,7 @@ type PeerConnection interface {
 	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
 	WriteRTCP([]rtcp.Packet) error
 	NewTrack(uint8, uint32, string, string) (*webrtc.Track, error)
+	Close() error
 }
 
 type peer struct {
@@ -104,6 +105,7 @@ func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 	// }
 
 	if connectionState == webrtc.ICEConnectionStateDisconnected {
+		p.peerConnection.Close()
 		p.onClose(p.clientID)
 	}
 }
