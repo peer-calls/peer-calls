@@ -157,13 +157,13 @@ it to `peercalls,peercalls:*` will enable all server-side logging:
 
 - `DEBUG=peercalls,peercalls:* npm run start:server`
 
-Client-side logs can be configured via `localStorage.DEBUG` and
+Client-side logs can be configured via `localStorage.debug` and
 `localStorage.LOG` variables:
 
-- Setting `localStorage.LOG=1` enables logging of Redux actions and state
+- Setting `localStorage.log=1` enables logging of Redux actions and state
   changes
-- Setting `localStorage.DEBUG=peercalls,peercalls:*` enables all other
-  client-side logging
+- Setting `localStorage.debug=peercalls,peercalls:*` enables all other
+  client-side logging. You might want to include `simple-peer` here as well.
 
 # Development
 
