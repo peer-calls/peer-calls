@@ -10,10 +10,8 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/pion/rtcp v1.2.1
-	github.com/pion/webrtc/v2 v2.2.5-0.20200404023929-364d0def74c5
+	github.com/pion/webrtc/v2 v2.2.5
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/yaml.v2 v2.2.8
 	nhooyr.io/websocket v1.8.4
 )
-
-replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.5-0.20200408110440-172d555bb9eb
