@@ -158,7 +158,7 @@ it to `peercalls,peercalls:*` will enable all server-side logging:
 - `DEBUG=peercalls,peercalls:* npm run start:server`
 
 Client-side logs can be configured via `localStorage.debug` and
-`localStorage.LOG` variables:
+`localStorage.log` variables:
 
 - Setting `localStorage.log=1` enables logging of Redux actions and state
   changes
