@@ -4,7 +4,7 @@
 [![NPM Package][npm-badge]][npm]
 
 [travis-badge]: https://travis-ci.com/jeremija/peer-calls.svg?branch=master
-[travis]: https://travis-ci.org/jeremija/peer-calls
+[travis]: https://travis-ci.com/jeremija/peer-calls
 [npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
 [npm]: https://www.npmjs.com/package/peer-calls
 
