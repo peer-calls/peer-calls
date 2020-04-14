@@ -193,7 +193,7 @@ For more details, see here:
 - http://caniuse.com/#search=getUserMedia
 
 In Firefox, it might be useful to use `about:webrtc` to debug connection
-issues.
+issues. In Chrome use `about:webrtc-internals`.
 
 When experiencing connection issues, the first thing to try is to have all
 peers to use the same browser.
