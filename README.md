@@ -3,8 +3,8 @@
 [![Build Status][travis-badge]][travis]
 [![NPM Package][npm-badge]][npm]
 
-[travis-badge]: https://travis-ci.com/jeremija/peer-calls.svg?branch=master
-[travis]: https://travis-ci.com/jeremija/peer-calls
+[travis-badge]: https://travis-ci.com/peer-calls/peer-calls.svg?branch=master
+[travis]: https://travis-ci.com/peer-calls/peer-calls
 [npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
 [npm]: https://www.npmjs.com/package/peer-calls
 
