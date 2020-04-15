@@ -78,6 +78,7 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 		func(clientID string, track *webrtc.Track) {
 			t.addTrack(room, clientID, track)
 		},
+		t.removeTrack,
 		t.removePeer,
 	)
 
@@ -170,6 +171,34 @@ func (t *TracksManager) removePeerTracks(peerLeavingRoom peerInRoom) {
 						err,
 					)
 				}
+			}
+			otherPeerInRoom.signaller.Negotiate()
+		}
+	}
+}
+
+func (t *TracksManager) removeTrack(clientID string, track *webrtc.Track) {
+	log.Printf("[%s] removeTrack ssrc: %d from other peers", clientID, track.SSRC())
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	peer, ok := t.peers[clientID]
+	if !ok {
+		log.Printf("[%s] removeTrack: Cannot find peer with clientID: %s", clientID)
+		return
+	}
+	clientIDs, ok := t.peerIDsByRoom[peer.room]
+	if !ok {
+		log.Printf("[%s] removeTrack: Cannot find any peers in room: %s", clientID, peer.room)
+		return
+	}
+	for otherClientID := range clientIDs {
+		if otherClientID != clientID {
+			otherPeerInRoom := t.peers[otherClientID]
+			err := otherPeerInRoom.peer.RemoveTrack(track)
+			if err != nil {
+				log.Printf("[%s] removeTrack error removing track: %s", clientID, err)
 			}
 			otherPeerInRoom.signaller.Negotiate()
 		}

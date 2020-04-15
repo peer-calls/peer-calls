@@ -32,20 +32,23 @@ type peer struct {
 	localTracks      []*webrtc.Track
 	localTracksMu    sync.RWMutex
 	rtpSenderByTrack map[*webrtc.Track]*webrtc.RTPSender
-	onTrack          func(clientID string, track *webrtc.Track)
+	onAddTrack       func(clientID string, track *webrtc.Track)
+	onRemoveTrack    func(clientID string, track *webrtc.Track)
 	onClose          func(clientID string)
 }
 
 func newPeer(
 	clientID string,
 	peerConnection PeerConnection,
-	onTrack func(clientID string, track *webrtc.Track),
+	onAddTrack func(clientID string, track *webrtc.Track),
+	onRemoveTrack func(clientID string, track *webrtc.Track),
 	onClose func(clientID string),
 ) *peer {
 	p := &peer{
 		clientID:         clientID,
 		peerConnection:   peerConnection,
-		onTrack:          onTrack,
+		onAddTrack:       onAddTrack,
+		onRemoveTrack:    onRemoveTrack,
 		onClose:          onClose,
 		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
 	}
@@ -123,7 +126,7 @@ func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.localTracksMu.Unlock()
 
 	log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
-	p.onTrack(p.clientID, localTrack)
+	p.onAddTrack(p.clientID, localTrack)
 }
 
 func (p *peer) Tracks() []*webrtc.Track {
@@ -181,6 +184,7 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 
 	go func() {
 		defer ticker.Stop()
+		defer p.onRemoveTrack(p.clientID, localTrack)
 		rtpBuf := make([]byte, 1400)
 		for {
 			i, err := remoteTrack.Read(rtpBuf)
