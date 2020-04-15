@@ -63,8 +63,8 @@ func NewMux(
 
 	handler.Route(root, func(router chi.Router) {
 		router.Get("/", renderer.Render(mux.routeIndex))
-		router.Handle("/static/*", static(baseURL+"/static", "../../../build"))
-		router.Handle("/res/*", static(baseURL+"/res", "../../../res"))
+		router.Handle("/static/*", static(baseURL+"/static", packr.NewBox("../../../build")))
+		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../../../res")))
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
@@ -90,8 +90,7 @@ func newWebSocketHandler(
 	}
 }
 
-func static(prefix string, path string) http.Handler {
-	box := packr.NewBox(path)
+func static(prefix string, box packr.Box) http.Handler {
 	fileServer := http.FileServer(http.FileSystem(box))
 	return http.StripPrefix(prefix, fileServer)
 }
