@@ -28,10 +28,10 @@ func panicOnError(err error, message string) {
 var log = logger.GetLogger("main")
 
 func main() {
-	flags := flag.NewFlagSet("start", flag.ExitOnError)
+	flags := flag.NewFlagSet("peer-calls", flag.ExitOnError)
 	var configFilename string
 	flags.StringVar(&configFilename, "c", "", "Config file to use")
-	flags.Parse(os.Args)
+	flags.Parse(os.Args[1:])
 
 	configFiles := []string{}
 	if configFilename != "" {
