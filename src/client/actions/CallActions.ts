@@ -1,5 +1,5 @@
 import { GetAsyncAction, makeAction } from '../async'
-import { DIAL, HANG_UP, SOCKET_EVENT_USERS } from '../constants'
+import { DIAL, HANG_UP, SOCKET_EVENT_USERS, SOCKET_EVENT_HANG_UP } from '../constants'
 import socket from '../socket'
 import store, { ThunkResult } from '../store'
 import { callId, userId } from '../window'
@@ -56,6 +56,7 @@ export type HangUpAction = {
 }
 
 export const hangUp = (): HangUpAction => {
+  socket.emit(SOCKET_EVENT_HANG_UP, { userId })
   SocketActions.removeEventListeners(socket)
   return {
     type: HANG_UP,

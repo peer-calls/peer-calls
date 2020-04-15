@@ -6,7 +6,7 @@ jest.useFakeTimers()
 import SimplePeer from 'simple-peer'
 import { dial, hangUp } from '../actions/CallActions'
 import * as MediaActions from '../actions/MediaActions'
-import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, ME, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP } from '../constants'
+import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, ME, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, SOCKET_EVENT_HANG_UP } from '../constants'
 import socket from '../socket'
 import { createStore, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
@@ -261,10 +261,14 @@ describe('media', () => {
       await successfulDial()
     })
 
-    it('cahnges state to HUNG_UP when destroyPeers is called', async() => {
+    it('changes state to HUNG_UP when hangUp action is dispatched', async() => {
       await successfulDial()
+      const promise = new Promise<void>(
+        resolve => socket.once(SOCKET_EVENT_HANG_UP, () => resolve()),
+      )
       store.dispatch(hangUp())
       expect(store.getState().media.dialState).toBe(DIAL_STATE_HUNG_UP)
+      await promise
     })
   })
 
