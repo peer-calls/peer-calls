@@ -17,6 +17,9 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   protected connected = false
   reconnectTimeout = 2000
 
+  pingIntervalTimeout = 5000
+  protected pingInterval: NodeJS.Timeout | undefined
+
   constructor(readonly url: string) {
     this.connect()
   }
@@ -39,6 +42,10 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
       debug('websocket failed to connect')
     }
 
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+    }
+
     if (this.reconnectTimeout) {
       setTimeout(() => this.connect(), this.reconnectTimeout)
     }
@@ -48,6 +55,14 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
     debug('websocket connected')
     this.connected = true
     this.emitter.emit('connect')
+
+    if (this.pingIntervalTimeout) {
+      this.pingInterval = setInterval(this.ping, this.pingIntervalTimeout)
+    }
+  }
+
+  protected ping = () => {
+    this.emit('ping', undefined as E[keyof E])
   }
 
   protected wsHandleMessage = (e: MessageEvent) => {
