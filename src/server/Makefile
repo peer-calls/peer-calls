@@ -1,4 +1,4 @@
-BUILD_FLAGS := -ldflags "-X main.gitDescribe=$(shell git describe --always --tags --dirty)"
+BUILD_FLAGS := -ldflags "-X main.gitDescribe=$(shell git describe --always --tags --dirty)" -o peer-calls
 
 coverage:
 	go test ./... -coverprofile=coverage.out
@@ -9,8 +9,8 @@ report:
 build:
 	go build $(BUILD_FLAGS)
 
-pack: css-prod
+pack:
 	packr build $(BUILD_FLAGS)
 
-pack-linux: css-prod
+pack-linux:
 	GOOS=linux GOARCH=amd64 packr build $(BUILD_FLAGS)
