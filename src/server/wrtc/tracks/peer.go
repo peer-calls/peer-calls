@@ -34,7 +34,7 @@ type peer struct {
 	rtpSenderByTrack map[*webrtc.Track]*webrtc.RTPSender
 	onAddTrack       func(clientID string, track *webrtc.Track)
 	onRemoveTrack    func(clientID string, track *webrtc.Track)
-	onClose          func(clientID string)
+	closeChannel     chan struct{}
 }
 
 func newPeer(
@@ -42,15 +42,14 @@ func newPeer(
 	peerConnection PeerConnection,
 	onAddTrack func(clientID string, track *webrtc.Track),
 	onRemoveTrack func(clientID string, track *webrtc.Track),
-	onClose func(clientID string),
 ) *peer {
 	p := &peer{
 		clientID:         clientID,
 		peerConnection:   peerConnection,
 		onAddTrack:       onAddTrack,
 		onRemoveTrack:    onRemoveTrack,
-		onClose:          onClose,
 		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
+		closeChannel:     make(chan struct{}),
 	}
 
 	peerConnection.OnICEConnectionStateChange(p.handleICEConnectionStateChange)
@@ -64,6 +63,10 @@ func newPeer(
 
 func (p *peer) ClientID() string {
 	return p.clientID
+}
+
+func (p *peer) CloseChannel() <-chan struct{} {
+	return p.closeChannel
 }
 
 func (p *peer) AddTrack(track *webrtc.Track) error {
@@ -109,7 +112,7 @@ func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnecti
 
 	if connectionState == webrtc.ICEConnectionStateDisconnected {
 		p.peerConnection.Close()
-		p.onClose(p.clientID)
+		close(p.closeChannel)
 	}
 }
 

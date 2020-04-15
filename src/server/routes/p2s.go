@@ -17,7 +17,7 @@ import (
 const localPeerID = "__SERVER__"
 
 type TracksManager interface {
-	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller)
+	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller) (closeChannel <-chan struct{})
 }
 
 const serverIsInitiator = true
@@ -65,27 +65,19 @@ func NewPeerToServerRoomHandler(
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		peerConnection, err := api.NewPeerConnection(webrtcConfig)
-
-		if err != nil {
-			log.Printf("Error creating peer connection: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 
 		cleanup := func(event wshandler.CleanupEvent) {
-			err = event.Adapter.Broadcast(
+			err := event.Adapter.Broadcast(
 				wsmessage.NewMessage("hangUp", event.Room, map[string]string{
 					"userId": event.ClientID,
 				}),
 			)
+			if err != nil {
+				log.Printf("[%s] Error in cleanup: %s", event.ClientID, err)
+			}
 		}
 
 		var signaller *signals.Signaller
-
-		peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
-			log.Printf("ICE gathering state changed: %s", state)
-		})
 
 		handleMessage := func(event wshandler.RoomEvent) {
 			msg := event.Message
@@ -98,12 +90,20 @@ func NewPeerToServerRoomHandler(
 				initiator = clientID
 			}
 
-			var responseEventName string
 			var err error
 
 			switch msg.Type {
 			case "ready":
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
+
+				peerConnection, err := api.NewPeerConnection(webrtcConfig)
+				if err != nil {
+					err = fmt.Errorf("[%s] Error creating peer connection: %s", clientID, err)
+					break
+				}
+				peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+					log.Printf("ICE gathering state changed: %s", state)
+				})
 
 				// FIXME check for errors
 				payload, _ := msg.Payload.(map[string]interface{})
@@ -114,9 +114,8 @@ func NewPeerToServerRoomHandler(
 					log.Printf("[%s] Error retrieving clients: %s", clientID, err)
 				}
 
-				responseEventName = "users"
 				err = adapter.Broadcast(
-					wsmessage.NewMessage(responseEventName, room, map[string]interface{}{
+					wsmessage.NewMessage("users", room, map[string]interface{}{
 						"initiator": initiator,
 						"peerIds":   []string{localPeerID},
 						"nicknames": clients,
@@ -128,7 +127,7 @@ func NewPeerToServerRoomHandler(
 					// only when we are the initiator
 					_, err = peerConnection.CreateDataChannel("test", nil)
 					if err != nil {
-						log.Printf("[%s] Error creating data channel", clientID)
+						log.Printf("[%s] Error creating data channel: %s", clientID, err)
 						// TODO abort connection
 					}
 				}
@@ -154,7 +153,32 @@ func NewPeerToServerRoomHandler(
 						err = fmt.Errorf("[%s] Error initializing signaller: %s", clientID, err)
 						break
 					}
-					tracksManager.Add(room, clientID, peerConnection, signaller)
+					closeChannel := tracksManager.Add(room, clientID, peerConnection, signaller)
+					go func() {
+						// TODO figure out what happens if WS socket connectino terminates
+						// before peer connection
+						<-closeChannel
+						signaller = nil
+						log.Printf("[%s] Peer connection closed, updating user list and re-sending users", clientID)
+						adapter.SetMetadata(clientID, "")
+
+						clients, clientsError := getReadyClients(adapter)
+						if clientsError != nil {
+							log.Printf("[%s] Error retrieving clients: %s", clientID, err)
+						}
+
+						err := adapter.Broadcast(
+							wsmessage.NewMessage("users", room, map[string]interface{}{
+								"initiator": initiator,
+								"peerIds":   []string{localPeerID},
+								"nicknames": clients,
+							}),
+						)
+
+						if err != nil {
+							log.Printf("[%s] Error broadcasting users after peer connection closed: %s", clientID)
+						}
+					}()
 				}
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})

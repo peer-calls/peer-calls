@@ -69,7 +69,7 @@ func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
 	return nil
 }
 
-func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) {
+func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) (closeChannel <-chan struct{}) {
 	log.Printf("[%s] TrackManager.Add peer to room: %s", clientID, room)
 
 	peer := newPeer(
@@ -79,7 +79,6 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 			t.addTrack(room, clientID, track)
 		},
 		t.removeTrack,
-		t.removePeer,
 	)
 
 	t.mu.Lock()
@@ -117,7 +116,15 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 
 	t.peers[clientID] = peerJoiningRoom
 	peersSet[clientID] = struct{}{}
+
+	go func() {
+		<-peer.CloseChannel()
+		t.removePeer(clientID)
+	}()
+
 	t.mu.Unlock()
+
+	return peer.CloseChannel()
 }
 
 func (t *TracksManager) removePeer(clientID string) {

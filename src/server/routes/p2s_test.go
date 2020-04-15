@@ -6,6 +6,7 @@ type addedPeer struct {
 	room           string
 	clientID       string
 	peerConnection tracks.PeerConnection
+	closeChannel   chan struct{}
 }
 
 type mockTracksManager struct {
@@ -18,10 +19,13 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller) {
+func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller) <-chan struct{} {
+	closeChannel := make(chan struct{})
 	m.added <- addedPeer{
 		room:           room,
 		clientID:       clientID,
 		peerConnection: peerConnection,
+		closeChannel:   closeChannel,
 	}
+	return closeChannel
 }
