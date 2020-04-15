@@ -2,6 +2,7 @@ package signals
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/jeremija/peer-calls/src/server/logger"
 	"github.com/jeremija/peer-calls/src/server/wrtc/negotiator"
@@ -17,6 +18,8 @@ type PeerConnection interface {
 	SetLocalDescription(webrtc.SessionDescription) error
 	CreateOffer(*webrtc.OfferOptions) (webrtc.SessionDescription, error)
 	CreateAnswer(*webrtc.AnswerOptions) (webrtc.SessionDescription, error)
+	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
+	Close() error
 }
 
 type Signaller struct {
@@ -27,6 +30,8 @@ type Signaller struct {
 	remotePeerID   string
 	onSignal       func(signal interface{})
 	negotiator     *negotiator.Negotiator
+	closeChannel   chan struct{}
+	closeOnce      sync.Once
 }
 
 var log = logger.GetLogger("signals")
@@ -47,6 +52,7 @@ func NewSignaller(
 		localPeerID:    localPeerID,
 		remotePeerID:   remotePeerID,
 		onSignal:       onSignal,
+		closeChannel:   make(chan struct{}),
 	}
 
 	negotiator := negotiator.NewNegotiator(
@@ -59,9 +65,16 @@ func NewSignaller(
 
 	s.negotiator = negotiator
 
+	peerConnection.OnICEConnectionStateChange(s.handleICEConnectionStateChange)
 	// peerConnection.OnICECandidate(s.handleICECandidate)
 
 	return s, s.initialize()
+}
+
+// This does not close any channel, but returns a channel that can be used
+// for signalling closing of peer connection
+func (s *Signaller) CloseChannel() <-chan struct{} {
+	return s.closeChannel
 }
 
 func (s *Signaller) initialize() error {
@@ -101,6 +114,27 @@ func (s *Signaller) initialize() error {
 
 func (s *Signaller) Initiator() bool {
 	return s.initiator
+}
+
+func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
+	log.Printf("[%s] Peer connection state changed: %s", s.remotePeerID, connectionState.String())
+	// if connectionState == webrtc.ICEConnectionStateClosed ||
+	// 	connectionState == webrtc.ICEConnectionStateDisconnected ||
+	// 	connectionState == webrtc.ICEConnectionStateFailed {
+	// }
+
+	if connectionState == webrtc.ICEConnectionStateDisconnected {
+		s.Close()
+	}
+}
+
+func (s *Signaller) Close() (err error) {
+	s.closeOnce.Do(func() {
+		// TODO see if this is a race condition
+		err = s.peerConnection.Close()
+		close(s.closeChannel)
+	})
+	return
 }
 
 func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {

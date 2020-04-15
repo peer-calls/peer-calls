@@ -20,10 +20,8 @@ type PeerConnection interface {
 	AddTransceiverFromTrack(track *webrtc.Track, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
 	RemoveTrack(*webrtc.RTPSender) error
 	OnTrack(func(*webrtc.Track, *webrtc.RTPReceiver))
-	OnICEConnectionStateChange(func(webrtc.ICEConnectionState))
 	WriteRTCP([]rtcp.Packet) error
 	NewTrack(uint8, uint32, string, string) (*webrtc.Track, error)
-	Close() error
 }
 
 type peer struct {
@@ -34,7 +32,6 @@ type peer struct {
 	rtpSenderByTrack map[*webrtc.Track]*webrtc.RTPSender
 	onAddTrack       func(clientID string, track *webrtc.Track)
 	onRemoveTrack    func(clientID string, track *webrtc.Track)
-	closeChannel     chan struct{}
 }
 
 func newPeer(
@@ -49,10 +46,8 @@ func newPeer(
 		onAddTrack:       onAddTrack,
 		onRemoveTrack:    onRemoveTrack,
 		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
-		closeChannel:     make(chan struct{}),
 	}
 
-	peerConnection.OnICEConnectionStateChange(p.handleICEConnectionStateChange)
 	log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
 	peerConnection.OnTrack(p.handleTrack)
 
@@ -63,10 +58,6 @@ func newPeer(
 
 func (p *peer) ClientID() string {
 	return p.clientID
-}
-
-func (p *peer) CloseChannel() <-chan struct{} {
-	return p.closeChannel
 }
 
 func (p *peer) AddTrack(track *webrtc.Track) error {
@@ -101,19 +92,6 @@ func (p *peer) RemoveTrack(track *webrtc.Track) error {
 	}
 	delete(p.rtpSenderByTrack, track)
 	return p.peerConnection.RemoveTrack(rtpSender)
-}
-
-func (p *peer) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
-	log.Printf("[%s] Peer connection state changed: %s", p.clientID, connectionState.String())
-	// if connectionState == webrtc.ICEConnectionStateClosed ||
-	// 	connectionState == webrtc.ICEConnectionStateDisconnected ||
-	// 	connectionState == webrtc.ICEConnectionStateFailed {
-	// }
-
-	if connectionState == webrtc.ICEConnectionStateDisconnected {
-		p.peerConnection.Close()
-		close(p.closeChannel)
-	}
 }
 
 func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {

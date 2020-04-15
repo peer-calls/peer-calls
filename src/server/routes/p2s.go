@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/jeremija/peer-calls/src/server/iceauth"
@@ -78,8 +79,12 @@ func NewPeerToServerRoomHandler(
 		}
 
 		var signaller *signals.Signaller
+		var signallerMu sync.Mutex
 
 		handleMessage := func(event wshandler.RoomEvent) {
+			signallerMu.Lock()
+			defer signallerMu.Unlock()
+
 			msg := event.Message
 			adapter := event.Adapter
 			room := event.Room
@@ -93,6 +98,14 @@ func NewPeerToServerRoomHandler(
 			var err error
 
 			switch msg.Type {
+			case "hangUp":
+				log.Printf("[%s] hangUp event", clientID)
+				if signaller != nil {
+					err := signaller.Close()
+					if err != nil {
+						err = fmt.Errorf("[%s] hangUp: Error closing peer connection: %s", clientID, err)
+					}
+				}
 			case "ready":
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
 

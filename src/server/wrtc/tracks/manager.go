@@ -22,6 +22,7 @@ type Signaller interface {
 	Initiator() bool
 	SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection)
 	Negotiate()
+	CloseChannel() <-chan struct{}
 }
 
 func NewTracksManager() *TracksManager {
@@ -118,13 +119,13 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 	peersSet[clientID] = struct{}{}
 
 	go func() {
-		<-peer.CloseChannel()
+		<-signaller.CloseChannel()
 		t.removePeer(clientID)
 	}()
 
 	t.mu.Unlock()
 
-	return peer.CloseChannel()
+	return signaller.CloseChannel()
 }
 
 func (t *TracksManager) removePeer(clientID string) {
