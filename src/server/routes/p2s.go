@@ -7,6 +7,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/jeremija/peer-calls/src/server/config"
 	"github.com/jeremija/peer-calls/src/server/iceauth"
 	"github.com/jeremija/peer-calls/src/server/wrtc/signals"
 	"github.com/jeremija/peer-calls/src/server/wrtc/tracks"
@@ -25,29 +26,30 @@ const serverIsInitiator = true
 
 func NewPeerToServerRoomHandler(
 	wss *wshandler.WSS,
-	iceServers []iceauth.ICEServer,
+	iceServers []config.ICEServer,
 	tracksManager TracksManager,
 ) http.Handler {
 
-	webrtcICEServers := []webrtc.ICEServer{}
-	for _, iceServer := range iceServers {
-		var c webrtc.ICECredentialType
-		if iceServer.Username != "" && iceServer.Credential != "" {
-			c = webrtc.ICECredentialTypePassword
-		}
-		webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
-			URLs:           iceServer.URLs,
-			CredentialType: c,
-			Username:       iceServer.Username,
-			Credential:     iceServer.Credential,
-		})
-	}
-
-	webrtcConfig := webrtc.Configuration{
-		ICEServers: webrtcICEServers,
-	}
-
 	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		webrtcICEServers := []webrtc.ICEServer{}
+		for _, iceServer := range iceauth.GetICEServers(iceServers) {
+			var c webrtc.ICECredentialType
+			if iceServer.Username != "" && iceServer.Credential != "" {
+				c = webrtc.ICECredentialTypePassword
+			}
+			webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
+				URLs:           iceServer.URLs,
+				CredentialType: c,
+				Username:       iceServer.Username,
+				Credential:     iceServer.Credential,
+			})
+		}
+
+		webrtcConfig := webrtc.Configuration{
+			ICEServers: webrtcICEServers,
+		}
+
 		settingEngine := webrtc.SettingEngine{}
 		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
@@ -67,21 +69,31 @@ func NewPeerToServerRoomHandler(
 			return
 		}
 
+		var signaller *signals.Signaller
+		var signallerMu sync.Mutex
+
 		cleanup := func(event wshandler.CleanupEvent) {
+			signallerMu.Lock()
+			defer signallerMu.Unlock()
+
+			if signaller != nil {
+				if err := signaller.Close(); err != nil {
+					log.Printf("[%s] cleanup: error in signaller.Close: %s", event.ClientID, err)
+				}
+			}
+
 			err := event.Adapter.Broadcast(
 				wsmessage.NewMessage("hangUp", event.Room, map[string]string{
 					"userId": event.ClientID,
 				}),
 			)
 			if err != nil {
-				log.Printf("[%s] Error in cleanup: %s", event.ClientID, err)
+				log.Printf("[%s] cleanup: error broadcasting hangUp: %s", event.ClientID, err)
 			}
 		}
 
-		var signaller *signals.Signaller
-		var signallerMu sync.Mutex
-
 		handleMessage := func(event wshandler.RoomEvent) {
+			log.Printf("[%s] got message, %s", event.ClientID, event.Message.Type)
 			signallerMu.Lock()
 			defer signallerMu.Unlock()
 
@@ -171,25 +183,19 @@ func NewPeerToServerRoomHandler(
 						// TODO figure out what happens if WS socket connectino terminates
 						// before peer connection
 						<-closeChannel
+						signallerMu.Lock()
+						defer signallerMu.Unlock()
 						signaller = nil
-						log.Printf("[%s] Peer connection closed, updating user list and re-sending users", clientID)
+						log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
 						adapter.SetMetadata(clientID, "")
 
-						clients, clientsError := getReadyClients(adapter)
-						if clientsError != nil {
-							log.Printf("[%s] Error retrieving clients: %s", clientID, err)
-						}
-
-						err := adapter.Broadcast(
-							wsmessage.NewMessage("users", room, map[string]interface{}{
-								"initiator": initiator,
-								"peerIds":   []string{localPeerID},
-								"nicknames": clients,
+						err := event.Adapter.Broadcast(
+							wsmessage.NewMessage("hangUp", event.Room, map[string]string{
+								"userId": event.ClientID,
 							}),
 						)
-
 						if err != nil {
-							log.Printf("[%s] Error broadcasting users after peer connection closed: %s", clientID)
+							log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
 						}
 					}()
 				}

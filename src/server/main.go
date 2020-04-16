@@ -9,7 +9,6 @@ import (
 
 	"github.com/jeremija/peer-calls/src/server/config"
 	"github.com/jeremija/peer-calls/src/server/factory/adapter"
-	"github.com/jeremija/peer-calls/src/server/iceauth"
 	"github.com/jeremija/peer-calls/src/server/logger"
 	"github.com/jeremija/peer-calls/src/server/room"
 	"github.com/jeremija/peer-calls/src/server/routes"
@@ -40,12 +39,11 @@ func main() {
 	c, err := config.Read(configFiles)
 	panicOnError(err, "Error reading config")
 
-	iceServers := iceauth.GetICEServers(c.ICEServers)
-	log.Printf("Using ice servers: %s", iceServers)
+	log.Printf("Using config: %+v", c)
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)
 	tracks := tracks.NewTracksManager()
-	mux := routes.NewMux(c.BaseURL, gitDescribe, c.Network.Type, iceServers, rooms, tracks)
+	mux := routes.NewMux(c.BaseURL, gitDescribe, c.Network.Type, c.ICEServers, rooms, tracks)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

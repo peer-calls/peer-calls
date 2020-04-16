@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/jeremija/peer-calls/src/server/config"
-	"github.com/jeremija/peer-calls/src/server/iceauth"
 	"github.com/jeremija/peer-calls/src/server/routes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var iceServers = []iceauth.ICEServer{}
+var iceServers = []config.ICEServer{}
 
 func Test_routeIndex(t *testing.T) {
 	mrm := NewMockRoomManager()
@@ -79,7 +78,7 @@ func Test_routeCall(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	iceServers := []iceauth.ICEServer{{
+	iceServers := []config.ICEServer{{
 		URLs: []string{"stun:"},
 	}}
 	mux := routes.NewMux("/test", "v0.0.0", config.NetworkTypeMesh, iceServers, mrm, trk)

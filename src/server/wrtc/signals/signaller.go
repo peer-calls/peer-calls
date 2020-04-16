@@ -118,14 +118,12 @@ func (s *Signaller) Initiator() bool {
 
 func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICEConnectionState) {
 	log.Printf("[%s] Peer connection state changed: %s", s.remotePeerID, connectionState.String())
-	// if connectionState == webrtc.ICEConnectionStateClosed ||
-	// 	connectionState == webrtc.ICEConnectionStateDisconnected ||
-	// 	connectionState == webrtc.ICEConnectionStateFailed {
-	// }
-
-	if connectionState == webrtc.ICEConnectionStateDisconnected {
+	if connectionState == webrtc.ICEConnectionStateClosed ||
+		connectionState == webrtc.ICEConnectionStateDisconnected ||
+		connectionState == webrtc.ICEConnectionStateFailed {
 		s.Close()
 	}
+
 }
 
 func (s *Signaller) Close() (err error) {

@@ -19,7 +19,7 @@ import (
 type Mux struct {
 	BaseURL    string
 	handler    *chi.Mux
-	iceServers string
+	iceServers []config.ICEServer
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +30,7 @@ func NewMux(
 	baseURL string,
 	version string,
 	networkType config.NetworkType,
-	iceServers []iceauth.ICEServer,
+	iceServers []config.ICEServer,
 	rooms RoomManager,
 	tracks TracksManager,
 ) *Mux {
@@ -38,13 +38,11 @@ func NewMux(
 	templates := render.ParseTemplates(box)
 	renderer := render.NewRenderer(templates, baseURL, version)
 
-	iceServersJSON, _ := json.Marshal(iceServers)
-
 	handler := chi.NewRouter()
 	mux := &Mux{
 		BaseURL:    baseURL,
 		handler:    handler,
-		iceServers: string(iceServersJSON),
+		iceServers: iceServers,
 	}
 
 	var root string
@@ -77,7 +75,7 @@ func NewMux(
 func newWebSocketHandler(
 	networkType config.NetworkType,
 	wss *wshandler.WSS,
-	iceServers []iceauth.ICEServer,
+	iceServers []config.ICEServer,
 	tracks TracksManager,
 ) http.Handler {
 	switch networkType {
@@ -111,10 +109,14 @@ func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, inte
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := basen.NewUUIDBase62()
+
+	iceServers := iceauth.GetICEServers(mux.iceServers)
+	iceServersJSON, _ := json.Marshal(iceServers)
+
 	data := map[string]interface{}{
 		"CallID":     callID,
 		"UserID":     userID,
-		"ICEServers": template.HTML(mux.iceServers),
+		"ICEServers": template.HTML(iceServersJSON),
 	}
 	return "call.html", data, nil
 }
