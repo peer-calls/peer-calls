@@ -100,6 +100,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
           placeholder='Nickname'
           defaultValue={props.nickname}
           ref={this.nicknameRef}
+          autoFocus
         />
 
         <select
