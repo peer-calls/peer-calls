@@ -68,6 +68,7 @@ func ReadEnv(prefix string, c *Config) {
 	setEnvString(&c.Store.Redis.Prefix, prefix+"STORE_REDIS_PREFIX")
 
 	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
+	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 
 	var ice ICEServer
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
@@ -129,5 +130,13 @@ func setEnvStoreType(storeType *StoreType, name string) {
 		*storeType = StoreTypeRedis
 	case StoreTypeMemory:
 		*storeType = StoreTypeMemory
+	}
+}
+
+func setEnvStringArray(interfaces *[]string, name string) {
+	value := os.Getenv(name)
+	if value != "" {
+		values := strings.Split(value, ",")
+		*interfaces = values
 	}
 }

@@ -27,6 +27,7 @@ const serverIsInitiator = true
 func NewPeerToServerRoomHandler(
 	wss *wshandler.WSS,
 	iceServers []config.ICEServer,
+	sfuConfig config.NetworkConfigSFU,
 	tracksManager TracksManager,
 ) http.Handler {
 
@@ -50,7 +51,18 @@ func NewPeerToServerRoomHandler(
 			ICEServers: webrtcICEServers,
 		}
 
+		allowedInterfaces := map[string]struct{}{}
+		for _, iface := range sfuConfig.Interfaces {
+			allowedInterfaces[iface] = struct{}{}
+		}
+
 		settingEngine := webrtc.SettingEngine{}
+		if len(allowedInterfaces) > 0 {
+			settingEngine.SetInterfaceFilter(func(iface string) bool {
+				_, ok := allowedInterfaces[iface]
+				return ok
+			})
+		}
 		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
 			webrtc.WithMediaEngine(webrtc.MediaEngine{}),

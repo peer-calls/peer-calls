@@ -43,7 +43,7 @@ func main() {
 	newAdapter := adapter.NewAdapterFactory(c.Store)
 	rooms := room.NewRoomManager(newAdapter.NewAdapter)
 	tracks := tracks.NewTracksManager()
-	mux := routes.NewMux(c.BaseURL, gitDescribe, c.Network.Type, c.ICEServers, rooms, tracks)
+	mux := routes.NewMux(c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

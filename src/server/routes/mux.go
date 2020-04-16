@@ -29,7 +29,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewMux(
 	baseURL string,
 	version string,
-	networkType config.NetworkType,
+	network config.NetworkConfig,
 	iceServers []config.ICEServer,
 	rooms RoomManager,
 	tracks TracksManager,
@@ -53,7 +53,7 @@ func NewMux(
 	}
 
 	wsHandler := newWebSocketHandler(
-		networkType,
+		network,
 		wshandler.NewWSS(rooms),
 		iceServers,
 		tracks,
@@ -73,15 +73,15 @@ func NewMux(
 }
 
 func newWebSocketHandler(
-	networkType config.NetworkType,
+	network config.NetworkConfig,
 	wss *wshandler.WSS,
 	iceServers []config.ICEServer,
 	tracks TracksManager,
 ) http.Handler {
-	switch networkType {
+	switch network.Type {
 	case config.NetworkTypeSFU:
 		log.Println("Using network type sfu")
-		return NewPeerToServerRoomHandler(wss, iceServers, tracks)
+		return NewPeerToServerRoomHandler(wss, iceServers, network.SFU, tracks)
 	default:
 		log.Println("Using network type mesh")
 		return NewPeerToPeerRoomHandler(wss)

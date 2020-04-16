@@ -37,6 +37,7 @@ func TestReadFiles(t *testing.T) {
 	assert.Equal(t, config.AuthTypeSecret, ice.AuthType)
 	assert.Equal(t, "test_user", ice.AuthSecret.Username)
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
+	assert.Equal(t, []string(nil), c.Network.SFU.Interfaces)
 }
 
 func TestReadFiles_error(t *testing.T) {
@@ -69,6 +70,8 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"ICE_SERVER_AUTH_TYPE", "secret")
 	os.Setenv(prefix+"ICE_SERVER_USERNAME", "test_user")
 	os.Setenv(prefix+"ICE_SERVER_SECRET", "test_secret")
+	os.Setenv(prefix+"NETWORK_TYPE", "sfu")
+	os.Setenv(prefix+"NETWORK_SFU_INTERFACES", "a,b")
 	var c config.Config
 	config.ReadEnv(prefix, &c)
 	assert.Equal(t, "/test", c.BaseURL)
@@ -87,4 +90,6 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, config.AuthTypeSecret, ice.AuthType)
 	assert.Equal(t, "test_user", ice.AuthSecret.Username)
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
+	assert.Equal(t, config.NetworkType("sfu"), c.Network.Type)
+	assert.Equal(t, []string{"a", "b"}, c.Network.SFU.Interfaces)
 }

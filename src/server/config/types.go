@@ -47,7 +47,12 @@ const (
 )
 
 type NetworkConfig struct {
-	Type NetworkType `yaml:"type"`
+	Type NetworkType      `yaml:"type"`
+	SFU  NetworkConfigSFU `yaml:"sfu"`
+}
+
+type NetworkConfigSFU struct {
+	Interfaces []string `yaml:"interfaces"`
 }
 
 type Config struct {
