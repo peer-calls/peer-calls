@@ -91,26 +91,24 @@ function removeStream (
     return state
   }
 
-  if (stream) {
-    const streams = userStreams.streams.filter(s => {
-      const found = s.stream === stream
-      if (found) {
-        stream.getTracks().forEach(track => track.stop())
-        s.url && revokeObjectURL(s.url)
-      }
-      return !found
-    })
-    if (streams.length > 0) {
-      return {
-        ...state,
-        [userId]: {
-          userId,
-          streams,
-        },
-      }
-    } else {
-      omit(state, [userId])
+  const streams = userStreams.streams.filter(s => {
+    const found = s.stream === stream
+    if (found) {
+      stream.getTracks().forEach(track => track.stop())
+      s.url && revokeObjectURL(s.url)
     }
+    return !found
+  })
+  if (streams.length > 0) {
+    return {
+      ...state,
+      [userId]: {
+        userId,
+        streams,
+      },
+    }
+  } else {
+    omit(state, [userId])
   }
 
   userStreams && userStreams.streams.forEach(s => {
