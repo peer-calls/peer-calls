@@ -78,33 +78,35 @@ func (s *Signaller) CloseChannel() <-chan struct{} {
 }
 
 func (s *Signaller) initialize() error {
-	if !s.initiator {
-		log.Printf("[%s] NewSignaller: Non-Initiator add recvonly transceiver", s.remotePeerID)
-		_, err := s.peerConnection.AddTransceiverFromKind(
-			webrtc.RTPCodecTypeVideo,
-			webrtc.RtpTransceiverInit{
-				Direction: webrtc.RTPTransceiverDirectionSendrecv,
-			},
-		)
-		if err != nil {
-			return fmt.Errorf("[%s] NewSignaller: Error adding video transceiver: %s", s.remotePeerID, err)
-		}
-		// // TODO add one more video transceiver for screen sharing
-		// // TODO add audio
-		// _, err = peerConnection.AddTransceiverFromKind(
-		// 	webrtc.RTPCodecTypeAudio,
-		// 	webrtc.RtpTransceiverInit{
-		// 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		// 	},
-		// )
-		// if err != nil {
-		// 	log.Printf("[%s] Error adding audio transceiver: %s", err)
-		// 	w.WriteHeader(http.StatusInternalServerError)
-		// 	return
-		// }
-	} else {
+	if s.initiator {
 		log.Printf("[%s] NewSignaller: Initiator registering default codecs", s.remotePeerID)
 		s.mediaEngine.RegisterDefaultCodecs()
+	}
+
+	log.Printf("[%s] NewSignaller: Non-Initiator pre-add video transceiver", s.remotePeerID)
+	_, err := s.peerConnection.AddTransceiverFromKind(
+		webrtc.RTPCodecTypeVideo,
+		webrtc.RtpTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+		},
+	)
+	if err != nil {
+		log.Printf("ERROR: %s", err)
+		return fmt.Errorf("[%s] NewSignaller: Error pre-adding video transceiver: %s", s.remotePeerID, err)
+	}
+
+	log.Printf("[%s] NewSignaller: Non-Initiator pre-add audio transceiver", s.remotePeerID)
+	_, err = s.peerConnection.AddTransceiverFromKind(
+		webrtc.RTPCodecTypeAudio,
+		webrtc.RtpTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("[%s] NewSignaller: Error pre-adding audio transceiver: %s", s.remotePeerID, err)
+	}
+
+	if s.initiator {
 		log.Printf("[%s] NewSignaller: Initiator calling Negotiate()", s.remotePeerID)
 		s.negotiator.Negotiate()
 	}
