@@ -4,8 +4,9 @@ import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { AddStreamAction, AddStreamTrackAction, RemoveStreamAction, RemoveStreamTrackAction, StreamAction, StreamType } from '../actions/StreamActions'
-import { HANG_UP, MEDIA_STREAM, STREAM_ADD, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
+import { HANG_UP, MEDIA_STREAM, STREAM_ADD, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, NICKNAME_REMOVE } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
+import { NicknameRemoveAction, NicknameRemovePayload } from '../actions/NicknameActions'
 
 const debug = _debug('peercalls')
 const defaultState = Object.freeze({})
@@ -107,8 +108,6 @@ function removeStream (
         streams,
       },
     }
-  } else {
-    omit(state, [userId])
   }
 
   userStreams && userStreams.streams.forEach(s => {
@@ -163,9 +162,35 @@ function addStreamTrack(
   return state
 }
 
+export function removeUserStreams(
+  state: StreamsState,
+  payload: NicknameRemovePayload,
+) {
+  const { userId } = payload
+  const userStreams = state[userId]
+  if (userStreams) {
+    stopAllTracks(userStreams)
+  }
+  return omit(state, [userId])
+}
+
+function stopAllTracks(userStreams: UserStreams) {
+  userStreams.streams.forEach(s => {
+    s.stream.getTracks().forEach(track => {
+      track.stop()
+      track.onmute = null
+      track.onunmute = null
+    })
+  })
+}
+
 export default function streams(
   state: StreamsState = defaultState,
-  action: StreamAction | MediaStreamAction | HangUpAction,
+  action:
+    StreamAction |
+    MediaStreamAction |
+    HangUpAction |
+    NicknameRemoveAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_ADD:
@@ -176,15 +201,10 @@ export default function streams(
       return addStreamTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
+    case NICKNAME_REMOVE:
+      return removeUserStreams(state, action.payload)
     case HANG_UP:
-      forEach(state, userStreams => {
-        userStreams.streams.forEach(s => {
-          s.stream.getTracks().forEach(track => {
-            track.onmute = null
-            track.onunmute = null
-          })
-        })
-      })
+      forEach(state, userStreams => stopAllTracks(userStreams))
       return defaultState
     case MEDIA_STREAM:
       if (action.status === 'resolved') {

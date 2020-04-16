@@ -5,6 +5,7 @@ import reducers from './index'
 import { createObjectURL, MediaStream, MediaStreamTrack } from '../window'
 import { applyMiddleware, createStore, Store } from 'redux'
 import { create } from '../middlewares'
+import { removeNickname } from '../actions/NicknameActions'
 
 describe('reducers/alerts', () => {
 
@@ -69,6 +70,29 @@ describe('reducers/alerts', () => {
     it('does not fail when no stream', () => {
       store.dispatch(StreamActions.removeStream(userId, stream))
     })
+  })
+
+  describe('removeNickname', () => {
+    const stream2 = new MediaStream()
+    const stream3 = new MediaStream()
+    const otherUserId = 'other-user'
+    beforeEach(() => {
+      store.dispatch(StreamActions.addStream({ userId, stream }))
+      store.dispatch(StreamActions.addStream({
+        userId: otherUserId,
+        stream: stream2,
+      }))
+      store.dispatch(StreamActions.addStream({
+        userId: otherUserId,
+        stream: stream3,
+      }))
+    })
+    it('removes all streams of user leaving', () => {
+      store.dispatch(removeNickname({ userId: otherUserId }))
+      const users = Object.keys(store.getState().streams)
+      expect(users).toEqual([ userId ])
+    })
+
   })
 
   describe('addStreamTrack', () => {
