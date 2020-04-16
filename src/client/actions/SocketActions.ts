@@ -8,6 +8,7 @@ import { SocketEvent } from '../../shared'
 import { setNicknames, removeNickname } from './NicknameActions'
 
 const debug = _debug('peercalls')
+const sdpDebug = _debug('peercalls:sdp')
 
 export interface SocketHandlerOptions {
   socket: ClientSocket
@@ -37,7 +38,7 @@ class SocketHandler {
   handleSignal = ({ userId, signal }: SocketEvent['signal']) => {
     const { getState } = this
     const peer = getState().peers[userId]
-    debug('socket signal, userId: %s, signal: %o', userId, signal)
+    sdpDebug('remote signal: userId: %s, signal: %o', userId, signal)
     if (!peer) return debug('user: %s, no peer found', userId)
     peer.signal(signal)
   }

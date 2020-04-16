@@ -10,6 +10,7 @@ import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 
 const debug = _debug('peercalls')
+const sdpDebug = _debug('peercalls:sdp')
 
 export interface Peers {
   [id: string]: Peer.Instance
@@ -44,7 +45,7 @@ class PeerHandler {
   }
   handleSignal = (signal: SignalData) => {
     const { socket, user } = this
-    debug('peer: %s, signal: %o', user.id, signal)
+    sdpDebug('local signal: %s, signal: %o', user.id, signal)
 
     const payload = { userId: user.id, signal }
     socket.emit('signal', payload)
