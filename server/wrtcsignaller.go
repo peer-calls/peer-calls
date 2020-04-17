@@ -59,7 +59,7 @@ func NewSignaller(
 	s.negotiator = negotiator
 
 	peerConnection.OnICEConnectionStateChange(s.handleICEConnectionStateChange)
-	// peerConnection.OnICECandidate(s.handleICECandidate)
+	peerConnection.OnICECandidate(s.handleICECandidate)
 
 	return s, s.initialize()
 }
@@ -195,7 +195,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 		},
 	}
 
-	s.log.Printf("[%s] Got ice candidate from server peer: %s", payload, s.remotePeerID)
+	s.log.Printf("[%s] Got ice candidate from server peer: %s", s.remotePeerID, payload)
 	s.onSignal(payload)
 }
 
@@ -208,8 +208,11 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 
 	switch signal := signalPayload.Signal.(type) {
 	case Candidate:
-		s.log.Printf("[%s] Remote signal.canidate: %s ", signal.Candidate, s.remotePeerID)
-		return s.peerConnection.AddICECandidate(signal.Candidate)
+		s.log.Printf("[%s] Remote signal.canidate: %s", s.remotePeerID, signal.Candidate)
+		if signal.Candidate.Candidate != "" {
+			return s.peerConnection.AddICECandidate(signal.Candidate)
+		}
+		return nil
 	case Renegotiate:
 		s.log.Printf("[%s] Remote signal.renegotiate ", s.remotePeerID)
 		s.log.Printf("[%s] Calling signaller.Negotiate() because remote peer wanted to negotiate", s.remotePeerID)
@@ -285,6 +288,7 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 		return
 	}
 
+	s.log.Printf("[%s] handle local offer setting local desc", s.remotePeerID)
 	err = s.peerConnection.SetLocalDescription(offer)
 	if err != nil {
 		s.log.Printf("[%s] Error setting local description from local offer: %s", s.remotePeerID, err)

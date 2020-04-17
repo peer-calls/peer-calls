@@ -120,7 +120,7 @@ func NewSFUHandler(
 				return ok
 			})
 		}
-		// settingEngine.SetTrickle(true)
+		settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
 			webrtc.WithMediaEngine(webrtc.MediaEngine{}),
 			webrtc.WithSettingEngine(settingEngine),
@@ -196,7 +196,7 @@ func NewSFUHandler(
 					break
 				}
 				peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
-					log.Printf("ICE gathering state changed: %s", state)
+					log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
 				})
 
 				// FIXME check for errors

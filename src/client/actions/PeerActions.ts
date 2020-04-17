@@ -160,7 +160,7 @@ export function createPeer (options: CreatePeerOptions) {
       initiator,
       config: { iceServers },
       channelName: constants.PEER_DATA_CHANNEL_NAME,
-      trickle: false,
+      // trickle: false,
       // Allow the peer to receive video, even if it's not sending stream:
       // https://github.com/feross/simple-peer/issues/95
       offerConstraints: {
