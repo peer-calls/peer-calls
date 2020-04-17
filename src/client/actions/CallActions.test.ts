@@ -54,7 +54,7 @@ describe('CallActions', () => {
           type: 'warning',
         },
       }, {
-        type: constants.INIT,
+        type: constants.SOCKET_CONNECTED,
       }])
     })
 
@@ -70,7 +70,7 @@ describe('CallActions', () => {
           type: 'warning',
         },
       }, {
-        type: constants.INIT,
+        type: constants.SOCKET_CONNECTED,
       }, {
         type: constants.NOTIFY,
         payload: {
@@ -78,6 +78,8 @@ describe('CallActions', () => {
           message: 'Server socket disconnected',
           type: 'error',
         },
+      }, {
+        type: constants.SOCKET_DISCONNECTED,
       }])
       await promise
     })

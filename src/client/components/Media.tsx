@@ -9,6 +9,7 @@ import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
 
 export type MediaProps = MediaState & {
+  joinEnabled: boolean
   dial: typeof dial
   dialState: DialState
   visible: boolean
@@ -27,6 +28,10 @@ function mapStateToProps(state: State) {
   return {
     ...state.media,
     nickname: state.nicknames[ME],
+    joinEnabled:
+      state.media.dialState === DIAL_STATE_HUNG_UP &&
+      state.media.socketConnected &&
+      !state.media.loading,
     visible: state.media.dialState === DIAL_STATE_HUNG_UP,
   }
 }
@@ -127,7 +132,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
           />
         </select>
 
-        <button type='submit'>
+        <button type='submit' disabled={!props.joinEnabled}>
           Join Call
         </button>
       </form>

@@ -1,8 +1,9 @@
-import { DialAction, HangUpAction } from '../actions/CallActions'
+import { ConnectedAction, DialAction, DisconnectedAction, HangUpAction } from '../actions/CallActions'
 import { AudioConstraint, MediaAction, MediaDevice, MediaEnumerateAction, MediaPlayAction, MediaStreamAction, VideoConstraint } from '../actions/MediaActions'
-import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
+import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, SOCKET_CONNECTED, SOCKET_DISCONNECTED } from '../constants'
 
 export interface MediaState {
+  socketConnected: boolean
   devices: MediaDevice[]
   video: VideoConstraint
   audio: AudioConstraint
@@ -13,6 +14,7 @@ export interface MediaState {
 }
 
 const defaultState: MediaState = {
+  socketConnected: false,
   devices: [],
   video: { facingMode: 'user'},
   audio: true,
@@ -115,7 +117,12 @@ export function handleDial(state: MediaState, action: DialAction): MediaState {
 
 export default function media(
   state = defaultState,
-  action: MediaAction | DialAction | HangUpAction,
+  action:
+    MediaAction |
+    DialAction |
+    HangUpAction |
+    ConnectedAction |
+    DisconnectedAction,
 ): MediaState {
   switch (action.type) {
     case MEDIA_ENUMERATE:
@@ -136,6 +143,16 @@ export default function media(
       return handlePlay(state, action)
     case DIAL:
       return handleDial(state, action)
+    case SOCKET_CONNECTED:
+      return {
+        ...state,
+        socketConnected: true,
+      }
+    case SOCKET_DISCONNECTED:
+      return {
+        ...state,
+        socketConnected: false,
+      }
     case HANG_UP:
       return {
         ...state,

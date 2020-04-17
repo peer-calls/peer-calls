@@ -13,8 +13,6 @@ export const DIAL_STATE_IN_CALL: DialState = 'in-call'
 
 export const HANG_UP = 'HANG_UP'
 
-export const INIT = 'INIT'
-
 export const ME = '_me_'
 export const PEERCALLS = '[PeerCalls]'
 
@@ -47,6 +45,8 @@ export const PEER_EVENT_SIGNAL = 'signal'
 export const PEER_EVENT_TRACK = 'track'
 export const PEER_EVENT_DATA = 'data'
 
+export const SOCKET_CONNECTED = 'SOCKET_CONNECTED'
+export const SOCKET_DISCONNECTED = 'SOCKET_DISCONNECTED'
 export const SOCKET_EVENT_READY = 'ready'
 export const SOCKET_EVENT_SIGNAL = 'signal'
 export const SOCKET_EVENT_USERS = 'users'

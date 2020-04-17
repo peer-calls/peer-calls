@@ -1,33 +1,37 @@
 import { GetAsyncAction, makeAction } from '../async'
-import { DIAL, HANG_UP, SOCKET_EVENT_USERS, SOCKET_EVENT_HANG_UP } from '../constants'
+import { DIAL, HANG_UP, SOCKET_EVENT_USERS, SOCKET_EVENT_HANG_UP, SOCKET_CONNECTED, SOCKET_DISCONNECTED } from '../constants'
 import socket from '../socket'
 import store, { ThunkResult } from '../store'
 import { callId, userId } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 
-export interface InitAction {
-  type: 'INIT'
-  payload: Promise<void>
+export interface ConnectedAction {
+  type: 'SOCKET_CONNECTED'
 }
 
-interface InitializeAction {
-  type: 'INIT'
+const connected = (): ConnectedAction => ({
+  type: SOCKET_CONNECTED,
+})
+
+export interface DisconnectedAction {
+  type: 'SOCKET_DISCONNECTED'
 }
 
-const initialize = (): InitializeAction => ({
-  type: 'INIT',
+const disconnected = (): DisconnectedAction => ({
+  type: SOCKET_DISCONNECTED,
 })
 
 export const init = (): ThunkResult<Promise<void>> => async dispatch => {
   return new Promise(resolve => {
     socket.on('connect', () => {
       dispatch(NotifyActions.warning('Connected to server socket'))
-      dispatch(initialize())
+      dispatch(connected())
       resolve()
     })
     socket.on('disconnect', () => {
       dispatch(NotifyActions.error('Server socket disconnected'))
+      dispatch(disconnected())
     })
   })
 }

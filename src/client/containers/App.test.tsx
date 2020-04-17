@@ -17,14 +17,14 @@ import App from './App'
 
 describe('App', () => {
 
-  const initAction = { type: 'INIT' }
+  const connectedAction = { type: constants.SOCKET_CONNECTED }
 
   let store: Store
   let state: Partial<State>
   let dispatchSpy: jest.SpyInstance<AnyAction, AnyAction[]>
   beforeEach(() => {
     state = {};
-    (init as jest.Mock).mockReturnValue(initAction)
+    (init as jest.Mock).mockReturnValue(connectedAction)
 
     window.HTMLMediaElement.prototype.play = jest.fn()
   })
