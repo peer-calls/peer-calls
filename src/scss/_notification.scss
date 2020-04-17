@@ -34,6 +34,7 @@
     top: 0;
     height: 200px;
     background-color: rgba(0, 0, 0, 0.3);
+    overflow-y: auto;
 
     .notification {
       white-space: normal;
