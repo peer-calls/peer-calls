@@ -15,6 +15,19 @@ const (
 	rtcpPLIInterval = time.Second * 3
 )
 
+type TrackEventType uint32
+
+const (
+	TrackEventTypeAdd = iota + 1
+	TrackEventTypeRemove
+)
+
+type TrackEvent struct {
+	ClientID string
+	Track    *webrtc.Track
+	Type     TrackEventType
+}
+
 type PeerConnection interface {
 	AddTrack(*webrtc.Track) (*webrtc.RTPSender, error)
 	AddTransceiverFromTrack(track *webrtc.Track, init ...webrtc.RtpTransceiverInit) (*webrtc.RTPTransceiver, error)
@@ -22,6 +35,93 @@ type PeerConnection interface {
 	OnTrack(func(*webrtc.Track, *webrtc.RTPReceiver))
 	WriteRTCP([]rtcp.Packet) error
 	NewTrack(uint8, uint32, string, string) (*webrtc.Track, error)
+	OnDataChannel(func(*webrtc.DataChannel))
+}
+
+type DataTransceiver struct {
+	clientID       string
+	peerConnection PeerConnection
+
+	mu             sync.RWMutex
+	dataChanOnce   sync.Once
+	dataChanClosed bool
+	dataChannel    *webrtc.DataChannel
+	messagesChan   chan webrtc.DataChannelMessage
+}
+
+func newDataTransceiver(
+	clientID string,
+	dataChannel *webrtc.DataChannel,
+	peerConnection PeerConnection,
+) *DataTransceiver {
+	d := &DataTransceiver{
+		clientID:       clientID,
+		peerConnection: peerConnection,
+		messagesChan:   make(chan webrtc.DataChannelMessage),
+	}
+	if dataChannel != nil {
+		d.handleDataChannel(dataChannel)
+	}
+	peerConnection.OnDataChannel(d.handleDataChannel)
+	return d
+}
+
+func (d *DataTransceiver) handleDataChannel(dataChannel *webrtc.DataChannel) {
+	log.Printf("[%s] DataTransceiver.handleDataChannel: %s", d.clientID, dataChannel.Label())
+	if dataChannel.Label() == DataChannelName {
+		// only want a single data channel for messages and sending files
+		d.mu.Lock()
+		dataChannel.OnMessage(d.handleMessage)
+		d.dataChannel = dataChannel
+		d.mu.Unlock()
+	}
+}
+
+func (d *DataTransceiver) MessagesChannel() <-chan webrtc.DataChannelMessage {
+	return d.messagesChan
+}
+
+func (d *DataTransceiver) Close() {
+	log.Printf("[%s] DataTransceiver.Close", d.clientID)
+	d.dataChanOnce.Do(func() {
+		d.mu.Lock()
+		close(d.messagesChan)
+		d.dataChanClosed = true
+		d.mu.Unlock()
+	})
+}
+
+func (d *DataTransceiver) handleMessage(msg webrtc.DataChannelMessage) {
+	log.Printf("[%s] DataTransceiver.handleMessage", d.clientID)
+	d.mu.RLock()
+	if !d.dataChanClosed {
+		d.messagesChan <- msg
+	}
+	d.mu.RUnlock()
+}
+
+func (d *DataTransceiver) SendText(message string) (err error) {
+	log.Printf("[%s] DataTransceiver.SendText", d.clientID)
+	d.mu.RLock()
+	if d.dataChannel != nil {
+		err = d.dataChannel.SendText(message)
+	} else {
+		err = fmt.Errorf("[%s] No data channel", d.clientID)
+	}
+	d.mu.RUnlock()
+	return
+}
+
+func (d *DataTransceiver) Send(message []byte) (err error) {
+	log.Printf("[%s] DataTransceiver.Send", d.clientID)
+	d.mu.RLock()
+	if d.dataChannel != nil {
+		err = d.dataChannel.Send(message)
+	} else {
+		err = fmt.Errorf("[%s] No data channel", d.clientID)
+	}
+	d.mu.RUnlock()
+	return
 }
 
 type peer struct {
@@ -30,22 +130,22 @@ type peer struct {
 	localTracks      []*webrtc.Track
 	localTracksMu    sync.RWMutex
 	rtpSenderByTrack map[*webrtc.Track]*webrtc.RTPSender
-	onAddTrack       func(clientID string, track *webrtc.Track)
-	onRemoveTrack    func(clientID string, track *webrtc.Track)
+
+	tracksChannel       chan TrackEvent
+	tracksChannelClosed bool
+	tracksChannelOnce   sync.Once
+	tracksChannelMu     sync.RWMutex
 }
 
 func newPeer(
 	clientID string,
 	peerConnection PeerConnection,
-	onAddTrack func(clientID string, track *webrtc.Track),
-	onRemoveTrack func(clientID string, track *webrtc.Track),
 ) *peer {
 	p := &peer{
 		clientID:         clientID,
 		peerConnection:   peerConnection,
-		onAddTrack:       onAddTrack,
-		onRemoveTrack:    onRemoveTrack,
 		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
+		tracksChannel:    make(chan TrackEvent),
 	}
 
 	log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -55,6 +155,19 @@ func newPeer(
 }
 
 // FIXME add support for data channel messages for sending chat messages, and images/files
+
+func (p *peer) Close() {
+	p.tracksChannelOnce.Do(func() {
+		p.tracksChannelMu.Lock()
+		close(p.tracksChannel)
+		p.tracksChannelClosed = true
+		p.tracksChannelMu.Unlock()
+	})
+}
+
+func (p *peer) TracksChannel() <-chan TrackEvent {
+	return p.tracksChannel
+}
 
 func (p *peer) ClientID() string {
 	return p.clientID
@@ -107,7 +220,7 @@ func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 	p.localTracksMu.Unlock()
 
 	log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
-	p.onAddTrack(p.clientID, localTrack)
+	p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeAdd}
 }
 
 func (p *peer) Tracks() []*webrtc.Track {
@@ -165,7 +278,13 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 
 	go func() {
 		defer ticker.Stop()
-		defer p.onRemoveTrack(p.clientID, localTrack)
+		defer func() {
+			p.tracksChannelMu.RLock()
+			if !p.tracksChannelClosed {
+				p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeRemove}
+			}
+			p.tracksChannelMu.RUnlock()
+		}()
 		rtpBuf := make([]byte, 1400)
 		for {
 			i, err := remoteTrack.Read(rtpBuf)

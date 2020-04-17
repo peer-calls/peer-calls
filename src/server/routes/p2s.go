@@ -19,7 +19,7 @@ import (
 const localPeerID = "__SERVER__"
 
 type TracksManager interface {
-	Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller) (closeChannel <-chan struct{})
+	Add(room string, clientID string, peerConnection tracks.PeerConnection, dataChannel *webrtc.DataChannel, signaller tracks.Signaller) (closeChannel <-chan struct{})
 }
 
 const serverIsInitiator = true
@@ -159,10 +159,11 @@ func NewPeerToServerRoomHandler(
 					}),
 				)
 
+				var dataChannel *webrtc.DataChannel
 				if initiator == localPeerID {
 					// need to do this to connect with simple peer
 					// only when we are the initiator
-					_, err = peerConnection.CreateDataChannel("test", nil)
+					dataChannel, err = peerConnection.CreateDataChannel("data", nil)
 					if err != nil {
 						log.Printf("[%s] Error creating data channel: %s", clientID, err)
 						// TODO abort connection
@@ -190,7 +191,7 @@ func NewPeerToServerRoomHandler(
 						err = fmt.Errorf("[%s] Error initializing signaller: %s", clientID, err)
 						break
 					}
-					closeChannel := tracksManager.Add(room, clientID, peerConnection, signaller)
+					closeChannel := tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
 						// TODO figure out what happens if WS socket connectino terminates
 						// before peer connection

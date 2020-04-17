@@ -1,6 +1,9 @@
 package routes_test
 
-import "github.com/jeremija/peer-calls/src/server/wrtc/tracks"
+import (
+	"github.com/jeremija/peer-calls/src/server/wrtc/tracks"
+	"github.com/pion/webrtc/v2"
+)
 
 type addedPeer struct {
 	room           string
@@ -19,7 +22,7 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection, signaller tracks.Signaller) <-chan struct{} {
+func (m *mockTracksManager) Add(room string, clientID string, peerConnection tracks.PeerConnection, dataChannel *webrtc.DataChannel, signaller tracks.Signaller) <-chan struct{} {
 	closeChannel := make(chan struct{})
 	m.added <- addedPeer{
 		room:           room,

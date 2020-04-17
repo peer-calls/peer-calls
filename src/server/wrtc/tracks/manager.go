@@ -8,6 +8,8 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+const DataChannelName = "data"
+
 var log = logger.GetLogger("tracks")
 
 type TracksManager struct {
@@ -33,9 +35,10 @@ func NewTracksManager() *TracksManager {
 }
 
 type peerInRoom struct {
-	peer      *peer
-	room      string
-	signaller Signaller
+	peer            *peer
+	dataTransceiver *DataTransceiver
+	room            string
+	signaller       Signaller
 }
 
 func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
@@ -46,6 +49,28 @@ func (t *TracksManager) addTrack(room string, clientID string, track *webrtc.Tra
 			if err := addTrackToPeer(otherPeerInRoom, track); err != nil {
 				log.Printf("[%s] TracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
+			}
+		}
+	}
+
+	t.mu.Unlock()
+}
+
+func (t *TracksManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
+	t.mu.Lock()
+
+	for otherClientID, otherPeerInRoom := range t.peers {
+		if otherClientID != clientID {
+			log.Printf("[%s] broadcast from %s", otherClientID, clientID)
+			tr := otherPeerInRoom.dataTransceiver
+			var err error
+			if msg.IsString {
+				err = tr.SendText(string(msg.Data))
+			} else {
+				err = tr.Send(msg.Data)
+			}
+			if err != nil {
+				log.Printf("[%s] broadcast error: %s", otherClientID, err)
 			}
 		}
 	}
@@ -70,24 +95,23 @@ func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
 	return nil
 }
 
-func (t *TracksManager) Add(room string, clientID string, peerConnection PeerConnection, signaller Signaller) (closeChannel <-chan struct{}) {
+func (t *TracksManager) Add(
+	room string,
+	clientID string,
+	peerConnection PeerConnection,
+	dataChannel *webrtc.DataChannel,
+	signaller Signaller,
+) (closeChannel <-chan struct{}) {
 	log.Printf("[%s] TrackManager.Add peer to room: %s", clientID, room)
 
 	peer := newPeer(
 		clientID,
 		peerConnection,
-		func(clientID string, track *webrtc.Track) {
-			t.addTrack(room, clientID, track)
-		},
-		t.removeTrack,
 	)
 
 	t.mu.Lock()
-	peerJoiningRoom := peerInRoom{
-		peer:      peer,
-		room:      room,
-		signaller: signaller,
-	}
+	dataTransceiver := newDataTransceiver(clientID, dataChannel, peerConnection)
+	peerJoiningRoom := peerInRoom{peer, dataTransceiver, room, signaller}
 
 	peersSet, ok := t.peerIDsByRoom[room]
 	if !ok {
@@ -118,6 +142,25 @@ func (t *TracksManager) Add(room string, clientID string, peerConnection PeerCon
 	t.peers[clientID] = peerJoiningRoom
 	peersSet[clientID] = struct{}{}
 
+	messagesChannel := dataTransceiver.MessagesChannel()
+	go func() {
+		for msg := range messagesChannel {
+			t.broadcast(clientID, msg)
+		}
+	}()
+
+	tracksChannel := peer.TracksChannel()
+	go func() {
+		for e := range tracksChannel {
+			switch e.Type {
+			case TrackEventTypeAdd:
+				t.addTrack(room, e.ClientID, e.Track)
+			case TrackEventTypeRemove:
+				t.removeTrack(e.ClientID, e.Track)
+			}
+		}
+	}()
+
 	go func() {
 		<-signaller.CloseChannel()
 		t.removePeer(clientID)
@@ -138,6 +181,8 @@ func (t *TracksManager) removePeer(clientID string) {
 		return
 	}
 
+	peerLeavingRoom.peer.Close()
+	peerLeavingRoom.dataTransceiver.Close()
 	t.removePeerTracks(peerLeavingRoom)
 
 	delete(t.peers, clientID)

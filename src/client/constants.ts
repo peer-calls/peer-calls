@@ -36,6 +36,10 @@ export const NICKNAME_REMOVE = 'NICKNAME_REMOVE'
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'
 
+// this data channel must have the same name as the one on the server-side,
+// when SFU is used.
+export const PEER_DATA_CHANNEL_NAME = 'data'
+
 export const PEER_EVENT_ERROR = 'error'
 export const PEER_EVENT_CONNECT = 'connect'
 export const PEER_EVENT_CLOSE = 'close'
