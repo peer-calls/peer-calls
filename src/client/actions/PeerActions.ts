@@ -101,7 +101,7 @@ class PeerHandler {
     switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({
-          userId: user.id,
+          userId: message.userId || user.id,
           message: message.payload.name,
           timestamp: new Date().toLocaleString(),
           image: message.payload.data,
@@ -109,7 +109,7 @@ class PeerHandler {
         break
       default:
         dispatch(ChatActions.addMessage({
-          userId: user.id,
+          userId: message.userId || user.id,
           message: message.payload,
           timestamp: new Date().toLocaleString(),
           image: undefined,

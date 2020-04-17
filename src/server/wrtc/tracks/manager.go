@@ -1,6 +1,7 @@
 package tracks
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -65,7 +66,13 @@ func (t *TracksManager) broadcast(clientID string, msg webrtc.DataChannelMessage
 			tr := otherPeerInRoom.dataTransceiver
 			var err error
 			if msg.IsString {
-				err = tr.SendText(string(msg.Data))
+				textData := msg.Data
+				data := map[string]interface{}{}
+				if unmarshalErr := json.Unmarshal(textData, &data); unmarshalErr == nil {
+					data["userId"] = clientID
+					textData, _ = json.Marshal(data)
+				}
+				err = tr.SendText(string(textData))
 			} else {
 				err = tr.Send(msg.Data)
 			}
