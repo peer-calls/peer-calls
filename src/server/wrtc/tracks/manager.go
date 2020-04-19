@@ -93,10 +93,11 @@ func addTrackToPeer(peerInRoom peerInRoom, track *webrtc.Track) error {
 
 	kind := track.Kind()
 	signaller := peerInRoom.signaller
-	log.Printf("[%s] addTrackToPeer Calling signaller.AddTransceiverRequest() and signaller.Negotiate() because a new %s track was added", peer.ClientID(), kind)
 	if signaller.Initiator() {
+		log.Printf("[%s] addTrackToPeer Calling signaller.Negotiate() because a new %s track was added", peer.ClientID(), kind)
 		signaller.Negotiate()
 	} else {
+		log.Printf("[%s] addTrackToPeer Calling signaller.AddTransceiverRequest() because a new %s track was added", peer.ClientID(), kind)
 		signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
 	}
 	return nil
