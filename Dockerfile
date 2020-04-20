@@ -4,20 +4,26 @@ RUN chown node:node /app
 COPY package.json .
 USER node
 RUN npm install
-COPY . .
+COPY tsconfig.json .
+COPY src src
 RUN npm run build
-RUN rm -rf node_modules build/index.prod.js
 
-FROM node:12-alpine
+FROM golang:1.14-buster
 WORKDIR /app
-RUN chown node:node /app
-USER node
-COPY package.json .
-RUN npm install --production && rm -rf ~/.npm
-COPY --from=0 /app .
-USER root
-RUN chown -R root:root .
-USER node
+RUN chown nobody /app
+RUN go get -u github.com/gobuffalo/packr/packr
+COPY go.mod go.sum ./
+RUN go mod download
+COPY --from=0 /app/build build
+COPY .git .git
+COPY res res
+COPY src/server src/server
+RUN packr build -ldflags "-X main.gitDescribe=$(git describe --always --tags)" -o peer-calls src/server/main.go
+
+FROM debian:buster-slim
+WORKDIR /app
+COPY --from=1 /app/peer-calls .
+USER nobody
 EXPOSE 3000
 STOPSIGNAL SIGINT
-ENTRYPOINT ["node", "lib/index.js"]
+ENTRYPOINT ["./peer-calls"]

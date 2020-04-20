@@ -1,4 +1,3 @@
-.git/
 build/
 config/local.yaml
 coverage/

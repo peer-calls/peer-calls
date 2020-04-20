@@ -1,138 +1,176 @@
-# Peer Calls
+# Peer Calls v4 (alpha)
 
 [![Build Status][travis-badge]][travis]
-[![NPM Package][npm-badge]][npm]
 
-[travis-badge]: https://travis-ci.org/jeremija/peer-calls.svg?branch=master
-[travis]: https://travis-ci.org/jeremija/peer-calls
-[npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
-[npm]: https://www.npmjs.com/package/peer-calls
+[travis-badge]: https://travis-ci.org/peer-calls/peer-calls.svg?branch=server-go
+[travis]: https://travis-ci.org/peer-calls/peer-calls
 
 WebRTC peer to peer calls for everyone. See it live in action at
-[peercalls.com][peer-calls].
+[peercalls.com/alpha][peer-calls].
 
-[peer-calls]: https://peercalls.com
+[peer-calls]: https://peercalls.com/alpha
 
-Experimental work is currently being done in the `server-go` branch. The server has been completely rewriten in Go and all the original functionality works. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads. Once implemented, it will be released as `Peer Calls v4`.
+This branch contains experimental work. The server has been completely rewriten
+in Go and all the original functionality works. An optional implementation of a
+Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less
+bandwith for user video uploads. Once implemented, it will be released as `Peer
+Calls v4`.
 
 # Requirements
 
- - [Node.js 8][node], or
- - [Node.js 12][node], or
- - [Docker][docker]
+ - [Node.js 8][node] or [Node.js 12][node]
+ - [Go 1.14][go]
+
+Alternatively, [Docker][docker] can be used to run Peer Calls.
 
 [node]: https://nodejs.org
+[go]: https://golang.org/
 [docker]: https://www.docker.com/
 
 # Stack
 
- - Express
- - Socket.IO
+## Backend
+
+ - [Golang][go]
+ - [pion/webrtc][pion]
+ - github.com/go-chi/chi
+ - nhooyr.io/websocket
+
+[pion]: https://github.com/pion/webrtc
+
+See [go.mod](go.mod) for more information
+
+## Frontend
+
  - React
  - Redux
  - TypeScript (since peer-calls `v2.1.0`)
 
+See [package.json](package.json) for more information.
+
 # Installation & Running
-
-## Using npx (from NPM)
-
-```bash
-npx peer-calls
-```
-
-## Installing locally
-
-```bash
-npm install peer-calls
-./node_modules/.bin/peer-calls
-```
-
-## Installing Globally
-
-```bash
-npm install --global peer-calls
-peer-calls
-```
 
 ## Using Docker
 
-Use the [`jeremija/peer-calls`][hub] image from Docker Hub:
+Use the [`peer-calls/peer-calls`][hub] image from Docker Hub:
 
 ```bash
-docker pull jeremija/peer-calls
-docker run --rm -it -p 3000:3000 jeremija/peer-calls:latest
+docker run --rm -it -p 3000:3000 peer-calls/peer-calls:alpha
 ```
 
-[hub]: https://hub.docker.com/r/jeremija/peer-calls
+[hub]: https://hub.docker.com/r/peer-calls/peer-calls
 
-## From Git Source
+## Building from Source
 
 ```bash
-git clone https://github.com/jeremija/peer-calls.git
+git clone https://github.com/peer-calls/peer-calls.git
 cd peer-calls
 npm install
 
 # for production
 npm run build
-npm start
+npm run build:go:linux
 
 # for development
-npm run start:watch
+npm run start
 ```
 
 ## Building Docker Image
 
 ```bash
-git clone https://github.com/jeremija/peer-calls
+git clone https://github.com/peer-calls/peer-calls
 cd peer-calls
 docker build -t peer-calls .
-docker run --rm -it -p 3000:3000 peer-calls:latest
+docker run --rm -it -p 3000:3000 peer-calls:alpha
 ```
 
 # Configuration
 
-There has been a breaking change in `v3.0.0`. The default binary provided via
-NPM is now called peer-calls, while it used to be peercalls. This has been made
-to make `npx peer-calls` work.
+## Environment variables
 
-Version 3 also changed the way configuration works. Previously, `config` module
-was used to read config files. To make things simpler, a default STUN
-configuration will now be used by default. Config files can still be provided
-via the `config/` folder in the working directory, but the extension read will
-be `.yaml` instead of `.json`.
 
-The config files are read in the following order:
+| Variable                            | Type   | Description                                                                  | Default   |
+|-------------------------------------|--------|------------------------------------------------------------------------------|-----------|
+| `PEERCALLS_LOG`                     | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
+| `PEERCALLS_BASE_URL`                | string | Base URL of the application                                                  |           |
+| `PEERCALLS_BIND_HOST`               | string | IP to listen to                                                              | `0.0.0.0` |
+| `PEERCALLS_BIND_PORT`               | int    | Port to listen to                                                            | `3000`    |
+| `PEERCALLS_TLS_CERT`                | string | Path to TLS PEM certificate. If set will enable TLS                          |           |
+| `PEERCALLS_TLS_KEY`                 | string | Path to TLS PEM cert key. If set will enable TLS                             |           |
+| `PEERCALLS_STORE_TYPE`              | string | Can be `memory` or `redis`                                                   | `memory`  |
+| `PEERCALLS_STORE_REDIS_HOST`        | string | Hostname of Redis server                                                     |           |
+| `PEERCALLS_STORE_REDIS_PORT`        | int    | Port of Redis server                                                         |           |
+| `PEERCALLS_STORE_REDIS_PREFIX`      | string | Prefix for Redis keys. Suggestion: `peercalls`                               |           |
+| `PEERCALLS_NETWORK_TYPE`            | string | Can be `mesh` or `sfu`. Setting to SFU will make the server the main peer    | `mesh`    |
+| `PEERCALLS_NETWORK_SFU_INTERFACES`  | csv    | List of interfaces to use for ICE candidates, uses all available when empty  |           |
+| `PEERCALLS_ICE_SERVER_URLS`         | csv    | List of ICE Server URLs                                                      |           |
+| `PEERCALLS_ICE_SERVER_AUTH_TYPE`    | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
+| `PEERCALLS_ICE_SERVER_SECRET`       | string | Secret for coturn                                                            |           |
+| `PEERCALLS_ICE_SERVER_USERNAME`     | string | Username for coturn                                                          |           |
 
-- `node_modules/peer-calls/config/default.yaml`
-- `node_modules/peer-calls/config/${NODE_ENV}.yaml`, if `NODE_ENV` is set
-- `node_modules/peer-calls/config/local.yaml`
-- `./config/default.yaml`
-- `./config/${NODE_ENV}.yaml`, if `NODE_ENV` is set
-- `./config/local.yaml`
+The default ICE servers in use are:
 
-No errors will be thrown if a file is not found, but an error will be thrown
-when the required properties are not found. To debug configuration issues,
-set the `DEBUG` environment variable to `DEBUG=peercalls,peercalls:config`.
+- `stun:stun.l.google.com:19302`
+- `stun:global.stun.twilio.com:3478?transport=udp`
 
-Additionally, version 3 provides easier configuration via environment
-variables. For example:
+Only a single ICE server can be defined via environment variables. To define
+more use a YAML config file. To load a config file, use the `-c
+/path/to/config.yml` command line argument.
 
- - Set STUN/TURN servers: `PEERCALLS__ICE_SERVERS='[{"url": "stun:stun.l.google.com:19302", "urls": "stun:stun.l.google.com:19302"}]'`
- - Change base URL: `PEERCALLS__BASE_URL=/test` - app will now be accessible at `localhost:3000/test`
- - Enable HTTPS: `PEERCALLS__SSL='{"cert": "/path/to/cert.pem", "key": "/path/to/cert.key"}'`
- - Disable HTTPS: `PEERCALLS__SSL=undefined`
- - Listen on a different port: `PORT=3001` (default is `3000`)
- - Bind to specific IP or hostname: `BIND=127.0.0.1`
+See [config/types.go][config] for configuration types.
 
-See [config/default.yaml][config] for sample configuration.
+[config]: ./src/server/config/types.go
 
-[config]: ./config/default.yaml
+Example:
 
-By default, the server will start on port `3000`. This can be modified by
-setting the `PORT` environment variable to another number, or to a path for a
-unix domain socket.
+```yaml
+base_url: ''
+bind_host: '0.0.0.0'
+bind_port: 3005
+ice_servers:
+ - urls:
+   - 'stun:stun.l.google.com:19302'
+- urls:
+  - 'stun:global.stun.twilio.com:3478?transport=udp'
+#- urls:
+#  - 'turn:coturn.mydomain.com'
+#  auth_type: secret
+#  auth_secret:
+#    username: "peercalls"
+#    secret: "some-static-secret"
+# tls:
+#   cert: test.pem
+#   key: test.key
+store:
+  type: memory
+  # type: redis
+  # redis:
+  #   host: localhost
+  #   port: 6379
+  #   prefix: peercalls
+network:
+  type: mesh
+  # type: sfu
+  # sfu:
+  #   interfaces:
+  #   - eth0
+```
 
-To access the server, go to http://localhost:3000 (or another port).
+To access the server, go to http://localhost:3000.
+
+# Accessing From Network
+
+Most browsers will prevent access to user media devices if the application is
+accessed from the network (not via 127.0.0.1). If you wish to test your mobile
+devices, you'll have to enable TLS by setting the `PEERCALLS_TLS_CERT` and
+`PEERCALLS_TLS_KEY` environment variables. To generate a self-signed certificate
+you can use:
+
+```
+openssl req -nodes -x509 -newkey rsa:4096 -keyout key.pem -subj "/C=US/ST=Oregon/L=Portland/O=Company Name/OU=Org/CN=example.com" -out cert.pem -days 365
+```
+
+Replace `example.com` with your server's hostname.
 
 # Multiple Instances and Redis
 
@@ -142,9 +180,10 @@ The following needs to be added to `config.yaml` to enable Redis:
 ```yaml
 store:
   type: redis
-  host: 127.0.0.1   # redis host
-  port: 6379        # redis port
-  prefix: peercalls # all instances must use the same prefix
+  redis:
+    host: redis-host  # redis host
+    port: 6379        # redis port
+    prefix: peercalls # all instances must use the same prefix
 ```
 
 # Logging
@@ -152,17 +191,17 @@ store:
 By default, Peer Calls server will log only basic information. Client-side
 logging is disabled by default.
 
-Server-side logs can be configured via the `DEBUG` environment variable. Setting
-it to `peercalls,peercalls:*` will enable all server-side logging:
+Server-side logs can be configured via the `PEERCALLS_LOG` environment variable. Setting
+it to `*` will enable all server-side logging:
 
-- `DEBUG=peercalls,peercalls:* npm run start:server`
+- `PEERCALLS_LOG=*`
 
 Client-side logs can be configured via `localStorage.DEBUG` and
 `localStorage.LOG` variables:
 
-- Setting `localStorage.LOG=1` enables logging of Redux actions and state
+- Setting `localStorage.log=1` enables logging of Redux actions and state
   changes
-- Setting `localStorage.DEBUG=peercalls,peercalls:*` enables all other
+- Setting `localStorage.debug=peercalls,peercalls:*` enables all other
   client-side logging
 
 # Development
@@ -182,10 +221,9 @@ npm run ci             run all linting, tests and build the client-side
 
 # Browser Support
 
-Tested on Firefox and Chrome, including mobile versions. Also works on Safari,
-however connection issues have been reported.
-
-Does not work on iOS 10, but should work on iOS 11 - would appreciate feedback!
+Tested on Firefox and Chrome, including mobile versions. Also works on Safari
+and iOS since version 11. Does not work on Microsoft Edge because they do not
+support DataChannels yet.
 
 For more details, see here:
 
@@ -193,7 +231,7 @@ For more details, see here:
 - http://caniuse.com/#search=getUserMedia
 
 In Firefox, it might be useful to use `about:webrtc` to debug connection
-issues.
+issues. In Chrome, use `about:webrtc-internals`.
 
 When experiencing connection issues, the first thing to try is to have all
 peers to use the same browser.
@@ -253,10 +291,9 @@ sudo systemctl start coturn
 - [x] Show menu dialog before connecting (Fixed in 0b4aa45)
 - [x] Reduce production build size by removing Pug. (Fixed in 2d14e5f c743f19)
 - [x] Add ability to share files (Fixed in 3877893)
-- [ ] Enable node cluster support (to scale vertically).
 - [x] Add Socket.IO support for Redis (to scale horizontally).
-- [ ] Add support for browser push notifications
-- [ ] Allow other methods of connectivity, beside mesh. Experimental work done in `server-go` branch.
+- [x] Allow other methods of connectivity, beside mesh.
+- [ ] Fix connectivity issues with SFU
 
 # Contributing
 
@@ -266,4 +303,4 @@ If you encounter a bug, please open a new issue! Thank you ❤️
 
 # License
 
-[MIT](LICENSE)
+[Apache 2.0](LICENSE)

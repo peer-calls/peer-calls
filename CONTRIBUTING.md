@@ -62,7 +62,6 @@ merge the contribution.
 
 ## License
 
-As the project uses the [MIT license][license], you agree that any code you submit to the
-project will also be licensed under the same license.
+As the project uses the [Apache 2.0][license], you agree that any code you submit to the project will also be licensed under the same license.
 
 [license]: LICENSE
