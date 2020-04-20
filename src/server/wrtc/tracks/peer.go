@@ -258,7 +258,7 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 
 	ticker := time.NewTicker(rtcpPLIInterval)
 	go func() {
-		for range ticker.C {
+		writeRTCP := func() {
 			err := p.peerConnection.WriteRTCP(
 				[]rtcp.Packet{
 					&rtcp.PictureLossIndication{
@@ -273,6 +273,11 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 					err,
 				)
 			}
+		}
+
+		writeRTCP()
+		for range ticker.C {
+			writeRTCP()
 		}
 	}()
 
