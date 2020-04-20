@@ -52,10 +52,10 @@ See [package.json](package.json) for more information.
 
 ## Using Docker
 
-Use the [`peer-calls/peer-calls`][hub] image from Docker Hub:
+Use the [`peercalls/peercalls`][hub] image from Docker Hub:
 
 ```bash
-docker run --rm -it -p 3000:3000 peer-calls/peer-calls:alpha
+docker run --rm -it -p 3000:3000 peercalls/peercalls:alpha
 ```
 
 [hub]: https://hub.docker.com/r/peer-calls/peer-calls
@@ -206,16 +206,15 @@ Client-side logs can be configured via `localStorage.DEBUG` and
 
 # Development
 
-Below are some common NPM scripts that are used for development:
+Below are some common scripts used for development:
 
 ```
-npm start              start the precompiled server.
+npm start              build all resources and start the server.
 npm run build          build all client-side resources.
-npm run start:server   start and compile server-side TypeScript on the fly,
-                       restarts the server when the resources change.
-npm run start:watch    start the server, and recompile client-side resources
-                       when the sources change.
-npm test               run all tests.
+npm run start:server   start the server
+npm run js:watch       build and watch resources
+npm test               run all client-side tests.
+go test ./...`a        run all server tests
 npm run ci             run all linting, tests and build the client-side
 ```
 
