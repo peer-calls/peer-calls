@@ -114,6 +114,7 @@ func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, inter
 	iceServersJSON, _ := json.Marshal(iceServers)
 
 	data := map[string]interface{}{
+		"Nickname":   r.Header.Get("X-Forwarded-User"),
 		"CallID":     callID,
 		"UserID":     userID,
 		"ICEServers": template.HTML(iceServersJSON),
