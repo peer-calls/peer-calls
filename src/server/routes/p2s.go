@@ -9,10 +9,12 @@ import (
 
 	"github.com/jeremija/peer-calls/src/server/config"
 	"github.com/jeremija/peer-calls/src/server/iceauth"
+	"github.com/jeremija/peer-calls/src/server/logger"
 	"github.com/jeremija/peer-calls/src/server/wrtc/signals"
 	"github.com/jeremija/peer-calls/src/server/wrtc/tracks"
 	"github.com/jeremija/peer-calls/src/server/ws/wsmessage"
 	"github.com/jeremija/peer-calls/src/server/wshandler"
+	"github.com/pion/logging"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -20,6 +22,57 @@ const localPeerID = "__SERVER__"
 
 type TracksManager interface {
 	Add(room string, clientID string, peerConnection tracks.PeerConnection, dataChannel *webrtc.DataChannel, signaller tracks.Signaller) (closeChannel <-chan struct{})
+}
+
+type pionLogger struct {
+	traceLogger *logger.Logger
+	debugLogger *logger.Logger
+	infoLogger  *logger.Logger
+	warnLogger  *logger.Logger
+	errorLogger *logger.Logger
+}
+
+type pionLoggerFactory struct{}
+
+func (p pionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
+	return &pionLogger{
+		traceLogger: logger.GetLogger("pion:" + subsystem + ":trace"),
+		debugLogger: logger.GetLogger("pion:" + subsystem + ":debug"),
+		infoLogger:  logger.GetLogger("pion:" + subsystem + ":info"),
+		warnLogger:  logger.GetLogger("pion:" + subsystem + ":warn"),
+		errorLogger: logger.GetLogger("pion:" + subsystem + ":error"),
+	}
+}
+
+func (p *pionLogger) Trace(msg string) {
+	p.traceLogger.Println(msg)
+}
+func (p *pionLogger) Tracef(format string, args ...interface{}) {
+	p.traceLogger.Printf(format, args...)
+}
+func (p *pionLogger) Debug(msg string) {
+	p.debugLogger.Println(msg)
+}
+func (p *pionLogger) Debugf(format string, args ...interface{}) {
+	p.debugLogger.Printf(format, args...)
+}
+func (p *pionLogger) Info(msg string) {
+	p.infoLogger.Println(msg)
+}
+func (p *pionLogger) Infof(format string, args ...interface{}) {
+	p.infoLogger.Printf(format, args...)
+}
+func (p *pionLogger) Warn(msg string) {
+	p.warnLogger.Println(msg)
+}
+func (p *pionLogger) Warnf(format string, args ...interface{}) {
+	p.warnLogger.Printf(format, args...)
+}
+func (p *pionLogger) Error(msg string) {
+	p.errorLogger.Println(msg)
+}
+func (p *pionLogger) Errorf(format string, args ...interface{}) {
+	p.errorLogger.Printf(format, args...)
 }
 
 const serverIsInitiator = true
@@ -56,7 +109,9 @@ func NewPeerToServerRoomHandler(
 			allowedInterfaces[iface] = struct{}{}
 		}
 
-		settingEngine := webrtc.SettingEngine{}
+		settingEngine := webrtc.SettingEngine{
+			LoggerFactory: pionLoggerFactory{},
+		}
 		if len(allowedInterfaces) > 0 {
 			settingEngine.SetInterfaceFilter(func(iface string) bool {
 				_, ok := allowedInterfaces[iface]

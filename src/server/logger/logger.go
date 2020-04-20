@@ -51,11 +51,11 @@ func (l *Logger) println(values ...interface{}) {
 type LoggerFactory struct {
 	out            io.Writer
 	loggers        map[string]*Logger
-	defaultEnabled map[string]struct{}
+	defaultEnabled []string
 	loggersMu      sync.Mutex
 }
 
-func NewLoggerFactory(out io.Writer, enabled map[string]struct{}) *LoggerFactory {
+func NewLoggerFactory(out io.Writer, enabled []string) *LoggerFactory {
 	return &LoggerFactory{
 		out:            out,
 		loggers:        map[string]*Logger{},
@@ -65,15 +65,76 @@ func NewLoggerFactory(out io.Writer, enabled map[string]struct{}) *LoggerFactory
 
 func NewLoggerFactoryFromEnv(prefix string, out io.Writer) *LoggerFactory {
 	log := os.Getenv(prefix + "LOG")
-	if log == "" {
-		log = "*"
+	var enabled []string
+	if len(log) > 0 {
+		enabled = strings.Split(log, ",")
 	}
-	enabled := strings.Split(log, ",")
-	defaultEnabled := map[string]struct{}{}
-	for _, name := range enabled {
-		defaultEnabled[name] = struct{}{}
+	return NewLoggerFactory(out, enabled)
+}
+
+// Sets default enabled loggers if none have been read from environment
+func (l *LoggerFactory) SetDefaultEnabled(names []string) {
+	if len(l.defaultEnabled) == 0 {
+		l.defaultEnabled = names
+		for name, logger := range l.loggers {
+			if !logger.Enabled {
+				logger.Enabled = l.isEnabled(name)
+			}
+		}
 	}
-	return NewLoggerFactory(out, defaultEnabled)
+}
+
+func split(name string) (parts []string) {
+	if len(name) > 0 {
+		parts = strings.Split(name, ":")
+	}
+	return
+}
+
+func partsMatch(parts []string, enabledParts []string) bool {
+	isLastWildcard := false
+	for i, part := range parts {
+		if len(enabledParts) <= i {
+			return isLastWildcard
+		}
+
+		isLastWildcard = false
+		enabledPart := enabledParts[i]
+
+		if enabledPart == part {
+			continue
+		}
+
+		if enabledPart == "*" {
+			isLastWildcard = true
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func (l *LoggerFactory) isEnabled(name string) bool {
+	parts := split(name)
+
+	for _, enabledName := range l.defaultEnabled {
+		isEnabled := true
+
+		if strings.HasPrefix(enabledName, "-") {
+			enabledName = enabledName[1:]
+			isEnabled = false
+		}
+
+		enabledParts := split(enabledName)
+
+		if partsMatch(parts, enabledParts) {
+			return isEnabled
+		}
+	}
+
+	return false
 }
 
 func (l *LoggerFactory) GetLogger(name string) *Logger {
@@ -81,13 +142,13 @@ func (l *LoggerFactory) GetLogger(name string) *Logger {
 	defer l.loggersMu.Unlock()
 	logger, ok := l.loggers[name]
 	if !ok {
-		_, enabled := l.defaultEnabled[name]
-		_, disabled := l.defaultEnabled["-"+name]
-		_, allEnabled := l.defaultEnabled["*"]
-		logger = NewLogger(name, l.out, enabled || allEnabled && !disabled)
+		enabled := l.isEnabled(name)
+		logger = NewLogger(name, l.out, enabled)
 		l.loggers[name] = logger
 	}
 	return logger
 }
 
-var GetLogger = NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr).GetLogger
+var defaultLoggerFactory = NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr)
+var GetLogger = defaultLoggerFactory.GetLogger
+var SetDefaultEnabled = defaultLoggerFactory.SetDefaultEnabled

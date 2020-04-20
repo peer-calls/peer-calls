@@ -26,6 +26,17 @@ func panicOnError(err error, message string) {
 
 var log = logger.GetLogger("main")
 
+func init() {
+	logger.SetDefaultEnabled([]string{
+		"-sdp",
+		"-ws",
+		"-pion:*:trace",
+		"-pion:*:debug",
+		"-pion:*:info",
+		"*",
+	})
+}
+
 func main() {
 	flags := flag.NewFlagSet("peer-calls", flag.ExitOnError)
 	var configFilename string
