@@ -31,6 +31,7 @@ func ReadFiles(filenames []string, c *Config) (err error) {
 }
 
 func Init(c *Config) {
+	c.BindPort = 3000
 	c.Network.Type = NetworkTypeMesh
 	c.Store.Type = StoreTypeMemory
 	c.ICEServers = []ICEServer{{
