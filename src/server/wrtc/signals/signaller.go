@@ -87,7 +87,7 @@ func (s *Signaller) initialize() error {
 	_, err := s.peerConnection.AddTransceiverFromKind(
 		webrtc.RTPCodecTypeVideo,
 		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 		},
 	)
 	if err != nil {
@@ -99,7 +99,7 @@ func (s *Signaller) initialize() error {
 	_, err = s.peerConnection.AddTransceiverFromKind(
 		webrtc.RTPCodecTypeAudio,
 		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 		},
 	)
 	if err != nil {
