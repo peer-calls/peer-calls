@@ -9,6 +9,7 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/google/uuid v1.1.1
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
+	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.1
 	github.com/pion/webrtc/v2 v2.2.5
 	github.com/stretchr/testify v1.5.1
@@ -16,4 +17,4 @@ require (
 	nhooyr.io/websocket v1.8.4
 )
 
-replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200415101648-d5dbe1f694b0
+replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200420091005-4cc16a2df9e0
