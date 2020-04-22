@@ -4,7 +4,7 @@ import "github.com/jeremija/peer-calls/src/server/ws/wsmessage"
 
 type Client interface {
 	ID() string
-	WriteChannel() chan<- wsmessage.Message
+	Write(message wsmessage.Message) error
 	Metadata() string
 	SetMetadata(metadata string)
 }

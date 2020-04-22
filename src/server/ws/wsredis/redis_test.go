@@ -25,7 +25,7 @@ type MockWSWriter struct {
 
 func NewMockWriter() *MockWSWriter {
 	return &MockWSWriter{
-		out: make(chan []byte),
+		out: make(chan []byte, 16),
 	}
 }
 
@@ -73,12 +73,10 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
 	client1 := ws.NewClient(mockWriter1)
-	defer client1.Close()
 	client1.SetMetadata("a")
 	mockWriter2 := NewMockWriter()
 	defer close(mockWriter2.out)
 	client2 := ws.NewClient(mockWriter2)
-	defer client2.Close()
 	client2.SetMetadata("b")
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -87,7 +85,10 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 
 	for _, client := range []*ws.Client{client1, client2} {
 		go func(client *ws.Client) {
-			err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
+			msgChan := client.Subscribe(ctx)
+			for range msgChan {
+			}
+			err := client.Err()
 			assert.True(t, errors.Is(err, context.Canceled), "expected error to be context.Canceled, but was: %s", err)
 			wg.Done()
 		}(client)

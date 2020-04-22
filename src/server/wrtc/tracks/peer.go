@@ -47,6 +47,7 @@ type DataTransceiver struct {
 	dataChanClosed bool
 	dataChannel    *webrtc.DataChannel
 	messagesChan   chan webrtc.DataChannelMessage
+	closeChannel   chan struct{}
 }
 
 func newDataTransceiver(
@@ -58,6 +59,7 @@ func newDataTransceiver(
 		clientID:       clientID,
 		peerConnection: peerConnection,
 		messagesChan:   make(chan webrtc.DataChannelMessage),
+		closeChannel:   make(chan struct{}),
 	}
 	if dataChannel != nil {
 		d.handleDataChannel(dataChannel)
@@ -84,20 +86,30 @@ func (d *DataTransceiver) MessagesChannel() <-chan webrtc.DataChannelMessage {
 func (d *DataTransceiver) Close() {
 	log.Printf("[%s] DataTransceiver.Close", d.clientID)
 	d.dataChanOnce.Do(func() {
+		close(d.closeChannel)
+
 		d.mu.Lock()
-		close(d.messagesChan)
+		defer d.mu.Unlock()
+
 		d.dataChanClosed = true
-		d.mu.Unlock()
+		close(d.messagesChan)
 	})
 }
 
 func (d *DataTransceiver) handleMessage(msg webrtc.DataChannelMessage) {
 	log.Printf("[%s] DataTransceiver.handleMessage", d.clientID)
 	d.mu.RLock()
-	if !d.dataChanClosed {
-		d.messagesChan <- msg
+	defer d.mu.RUnlock()
+
+	ch := d.messagesChan
+	if d.dataChanClosed {
+		ch = nil
 	}
-	d.mu.RUnlock()
+
+	select {
+	case ch <- msg:
+	case <-d.closeChannel:
+	}
 }
 
 func (d *DataTransceiver) SendText(message string) (err error) {
@@ -133,8 +145,9 @@ type peer struct {
 
 	tracksChannel       chan TrackEvent
 	tracksChannelClosed bool
-	tracksChannelOnce   sync.Once
-	tracksChannelMu     sync.RWMutex
+	closeChannel        chan struct{}
+	mu                  sync.RWMutex
+	closeOnce           sync.Once
 }
 
 func newPeer(
@@ -145,7 +158,9 @@ func newPeer(
 		clientID:         clientID,
 		peerConnection:   peerConnection,
 		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
-		tracksChannel:    make(chan TrackEvent),
+
+		tracksChannel: make(chan TrackEvent),
+		closeChannel:  make(chan struct{}),
 	}
 
 	log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -157,11 +172,14 @@ func newPeer(
 // FIXME add support for data channel messages for sending chat messages, and images/files
 
 func (p *peer) Close() {
-	p.tracksChannelOnce.Do(func() {
-		p.tracksChannelMu.Lock()
+	p.closeOnce.Do(func() {
+		close(p.closeChannel)
+
+		p.mu.Lock()
+		defer p.mu.Unlock()
+
 		close(p.tracksChannel)
 		p.tracksChannelClosed = true
-		p.tracksChannelMu.Unlock()
 	})
 }
 
@@ -221,6 +239,23 @@ func (p *peer) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiv
 
 	log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
 	p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeAdd}
+}
+
+func (p *peer) sendTrackEvent(t TrackEvent) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	ch := p.tracksChannel
+	if p.tracksChannelClosed {
+		ch = nil
+	}
+
+	select {
+	case ch <- t:
+		log.Printf("[%s] sendTrackEvent success", p.clientID)
+	case <-p.closeChannel:
+		log.Printf("[%s] sendTrackEvent channel closed", p.clientID)
+	}
 }
 
 func (p *peer) Tracks() []*webrtc.Track {
@@ -284,11 +319,11 @@ func (p *peer) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, erro
 	go func() {
 		defer ticker.Stop()
 		defer func() {
-			p.tracksChannelMu.RLock()
+			p.mu.RLock()
 			if !p.tracksChannelClosed {
 				p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeRemove}
 			}
-			p.tracksChannelMu.RUnlock()
+			p.mu.RUnlock()
 		}()
 		rtpBuf := make([]byte, 1400)
 		for {

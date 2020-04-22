@@ -16,6 +16,8 @@ import (
 	"nhooyr.io/websocket"
 )
 
+const timeout = 10 * time.Second
+
 type MockRoomManager struct {
 	enter     chan string
 	exit      chan string
@@ -129,7 +131,7 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) wsmessage
 	return msg
 }
 
-func setupServer(rooms routes.RoomManager) (server *httptest.Server, url string) {
+func setupP2PServer(rooms routes.RoomManager) (server *httptest.Server, url string) {
 	handler := routes.NewPeerToPeerRoomHandler(wshandler.NewWSS(rooms))
 	server = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + roomName + "/" + clientID
@@ -139,9 +141,9 @@ func setupServer(rooms routes.RoomManager) (server *httptest.Server, url string)
 func TestWS_disconnect(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	server, url := setupServer(rooms)
+	server, url := setupP2PServer(rooms)
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
 	err := ws.Close(websocket.StatusNormalClosure, "")
@@ -157,9 +159,9 @@ func TestWS_disconnect(t *testing.T) {
 func TestWS_event_ready(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	server, url := setupServer(rooms)
+	server, url := setupP2PServer(rooms)
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
 	mustWriteWS(t, ctx, ws, wsmessage.NewMessage("ready", "test-room", map[string]interface{}{
@@ -182,9 +184,9 @@ func TestWS_event_ready(t *testing.T) {
 func TestWS_event_signal(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	server, url := setupServer(rooms)
+	server, url := setupP2PServer(rooms)
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
 	otherClientID := "other-user"

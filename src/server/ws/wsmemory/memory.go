@@ -110,11 +110,9 @@ func (m *MemoryAdapter) emit(clientID string, msg wsmessage.Message) error {
 	if !ok {
 		return fmt.Errorf("wsadapter.Client not found, clientID: %s", clientID)
 	}
-	select {
-	case client.WriteChannel() <- msg:
-		return nil
-	default:
-		return fmt.Errorf("wsadapter.Client buffer full, clientID: %s", clientID)
-		// if the client buffer is full, it will not be sent
+	err := client.Write(msg)
+	if err != nil {
+		return fmt.Errorf("MemoryAdapter.emit error: %w", err)
 	}
+	return nil
 }

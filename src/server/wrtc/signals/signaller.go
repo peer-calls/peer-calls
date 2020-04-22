@@ -28,10 +28,13 @@ type Signaller struct {
 	initiator      bool
 	localPeerID    string
 	remotePeerID   string
-	onSignal       func(signal interface{})
 	negotiator     *negotiator.Negotiator
-	closeChannel   chan struct{}
-	closeOnce      sync.Once
+
+	signalMu      sync.RWMutex
+	closed        bool
+	signalChannel chan Payload
+	closeChannel  chan struct{}
+	closeOnce     sync.Once
 }
 
 var log = logger.GetLogger("signals")
@@ -43,7 +46,6 @@ func NewSignaller(
 	mediaEngine *webrtc.MediaEngine,
 	localPeerID string,
 	remotePeerID string,
-	onSignal func(signal interface{}),
 ) (*Signaller, error) {
 	s := &Signaller{
 		initiator:      initiator,
@@ -51,7 +53,7 @@ func NewSignaller(
 		mediaEngine:    mediaEngine,
 		localPeerID:    localPeerID,
 		remotePeerID:   remotePeerID,
-		onSignal:       onSignal,
+		signalChannel:  make(chan Payload),
 		closeChannel:   make(chan struct{}),
 	}
 
@@ -75,6 +77,10 @@ func NewSignaller(
 // for signalling closing of peer connection
 func (s *Signaller) CloseChannel() <-chan struct{} {
 	return s.closeChannel
+}
+
+func (s *Signaller) SignalChannel() <-chan Payload {
+	return s.signalChannel
 }
 
 func (s *Signaller) initialize() error {
@@ -128,11 +134,39 @@ func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICECon
 
 }
 
+func (s *Signaller) onSignal(payload Payload) {
+	s.signalMu.RLock()
+
+	go func() {
+		defer s.signalMu.RUnlock()
+
+		ch := s.signalChannel
+		if s.closed {
+			// read from nil channel blocks indefinitely
+			ch = nil
+		}
+
+		select {
+		case ch <- payload:
+			// successfully sent
+		case <-s.closeChannel:
+			// signaller has been closed
+			return
+		}
+	}()
+}
+
 func (s *Signaller) Close() (err error) {
 	s.closeOnce.Do(func() {
-		// TODO see if this is a race condition
-		err = s.peerConnection.Close()
 		close(s.closeChannel)
+
+		s.signalMu.Lock()
+		defer s.signalMu.Unlock()
+
+		close(s.signalChannel)
+		s.closed = true
+
+		err = s.peerConnection.Close()
 	})
 	return
 }

@@ -24,7 +24,7 @@ type MockWSWriter struct {
 
 func NewMockWriter() *MockWSWriter {
 	return &MockWSWriter{
-		out: make(chan []byte),
+		out: make(chan []byte, 16),
 	}
 }
 
@@ -49,7 +49,6 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	client := ws.NewClient(mockWriter)
-	defer client.Close()
 	client.SetMetadata("a")
 	clientID := client.ID()
 	err := adapter.Add(client)
@@ -74,13 +73,15 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 	mockWriter := NewMockWriter()
 	defer close(mockWriter.out)
 	client := ws.NewClient(mockWriter)
-	defer client.Close()
 	adapter.Add(client)
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err := client.Subscribe(ctx, func(msg wsmessage.Message) {})
+		msgChan := client.Subscribe(ctx)
+		for range msgChan {
+		}
+		err := client.Err()
 		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
@@ -101,14 +102,12 @@ func TestMemoryAdapter_emitMissing(t *testing.T) {
 	adapter.Emit("123", msg)
 }
 
-func TestMemoryAdapter_Brodacast(t *testing.T) {
+func TestMemoryAdapter_Broadcast(t *testing.T) {
 	adapter := wsmemory.NewMemoryAdapter(room)
 	mockWriter1 := NewMockWriter()
 	client1 := ws.NewClient(mockWriter1)
-	defer client1.Close()
 	mockWriter2 := NewMockWriter()
 	client2 := ws.NewClient(mockWriter2)
-	defer client2.Close()
 	defer close(mockWriter1.out)
 	defer close(mockWriter2.out)
 	assert.Nil(t, adapter.Add(client1))
@@ -117,12 +116,18 @@ func TestMemoryAdapter_Brodacast(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err := client1.Subscribe(ctx, func(msg wsmessage.Message) {})
+		msgChan := client1.Subscribe(ctx)
+		for range msgChan {
+		}
+		err := client1.Err()
 		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	go func() {
-		err := client2.Subscribe(ctx, func(msg wsmessage.Message) {})
+		msgChan := client2.Subscribe(ctx)
+		for range msgChan {
+		}
+		err := client2.Err()
 		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()

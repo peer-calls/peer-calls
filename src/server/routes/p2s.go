@@ -234,36 +234,41 @@ func NewPeerToServerRoomHandler(
 						mediaEngine,
 						localPeerID,
 						clientID,
-						func(signal interface{}) {
-							err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
-							if err != nil {
-								log.Printf("[%s] Error sending local signal: %s", clientID, err)
-								// TODO abort connection
-							}
-						},
 					)
 					if err != nil {
 						err = fmt.Errorf("[%s] Error initializing signaller: %s", clientID, err)
 						break
 					}
+					signalChannel := signaller.SignalChannel()
 					closeChannel := tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
-						// TODO figure out what happens if WS socket connectino terminates
-						// before peer connection
-						<-closeChannel
-						signallerMu.Lock()
-						defer signallerMu.Unlock()
-						signaller = nil
-						log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
-						adapter.SetMetadata(clientID, "")
+						for {
+							select {
+							case signal := <-signalChannel:
+								err := adapter.Emit(clientID, wsmessage.NewMessage("signal", room, signal))
+								if err != nil {
+									log.Printf("[%s] Error sending local signal: %s", clientID, err)
+									// TODO abort connection
+								}
+							// TODO figure out what happens if WS socket connection terminates
+							// before peer connection
+							case <-closeChannel:
+								signallerMu.Lock()
+								defer signallerMu.Unlock()
+								signaller = nil
+								log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
+								adapter.SetMetadata(clientID, "")
 
-						err := event.Adapter.Broadcast(
-							wsmessage.NewMessage("hangUp", event.Room, map[string]string{
-								"userId": event.ClientID,
-							}),
-						)
-						if err != nil {
-							log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
+								err := event.Adapter.Broadcast(
+									wsmessage.NewMessage("hangUp", event.Room, map[string]string{
+										"userId": event.ClientID,
+									}),
+								)
+								if err != nil {
+									log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
+								}
+								return
+							}
 						}
 					}()
 				}

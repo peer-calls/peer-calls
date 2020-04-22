@@ -318,10 +318,9 @@ func (a *RedisAdapter) localEmit(clientID string, msg wsmessage.Message) error {
 	if !ok {
 		return fmt.Errorf("RedisAdapter.localEmit in room: %s - no local clientID: %s", a.room, clientID)
 	}
-	select {
-	case client.WriteChannel() <- msg:
-		return nil
-	default:
-		return fmt.Errorf("RedisAdapter.localEmit in room: %s - buffer full for clientID: %s", a.room, clientID)
+	err := client.Write(msg)
+	if err != nil {
+		return fmt.Errorf("RedisAdapter.localEmit in room: %s - error %w for clientID: %s", a.room, err, clientID)
 	}
+	return nil
 }

@@ -66,7 +66,6 @@ func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, ha
 	ctx := r.Context()
 
 	client := ws.NewClientWithID(c, clientID)
-	defer client.Close()
 	log.Printf("New websocket connection - room: %s, clientID: %s", room, clientID)
 
 	adapter := wss.rooms.Enter(room)
@@ -96,14 +95,17 @@ func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, ha
 		}
 	}()
 
-	err = client.Subscribe(ctx, func(message wsmessage.Message) {
+	msgChan := client.Subscribe(ctx)
+
+	for message := range msgChan {
 		handleMessage(RoomEvent{
 			ClientID: clientID,
 			Room:     room,
 			Adapter:  adapter,
 			Message:  message,
 		})
-	})
+	}
+	err = client.Err()
 
 	if errors.Is(err, context.Canceled) {
 		return

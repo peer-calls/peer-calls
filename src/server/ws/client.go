@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jeremija/peer-calls/src/server/basen"
@@ -25,12 +26,14 @@ type WSReadWriter interface {
 
 // An abstraction for sending out to websocket using channels.
 type Client struct {
-	id           string
-	conn         WSReadWriter
-	metadata     string
-	writeChannel chan wsmessage.Message
-	readChannel  chan wsmessage.Message
-	serializer   wsmessage.ByteSerializer
+	id         string
+	conn       WSReadWriter
+	metadata   string
+	serializer wsmessage.ByteSerializer
+	onceClose  sync.Once
+
+	errMu sync.RWMutex
+	err   error
 }
 
 // Creates a new websocket client.
@@ -43,10 +46,8 @@ func NewClientWithID(conn WSReadWriter, id string) *Client {
 		id = basen.NewUUIDBase62()
 	}
 	return &Client{
-		id:           id,
-		conn:         conn,
-		writeChannel: make(chan wsmessage.Message, 16),
-		readChannel:  make(chan wsmessage.Message, 16),
+		id:   id,
+		conn: conn,
 	}
 }
 
@@ -73,59 +74,57 @@ func (c *Client) ID() string {
 	return c.id
 }
 
-// Gets the channel to write out to. Messages sent here will be written
-// to the websocket and received by the other side.
-func (c *Client) WriteChannel() chan<- wsmessage.Message {
-	return c.writeChannel
-}
-
-// Subscribes
-func (c *Client) subscribeRead(ctx context.Context) error {
-	for {
-		typ, data, err := c.conn.Read(ctx)
-		if err != nil {
-			return fmt.Errorf("client.subscribeRead - error reading data: %w", err)
-		}
-		message, err := c.serializer.Deserialize(data)
-		if err != nil {
-			return fmt.Errorf("client.subscribeRead - error deserializing data: %w", err)
-		}
-		if typ == websocket.MessageText {
-			c.readChannel <- message
-		}
-	}
-}
-
-func (c *Client) Close() {
-	close(c.readChannel)
-	close(c.writeChannel)
-}
-
-func (c *Client) Subscribe(ctx context.Context, handle func(wsmessage.Message)) error {
-	ctx, cancel := context.WithCancel(ctx)
-
+// Write writes a message to client socket
+func (c *Client) Write(msg wsmessage.Message) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	readErr := make(chan error)
+	err := c.WriteTimeout(ctx, 5*time.Second, msg)
+	if err != nil {
+		return fmt.Errorf("client.Write: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) read(ctx context.Context) (message wsmessage.Message, err error) {
+	typ, data, err := c.conn.Read(ctx)
+	if err != nil {
+		err = fmt.Errorf("client.read - error reading data: %w", err)
+		return
+	}
+	message, err = c.serializer.Deserialize(data)
+	if err != nil {
+		err = fmt.Errorf("client.read - error deserializing data: %w", err)
+		return
+	}
+	if typ != websocket.MessageText {
+		err = fmt.Errorf("client.read - expected text message: %w", err)
+	}
+	return
+}
+
+func (c *Client) Err() error {
+	c.errMu.RLock()
+	defer c.errMu.RUnlock()
+	return c.err
+}
+
+func (c *Client) Subscribe(ctx context.Context) <-chan wsmessage.Message {
+	msgChan := make(chan wsmessage.Message)
+
 	go func() {
-		readErr <- c.subscribeRead(ctx)
-		close(readErr)
+		for {
+			message, err := c.read(ctx)
+			if err != nil {
+				c.errMu.Lock()
+				close(msgChan)
+				c.err = err
+				c.errMu.Unlock()
+				return
+			}
+			msgChan <- message
+		}
 	}()
 
-	for {
-		select {
-		case msg := <-c.writeChannel:
-			err := c.WriteTimeout(ctx, time.Second*5, msg)
-			if err != nil {
-				return err
-			}
-		case msg := <-c.readChannel:
-			handle(msg)
-		case err := <-readErr:
-			return err
-		case <-ctx.Done():
-			err := ctx.Err()
-			return err
-		}
-	}
+	return msgChan
 }
