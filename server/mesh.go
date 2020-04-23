@@ -9,7 +9,7 @@ type ReadyMessage struct {
 	Room   string `json:"room"`
 }
 
-func NewPeerToPeerRoomHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
+func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 	log := loggerFactory.GetLogger("mesh")
 
 	fn := func(w http.ResponseWriter, r *http.Request) {

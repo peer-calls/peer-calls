@@ -73,7 +73,7 @@ func (p *pionLogger) Errorf(format string, args ...interface{}) {
 
 const serverIsInitiator = true
 
-func NewPeerToServerRoomHandler(
+func NewSFUHandler(
 	loggerFactory LoggerFactory,
 	wss *WSS,
 	iceServers []ICEServer,

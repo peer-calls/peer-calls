@@ -126,8 +126,8 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) server.Me
 	return msg
 }
 
-func setupP2PServer(rooms server.RoomManager) (s *httptest.Server, url string) {
-	handler := server.NewPeerToPeerRoomHandler(loggerFactory, server.NewWSS(loggerFactory, rooms))
+func setupMeshServer(rooms server.RoomManager) (s *httptest.Server, url string) {
+	handler := server.NewMeshHandler(loggerFactory, server.NewWSS(loggerFactory, rooms))
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName + "/" + clientID
 	return
@@ -136,7 +136,7 @@ func setupP2PServer(rooms server.RoomManager) (s *httptest.Server, url string) {
 func TestWS_disconnect(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	server, url := setupP2PServer(rooms)
+	server, url := setupMeshServer(rooms)
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -154,7 +154,7 @@ func TestWS_disconnect(t *testing.T) {
 func TestWS_event_ready(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	srv, url := setupP2PServer(rooms)
+	srv, url := setupMeshServer(rooms)
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -179,7 +179,7 @@ func TestWS_event_ready(t *testing.T) {
 func TestWS_event_signal(t *testing.T) {
 	rooms := NewMockRoomManager()
 	defer rooms.close()
-	srv, url := setupP2PServer(rooms)
+	srv, url := setupMeshServer(rooms)
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

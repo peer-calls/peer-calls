@@ -90,10 +90,10 @@ func newWebSocketHandler(
 	switch network.Type {
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
-		return NewPeerToServerRoomHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
 	default:
 		log.Println("Using network type mesh")
-		return NewPeerToPeerRoomHandler(loggerFactory, wss)
+		return NewMeshHandler(loggerFactory, wss)
 	}
 }
 

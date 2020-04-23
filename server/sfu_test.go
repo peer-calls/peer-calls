@@ -13,8 +13,8 @@ import (
 	"nhooyr.io/websocket"
 )
 
-func setupP2SServer(rooms server.RoomManager) (s *httptest.Server, url string) {
-	handler := server.NewPeerToServerRoomHandler(
+func setupSFUServer(rooms server.RoomManager) (s *httptest.Server, url string) {
+	handler := server.NewSFUHandler(
 		loggerFactory,
 		server.NewWSS(loggerFactory, rooms),
 		[]server.ICEServer{},
@@ -30,7 +30,7 @@ func TestWS_P2S_ConnectDisconnect(t *testing.T) {
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	server, url := setupP2SServer(rooms)
+	server, url := setupSFUServer(rooms)
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -45,7 +45,7 @@ func TestWS_P2S_Peer(t *testing.T) {
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	srv, url := setupP2SServer(rooms)
+	srv, url := setupSFUServer(rooms)
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
