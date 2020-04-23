@@ -3,8 +3,8 @@
 [![Build Status][travis-badge]][travis]
 [![Go Report Card](https://goreportcard.com/badge/github.com/peer-calls/peer-calls)](https://goreportcard.com/report/github.com/peer-calls/peer-calls)
 
-[travis-badge]: https://travis-ci.org/peer-calls/peer-calls.svg?branch=master
-[travis]: https://travis-ci.org/peer-calls/peer-calls
+[travis-badge]: https://travis-ci.com/peer-calls/peer-calls.svg?branch=master
+[travis]: https://travis-ci.com/peer-calls/peer-calls
 
 WebRTC peer to peer calls for everyone. See it live in action at
 [peercalls.com/alpha][peer-calls].
