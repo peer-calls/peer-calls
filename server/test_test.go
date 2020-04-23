@@ -13,7 +13,7 @@ import (
 
 // This package contains commonly used test variables
 
-var loggerFactory = logger.NewLoggerFactoryFromEnv("PEERCALLS_", os.Stdout)
+var loggerFactory = logger.NewFactoryFromEnv("PEERCALLS_", os.Stdout)
 
 const room = "test-room"
 

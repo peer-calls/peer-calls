@@ -20,7 +20,7 @@ func panicOnError(err error, message string) {
 }
 
 func main() {
-	loggerFactory := logger.NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr)
+	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
 	loggerFactory.SetDefaultEnabled([]string{
 		"-sdp",
 		"-ws",
