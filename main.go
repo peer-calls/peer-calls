@@ -40,7 +40,7 @@ func main() {
 	if configFilename != "" {
 		configFiles = append(configFiles, configFilename)
 	}
-	c, err := server.Read(configFiles)
+	c, err := server.ReadConfig(configFiles)
 	panicOnError(err, "Error reading config")
 
 	log.Printf("Using config: %+v", c)

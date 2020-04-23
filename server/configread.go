@@ -10,19 +10,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func ReadFile(filename string, c *Config) (err error) {
+func ReadConfigFile(filename string, c *Config) (err error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("Error opening YAML file: %w", err)
 	}
-	err = ReadYAML(f, c)
+	err = ReadConfigYAML(f, c)
 	f.Close()
 	return err
 }
 
-func ReadFiles(filenames []string, c *Config) (err error) {
+func ReadConfigFiles(filenames []string, c *Config) (err error) {
 	for _, filename := range filenames {
-		err = ReadFile(filename, c)
+		err = ReadConfigFile(filename, c)
 		if err != nil {
 			break
 		}
@@ -30,7 +30,7 @@ func ReadFiles(filenames []string, c *Config) (err error) {
 	return err
 }
 
-func Init(c *Config) {
+func InitConfig(c *Config) {
 	c.BindPort = 3000
 	c.Network.Type = NetworkTypeMesh
 	c.Store.Type = StoreTypeMemory
@@ -41,14 +41,14 @@ func Init(c *Config) {
 	}}
 }
 
-func Read(filenames []string) (c Config, err error) {
-	Init(&c)
-	err = ReadFiles(filenames, &c)
-	ReadEnv("PEERCALLS_", &c)
+func ReadConfig(filenames []string) (c Config, err error) {
+	InitConfig(&c)
+	err = ReadConfigFiles(filenames, &c)
+	ReadConfigFromEnv("PEERCALLS_", &c)
 	return c, err
 }
 
-func ReadYAML(reader io.Reader, c *Config) error {
+func ReadConfigYAML(reader io.Reader, c *Config) error {
 	decoder := yaml.NewDecoder(reader)
 	if err := decoder.Decode(c); err != nil {
 		return fmt.Errorf("Error parsing YAML: %w", err)
@@ -56,7 +56,7 @@ func ReadYAML(reader io.Reader, c *Config) error {
 	return nil
 }
 
-func ReadEnv(prefix string, c *Config) {
+func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvString(&c.BaseURL, prefix+"BASE_URL")
 	setEnvString(&c.BindHost, prefix+"BIND_HOST")
 	setEnvInt(&c.BindPort, prefix+"BIND_PORT")

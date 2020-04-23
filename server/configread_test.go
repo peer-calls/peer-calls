@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRead(t *testing.T) {
-	c, err := server.Read([]string{})
+func TestReadConfig(t *testing.T) {
+	c, err := server.ReadConfig([]string{})
 	assert.Nil(t, err, "error reading config")
 	assert.Equal(t, 2, len(c.ICEServers))
 	assert.Equal(t, []string{"stun:stun.l.google.com:19302"}, c.ICEServers[0].URLs)
@@ -20,9 +20,9 @@ func TestRead(t *testing.T) {
 	assert.Equal(t, server.StoreTypeMemory, c.Store.Type)
 }
 
-func TestReadFiles(t *testing.T) {
+func TestReadConfigFiles(t *testing.T) {
 	var c server.Config
-	err := server.ReadFiles([]string{"config_example.yml"}, &c)
+	err := server.ReadConfigFiles([]string{"config_example.yml"}, &c)
 	assert.Nil(t, err, "Error should be nil")
 	assert.Equal(t, "/test", c.BaseURL)
 	assert.Equal(t, "test.pem", c.TLS.Cert)
@@ -40,9 +40,9 @@ func TestReadFiles(t *testing.T) {
 	assert.Equal(t, []string(nil), c.Network.SFU.Interfaces)
 }
 
-func TestReadFiles_error(t *testing.T) {
+func TestReadConfigFiles_Error(t *testing.T) {
 	var c server.Config
-	err := server.ReadFiles([]string{"config_missing.yml"}, &c)
+	err := server.ReadConfigFiles([]string{"config_missing.yml"}, &c)
 	require.NotNil(t, err, "error should be defined")
 	assert.Regexp(t, "no such file", err.Error())
 }
@@ -51,7 +51,7 @@ func TestReadYAML_error(t *testing.T) {
 	yaml := "gfakjhglakjhlakdhgl"
 	reader := strings.NewReader(yaml)
 	var c server.Config
-	err := server.ReadYAML(reader, &c)
+	err := server.ReadConfigYAML(reader, &c)
 	require.NotNil(t, err, "err should be defined")
 	assert.Regexp(t, "Error parsing YAML", err.Error())
 }
@@ -73,7 +73,7 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"NETWORK_TYPE", "sfu")
 	os.Setenv(prefix+"NETWORK_SFU_INTERFACES", "a,b")
 	var c server.Config
-	server.ReadEnv(prefix, &c)
+	server.ReadConfigFromEnv(prefix, &c)
 	assert.Equal(t, "/test", c.BaseURL)
 	assert.Equal(t, "test.pem", c.TLS.Cert)
 	assert.Equal(t, "test.key", c.TLS.Key)
