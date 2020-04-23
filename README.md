@@ -2,7 +2,7 @@
 
 [![Build Status][travis-badge]][travis]
 
-[travis-badge]: https://travis-ci.org/peer-calls/peer-calls.svg?branch=server-go
+[travis-badge]: https://travis-ci.org/peer-calls/peer-calls.svg?branch=master
 [travis]: https://travis-ci.org/peer-calls/peer-calls
 
 WebRTC peer to peer calls for everyone. See it live in action at
@@ -10,11 +10,15 @@ WebRTC peer to peer calls for everyone. See it live in action at
 
 [peer-calls]: https://peercalls.com/alpha
 
-This branch contains experimental work. The server has been completely rewriten
-in Go and all the original functionality works. An optional implementation of a
-Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less
-bandwith for user video uploads. Once implemented, it will be released as `Peer
-Calls v4`.
+This branch contains ground work for version 4. The server has been completely
+rewriten in Go and all the original functionality works. An optional
+implementation of a Selective Forwarding Unit (SFU) is available to make Peer
+Calls consume less bandwith for user video uploads. Once fully tested, it will
+be released as `Peer Calls v4`.
+
+The config file format is still YAML, but is different than what was in v3. The
+v3 source code is available in `version-3` branch.  Version 4 will no longer be
+published on NPM since the server is no longer written in NodeJS.
 
 # Requirements
 
@@ -58,7 +62,7 @@ Use the [`peercalls/peercalls`][hub] image from Docker Hub:
 docker run --rm -it -p 3000:3000 peercalls/peercalls:alpha
 ```
 
-[hub]: https://hub.docker.com/r/peer-calls/peer-calls
+[hub]: https://hub.docker.com/r/peercalls/peercalls
 
 ## Building from Source
 
@@ -214,7 +218,7 @@ npm run build          build all client-side resources.
 npm run start:server   start the server
 npm run js:watch       build and watch resources
 npm test               run all client-side tests.
-go test ./...`a        run all server tests
+go test ./...          run all server tests
 npm run ci             run all linting, tests and build the client-side
 ```
 
@@ -252,7 +256,7 @@ Use the following configuration as a template for `/etc/turnserver.conf`:
 ```bash
 lt-cred-mech
 use-auth-secret
-static-auth-secret=PASSWORD
+static-auth-secret=p4ssw0rd
 realm=example.com
 total-quota=300
 cert=/etc/letsencrypt/live/rtc.example.com/fullchain.pem
@@ -263,17 +267,18 @@ proc-user=turnserver
 proc-group=turnserver
 ```
 
-Change the `PASSWORD`, `realm`  and paths to server certificates.
+Change the `p4ssw0rd`, `realm`  and paths to server certificates.
 
 Use the following configuration for Peer Calls:
 
 ```yaml
 iceServers:
-- url: 'turn:rtc.example.com'
-  urls: 'turn:rtc.example.com'
-  username: 'example'
-  secret: 'PASSWORD'
-  auth: 'secret'
+- urls:
+  - 'turn:rtc.example.com'
+  auth_type: secret
+  auth_secret:
+    username: 'example'
+    secret: 'p4ssw0rd'
 ```
 
 Finally, enable and start the `coturn` service:
@@ -299,6 +304,14 @@ sudo systemctl start coturn
 See [Contributing](CONTRIBUTING.md) section.
 
 If you encounter a bug, please open a new issue! Thank you ❤️
+
+# Enterprise Support
+
+The development of Peer Calls is sponsored by [rondomoon][rondomoon]. If you'd
+like on-site support, please contact
+[hello@rondomoon.com](mailto:hello@rondomoon.com).
+
+[rondomoon]: https://rondomoon.com
 
 # License
 
