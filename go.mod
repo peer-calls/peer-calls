@@ -1,4 +1,4 @@
-module github.com/jeremija/peer-calls
+module github.com/peer-calls/peer-calls
 
 go 1.14
 

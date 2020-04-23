@@ -17,8 +17,9 @@ RUN go mod download
 COPY --from=0 /app/build build
 COPY .git .git
 COPY res res
-COPY src/server src/server
-RUN packr build -ldflags "-X main.gitDescribe=$(git describe --always --tags)" -o peer-calls src/server/main.go
+COPY server server
+COPY main.go .
+RUN packr build -ldflags "-X main.gitDescribe=$(git describe --always --tags)" -o peer-calls main.go
 
 FROM debian:buster-slim
 WORKDIR /app
