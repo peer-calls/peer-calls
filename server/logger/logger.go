@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Writter logger is a logger that writes to io.Writer
+// WriterLogger is a logger that writes to io.Writer when it is enabled.
 type WriterLogger struct {
 	name    string
 	out     io.Writer
@@ -35,14 +35,14 @@ func NewWriterLogger(name string, out io.Writer, enabled bool) *WriterLogger {
 	return &WriterLogger{name: name, out: out, Enabled: enabled}
 }
 
-// Printf implements Logger#Printf func
+// Printf implements Logger#Printf func.
 func (l *WriterLogger) Printf(message string, values ...interface{}) {
 	if l.Enabled {
 		l.printf(message, values...)
 	}
 }
 
-// Println implements Logger#Println func
+// Println implements Logger#Println func.
 func (l *WriterLogger) Println(values ...interface{}) {
 	if l.Enabled {
 		l.println(values...)
@@ -63,43 +63,44 @@ func (l *WriterLogger) println(values ...interface{}) {
 	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
 }
 
-// Logger factory creates new loggers. Only one logger with a specific name
+// Factory creates new loggers. Only one logger with a specific name
 // will be created.
-type LoggerFactory struct {
+type Factory struct {
 	out            io.Writer
 	loggers        map[string]*WriterLogger
 	defaultEnabled []string
 	loggersMu      sync.Mutex
 }
 
-// NewLoggerFactory creates a new logger factory. The enabled slice can be used
+// NewFactory creates a new logger factory. The enabled slice can be used
 // to set the default enabled loggers. Enabled string can contain strings
 // delimited with colon character, and can use wildcards. For example, if a
 // we have a logger with name `myproject:a:b`, it can be enabled by setting
 // the enabled string to `myproject:a:b`, or `myproject:*` or `myproject:*:b`.
 // To disable a logger, add a minus to the beginning of the name. For example,
 // to enable all loggers but one use: `-myproject:a:b,*`.
-func NewLoggerFactory(out io.Writer, enabled []string) *LoggerFactory {
-	return &LoggerFactory{
+func NewFactory(out io.Writer, enabled []string) *Factory {
+	return &Factory{
 		out:            out,
 		loggers:        map[string]*WriterLogger{},
 		defaultEnabled: enabled,
 	}
 }
 
-// NewLoggerFactoryFromEnv creates a new LoggerFactory and reads the enabled
+// NewFactoryFromEnv creates a new Factory and reads the enabled
 // loggers from a comma-delimited environment variable.
-func NewLoggerFactoryFromEnv(prefix string, out io.Writer) *LoggerFactory {
+func NewFactoryFromEnv(prefix string, out io.Writer) *Factory {
 	log := os.Getenv(prefix + "LOG")
 	var enabled []string
 	if len(log) > 0 {
 		enabled = strings.Split(log, ",")
 	}
-	return NewLoggerFactory(out, enabled)
+	return NewFactory(out, enabled)
 }
 
-// Sets default enabled loggers if none have been read from environment
-func (l *LoggerFactory) SetDefaultEnabled(names []string) {
+// SetDefaultEnabled sets enabled loggers if the Factory has been
+// initialized with no loggers.
+func (l *Factory) SetDefaultEnabled(names []string) {
 	if len(l.defaultEnabled) == 0 {
 		l.defaultEnabled = names
 		for name, logger := range l.loggers {
@@ -142,7 +143,7 @@ func partsMatch(parts []string, enabledParts []string) bool {
 	return true
 }
 
-func (l *LoggerFactory) isEnabled(name string) bool {
+func (l *Factory) isEnabled(name string) bool {
 	parts := split(name)
 
 	for _, enabledName := range l.defaultEnabled {
@@ -165,7 +166,7 @@ func (l *LoggerFactory) isEnabled(name string) bool {
 
 // GetLogger creates or retrieves an existing logger with name. It is thread
 // safe.
-func (l *LoggerFactory) GetLogger(name string) Logger {
+func (l *Factory) GetLogger(name string) Logger {
 	l.loggersMu.Lock()
 	defer l.loggersMu.Unlock()
 	logger, ok := l.loggers[name]
