@@ -18,7 +18,6 @@ type addedPeer struct {
 	room           string
 	clientID       string
 	peerConnection *webrtc.PeerConnection
-	closeChannel   chan struct{}
 }
 
 type mockTracksManager struct {
@@ -31,15 +30,12 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, clientID string, peerConnection *webrtc.PeerConnection, dataChannel *webrtc.DataChannel, signaller *server.Signaller) <-chan struct{} {
-	closeChannel := make(chan struct{})
+func (m *mockTracksManager) Add(room string, clientID string, peerConnection *webrtc.PeerConnection, dataChannel *webrtc.DataChannel, signaller *server.Signaller) {
 	m.added <- addedPeer{
 		room:           room,
 		clientID:       clientID,
 		peerConnection: peerConnection,
-		closeChannel:   closeChannel,
 	}
-	return closeChannel
 }
 
 func mesh() (network server.NetworkConfig) {

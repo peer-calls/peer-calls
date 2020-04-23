@@ -103,7 +103,7 @@ func (t *MemoryTracksManager) Add(
 	peerConnection *webrtc.PeerConnection,
 	dataChannel *webrtc.DataChannel,
 	signaller *Signaller,
-) (closeChannel <-chan struct{}) {
+) {
 	t.log.Printf("[%s] TrackManager.Add peer to room: %s", clientID, room)
 
 	trackListener := newTrackListener(
@@ -170,8 +170,6 @@ func (t *MemoryTracksManager) Add(
 	}()
 
 	t.mu.Unlock()
-
-	return signaller.CloseChannel()
 }
 
 func (t *MemoryTracksManager) removePeer(clientID string) {

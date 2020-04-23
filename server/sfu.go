@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"reflect"
 	"sync"
@@ -80,6 +79,7 @@ func NewSFUHandler(
 	sfuConfig NetworkConfigSFU,
 	tracksManager TracksManager,
 ) http.Handler {
+	log := loggerFactory.GetLogger("sfu")
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
@@ -242,36 +242,31 @@ func NewSFUHandler(
 						break
 					}
 					signalChannel := signaller.SignalChannel()
-					closeChannel := tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
+					tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
-						for {
-							select {
-							case signal := <-signalChannel:
-								err := adapter.Emit(clientID, NewMessage("signal", room, signal))
-								if err != nil {
-									log.Printf("[%s] Error sending local signal: %s", clientID, err)
-									// TODO abort connection
-								}
-							// TODO figure out what happens if WS socket connection terminates
-							// before peer connection
-							case <-closeChannel:
-								signallerMu.Lock()
-								defer signallerMu.Unlock()
-								signaller = nil
-								log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
-								adapter.SetMetadata(clientID, "")
-
-								err := event.Adapter.Broadcast(
-									NewMessage("hangUp", event.Room, map[string]string{
-										"userId": event.ClientID,
-									}),
-								)
-								if err != nil {
-									log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
-								}
-								return
+						for signal := range signalChannel {
+							err := adapter.Emit(clientID, NewMessage("signal", room, signal))
+							if err != nil {
+								log.Printf("[%s] Error sending local signal: %s", clientID, err)
+								// TODO abort connection
 							}
 						}
+
+						signallerMu.Lock()
+						defer signallerMu.Unlock()
+						signaller = nil
+						log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
+						adapter.SetMetadata(clientID, "")
+
+						err := event.Adapter.Broadcast(
+							NewMessage("hangUp", event.Room, map[string]string{
+								"userId": event.ClientID,
+							}),
+						)
+						if err != nil {
+							log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
+						}
+						return
 					}()
 				}
 			case "signal":

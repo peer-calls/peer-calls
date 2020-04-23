@@ -24,7 +24,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, clientID string, pc *webrtc.PeerConnection, dc *webrtc.DataChannel, s *Signaller) (closeChannel <-chan struct{})
+	Add(room string, clientID string, pc *webrtc.PeerConnection, dc *webrtc.DataChannel, s *Signaller)
 }
 
 type RoomManager interface {
