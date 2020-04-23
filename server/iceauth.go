@@ -16,12 +16,12 @@ type ICEAuthServer struct {
 
 func GetICEAuthServers(servers []ICEServer) (result []ICEAuthServer) {
 	for _, server := range servers {
-		result = append(result, getICEServer(server))
+		result = append(result, newICEServer(server))
 	}
 	return
 }
 
-func getICEServer(server ICEServer) ICEAuthServer {
+func newICEServer(server ICEServer) ICEAuthServer {
 	switch server.AuthType {
 	case AuthTypeSecret:
 		return getICEStaticAuthSecretCredentials(server)

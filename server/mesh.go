@@ -79,7 +79,7 @@ func getReadyClients(adapter Adapter) (map[string]string, error) {
 }
 
 func clientsToPeerIDs(clients map[string]string) (peers []string) {
-	for clientID, _ := range clients {
+	for clientID := range clients {
 		peers = append(peers, clientID)
 	}
 	return

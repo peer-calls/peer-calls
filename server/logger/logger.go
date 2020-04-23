@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// Writter logger is a logger that writes to io.Writer
 type WriterLogger struct {
 	name    string
 	out     io.Writer
@@ -16,23 +17,32 @@ type WriterLogger struct {
 	Enabled bool
 }
 
+// Logger is an interface for logger
 type Logger interface {
+	// Printf formats a message and writes to output. If logger is not enabled,
+	// the message will not be formatted.
 	Printf(message string, values ...interface{})
+	// Println writes all values similar to fmt.Println. If logger is not enable,d
+	// the message will not be formatted
 	Println(values ...interface{})
 }
 
-var WriterLoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
+// LoggerTimeFormat is the time format used by loggers in this package
+var LoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
 
+// NewWriterLogger creates a new logger
 func NewWriterLogger(name string, out io.Writer, enabled bool) *WriterLogger {
 	return &WriterLogger{name: name, out: out, Enabled: enabled}
 }
 
+// Printf implements Logger#Printf func
 func (l *WriterLogger) Printf(message string, values ...interface{}) {
 	if l.Enabled {
 		l.printf(message, values...)
 	}
 }
 
+// Println implements Logger#Println func
 func (l *WriterLogger) Println(values ...interface{}) {
 	if l.Enabled {
 		l.println(values...)
@@ -42,17 +52,19 @@ func (l *WriterLogger) Println(values ...interface{}) {
 func (l *WriterLogger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(WriterLoggerTimeFormat)
+	date := time.Now().Format(LoggerTimeFormat)
 	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
 }
 
 func (l *WriterLogger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(WriterLoggerTimeFormat)
+	date := time.Now().Format(LoggerTimeFormat)
 	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
 }
 
+// Logger factory creates new loggers. Only one logger with a specific name
+// will be created.
 type LoggerFactory struct {
 	out            io.Writer
 	loggers        map[string]*WriterLogger
@@ -60,6 +72,13 @@ type LoggerFactory struct {
 	loggersMu      sync.Mutex
 }
 
+// NewLoggerFactory creates a new logger factory. The enabled slice can be used
+// to set the default enabled loggers. Enabled string can contain strings
+// delimited with colon character, and can use wildcards. For example, if a
+// we have a logger with name `myproject:a:b`, it can be enabled by setting
+// the enabled string to `myproject:a:b`, or `myproject:*` or `myproject:*:b`.
+// To disable a logger, add a minus to the beginning of the name. For example,
+// to enable all loggers but one use: `-myproject:a:b,*`.
 func NewLoggerFactory(out io.Writer, enabled []string) *LoggerFactory {
 	return &LoggerFactory{
 		out:            out,
@@ -68,6 +87,8 @@ func NewLoggerFactory(out io.Writer, enabled []string) *LoggerFactory {
 	}
 }
 
+// NewLoggerFactoryFromEnv creates a new LoggerFactory and reads the enabled
+// loggers from a comma-delimited environment variable.
 func NewLoggerFactoryFromEnv(prefix string, out io.Writer) *LoggerFactory {
 	log := os.Getenv(prefix + "LOG")
 	var enabled []string
@@ -142,6 +163,8 @@ func (l *LoggerFactory) isEnabled(name string) bool {
 	return false
 }
 
+// GetLogger creates or retrieves an existing logger with name. It is thread
+// safe.
 func (l *LoggerFactory) GetLogger(name string) Logger {
 	l.loggersMu.Lock()
 	defer l.loggersMu.Unlock()
