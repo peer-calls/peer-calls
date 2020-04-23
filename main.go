@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 var gitDescribe string = "v0.0.0"
@@ -19,7 +20,7 @@ func panicOnError(err error, message string) {
 }
 
 func main() {
-	loggerFactory := server.NewLoggerWriterFactoryFromEnv("PEERCALLS_", os.Stderr)
+	loggerFactory := logger.NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr)
 	loggerFactory.SetDefaultEnabled([]string{
 		"-sdp",
 		"-ws",
