@@ -11,10 +11,10 @@ require (
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.1
-	github.com/pion/webrtc/v2 v2.2.5
+	github.com/pion/webrtc/v2 v2.2.6-0.20200423072255-ada4e48a9b1b
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/yaml.v2 v2.2.8
 	nhooyr.io/websocket v1.8.4
 )
 
-replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200420091005-4cc16a2df9e0
+// replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200420091005-4cc16a2df9e0
