@@ -32,15 +32,17 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   componentDidUpdate () {
     const { stream } = this.props
-    const video = this.videoRef.current!
-    const mediaStream = stream && stream.stream || null
-    const url = stream && stream.url
-    if ('srcObject' in video as unknown) {
-      if (video.srcObject !== mediaStream) {
-        video.srcObject = mediaStream
+    const video = this.videoRef.current
+    if (video) {
+      const mediaStream = stream && stream.stream || null
+      const url = stream && stream.url
+      if ('srcObject' in video as unknown) {
+        if (video.srcObject !== mediaStream) {
+          video.srcObject = mediaStream
+        }
+      } else if (video.src !== url) {
+        video.src = url || ''
       }
-    } else if (video.src !== url) {
-      video.src = url || ''
     }
   }
   handleMinimize = () => {
@@ -56,7 +58,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     }
   }
   render () {
-    const { mirrored, muted, userId, windowState } = this.props
+    const { mirrored, muted, userId, stream, windowState } = this.props
     const className = classnames('video-container', {
       minimized: windowState === 'minimized',
       mirrored,
@@ -65,15 +67,17 @@ export default class Video extends React.PureComponent<VideoProps> {
 
     return (
       <div className={className}>
-        <video
-          id={`video-${userId}`}
-          autoPlay
-          onClick={this.handleClick}
-          onLoadedMetadata={() => this.props.play()}
-          playsInline
-          ref={this.videoRef}
-          muted={muted}
-        />
+        {stream && stream.stream && (
+          <video
+            id={`video-${userId}`}
+            autoPlay
+            onClick={this.handleClick}
+            onLoadedMetadata={() => this.props.play()}
+            playsInline
+            ref={this.videoRef}
+            muted={muted}
+          />
+        )}
         <div className='video-footer'>
           <span className='nickname'>{this.props.nickname}</span>
           <Dropdown label={'☰'}>
