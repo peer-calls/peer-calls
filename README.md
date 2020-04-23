@@ -3,7 +3,7 @@
 [![Build Status][travis-badge]][travis]
 [![NPM Package][npm-badge]][npm]
 
-[travis-badge]: https://travis-ci.com/peer-calls/peer-calls.svg?branch=master
+[travis-badge]: https://travis-ci.com/peer-calls/peer-calls.svg?branch=version-3
 [travis]: https://travis-ci.com/peer-calls/peer-calls
 [npm-badge]: https://img.shields.io/npm/v/peer-calls.svg
 [npm]: https://www.npmjs.com/package/peer-calls
@@ -13,7 +13,7 @@ WebRTC peer to peer calls for everyone. See it live in action at
 
 [peer-calls]: https://peercalls.com
 
-Experimental work is currently being done in the `server-go` branch. The server has been completely rewriten in Go and all the original functionality works. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads. Once implemented, it will be released as `Peer Calls v4`.
+This is a branch for Peer Calls version 3. The new v4 alpha is available on the master branch (formerly called `server-go` branch). The server has been completely rewriten in Go and all the original functionality works. An optional implementation of a Selective Forwarding Unit (SFU) is being made to make Peer Calls consume less bandwith for user video uploads. Once implemented, it will be released as `Peer Calls v4`.
 
 # Requirements
 
