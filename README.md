@@ -1,6 +1,7 @@
 # Peer Calls v4 (alpha)
 
 [![Build Status][travis-badge]][travis]
+[![Go Report Card](https://goreportcard.com/badge/github.com/peer-calls/peer-calls)](https://goreportcard.com/report/github.com/peer-calls/peer-calls)
 
 [travis-badge]: https://travis-ci.org/peer-calls/peer-calls.svg?branch=master
 [travis]: https://travis-ci.org/peer-calls/peer-calls
@@ -14,7 +15,10 @@ This branch contains ground work for version 4. The server has been completely
 rewriten in Go and all the original functionality works. An optional
 implementation of a Selective Forwarding Unit (SFU) is available to make Peer
 Calls consume less bandwith for user video uploads. Once fully tested, it will
-be released as `Peer Calls v4`.
+be released as `Peer Calls v4`. This wouldn't haven been possible without the
+awesome [pion/webrtc][pion] library.
+
+[pion]: https://github.com/pion/webrtc
 
 The config file format is still YAML, but is different than what was in v3. The
 v3 source code is available in `version-3` branch.  Version 4 will no longer be
@@ -308,7 +312,7 @@ If you encounter a bug, please open a new issue! Thank you ❤️
 # Enterprise Support
 
 The development of Peer Calls is sponsored by [rondomoon][rondomoon]. If you'd
-like on-site support, please contact
+like on-site support  or become a sponsor, please contact
 [hello@rondomoon.com](mailto:hello@rondomoon.com).
 
 [rondomoon]: https://rondomoon.com
