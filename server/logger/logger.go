@@ -9,48 +9,53 @@ import (
 	"time"
 )
 
-type Logger struct {
+type WriterLogger struct {
 	name    string
 	out     io.Writer
 	outMu   sync.Mutex
 	Enabled bool
 }
 
-var TimeFormat = "2006-01-02T15:04:05.000000Z07:00"
-
-func NewLogger(name string, out io.Writer, enabled bool) *Logger {
-	return &Logger{name: name, out: out, Enabled: enabled}
+type Logger interface {
+	Printf(message string, values ...interface{})
+	Println(values ...interface{})
 }
 
-func (l *Logger) Printf(message string, values ...interface{}) {
+var WriterLoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
+
+func NewWriterLogger(name string, out io.Writer, enabled bool) *WriterLogger {
+	return &WriterLogger{name: name, out: out, Enabled: enabled}
+}
+
+func (l *WriterLogger) Printf(message string, values ...interface{}) {
 	if l.Enabled {
 		l.printf(message, values...)
 	}
 }
 
-func (l *Logger) Println(values ...interface{}) {
+func (l *WriterLogger) Println(values ...interface{}) {
 	if l.Enabled {
 		l.println(values...)
 	}
 }
 
-func (l *Logger) printf(message string, values ...interface{}) {
+func (l *WriterLogger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(TimeFormat)
+	date := time.Now().Format(WriterLoggerTimeFormat)
 	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
 }
 
-func (l *Logger) println(values ...interface{}) {
+func (l *WriterLogger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	date := time.Now().Format(TimeFormat)
+	date := time.Now().Format(WriterLoggerTimeFormat)
 	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
 }
 
 type LoggerFactory struct {
 	out            io.Writer
-	loggers        map[string]*Logger
+	loggers        map[string]*WriterLogger
 	defaultEnabled []string
 	loggersMu      sync.Mutex
 }
@@ -58,7 +63,7 @@ type LoggerFactory struct {
 func NewLoggerFactory(out io.Writer, enabled []string) *LoggerFactory {
 	return &LoggerFactory{
 		out:            out,
-		loggers:        map[string]*Logger{},
+		loggers:        map[string]*WriterLogger{},
 		defaultEnabled: enabled,
 	}
 }
@@ -137,18 +142,14 @@ func (l *LoggerFactory) isEnabled(name string) bool {
 	return false
 }
 
-func (l *LoggerFactory) GetLogger(name string) *Logger {
+func (l *LoggerFactory) GetLogger(name string) Logger {
 	l.loggersMu.Lock()
 	defer l.loggersMu.Unlock()
 	logger, ok := l.loggers[name]
 	if !ok {
 		enabled := l.isEnabled(name)
-		logger = NewLogger(name, l.out, enabled)
+		logger = NewWriterLogger(name, l.out, enabled)
 		l.loggers[name] = logger
 	}
 	return logger
 }
-
-var defaultLoggerFactory = NewLoggerFactoryFromEnv("PEERCALLS_", os.Stderr)
-var GetLogger = defaultLoggerFactory.GetLogger
-var SetDefaultEnabled = defaultLoggerFactory.SetDefaultEnabled
