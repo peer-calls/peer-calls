@@ -92,6 +92,7 @@ loop:
 		clientID,
 		"__SERVER__",
 	)
+	require.Nil(t, err, "error creating signaller")
 	defer signaller.Close() // also closes pc
 	signalChan := signaller.SignalChannel()
 

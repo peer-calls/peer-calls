@@ -177,17 +177,17 @@ func NewSFUHandler(
 			case "hangUp":
 				log.Printf("[%s] hangUp event", clientID)
 				if signaller != nil {
-					err := signaller.Close()
-					if err != nil {
-						err = fmt.Errorf("[%s] hangUp: Error closing peer connection: %s", clientID, err)
+					closeErr := signaller.Close()
+					if closeErr != nil {
+						err = fmt.Errorf("[%s] hangUp: Error closing peer connection: %s", clientID, closeErr)
 					}
 				}
 			case "ready":
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
 
-				peerConnection, err := api.NewPeerConnection(webrtcConfig)
-				if err != nil {
-					err = fmt.Errorf("[%s] Error creating peer connection: %s", clientID, err)
+				peerConnection, pcErr := api.NewPeerConnection(webrtcConfig)
+				if pcErr != nil {
+					err = fmt.Errorf("[%s] Error creating peer connection: %s", clientID, pcErr)
 					break
 				}
 				peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
@@ -203,13 +203,17 @@ func NewSFUHandler(
 					log.Printf("[%s] Error retrieving clients: %s", clientID, err)
 				}
 
-				err = adapter.Broadcast(
+				broadcastErr := adapter.Broadcast(
 					NewMessage("users", room, map[string]interface{}{
 						"initiator": initiator,
 						"peerIds":   []string{localPeerID},
 						"nicknames": clients,
 					}),
 				)
+				if broadcastErr != nil {
+					log.Printf("[%s] Error broadcasting users message: %s", clientID, err)
+					break
+				}
 
 				var dataChannel *webrtc.DataChannel
 				if initiator == localPeerID {

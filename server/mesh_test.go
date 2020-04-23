@@ -120,6 +120,7 @@ func mustWriteWS(t *testing.T, ctx context.Context, ws *websocket.Conn, msg serv
 func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) server.Message {
 	t.Helper()
 	messageType, data, err := ws.Read(ctx)
+	require.NoError(t, err, "Error reading text message")
 	require.Equal(t, websocket.MessageText, messageType, "Expected to read text message")
 	msg, err := serializer.Deserialize(data)
 	require.Nil(t, err, "Error deserializing message")

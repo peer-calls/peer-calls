@@ -28,9 +28,9 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
 
-				clients, err := getReadyClients(adapter)
-				if err != nil {
-					log.Printf("Error retrieving clients: %s", err)
+				clients, readyClientsErr := getReadyClients(adapter)
+				if readyClientsErr != nil {
+					log.Printf("Error retrieving clients: %s", readyClientsErr)
 				}
 				responseEventName = "users"
 				log.Printf("Got clients: %s", clients)
