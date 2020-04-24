@@ -174,6 +174,9 @@ func (t *MemoryTracksManager) Add(
 
 // GetTracksMetadata retrieves track metadata for a specific peer
 func (t *MemoryTracksManager) GetTracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
 	peer, ok := t.peers[clientID]
 	if !ok {
 		return m, false

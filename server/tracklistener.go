@@ -100,6 +100,9 @@ func (p *trackListener) ClientID() string {
 
 // GetTracksMetadata gets metadata of the sending tracks with updated Mid
 func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	for _, trackInfo := range p.trackInfoByTrack {
 		m := trackInfo.TrackMetadata
 		m.Mid = trackInfo.RTPTransceiver.Mid()
