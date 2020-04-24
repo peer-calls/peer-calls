@@ -48,6 +48,10 @@ class SocketHandler {
     debug('socket hangUp, userId: %s', userId)
     dispatch(removeNickname({ userId }))
   }
+  handleMetadata = (metadata: SocketEvent['metadata']) => {
+    debug('metadata', metadata)
+    // TODO make use of this metadata
+  }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
     debug('socket remote peerIds: %o', peerIds)
@@ -99,6 +103,7 @@ export function handshake (options: HandshakeOptions) {
   // remove listeneres to make socket reusable
   removeEventListeners(socket)
 
+  socket.on(constants.SOCKET_EVENT_METADATA, handler.handleMetadata)
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)

@@ -245,6 +245,11 @@ func NewSFUHandler(
 					tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
 						for signal := range signalChannel {
+							if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
+								if metadata, ok := tracksManager.GetTracksMetadata(clientID); ok {
+									adapter.Emit(clientID, NewMessage("metadata", room, metadata))
+								}
+							}
 							err := adapter.Emit(clientID, NewMessage("signal", room, signal))
 							if err != nil {
 								log.Printf("[%s] Error sending local signal: %s", clientID, err)

@@ -101,7 +101,7 @@
     "redux-thunk": "^2.3.0",
     "rimraf": "^3.0.2",
     "screenfull": "^5.0.2",
-    "simple-peer": "^9.6.2",
+    "simple-peer": "https://github.com/jeremija/simple-peer#transceiver-mid",
     "supertest": "^4.0.2",
     "ts-jest": "^25.2.1",
     "ts-node": "^8.6.2",

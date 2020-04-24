@@ -47,6 +47,7 @@ export const PEER_EVENT_DATA = 'data'
 
 export const SOCKET_CONNECTED = 'SOCKET_CONNECTED'
 export const SOCKET_DISCONNECTED = 'SOCKET_DISCONNECTED'
+export const SOCKET_EVENT_METADATA = 'metadata'
 export const SOCKET_EVENT_READY = 'ready'
 export const SOCKET_EVENT_SIGNAL = 'signal'
 export const SOCKET_EVENT_USERS = 'users'

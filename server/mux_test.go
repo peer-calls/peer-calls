@@ -38,6 +38,10 @@ func (m *mockTracksManager) Add(room string, clientID string, peerConnection *we
 	}
 }
 
+func (m *mockTracksManager) GetTracksMetadata(clientID string) ([]server.TrackMetadata, bool) {
+	return nil, true
+}
+
 func mesh() (network server.NetworkConfig) {
 	network.Type = server.NetworkTypeMesh
 	return
