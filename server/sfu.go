@@ -157,7 +157,7 @@ func NewSFUHandler(
 		}
 
 		handleMessage := func(event RoomEvent) {
-			log.Printf("[%s] got message, %s", event.ClientID, event.Message.Type)
+			// log.Printf("[%s] got message, %s", event.ClientID, event.Message.Type)
 			signallerMu.Lock()
 			defer signallerMu.Unlock()
 

@@ -202,7 +202,8 @@ export default function streams(
     case STREAM_TRACK_REMOVE:
       return removeStreamTrack(state, action.payload)
     case NICKNAME_REMOVE:
-      return removeUserStreams(state, action.payload)
+      return state
+      // return removeUserStreams(state, action.payload)
     case HANG_UP:
       forEach(state, userStreams => stopAllTracks(userStreams))
       return defaultState
