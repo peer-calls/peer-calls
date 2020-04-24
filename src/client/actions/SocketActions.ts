@@ -4,8 +4,9 @@ import * as constants from '../constants'
 import _debug from 'debug'
 import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
-import { SocketEvent } from '../../shared'
+import { SocketEvent, TrackMetadata } from '../../shared'
 import { setNicknames, removeNickname } from './NicknameActions'
+import { tracksMetadata } from './StreamActions'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -48,9 +49,10 @@ class SocketHandler {
     debug('socket hangUp, userId: %s', userId)
     dispatch(removeNickname({ userId }))
   }
-  handleMetadata = (metadata: SocketEvent['metadata']) => {
+  handleMetadata = (metadata: TrackMetadata[]) => {
+    const { dispatch } = this
     debug('metadata', metadata)
-    // TODO make use of this metadata
+    dispatch(tracksMetadata(metadata))
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
@@ -117,6 +119,7 @@ export function handshake (options: HandshakeOptions) {
 }
 
 export function removeEventListeners (socket: ClientSocket) {
+  socket.removeAllListeners(constants.SOCKET_EVENT_METADATA)
   socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
   socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
   socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)

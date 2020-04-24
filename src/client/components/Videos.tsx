@@ -41,12 +41,13 @@ export default class Videos extends React.PureComponent<VideosProps> {
       }
     }
 
-    function addStreamsByUser(userId: string) {
-      const localUser = userId === ME
+    function addStreamsByUser(
+      localUser: boolean,
+      userId: string,
+      streams: StreamWithURL[],
+    ) {
 
-      const userStreams = streams[userId]
-
-      if (!userStreams) {
+      if (!streams.length) {
         const key = getStreamKey(userId, undefined)
         const props: StreamProps = {
           key,
@@ -58,8 +59,8 @@ export default class Videos extends React.PureComponent<VideosProps> {
         return
       }
 
-      userStreams.streams.forEach((stream, i) => {
-        const key = getStreamKey(userId, stream.stream.id)
+      streams.forEach((stream, i) => {
+        const key = getStreamKey(userId, stream.streamId)
         const props: StreamProps = {
           key,
           stream: stream,
@@ -73,8 +74,12 @@ export default class Videos extends React.PureComponent<VideosProps> {
       })
     }
 
-    // this includes ME and other peers
-    forEach(nicknames, (_, userId) => addStreamsByUser(userId))
+    addStreamsByUser(true, ME, streams.localStreams)
+
+    forEach(nicknames, (_, userId) => {
+      const s = streams.streamsByUserId[userId]
+      addStreamsByUser(false, userId, s && s.streams || [])
+    })
 
     return { minimized, maximized }
   }

@@ -75,8 +75,8 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     this.props.hangUp()
   }
   getLocalStreams() {
-    const ls = this.props.streams[constants.ME]
-    return ls ? keyBy(ls.streams, 'type') : {}
+    const ls = this.props.streams.localStreams
+    return ls ? keyBy(ls, 'type') : {}
   }
   render () {
     const {

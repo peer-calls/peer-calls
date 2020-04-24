@@ -1,4 +1,5 @@
 import * as constants from '../constants'
+import { TrackMetadata } from '../../shared'
 
 export type StreamType = 'camera' | 'desktop'
 
@@ -33,36 +34,38 @@ export interface MinimizeToggleAction {
   payload: MinimizeTogglePayload
 }
 
-export interface RemoveStreamTrackPayload {
+export interface RemoveTrackPayload {
+  mid: string
+  streamId: string
   userId: string
-  stream: MediaStream
   track: MediaStreamTrack
 }
 
-export interface RemoveStreamTrackAction {
+export interface RemoveTrackAction {
   type: 'PEER_STREAM_TRACK_REMOVE'
-  payload: RemoveStreamTrackPayload
+  payload: RemoveTrackPayload
 }
 
-export interface AddStreamTrackPayload {
+export interface AddTrackPayload {
+  mid: string
+  streamId: string
   userId: string
-  stream: MediaStream
   track: MediaStreamTrack
 }
 
-export interface AddStreamTrackAction {
+export interface AddTrackAction {
   type: 'PEER_STREAM_TRACK_ADD'
-  payload: AddStreamTrackPayload
+  payload: AddTrackPayload
 }
 
 export interface UserIdPayload {
   userId: string
 }
 
-export const addStream = (payload: AddStreamPayload): AddStreamAction => ({
-  type: constants.STREAM_ADD,
-  payload,
-})
+export interface TracksMetadataAction {
+  type: 'TRACKS_METADATA'
+  payload: TrackMetadata[]
+}
 
 export const removeStream = (
   userId: string,
@@ -73,15 +76,15 @@ export const removeStream = (
 })
 
 export const addTrack = (
-  payload: AddStreamTrackPayload,
-): AddStreamTrackAction => ({
+  payload: AddTrackPayload,
+): AddTrackAction => ({
   type: constants.STREAM_TRACK_ADD,
   payload,
 })
 
 export const removeTrack = (
-  payload: RemoveStreamTrackPayload,
-): RemoveStreamTrackAction => ({
+  payload: RemoveTrackPayload,
+): RemoveTrackAction => ({
   type: constants.STREAM_TRACK_REMOVE,
   payload,
 })
@@ -93,9 +96,16 @@ export const minimizeToggle = (
   payload,
 })
 
+export const tracksMetadata = (
+  payload: TrackMetadata[],
+): TracksMetadataAction => ({
+  type: constants.TRACKS_METADATA,
+  payload,
+})
+
 export type StreamAction =
   AddStreamAction |
   RemoveStreamAction |
   MinimizeToggleAction |
-  RemoveStreamTrackAction |
-  AddStreamTrackAction
+  RemoveTrackAction |
+  AddTrackAction

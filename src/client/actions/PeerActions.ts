@@ -57,8 +57,7 @@ class PeerHandler {
 
     const state = getState()
     const peer = state.peers[user.id]
-    const localStream = state.streams[constants.ME]
-    localStream && localStream.streams.forEach(s => {
+    state.streams.localStreams.forEach(s => {
       // If the local user pressed join call before this peer has joined the
       // call, now is the time to share local media stream with the peer since
       // we no longer automatically send the stream to the peer.
@@ -79,8 +78,9 @@ class PeerHandler {
         'peer: %s, track mute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
       dispatch(StreamActions.removeTrack({
+        streamId: stream.id,
+        mid,
         userId,
-        stream,
         track,
       }))
     }
@@ -89,8 +89,9 @@ class PeerHandler {
         'peer: %s, track unmute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
       dispatch(StreamActions.addTrack({
+        streamId: stream.id,
+        mid,
         userId,
-        stream,
         track,
       }))
     }
@@ -121,8 +122,7 @@ class PeerHandler {
     const { dispatch, user, getState } = this
     dispatch(NotifyActions.error('Peer connection closed'))
     const state = getState()
-    const userStreams = state.streams[user.id]
-    userStreams && userStreams.streams.forEach(s => {
+    state.streams.localStreams.forEach(s => {
       dispatch(StreamActions.removeStream(user.id, s.stream))
     })
     dispatch(removePeer(user.id))
