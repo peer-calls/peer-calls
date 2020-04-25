@@ -1,137 +1,165 @@
-import classnames from 'classnames'
-import React from 'react'
-import screenfull from 'screenfull'
-import { removeStream } from '../actions/StreamActions'
-import { getDesktopStream } from '../actions/MediaActions'
-import { StreamWithURL } from '../reducers/streams'
-import { ME, DIAL_STATE_IN_CALL, DialState } from '../constants'
+import classnames from "classnames";
+import React from "react";
+import screenfull from "screenfull";
+import { removeStream } from "../actions/StreamActions";
+import { getDesktopStream } from "../actions/MediaActions";
+import { StreamWithURL } from "../reducers/streams";
+import { ME, DIAL_STATE_IN_CALL, DialState } from "../constants";
+import { text } from "express";
 
 const hidden = {
-  display: 'none',
-}
+  display: "none",
+};
 
 export interface ToolbarProps {
-  dialState: DialState
-  messagesCount: number
-  stream: StreamWithURL
-  desktopStream: StreamWithURL | undefined
-  onToggleChat: () => void
-  onGetDesktopStream: typeof getDesktopStream
-  onRemoveStream: typeof removeStream
-  onSendFile: (file: File) => void
-  onHangup: () => void
-  chatVisible: boolean
+  dialState: DialState;
+  messagesCount: number;
+  stream: StreamWithURL;
+  desktopStream: StreamWithURL | undefined;
+  onToggleChat: () => void;
+  onGetDesktopStream: typeof getDesktopStream;
+  onRemoveStream: typeof removeStream;
+  onSendFile: (file: File) => void;
+  onHangup: () => void;
+  chatVisible: boolean;
 }
 
 export interface ToolbarState {
-  readMessages: number
-  camDisabled: boolean
-  micMuted: boolean
-  fullScreenEnabled: boolean
+  readMessages: number;
+  camDisabled: boolean;
+  micMuted: boolean;
+  fullScreenEnabled: boolean;
 }
 
 export interface ToolbarButtonProps {
-  className?: string
-  badge?: string | number
-  blink?: boolean
-  onClick: () => void
-  icon: string
-  offIcon?: string
-  on?: boolean
-  title: string
+  className?: string;
+  badge?: string | number;
+  blink?: boolean;
+  onClick: () => void;
+  icon: string;
+  offIcon?: string;
+  on?: boolean;
+  title: string;
 }
 
-
 function ToolbarButton(props: ToolbarButtonProps) {
-  const { blink, on } = props
-  const icon = !on && props.offIcon ? props.offIcon : props.icon
+  const { blink, on } = props;
+  const icon = !on && props.offIcon ? props.offIcon : props.icon;
 
   return (
     <a
-      className={classnames('button', props.className, { blink, on })}
+      className={classnames("button", props.className, { blink, on })}
       onClick={props.onClick}
-      href='#'
+      href="#"
     >
-      <span className={classnames('icon', icon)}>
-        {!!props.badge && <span className='badge'>{props.badge}</span>}
+      <span className={classnames("icon", icon)}>
+        {!!props.badge && <span className="badge">{props.badge}</span>}
       </span>
       <span className="tooltip">{props.title}</span>
     </a>
-  )
+  );
 }
 
-export default class Toolbar
-extends React.PureComponent<ToolbarProps, ToolbarState> {
-  file = React.createRef<HTMLInputElement>()
+export default class Toolbar extends React.PureComponent<
+  ToolbarProps,
+  ToolbarState
+> {
+  file = React.createRef<HTMLInputElement>();
 
   constructor(props: ToolbarProps) {
-    super(props)
+    super(props);
     this.state = {
       readMessages: props.messagesCount,
       camDisabled: false,
       micMuted: false,
       fullScreenEnabled: false,
-    }
+    };
   }
 
   handleMicClick = () => {
-    const { stream } = this.props
-    stream.stream.getAudioTracks().forEach(track => {
-      track.enabled = !track.enabled
-    })
+    const { stream } = this.props;
+    stream.stream.getAudioTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+    });
     this.setState({
       ...this.state,
       micMuted: !this.state.micMuted,
-    })
-  }
+    });
+  };
   handleCamClick = () => {
-    const { stream } = this.props
-    stream.stream.getVideoTracks().forEach(track => {
-      track.enabled = !track.enabled
-    })
+    const { stream } = this.props;
+    stream.stream.getVideoTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+    });
     this.setState({
       ...this.state,
       camDisabled: !this.state.camDisabled,
-    })
-  }
+    });
+  };
   handleFullscreenClick = () => {
     if (screenfull.isEnabled) {
-      screenfull.toggle()
+      screenfull.toggle();
       this.setState({
         ...this.state,
         fullScreenEnabled: !screenfull.isFullscreen,
-      })
+      });
     }
-  }
+  };
   handleHangoutClick = () => {
-    window.location.href = '/'
-  }
+    window.location.href = "/";
+  };
   handleSendFile = () => {
-    this.file.current!.click()
-  }
+    this.file.current!.click();
+  };
+  copyInvitationURL = () => {
+    let usernameElem = document.querySelector(".nickname");
+    let username = null;
+    let id = null;
+    let idElem = document.querySelector("#callId");
+    if (idElem) {
+      id = idElem.getAttribute("value");
+    }
+    if (usernameElem) {
+      username = usernameElem.innerHTML;
+    }
+    let link = location.href;
+    let text = `${username} has invited you for a meeting on Peer Calls\nRoom id: ${id}\nLink: ${link}`;
+    if ("clipboard" in navigator) {
+      navigator.clipboard.writeText(text).then(
+        () => {
+          console.log("Copied to clipboard!");
+        },
+        (err) => {
+          console.error("Could not copy to clipboard");
+        }
+      );
+    } else {
+      console.error("Could not copy to clipboard");
+    }
+  };
   handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    Array
-    .from(event.target!.files!)
-    .forEach(file => this.props.onSendFile(file))
-  }
+    Array.from(event.target!.files!).forEach((file) =>
+      this.props.onSendFile(file)
+    );
+  };
   handleToggleChat = () => {
     this.setState({
       readMessages: this.props.messagesCount,
-    })
-    this.props.onToggleChat()
-  }
+    });
+    this.props.onToggleChat();
+  };
   handleToggleShareDesktop = () => {
     if (this.props.desktopStream) {
-      this.props.onRemoveStream(ME, this.props.desktopStream.stream)
+      this.props.onRemoveStream(ME, this.props.desktopStream.stream);
     } else {
-      this.props.onGetDesktopStream().catch(() => {})
+      this.props.onGetDesktopStream().catch(() => {});
     }
-  }
-  render () {
-    const { messagesCount, stream } = this.props
-    const unreadCount = messagesCount - this.state.readMessages
-    const hasUnread = unreadCount > 0
-    const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
+  };
+  render() {
+    const { messagesCount, stream } = this.props;
+    const unreadCount = messagesCount - this.state.readMessages;
+    const hasUnread = unreadCount > 0;
+    const isInCall = this.props.dialState === DIAL_STATE_IN_CALL;
 
     return (
       <div className="toolbar active">
@@ -146,34 +174,44 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
         {isInCall && (
           <ToolbarButton
             badge={unreadCount}
-            className='chat'
-            key='chat'
-            icon='icon-question_answer'
+            className="chat"
+            key="chat"
+            icon="icon-question_answer"
             blink={!this.props.chatVisible && hasUnread}
             onClick={this.handleToggleChat}
             on={this.props.chatVisible}
-            title='Toggle Chat'
+            title="Toggle Chat"
           />
         )}
 
         {isInCall && (
           <ToolbarButton
-            className='send-file'
-            key='send-file'
-            icon='icon-file-text2'
+            className="send-file"
+            key="send-file"
+            icon="icon-file-text2"
             onClick={this.handleSendFile}
-            title='Send File'
+            title="Send File"
           />
         )}
 
         {isInCall && (
           <ToolbarButton
-            className='stream-desktop'
-            icon='icon-display'
+            className="copy-url"
+            key="copy-url"
+            icon="icon-icon-copy"
+            onClick={this.copyInvitationURL}
+            title="Copy Invitation URL"
+          />
+        )}
+
+        {isInCall && (
+          <ToolbarButton
+            className="stream-desktop"
+            icon="icon-display"
             onClick={this.handleToggleShareDesktop}
             on={!!this.props.desktopStream}
-            key='stream-desktop'
-            title='Share Desktop'
+            key="stream-desktop"
+            title="Share Desktop"
           />
         )}
 
@@ -181,46 +219,45 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
           <React.Fragment>
             <ToolbarButton
               onClick={this.handleMicClick}
-              className='mute-audio'
-              key='mute-audio'
+              className="mute-audio"
+              key="mute-audio"
               on={this.state.micMuted}
-              icon='icon-mic_off'
-              offIcon='icon-mic'
-              title='Toggle Microphone'
+              icon="icon-mic_off"
+              offIcon="icon-mic"
+              title="Toggle Microphone"
             />
             <ToolbarButton
               onClick={this.handleCamClick}
-              className='mute-video'
-              key='mute-video'
+              className="mute-video"
+              key="mute-video"
               on={this.state.camDisabled}
-              icon='icon-videocam_off'
-              offIcon='icon-videocam'
-              title='Toggle Camera'
+              icon="icon-videocam_off"
+              offIcon="icon-videocam"
+              title="Toggle Camera"
             />
           </React.Fragment>
         )}
 
         <ToolbarButton
           onClick={this.handleFullscreenClick}
-          className='fullscreen'
-          key='fullscreen'
-          icon='icon-fullscreen_exit'
-          offIcon='icon-fullscreen'
+          className="fullscreen"
+          key="fullscreen"
+          icon="icon-fullscreen_exit"
+          offIcon="icon-fullscreen"
           on={this.state.fullScreenEnabled}
-          title='Toggle Fullscreen'
+          title="Toggle Fullscreen"
         />
 
         {isInCall && (
           <ToolbarButton
             onClick={this.props.onHangup}
-            key='hangup'
-            className='hangup'
-            icon='icon-call_end'
+            key="hangup"
+            className="hangup"
+            icon="icon-call_end"
             title="Hang Up"
           />
         )}
-
       </div>
-    )
+    );
   }
 }
