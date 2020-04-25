@@ -87,6 +87,7 @@ describe('App', () => {
         localStreams: {
           [StreamTypeCamera]: {
             stream: localStream,
+            streamId: localStream.id,
             type: StreamTypeCamera,
           },
         },
@@ -155,7 +156,7 @@ describe('App', () => {
           payload: {
             userId: constants.ME,
             streamId: store.getState()
-            .streams.localStreams[StreamTypeCamera]!.stream.id,
+            .streams.localStreams[StreamTypeCamera]!.streamId,
           },
         }]])
 

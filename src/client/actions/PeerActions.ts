@@ -119,12 +119,8 @@ class PeerHandler {
     }
   }
   handleClose = () => {
-    const { dispatch, user, getState } = this
+    const { dispatch, user } = this
     dispatch(NotifyActions.error('Peer connection closed'))
-    const state = getState()
-    forEach(state.streams.localStreams, s => {
-      dispatch(StreamActions.removeLocalStream(s!.stream, s!.type))
-    })
     dispatch(removePeer(user.id))
   }
 }

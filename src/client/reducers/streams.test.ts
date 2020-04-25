@@ -13,7 +13,7 @@ describe('reducers/alerts', () => {
   let store: Store, stream: MediaStream, userId: string
   beforeEach(() => {
     store = createStore()
-    userId = 'test id'
+    userId = 'testUserId'
     stream = new MediaStream()
   })
 
@@ -24,7 +24,13 @@ describe('reducers/alerts', () => {
 
   describe('defaultState', () => {
     it('should have default state set', () => {
-      expect(store.getState().streams).toEqual({})
+      expect(store.getState().streams).toEqual({
+        localStreams: {},
+        metadataByUserIdMid: {},
+        streamsByUserId: {},
+        trackIdToUserIdMid: {},
+        tracksByUserIdMid: {},
+      } as StreamsState)
     })
   })
 
@@ -38,17 +44,15 @@ describe('reducers/alerts', () => {
       status: 'resolved',
     }
   }
-  describe('addStream', () => {
+  describe('mediaStrea', () => {
     it('adds a stream', () => {
       store.dispatch(createAddStreamAction(stream))
-      expect(store.getState().streams).toEqual({
-        [userId]: {
-          userId,
-          streams: [{
-            stream,
-            url: jasmine.any(String),
-            type: undefined,
-          }],
+      expect(store.getState().streams.localStreams).toEqual({
+        [StreamActions.StreamTypeCamera]: {
+          stream,
+          streamId: stream.id,
+          url: jasmine.any(String),
+          type: StreamActions.StreamTypeCamera,
         },
       })
     })
@@ -56,27 +60,25 @@ describe('reducers/alerts', () => {
       (createObjectURL as jest.Mock)
       .mockImplementation(() => { throw new Error('test') })
       store.dispatch(createAddStreamAction(stream))
-      expect(store.getState().streams).toEqual({
-        [userId]: {
-          userId,
-          streams: [{
-            stream,
-            type: undefined,
-            url: undefined,
-          }],
+      expect(store.getState().streams.localStreams).toEqual({
+        [StreamActions.StreamTypeCamera]: {
+          stream,
+          streamId: stream.id,
+          type: StreamActions.StreamTypeCamera,
+          url: undefined,
         },
       })
     })
   })
 
-  describe('removeStream', () => {
+  describe('removeLocalStream', () => {
     it('removes a stream', () => {
       store.dispatch(createAddStreamAction(stream))
       store.dispatch(
         StreamActions
         .removeLocalStream(stream, StreamActions.StreamTypeCamera),
       )
-      expect(store.getState().streams).toEqual({})
+      expect(store.getState().streams.localStreams).toEqual({})
     })
     it('does not fail when no stream', () => {
       store.dispatch(
@@ -118,16 +120,19 @@ describe('reducers/alerts', () => {
       expect(users).toEqual([ userId ])
       const tracksByUserIdMid = streams.tracksByUserIdMid
       const expected: typeof tracksByUserIdMid = {
-        [otherUserId + '__0']: {
+        [otherUserId + '::0']: {
           track: track1,
+          mid: '0',
           association: undefined,
         },
-        [otherUserId + '__1']: {
+        [otherUserId + '::1']: {
           track: track2,
+          mid: '1',
           association: undefined,
         },
-        [userId + '__2']: {
+        [userId + '::2']: {
           track: track3,
+          mid: '2',
           association: {
             streamId: 'stream-3',
             userId,
@@ -162,11 +167,12 @@ describe('reducers/alerts', () => {
           },
         },
         trackIdToUserIdMid: {
-          [track.id]: userId + '__0',
+          [track.id]: userId + '::0',
         },
         tracksByUserIdMid: {
-          [userId + '__0']: {
+          [userId + '::0']: {
             track,
+            mid: '0',
             association: {
               userId,
               streamId: 'stream-123',
@@ -211,19 +217,21 @@ describe('reducers/alerts', () => {
           },
         },
         trackIdToUserIdMid: {
-          [track1.id]: userId + '__0',
-          [track2.id]: userId + '__1',
+          [track1.id]: userId + '::0',
+          [track2.id]: userId + '::1',
         },
         tracksByUserIdMid: {
-          [userId + '__0']: {
+          [userId + '::0']: {
             track: track1,
+            mid: '0',
             association: {
               userId,
               streamId: 'stream-123',
             },
           },
-          [userId + '__1']: {
+          [userId + '::1']: {
             track: track2,
+            mid: '1',
             association: {
               userId,
               streamId: 'stream-123',
@@ -266,11 +274,12 @@ describe('reducers/alerts', () => {
         metadataByUserIdMid: {},
         streamsByUserId: {},
         trackIdToUserIdMid: {
-          [track1.id]: userId + '__0',
+          [track1.id]: userId + '::0',
         },
         tracksByUserIdMid: {
-          [userId + '__' + track1.id]: {
+          [userId + '::0']: {
             track: track1,
+            mid: '0',
             association: undefined,
           },
         },
@@ -306,20 +315,22 @@ describe('reducers/alerts', () => {
           },
         },
         trackIdToUserIdMid: {
-          [track1.id]: userId = '__0',
-          [track2.id]: userId + '__1',
+          [track1.id]: userId + '::0',
+          [track2.id]: userId + '::1',
         },
         tracksByUserIdMid: {
-          [userId + '__' + track1.id]: {
+          [userId + '::0']: {
             track: track1,
+            mid: '0',
+            association: undefined,
+          },
+          [userId + '::1']: {
+            track: track2,
+            mid: '1',
             association: {
               streamId: 'stream-1',
               userId,
             },
-          },
-          [userId + '__' + track2.id]: {
-            track: track2,
-            association: undefined,
           },
         },
       }
