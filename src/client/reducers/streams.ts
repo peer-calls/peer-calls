@@ -16,15 +16,15 @@ import { MediaStream } from '../window'
 const defaultState = Object.freeze({
   localStreams: {},
   streamsByUserId: {},
-  metadataByUserIdMid: {},
-  trackIdToUserIdMid: {},
-  tracksByUserIdMid: {},
+  metadataByPeerIdMid: {},
+  trackIdToPeerIdMid: {},
+  tracksByPeerIdMid: {},
 })
 
-const userIdMidSeparator = '::'
+const peerIdMidSeparator = '::'
 
-function getUserIdMid(userId: string, mid: string): string {
-  return userId + userIdMidSeparator + mid
+function getPeerIdMid(userId: string, mid: string): string {
+  return userId + peerIdMidSeparator + mid
 }
 
 function safeCreateObjectURL (stream: MediaStream) {
@@ -55,9 +55,9 @@ export interface StreamsState {
     [t in StreamType]?: LocalStream
   }
   streamsByUserId: Record<string, UserStreams>
-  metadataByUserIdMid: Record<string, TrackMetadata>
-  trackIdToUserIdMid: Record<string, string>
-  tracksByUserIdMid: Record<string, TrackInfo>
+  metadataByPeerIdMid: Record<string, TrackMetadata>
+  trackIdToPeerIdMid: Record<string, string>
+  tracksByPeerIdMid: Record<string, TrackInfo>
 }
 
 interface TrackInfo {
@@ -82,14 +82,21 @@ interface StreamIdUserId {
   userId: string
 }
 
-
+/*
+ * getUserId returns the real user id from the metadata, if available, or
+ * the userId for the peer. In a normal P2P mesh network, each user will
+ * have their own peer, which will correspond to their own userId. In case of
+ * an SFU, on peer connection from the server could provide tracks from
+ * different users. That's why metadata is sent before each negotiation. The
+ * metadata will contain a userId paired with mid (transceiver).
+ */
 function getUserId(
   state: StreamsState,
   payload: MidWithUserId,
 ): StreamIdUserId {
   const { mid } = payload
-  const userIdMid = getUserIdMid(payload.userId, mid)
-  const metadata = state.metadataByUserIdMid[userIdMid]
+  const peerIdMid = getPeerIdMid(payload.userId, mid)
+  const metadata = state.metadataByPeerIdMid[peerIdMid]
 
   if (metadata) {
     return {
@@ -149,7 +156,7 @@ function removeLocalStream (
 function removeTrack(
   state: StreamsState, payload: RemoveTrackPayload,
 ): StreamsState {
-  const userIdMid = getUserIdMid(payload.userId, payload.mid)
+  const peerIdMid = getPeerIdMid(payload.userId, payload.mid)
   const { userId, streamId } = getUserId(state, payload)
   const { track } = payload
 
@@ -172,9 +179,9 @@ function removeTrack(
     streams = streams.filter(_s => _s !== s)
   }
 
-  const tracksByUserIdMid = {
-    ...state.tracksByUserIdMid,
-    [userIdMid]: {
+  const tracksByPeerIdMid = {
+    ...state.tracksByPeerIdMid,
+    [peerIdMid]: {
       track,
       mid: payload.mid,
       association: undefined,
@@ -191,21 +198,21 @@ function removeTrack(
           streams,
         },
       },
-      tracksByUserIdMid,
+      tracksByPeerIdMid,
     }
   }
 
   return {
     ...state,
     streamsByUserId: omit(state.streamsByUserId, [userId]),
-    tracksByUserIdMid,
+    tracksByPeerIdMid,
   }
 }
 
 function addTrack(
   state: StreamsState, payload: AddTrackPayload,
 ): StreamsState {
-  const userIdMid = getUserIdMid(payload.userId, payload.mid)
+  const peerIdMid = getPeerIdMid(payload.userId, payload.mid)
   const { userId, streamId } = getUserId(state, payload)
   const { track } = payload
 
@@ -238,13 +245,13 @@ function addTrack(
         streams: [...streams],
       },
     },
-    trackIdToUserIdMid: {
-      ...state.trackIdToUserIdMid,
-      [track.id]: userIdMid,
+    trackIdToPeerIdMid: {
+      ...state.trackIdToPeerIdMid,
+      [track.id]: peerIdMid,
     },
-    tracksByUserIdMid: {
-      ...state.tracksByUserIdMid,
-      [userIdMid]: {
+    tracksByPeerIdMid: {
+      ...state.tracksByPeerIdMid,
+      [peerIdMid]: {
         track,
         mid: payload.mid,
         association: {
@@ -267,14 +274,14 @@ export function unassociateUserTracks(
     return state
   }
 
-  const tracksByUserIdMid: Record<string, TrackInfo> = {}
+  const tracksByPeerIdMid: Record<string, TrackInfo> = {}
 
   userStreams.streams.forEach(s => {
     s.stream.getTracks().forEach(track => {
-      const userIdMid = state.trackIdToUserIdMid[track.id]
-      tracksByUserIdMid[userIdMid] = {
+      const peerIdMid = state.trackIdToPeerIdMid[track.id]
+      tracksByPeerIdMid[peerIdMid] = {
         track,
-        mid: state.tracksByUserIdMid[userIdMid].mid,
+        mid: state.tracksByPeerIdMid[peerIdMid].mid,
         association: undefined,
       }
       s.stream.removeTrack(track)
@@ -286,9 +293,9 @@ export function unassociateUserTracks(
   return {
     ...state,
     streamsByUserId,
-    tracksByUserIdMid: {
-      ...state.tracksByUserIdMid,
-      ...tracksByUserIdMid,
+    tracksByPeerIdMid: {
+      ...state.tracksByPeerIdMid,
+      ...tracksByPeerIdMid,
     },
   }
 }
@@ -311,21 +318,21 @@ function setMetadata(
   payload: MetadataPayload,
 ): StreamsState {
 
-  const oldMetadata = state.metadataByUserIdMid
+  const oldMetadata = state.metadataByPeerIdMid
 
   let newState = state
   const newMetadata = keyBy(
     payload.metadata,
-    m => getUserIdMid(payload.userId, m.mid),
+    m => getPeerIdMid(payload.userId, m.mid),
   )
 
   const omitOldKeys: string[] = []
   forEach(oldMetadata, m => {
     const  { mid } = m
-    const userIdMid = getUserIdMid(payload.userId, mid)
-    const t = state.tracksByUserIdMid[userIdMid]
+    const peerIdMid = getPeerIdMid(payload.userId, mid)
+    const t = state.tracksByPeerIdMid[peerIdMid]
 
-    if (!newMetadata[userIdMid] && t && t.association) {
+    if (!newMetadata[peerIdMid] && t && t.association) {
       // remove any track the server has lost track of
       newState = removeTrack(newState, {
         mid,
@@ -333,19 +340,19 @@ function setMetadata(
         track: t.track,
         userId: t.association.userId,
       })
-      omitOldKeys.push(userIdMid)
+      omitOldKeys.push(peerIdMid)
     }
   })
 
-  const metadataByUserIdMid = {
+  const metadataByPeerIdMid = {
     ...omit(oldMetadata, omitOldKeys),
     ...newMetadata,
   }
 
   payload.metadata.forEach(m => {
     const { streamId, mid, userId } = m
-    const userIdMid = getUserIdMid(payload.userId, mid)
-    const t = state.tracksByUserIdMid[userIdMid]
+    const peerIdMid = getPeerIdMid(payload.userId, mid)
+    const t = state.tracksByPeerIdMid[peerIdMid]
 
     if (!t) {
       // this track hasn't been seen yet so there's nothing to do
@@ -385,7 +392,7 @@ function setMetadata(
 
   return {
     ...newState,
-    metadataByUserIdMid,
+    metadataByPeerIdMid,
   }
 }
 
@@ -395,14 +402,14 @@ function removePeer(
 ): StreamsState {
   let newState: StreamsState = state
 
-  const keysToRemove = Object.keys(state.tracksByUserIdMid)
-  .filter(key => key.startsWith(action.userId + userIdMidSeparator))
+  const keysToRemove = Object.keys(state.tracksByPeerIdMid)
+  .filter(key => key.startsWith(action.userId + peerIdMidSeparator))
 
-  const trackIdToUserIdMid = state.trackIdToUserIdMid
+  const trackIdToPeerIdMid = state.trackIdToPeerIdMid
 
   keysToRemove.forEach(key => {
-    const t = state.tracksByUserIdMid[key]
-    delete trackIdToUserIdMid[t.track.id]
+    const t = state.tracksByPeerIdMid[key]
+    delete trackIdToPeerIdMid[t.track.id]
     if (t.association) {
       newState = removeTrack(newState, {
         mid: t.mid,
@@ -413,12 +420,12 @@ function removePeer(
     }
   })
 
-  const tracksByUserIdMid = omit(state.tracksByUserIdMid, keysToRemove)
+  const tracksByPeerIdMid = omit(state.tracksByPeerIdMid, keysToRemove)
 
   return {
     ...newState,
-    trackIdToUserIdMid,
-    tracksByUserIdMid,
+    trackIdToPeerIdMid,
+    tracksByPeerIdMid,
   }
 }
 

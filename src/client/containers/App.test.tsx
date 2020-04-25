@@ -101,9 +101,9 @@ describe('App', () => {
             }],
           },
         },
-        metadataByUserIdMid: {},
-        trackIdToUserIdMid: {},
-        tracksByUserIdMid: {},
+        metadataByPeerIdMid: {},
+        trackIdToPeerIdMid: {},
+        tracksByPeerIdMid: {},
       }
       state.peers = {
         'other-user': {} as any,

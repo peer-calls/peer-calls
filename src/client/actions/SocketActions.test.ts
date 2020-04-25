@@ -158,7 +158,7 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByUserIdMid: {},
+          metadataByPeerIdMid: {},
           streamsByUserId: {
             [peerB]: {
               streams: [{
@@ -169,10 +169,10 @@ describe('SocketActions', () => {
               userId: peerB,
             },
           },
-          trackIdToUserIdMid: {
+          trackIdToPeerIdMid: {
             [track.id]: peerB + '::0',
           },
-          tracksByUserIdMid: {
+          tracksByPeerIdMid: {
             [peerB + '::0']: {
               association: {
                 streamId: stream.id,
@@ -201,12 +201,12 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByUserIdMid: {},
+          metadataByPeerIdMid: {},
           streamsByUserId: {},
-          trackIdToUserIdMid: {
+          trackIdToPeerIdMid: {
             [track.id]: peerB + '::0',
           },
-          tracksByUserIdMid: {
+          tracksByPeerIdMid: {
             [peerB + '::0']: {
               association: undefined,
               mid: '0',
@@ -254,10 +254,10 @@ describe('SocketActions', () => {
         peer.emit('close')
         expect(store.getState().streams).toEqual({
           localStreams: {},
-          metadataByUserIdMid: {},
+          metadataByPeerIdMid: {},
           streamsByUserId: {},
-          trackIdToUserIdMid: {},
-          tracksByUserIdMid: {},
+          trackIdToPeerIdMid: {},
+          tracksByPeerIdMid: {},
         } as StreamsState)
         expect(store.getState().peers).toEqual({})
       })

@@ -26,10 +26,10 @@ describe('reducers/alerts', () => {
     it('should have default state set', () => {
       expect(store.getState().streams).toEqual({
         localStreams: {},
-        metadataByUserIdMid: {},
+        metadataByPeerIdMid: {},
         streamsByUserId: {},
-        trackIdToUserIdMid: {},
-        tracksByUserIdMid: {},
+        trackIdToPeerIdMid: {},
+        tracksByPeerIdMid: {},
       } as StreamsState)
     })
   })
@@ -118,8 +118,8 @@ describe('reducers/alerts', () => {
       const { streams } = store.getState()
       const users = Object.keys(streams.streamsByUserId)
       expect(users).toEqual([ userId ])
-      const tracksByUserIdMid = streams.tracksByUserIdMid
-      const expected: typeof tracksByUserIdMid = {
+      const tracksByPeerIdMid = streams.tracksByPeerIdMid
+      const expected: typeof tracksByPeerIdMid = {
         [otherUserId + '::0']: {
           track: track1,
           mid: '0',
@@ -139,7 +139,7 @@ describe('reducers/alerts', () => {
           },
         },
       }
-      expect(tracksByUserIdMid).toEqual(expected)
+      expect(tracksByPeerIdMid).toEqual(expected)
     })
   })
 
@@ -155,7 +155,7 @@ describe('reducers/alerts', () => {
       const { streams } = store.getState()
       const expected: StreamsState = {
         localStreams: {},
-        metadataByUserIdMid: {},
+        metadataByPeerIdMid: {},
         streamsByUserId: {
           [userId]: {
             userId,
@@ -166,10 +166,10 @@ describe('reducers/alerts', () => {
             }],
           },
         },
-        trackIdToUserIdMid: {
+        trackIdToPeerIdMid: {
           [track.id]: userId + '::0',
         },
-        tracksByUserIdMid: {
+        tracksByPeerIdMid: {
           [userId + '::0']: {
             track,
             mid: '0',
@@ -205,7 +205,7 @@ describe('reducers/alerts', () => {
       const { streams } = store.getState()
       const expected: StreamsState = {
         localStreams: {},
-        metadataByUserIdMid: {},
+        metadataByPeerIdMid: {},
         streamsByUserId: {
           [userId]: {
             userId,
@@ -216,11 +216,11 @@ describe('reducers/alerts', () => {
             }],
           },
         },
-        trackIdToUserIdMid: {
+        trackIdToPeerIdMid: {
           [track1.id]: userId + '::0',
           [track2.id]: userId + '::1',
         },
-        tracksByUserIdMid: {
+        tracksByPeerIdMid: {
           [userId + '::0']: {
             track: track1,
             mid: '0',
@@ -271,12 +271,12 @@ describe('reducers/alerts', () => {
       const { streams } = store.getState()
       const expected: typeof streams = {
         localStreams: {},
-        metadataByUserIdMid: {},
+        metadataByPeerIdMid: {},
         streamsByUserId: {},
-        trackIdToUserIdMid: {
+        trackIdToPeerIdMid: {
           [track1.id]: userId + '::0',
         },
-        tracksByUserIdMid: {
+        tracksByPeerIdMid: {
           [userId + '::0']: {
             track: track1,
             mid: '0',
@@ -303,7 +303,7 @@ describe('reducers/alerts', () => {
       const { streams } = store.getState()
       const expected: typeof streams = {
         localStreams: {},
-        metadataByUserIdMid: {},
+        metadataByPeerIdMid: {},
         streamsByUserId: {
           [userId]: {
             streams: [{
@@ -314,11 +314,11 @@ describe('reducers/alerts', () => {
             userId,
           },
         },
-        trackIdToUserIdMid: {
+        trackIdToPeerIdMid: {
           [track1.id]: userId + '::0',
           [track2.id]: userId + '::1',
         },
-        tracksByUserIdMid: {
+        tracksByPeerIdMid: {
           [userId + '::0']: {
             track: track1,
             mid: '0',
