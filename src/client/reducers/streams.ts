@@ -4,20 +4,26 @@ import keyBy from 'lodash/keyBy'
 import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction } from '../actions/MediaActions'
-import { AddStreamAction, AddTrackAction, RemoveStreamAction, RemoveTrackAction, StreamAction, StreamType, TracksMetadataAction } from '../actions/StreamActions'
+import { AddTrackPayload, RemoveLocalStreamPayload, RemoveTrackPayload, StreamAction, StreamType, TracksMetadataAction, AddLocalStreamPayload } from '../actions/StreamActions'
 import { HANG_UP, MEDIA_STREAM, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, NICKNAME_REMOVE, TRACKS_METADATA } from '../constants'
 import { createObjectURL, revokeObjectURL } from '../window'
 import { NicknameRemoveAction, NicknameRemovePayload } from '../actions/NicknameActions'
-import { TrackMetadata } from '../../shared'
+import { TrackMetadata, MetadataPayload } from '../../shared'
 
 // const debug = _debug('peercalls')
 const defaultState = Object.freeze({
-  localStreams: [],
+  localStreams: {},
   streamsByUserId: {},
-  metadataByMid: {},
-  trackIdToMid: {},
-  tracksByMid: {},
+  metadataByUserIdMid: {},
+  trackIdToUserIdMid: {},
+  tracksByUserIdMid: {},
 })
+
+const userIdMidSeparator = '__'
+
+function getUserIdMid(userId: string, mid: string): string {
+  return userId + userIdMidSeparator + mid
+}
 
 function safeCreateObjectURL (stream: MediaStream) {
   try {
@@ -28,10 +34,13 @@ function safeCreateObjectURL (stream: MediaStream) {
 }
 
 export interface StreamWithURL {
-  streamId: string
   stream: MediaStream
-  type: StreamType | undefined
+  streamId: string
   url?: string
+}
+
+export interface LocalStream extends StreamWithURL {
+  type: StreamType
 }
 
 export interface UserStreams {
@@ -40,11 +49,13 @@ export interface UserStreams {
 }
 
 export interface StreamsState {
-  localStreams: StreamWithURL[]
+  localStreams: {
+    [t in StreamType]?: LocalStream
+  }
   streamsByUserId: Record<string, UserStreams>
-  metadataByMid: Record<string, TrackMetadata>
-  trackIdToMid: Record<string, string>
-  tracksByMid: Record<string, TrackWithStreamId>
+  metadataByUserIdMid: Record<string, TrackMetadata>
+  trackIdToUserIdMid: Record<string, string>
+  tracksByUserIdMid: Record<string, TrackWithStreamId>
 }
 
 interface TrackWithStreamId {
@@ -74,7 +85,8 @@ function getUserId(
   payload: MidWithUserId,
 ): StreamIdUserId {
   const { mid } = payload
-  const metadata = state.metadataByMid[mid]
+  const userIdMid = getUserIdMid(payload.userId, mid)
+  const metadata = state.metadataByUserIdMid[userIdMid]
 
   if (metadata) {
     return {
@@ -90,45 +102,51 @@ function getUserId(
 }
 
 function addLocalStream (
-  state: StreamsState, payload: AddStreamAction['payload'],
+  state: StreamsState, payload: AddLocalStreamPayload,
 ): StreamsState {
   const { stream } = payload
 
-  const streamWithURL: StreamWithURL = {
-    streamId: payload.stream.id,
+  const streamWithURL: LocalStream = {
     stream: payload.stream,
+    streamId: payload.stream.id,
     type: payload.type,
     url: safeCreateObjectURL(stream),
   }
 
+  const existingStream = state.localStreams[payload.type]
+  if (existingStream) {
+    stopStream(existingStream)
+  }
+
   return {
     ...state,
-    localStreams: [...state.localStreams, streamWithURL],
+    localStreams: {
+      ...state.localStreams,
+      [payload.type]: streamWithURL,
+    },
   }
 }
 
 function removeLocalStream (
-  state: StreamsState, payload: RemoveStreamAction['payload'],
+  state: StreamsState, payload: RemoveLocalStreamPayload,
 ): StreamsState {
+  const { localStreams } = state
+  const existing = localStreams[payload.streamType]
+  if (!existing) {
+    return state
+  }
 
-  const localStreams = state.localStreams.filter(s => {
-    if (s.stream === payload.stream) {
-      s.stream.getTracks().forEach(track => track.stop())
-      s.url && revokeObjectURL(s.url)
-      return false
-    }
-    return true
-  })
-
+  stopStream(existing)
   return {
     ...state,
-    localStreams,
+    localStreams: omit(localStreams, [payload.streamType]),
   }
 }
 
 function removeTrack(
-  state: StreamsState, payload: RemoveTrackAction['payload'],
+  state: StreamsState, payload: RemoveTrackPayload,
 ): StreamsState {
+  const userIdMid = getUserIdMid(payload.userId, payload.mid)
   const { userId, streamId } = getUserId(state, payload)
   const { track } = payload
 
@@ -160,9 +178,9 @@ function removeTrack(
           streams,
         },
       },
-      tracksByMid: {
-        ...state.tracksByMid,
-        [payload.mid]: {
+      tracksByUserIdMid: {
+        ...state.tracksByUserIdMid,
+        [userIdMid]: {
           track,
           association: undefined,
         },
@@ -177,8 +195,9 @@ function removeTrack(
 }
 
 function addTrack(
-  state: StreamsState, payload: AddTrackAction['payload'],
+  state: StreamsState, payload: AddTrackPayload,
 ): StreamsState {
+  const userIdMid = getUserIdMid(payload.userId, payload.mid)
   const { userId, streamId } = getUserId(state, payload)
   const { track } = payload
 
@@ -206,17 +225,16 @@ function addTrack(
           stream,
           streamId,
           url: safeCreateObjectURL(stream),
-          type: undefined,
         }],
       },
     },
-    trackIdToMid: {
-      ...state.trackIdToMid,
-      [track.id]: payload.mid,
+    trackIdToUserIdMid: {
+      ...state.trackIdToUserIdMid,
+      [track.id]: userIdMid,
     },
-    tracksByMid: {
-      ...state.tracksByMid,
-      [payload.mid]: {
+    tracksByUserIdMid: {
+      ...state.tracksByUserIdMid,
+      [userIdMid]: {
         track,
         association: {
           streamId,
@@ -238,12 +256,12 @@ export function unassociateUserTracks(
     return state
   }
 
-  const tracksByMid: Record<string, TrackWithStreamId> = {}
+  const tracksByUserIdMid: Record<string, TrackWithStreamId> = {}
 
   userStreams.streams.forEach(s => {
     s.stream.getTracks().forEach(track => {
-      const mid = state.trackIdToMid[track.id]
-      tracksByMid[mid] = {
+      const userIdMid = state.trackIdToUserIdMid[track.id]
+      tracksByUserIdMid[userIdMid] = {
         track,
         association: undefined,
       }
@@ -256,33 +274,66 @@ export function unassociateUserTracks(
   return {
     ...state,
     streamsByUserId,
-    tracksByMid: {
-      ...state.tracksByMid,
-      ...tracksByMid,
+    tracksByUserIdMid: {
+      ...state.tracksByUserIdMid,
+      ...tracksByUserIdMid,
     },
   }
 }
 
-function stopAllTracks(streams: StreamWithURL[]) {
-  streams.forEach(s => {
-    s.stream.getTracks().forEach(track => {
-      track.stop()
-      track.onmute = null
-      track.onunmute = null
-    })
+function stopStream(s: StreamWithURL) {
+  s.stream.getTracks().forEach(track => {
+    track.stop()
+    track.onmute = null
+    track.onunmute = null
   })
+  s.url && revokeObjectURL(s.url)
+}
+
+function stopAllTracks(streams: StreamWithURL[]) {
+  streams.forEach(s => stopStream(s))
 }
 
 function setMetadata(
   state: StreamsState,
-  metadata: TrackMetadata[],
+  payload: MetadataPayload,
 ): StreamsState {
 
-  let newState = state
+  const oldMetadata = state.metadataByUserIdMid
 
-  metadata.forEach(m => {
+  let newState = state
+  const newMetadata = keyBy(
+    payload.metadata,
+    m => getUserIdMid(payload.userId, m.mid),
+  )
+
+  const omitOldKeys: string[] = []
+  forEach(oldMetadata, m => {
+    const  { mid } = m
+    const userIdMid = getUserIdMid(payload.userId, mid)
+    const t = state.tracksByUserIdMid[userIdMid]
+
+    if (!newMetadata[userIdMid] && t && t.association) {
+      // remove any track the server has lost track of
+      newState = removeTrack(newState, {
+        mid,
+        streamId: t.association.streamId,
+        track: t.track,
+        userId: t.association.userId,
+      })
+      omitOldKeys.push(userIdMid)
+    }
+  })
+
+  const metadataByUserIdMid = {
+    ...omit(oldMetadata, omitOldKeys),
+    ...newMetadata,
+  }
+
+  payload.metadata.forEach(m => {
     const { streamId, mid, userId } = m
-    const t = state.tracksByMid[mid]
+    const userIdMid = getUserIdMid(payload.userId, mid)
+    const t = state.tracksByUserIdMid[userIdMid]
 
     if (!t) {
       // this track hasn't been seen yet so there's nothing to do
@@ -322,7 +373,7 @@ function setMetadata(
 
   return {
     ...newState,
-    metadataByMid: keyBy(metadata, 'mid'),
+    metadataByUserIdMid,
   }
 }
 
@@ -347,7 +398,7 @@ export default function streams(
     case TRACKS_METADATA:
       return setMetadata(state, action.payload)
     case HANG_UP:
-      stopAllTracks(state.localStreams)
+      forEach(state.localStreams, ls => stopStream(ls!))
       forEach(state.streamsByUserId, us => stopAllTracks(us.streams))
       return defaultState
     case MEDIA_STREAM:

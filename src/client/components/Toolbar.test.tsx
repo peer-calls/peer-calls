@@ -3,21 +3,22 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
 import { getDesktopStream } from '../actions/MediaActions'
-import { AddStreamPayload, removeStream } from '../actions/StreamActions'
-import { STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, DIAL_STATE_IN_CALL, DialState } from '../constants'
-import { StreamWithURL } from '../reducers/streams'
+import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
+import { DialState, DIAL_STATE_IN_CALL } from '../constants'
+import { LocalStream } from '../reducers/streams'
 import { MediaStream } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
 
 describe('components/Toolbar', () => {
 
   interface StreamState {
-    stream: AddStreamPayload | null
+    cameraStream: LocalStream | null
+    desktopStream: LocalStream | null
   }
 
   class ToolbarWrapper extends React.PureComponent<ToolbarProps, StreamState> {
     state = {
-      stream: null,
+      cameraStream: null,
       desktopStream: null,
     }
     render () {
@@ -27,10 +28,10 @@ describe('components/Toolbar', () => {
         onToggleChat={this.props.onToggleChat}
         onHangup={this.props.onHangup}
         onGetDesktopStream={this.props.onGetDesktopStream}
-        onRemoveStream={this.props.onRemoveStream}
+        onRemoveLocalStream={this.props.onRemoveLocalStream}
         onSendFile={this.props.onSendFile}
         messagesCount={this.props.messagesCount}
-        stream={this.state.stream || this.props.stream}
+        cameraStream={this.state.cameraStream || this.props.cameraStream}
         desktopStream={this.state.desktopStream || this.props.desktopStream}
       />
     }
@@ -43,8 +44,8 @@ describe('components/Toolbar', () => {
   let onSendFile: jest.Mock<(file: File) => void>
   let onHangup: jest.Mock<() => void>
   let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
-  let onRemoveStream: jest.MockedFunction<typeof removeStream>
-  let desktopStream: StreamWithURL | undefined
+  let onRemoveLocalStream: jest.MockedFunction<typeof removeLocalStream>
+  let desktopStream: LocalStream | undefined
   let dialState: DialState
   async function render () {
     dialState = DIAL_STATE_IN_CALL
@@ -53,12 +54,13 @@ describe('components/Toolbar', () => {
     onSendFile = jest.fn()
     onHangup = jest.fn()
     onGetDesktopStream = jest.fn().mockImplementation(() => Promise.resolve())
-    onRemoveStream = jest.fn()
+    onRemoveLocalStream = jest.fn()
     const div = document.createElement('div')
-    const stream: StreamWithURL = {
+    const cameraStream: LocalStream = {
       stream: mediaStream,
-      type: STREAM_TYPE_CAMERA,
+      type: StreamTypeCamera,
       url,
+      streamId: mediaStream.id,
     }
     await new Promise<ToolbarWrapper>(resolve => {
       ReactDOM.render(
@@ -70,10 +72,10 @@ describe('components/Toolbar', () => {
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
           messagesCount={1}
-          stream={stream}
+          cameraStream={cameraStream}
           desktopStream={desktopStream}
           onGetDesktopStream={onGetDesktopStream}
-          onRemoveStream={onRemoveStream}
+          onRemoveLocalStream={onRemoveLocalStream}
         />,
         div,
       )
@@ -169,16 +171,18 @@ describe('components/Toolbar', () => {
       expect(onGetDesktopStream.mock.calls.length).toBe(1)
     })
     it('stops desktop sharing', async () => {
+      const stream = new MediaStream()
       desktopStream = {
-        stream: new MediaStream(),
-        type: STREAM_TYPE_DESKTOP,
+        stream,
+        streamId: stream.id,
+        type: StreamTypeDesktop,
       }
       await render()
       const shareDesktop = node.querySelector('.stream-desktop')!
       expect(shareDesktop).toBeDefined()
       TestUtils.Simulate.click(shareDesktop)
       await Promise.resolve()
-      expect(onRemoveStream.mock.calls.length).toBe(1)
+      expect(onRemoveLocalStream.mock.calls.length).toBe(1)
     })
   })
 

@@ -1,11 +1,11 @@
+import _debug from 'debug'
+import { MetadataPayload, SocketEvent } from '../../shared'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
-import _debug from 'debug'
-import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
-import { SocketEvent, TrackMetadata } from '../../shared'
-import { setNicknames, removeNickname } from './NicknameActions'
+import { Dispatch, GetState, Store } from '../store'
+import { removeNickname, setNicknames } from './NicknameActions'
 import { tracksMetadata } from './StreamActions'
 
 const debug = _debug('peercalls')
@@ -49,10 +49,10 @@ class SocketHandler {
     debug('socket hangUp, userId: %s', userId)
     dispatch(removeNickname({ userId }))
   }
-  handleMetadata = (metadata: TrackMetadata[]) => {
+  handleMetadata = (payload: MetadataPayload) => {
     const { dispatch } = this
-    debug('metadata', metadata)
-    dispatch(tracksMetadata(metadata))
+    debug('metadata', payload)
+    dispatch(tracksMetadata(payload))
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this

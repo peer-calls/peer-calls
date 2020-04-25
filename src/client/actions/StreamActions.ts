@@ -1,27 +1,23 @@
+import { MetadataPayload } from '../../shared'
 import * as constants from '../constants'
-import { TrackMetadata } from '../../shared'
 
 export type StreamType = 'camera' | 'desktop'
+export const StreamTypeCamera: StreamType = 'camera'
+export const StreamTypeDesktop: StreamType = 'desktop'
 
-export interface AddStreamPayload {
-  userId: string
-  type?: StreamType
+export interface AddLocalStreamPayload {
+  type: StreamType
   stream: MediaStream
 }
 
-export interface AddStreamAction {
-  type: 'PEER_STREAM_ADD'
-  payload: AddStreamPayload
-}
-
-export interface RemoveStreamAction {
+export interface RemoveLocalStreamAction {
   type: 'PEER_STREAM_REMOVE'
-  payload: RemoveStreamPayload
+  payload: RemoveLocalStreamPayload
 }
 
-export interface RemoveStreamPayload {
-  userId: string
+export interface RemoveLocalStreamPayload {
   stream: MediaStream
+  streamType: StreamType
 }
 
 export interface MinimizeTogglePayload {
@@ -64,15 +60,15 @@ export interface UserIdPayload {
 
 export interface TracksMetadataAction {
   type: 'TRACKS_METADATA'
-  payload: TrackMetadata[]
+  payload: MetadataPayload
 }
 
-export const removeStream = (
-  userId: string,
+export const removeLocalStream = (
   stream: MediaStream,
-): RemoveStreamAction => ({
+  streamType: StreamType,
+): RemoveLocalStreamAction => ({
   type: constants.STREAM_REMOVE,
-  payload: { userId, stream },
+  payload: { stream, streamType },
 })
 
 export const addTrack = (
@@ -97,15 +93,14 @@ export const minimizeToggle = (
 })
 
 export const tracksMetadata = (
-  payload: TrackMetadata[],
+  payload: MetadataPayload,
 ): TracksMetadataAction => ({
   type: constants.TRACKS_METADATA,
   payload,
 })
 
 export type StreamAction =
-  AddStreamAction |
-  RemoveStreamAction |
+  RemoveLocalStreamAction |
   MinimizeToggleAction |
   RemoveTrackAction |
   AddTrackAction

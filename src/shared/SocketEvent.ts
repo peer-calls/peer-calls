@@ -13,6 +13,11 @@ export interface TrackMetadata {
   streamId: string
 }
 
+export interface MetadataPayload {
+  userId: string
+  metadata: TrackMetadata[]
+}
+
 export interface SocketEvent {
   users: {
     initiator: string
@@ -21,7 +26,7 @@ export interface SocketEvent {
     // mapping of userId / nickname
     nicknames: Record<string, string>
   }
-  metadata: TrackMetadata[]
+  metadata: MetadataPayload
   hangUp: {
     userId: string
   }

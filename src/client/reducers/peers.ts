@@ -5,7 +5,7 @@ import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
 import { MediaStreamAction } from '../actions/MediaActions'
-import { RemoveStreamAction, StreamType } from '../actions/StreamActions'
+import { RemoveLocalStreamAction, StreamType } from '../actions/StreamActions'
 import { HangUpAction } from '../actions/CallActions'
 
 const debug = _debug('peercalls')
@@ -31,23 +31,22 @@ function removeTrackFromPeer(
   }
 }
 
-function handleRemoveStream(
+function handleRemoveLocalStream(
   state: PeersState,
-  action: RemoveStreamAction,
+  action: RemoveLocalStreamAction,
 ): PeersState {
   const stream = action.payload.stream
-  if (action.payload.userId === constants.ME) {
-    forEach(state, peer => {
-      stream.getTracks().forEach(track => {
-        removeTrackFromPeer(peer, track, stream)
-      })
+
+  forEach(state, peer => {
+    stream.getTracks().forEach(track => {
+      removeTrackFromPeer(peer, track, stream)
     })
-  }
+  })
 
   return state
 }
 
-function handleMediaStream(
+function handleLocalMediaStream(
   state: PeersState,
   action: MediaStreamAction,
 ): PeersState {
@@ -55,32 +54,33 @@ function handleMediaStream(
     return state
   }
   const streamType = action.payload.type
-  if (
-    action.payload.userId === constants.ME &&
-    streamType
-  ) {
-    forEach(state, peer => {
-      const localStream = localStreams[streamType]
-      localStream && localStream.getTracks().forEach(track => {
-        removeTrackFromPeer(peer, track, localStream)
-      })
-      const stream = action.payload.stream
-      stream.getTracks().forEach(track => {
-        debug(
-          'Add track to peer, id: %s, kind: %s, label: %s',
-          track.id, track.kind, track.label,
-        )
-        peer.addTrack(track, stream)
-      })
+
+  forEach(state, peer => {
+    const localStream = localStreams[streamType]
+    localStream && localStream.getTracks().forEach(track => {
+      removeTrackFromPeer(peer, track, localStream)
     })
-    localStreams[streamType] = action.payload.stream
-  }
+    const stream = action.payload.stream
+    stream.getTracks().forEach(track => {
+      debug(
+        'Add track to peer, id: %s, kind: %s, label: %s',
+        track.id, track.kind, track.label,
+      )
+      peer.addTrack(track, stream)
+    })
+  })
+  localStreams[streamType] = action.payload.stream
+
   return state
 }
 
 export default function peers(
   state = defaultState,
-  action: PeerAction | MediaStreamAction | RemoveStreamAction | HangUpAction,
+  action:
+    PeerAction |
+    MediaStreamAction |
+    RemoveLocalStreamAction |
+    HangUpAction,
 ): PeersState {
   switch (action.type) {
     case constants.PEER_ADD:
@@ -100,9 +100,9 @@ export default function peers(
       })
       return defaultState
     case constants.STREAM_REMOVE:
-      return handleRemoveStream(state, action)
+      return handleRemoveLocalStream(state, action)
     case constants.MEDIA_STREAM:
-      return handleMediaStream(state, action)
+      return handleLocalMediaStream(state, action)
     default:
       return state
   }

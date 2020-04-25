@@ -3,7 +3,7 @@ import { init, hangUp } from '../actions/CallActions'
 import { getDesktopStream, play } from '../actions/MediaActions'
 import { dismissNotification } from '../actions/NotifyActions'
 import { sendFile, sendMessage } from '../actions/PeerActions'
-import { minimizeToggle, removeStream } from '../actions/StreamActions'
+import { minimizeToggle, removeLocalStream } from '../actions/StreamActions'
 import App from '../components/App'
 import { State } from '../store'
 
@@ -26,7 +26,7 @@ const mapDispatchToProps = {
   sendMessage,
   dismissNotification,
   getDesktopStream,
-  removeStream,
+  removeLocalStream,
   init,
   onSendFile: sendFile,
   play,

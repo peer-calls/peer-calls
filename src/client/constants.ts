@@ -59,6 +59,3 @@ export const STREAM_TRACK_ADD = 'PEER_STREAM_TRACK_ADD'
 export const STREAM_TRACK_REMOVE = 'PEER_STREAM_TRACK_REMOVE'
 
 export const TRACKS_METADATA = 'TRACKS_METADATA'
-
-export const STREAM_TYPE_CAMERA = 'camera'
-export const STREAM_TYPE_DESKTOP = 'desktop'

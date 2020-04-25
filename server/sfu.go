@@ -72,6 +72,11 @@ func (p *pionLogger) Errorf(format string, args ...interface{}) {
 
 const serverIsInitiator = true
 
+type MetadataPayload struct {
+	UserID   string          `json:"userId"`
+	Metadata []TrackMetadata `json:"metadata"`
+}
+
 func NewSFUHandler(
 	loggerFactory LoggerFactory,
 	wss *WSS,
@@ -247,7 +252,10 @@ func NewSFUHandler(
 						for signal := range signalChannel {
 							if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
 								if metadata, ok := tracksManager.GetTracksMetadata(clientID); ok {
-									adapter.Emit(clientID, NewMessage("metadata", room, metadata))
+									adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
+										UserID:   clientID,
+										Metadata: metadata,
+									}))
 								}
 							}
 							err := adapter.Emit(clientID, NewMessage("signal", room, signal))

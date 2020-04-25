@@ -6,7 +6,8 @@ jest.useFakeTimers()
 import SimplePeer from 'simple-peer'
 import { dial, hangUp } from '../actions/CallActions'
 import * as MediaActions from '../actions/MediaActions'
-import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, ME, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, STREAM_TYPE_CAMERA, STREAM_TYPE_DESKTOP, SOCKET_EVENT_HANG_UP } from '../constants'
+import { StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
+import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, SOCKET_EVENT_HANG_UP } from '../constants'
 import socket from '../socket'
 import { createStore, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
@@ -114,19 +115,20 @@ describe('media', () => {
           video: true,
         }))
         expect(result.stream).toBe(stream)
-        expect(result.type).toBe(STREAM_TYPE_CAMERA)
-        expect(result.userId).toBe(ME)
+        expect(result.type).toBe(StreamTypeCamera)
       }
 
       describe('reducers/streams', () => {
         it('adds the local stream to the map of videos', async () => {
-          expect(store.getState().streams[ME]).toBeFalsy()
+          expect(store.getState().streams.localStreams).toEqual({})
           await dispatch()
-          const localStreams = store.getState().streams[ME]
-          expect(localStreams).toBeTruthy()
-          expect(localStreams.streams.length).toBe(1)
-          expect(localStreams.streams[0].type).toBe(STREAM_TYPE_CAMERA)
-          expect(localStreams.streams[0].stream).toBe(stream)
+          const { localStreams } = store.getState().streams
+          expect(Object.keys(localStreams).length).toBe(1)
+          const s = localStreams[StreamTypeCamera]!
+          expect(s).toBeTruthy()
+          expect(s.stream).toBe(stream)
+          expect(s.streamId).toBe(stream.id)
+          expect(s.type).toBe(StreamTypeCamera)
         })
       })
 
@@ -198,7 +200,6 @@ describe('media', () => {
           expect(promise.status).toBe('pending')
           const result = await promise
           expect(result.stream).toBe(stream)
-          expect(result.userId).toBe(ME)
         })
       })
     })
@@ -212,17 +213,17 @@ describe('media', () => {
     async function dispatch() {
       const result = await store.dispatch(MediaActions.getDesktopStream())
       expect(result.stream).toBe(stream)
-      expect(result.type).toBe(STREAM_TYPE_DESKTOP)
-      expect(result.userId).toBe(ME)
+      expect(result.type).toBe(StreamTypeDesktop)
     }
     it('adds the local stream to the map of videos', async () => {
-      expect(store.getState().streams[ME]).toBeFalsy()
+      expect(store.getState().streams.localStreams).toEqual({})
       await dispatch()
-      const localStreams = store.getState().streams[ME]
-      expect(localStreams).toBeTruthy()
-      expect(localStreams.streams.length).toBe(1)
-      expect(localStreams.streams[0].type).toBe(STREAM_TYPE_DESKTOP)
-      expect(localStreams.streams[0].stream).toBe(stream)
+      const {localStreams } = store.getState().streams
+      expect(Object.keys(localStreams).length).toBe(1)
+      const s = localStreams[StreamTypeDesktop]!
+      expect(s.type).toBe(StreamTypeDesktop)
+      expect(s.stream).toBe(stream)
+      expect(s.streamId).toBe(stream.id)
     })
   })
 

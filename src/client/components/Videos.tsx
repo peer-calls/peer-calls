@@ -1,12 +1,13 @@
 import React from 'react'
 import { StreamWithURL, StreamsState } from '../reducers/streams'
 import forEach from 'lodash/forEach'
+import map from 'lodash/map'
 import { ME } from '../constants'
 import { getNickname } from '../nickname'
 import Video from './Video'
 import { Nicknames } from '../reducers/nicknames'
 import { getStreamKey, WindowStates, WindowState } from '../reducers/windowStates'
-import { MinimizeTogglePayload } from '../actions/StreamActions'
+import { MinimizeTogglePayload, StreamTypeCamera, StreamType } from '../actions/StreamActions'
 
 export interface VideosProps {
   nicknames: Nicknames
@@ -44,7 +45,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
     function addStreamsByUser(
       localUser: boolean,
       userId: string,
-      streams: StreamWithURL[],
+      streams: Array<StreamWithURL & { type?: StreamType }>,
     ) {
 
       if (!streams.length) {
@@ -65,7 +66,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
           key,
           stream: stream,
           userId,
-          mirrored: localUser && stream.type === 'camera',
+          mirrored: localUser && stream.type === StreamTypeCamera,
           muted: localUser,
           localUser,
           windowState: windowStates[key],
@@ -74,7 +75,8 @@ export default class Videos extends React.PureComponent<VideosProps> {
       })
     }
 
-    addStreamsByUser(true, ME, streams.localStreams)
+    const localStreams = map(streams.localStreams, s => s!)
+    addStreamsByUser(true, ME, localStreams)
 
     forEach(nicknames, (_, userId) => {
       const s = streams.streamsByUserId[userId]

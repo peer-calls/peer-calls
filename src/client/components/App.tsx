@@ -1,6 +1,5 @@
 import classnames from 'classnames'
 import forEach from 'lodash/forEach'
-import keyBy from 'lodash/keyBy'
 import React from 'react'
 import Peer from 'simple-peer'
 import { hangUp } from '../actions/CallActions'
@@ -8,7 +7,7 @@ import { Message } from '../actions/ChatActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
 import { Message as MessageType } from '../actions/PeerActions'
-import { MinimizeTogglePayload, removeStream } from '../actions/StreamActions'
+import { MinimizeTogglePayload, removeLocalStream, StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
 import * as constants from '../constants'
 import { Nicknames } from '../reducers/nicknames'
 import { StreamsState } from '../reducers/streams'
@@ -33,7 +32,7 @@ export interface AppProps {
   sendMessage: (message: MessageType) => void
   streams: StreamsState
   getDesktopStream: typeof getDesktopStream
-  removeStream: typeof removeStream
+  removeLocalStream: typeof removeLocalStream
   onSendFile: (file: File) => void
   windowStates: WindowStates
   minimizeToggle: (payload: MinimizeTogglePayload) => void
@@ -68,15 +67,11 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     init()
   }
   onHangup = () => {
-    const localStreams = this.getLocalStreams()
+    const { localStreams } = this.props.streams
     forEach(localStreams, s => {
-      this.props.removeStream(constants.ME, s.stream)
+      this.props.removeLocalStream(s!.stream, s!.type)
     })
     this.props.hangUp()
-  }
-  getLocalStreams() {
-    const ls = this.props.streams.localStreams
-    return ls ? keyBy(ls, 'type') : {}
   }
   render () {
     const {
@@ -93,7 +88,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       'chat-visible': this.state.chatVisible,
     })
 
-    const localStreams = this.getLocalStreams()
+    const { localStreams } = this.props.streams
 
     return (
       <div className="app">
@@ -105,10 +100,10 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}
             onHangup={this.onHangup}
-            stream={localStreams[constants.STREAM_TYPE_CAMERA]}
-            desktopStream={localStreams[constants.STREAM_TYPE_DESKTOP]}
+            cameraStream={localStreams[StreamTypeCamera]}
+            desktopStream={localStreams[StreamTypeDesktop]}
             onGetDesktopStream={this.props.getDesktopStream}
-            onRemoveStream={this.props.removeStream}
+            onRemoveLocalStream={this.props.removeLocalStream}
           />
         </Side>
         <Side className={chatVisibleClassName} top zIndex={1}>
