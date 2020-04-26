@@ -41,7 +41,7 @@ func (t *MemoryTracksManager) addTrack(room string, clientID string, track *webr
 
 	for otherClientID, otherPeerInRoom := range t.peers {
 		if otherClientID != clientID {
-			if err := addTrackToPeer(t.log, otherPeerInRoom, track); err != nil {
+			if err := addTrackToPeer(t.log, otherPeerInRoom, clientID, track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
 			}
@@ -79,9 +79,9 @@ func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelM
 	t.mu.Unlock()
 }
 
-func addTrackToPeer(log Logger, p peer, track *webrtc.Track) error {
+func addTrackToPeer(log Logger, p peer, sourceClientID string, track *webrtc.Track) error {
 	trackListener := p.trackListener
-	if err := trackListener.AddTrack(track); err != nil {
+	if err := trackListener.AddTrack(sourceClientID, track); err != nil {
 		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %s: %s", trackListener.ClientID(), track.ID(), err)
 	}
 
@@ -130,7 +130,7 @@ func (t *MemoryTracksManager) Add(
 		}
 		for _, track := range existingPeerInRoom.trackListener.Tracks() {
 			// TODO what if tracks list changes in the meantime?
-			err := addTrackToPeer(t.log, peerJoiningRoom, track)
+			err := addTrackToPeer(t.log, peerJoiningRoom, existingPeerClientID, track)
 			if err != nil {
 				t.log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
@@ -170,6 +170,19 @@ func (t *MemoryTracksManager) Add(
 	}()
 
 	t.mu.Unlock()
+}
+
+// GetTracksMetadata retrieves track metadata for a specific peer
+func (t *MemoryTracksManager) GetTracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	peer, ok := t.peers[clientID]
+	if !ok {
+		return m, false
+	}
+	m = peer.trackListener.GetTracksMetadata()
+	return m, true
 }
 
 func (t *MemoryTracksManager) removePeer(clientID string) {

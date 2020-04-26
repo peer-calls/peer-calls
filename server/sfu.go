@@ -72,6 +72,11 @@ func (p *pionLogger) Errorf(format string, args ...interface{}) {
 
 const serverIsInitiator = true
 
+type MetadataPayload struct {
+	UserID   string          `json:"userId"`
+	Metadata []TrackMetadata `json:"metadata"`
+}
+
 func NewSFUHandler(
 	loggerFactory LoggerFactory,
 	wss *WSS,
@@ -157,7 +162,7 @@ func NewSFUHandler(
 		}
 
 		handleMessage := func(event RoomEvent) {
-			log.Printf("[%s] got message, %s", event.ClientID, event.Message.Type)
+			// log.Printf("[%s] got message, %s", event.ClientID, event.Message.Type)
 			signallerMu.Lock()
 			defer signallerMu.Unlock()
 
@@ -245,6 +250,14 @@ func NewSFUHandler(
 					tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
 						for signal := range signalChannel {
+							if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
+								if metadata, ok := tracksManager.GetTracksMetadata(clientID); ok {
+									adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
+										UserID:   localPeerID,
+										Metadata: metadata,
+									}))
+								}
+							}
 							err := adapter.Emit(clientID, NewMessage("signal", room, signal))
 							if err != nil {
 								log.Printf("[%s] Error sending local signal: %s", clientID, err)

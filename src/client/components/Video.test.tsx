@@ -2,12 +2,11 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import Video, { VideoProps } from './Video'
-import { MediaStream } from '../window'
-import { STREAM_TYPE_CAMERA } from '../constants'
+import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { StreamWithURL } from '../reducers/streams'
 import { WindowState } from '../reducers/windowStates'
-import { MinimizeTogglePayload } from '../actions/StreamActions'
+import { MediaStream } from '../window'
+import Video, { VideoProps } from './Video'
 
 describe('components/Video', () => {
 
@@ -67,8 +66,8 @@ describe('components/Video', () => {
     component = await new Promise<VideoWrapper>(resolve => {
       const stream: StreamWithURL = {
         stream: mediaStream,
+        streamId: mediaStream.id,
         url,
-        type: STREAM_TYPE_CAMERA,
       }
       ReactDOM.render(
         <VideoWrapper
@@ -117,7 +116,7 @@ describe('components/Video', () => {
           stream: {
             url: 'test',
             stream: mediaStream,
-            type: STREAM_TYPE_CAMERA,
+            streamId: mediaStream.id,
           },
         })
         expect(video.videoRef.current!.src).toBe('http://localhost/test')
@@ -125,7 +124,7 @@ describe('components/Video', () => {
           stream: {
             url: 'test',
             stream: mediaStream,
-            type: STREAM_TYPE_CAMERA,
+            streamId: mediaStream.id,
           },
         })
       })
@@ -136,7 +135,7 @@ describe('components/Video', () => {
           stream: {
             url: 'test',
             stream: mediaStream,
-            type: STREAM_TYPE_CAMERA,
+            streamId: mediaStream.id,
           },
         })
         expect(video.videoRef.current!.srcObject).toBe(mediaStream)
@@ -144,7 +143,7 @@ describe('components/Video', () => {
           stream: {
             url: 'test',
             stream: mediaStream,
-            type: STREAM_TYPE_CAMERA,
+            streamId: mediaStream.id,
           },
         })
       })

@@ -14,6 +14,7 @@ import reducers from '../reducers'
 import { middlewares, State, Store } from '../store'
 import { MediaStream } from '../window'
 import App from './App'
+import { StreamTypeCamera } from '../actions/StreamActions'
 
 describe('App', () => {
 
@@ -80,23 +81,29 @@ describe('App', () => {
 
   describe('state', () => {
     beforeEach(async () => {
+      const localStream = new MediaStream()
+      const remoteStream = new MediaStream()
       state.streams = {
-        [constants.ME]: {
-          userId: constants.ME,
-          streams: [{
-            stream: new MediaStream(),
-            type: constants.STREAM_TYPE_CAMERA,
-            url: 'blob://',
-          }],
+        localStreams: {
+          [StreamTypeCamera]: {
+            stream: localStream,
+            streamId: localStream.id,
+            type: StreamTypeCamera,
+          },
         },
-        'other-user': {
-          userId: 'other-user',
-          streams: [{
-            stream: new MediaStream(),
-            type: undefined,
-            url: 'blob://',
-          }],
+        streamsByUserId: {
+          'other-user': {
+            userId: 'other-user',
+            streams: [{
+              stream: remoteStream,
+              streamId: remoteStream.id,
+              url: 'blob://',
+            }],
+          },
         },
+        metadataByPeerIdMid: {},
+        trackIdToPeerIdMid: {},
+        tracksByPeerIdMid: {},
       }
       state.peers = {
         'other-user': {} as any,
@@ -149,7 +156,7 @@ describe('App', () => {
           payload: {
             userId: constants.ME,
             streamId: store.getState()
-            .streams![constants.ME].streams[0].stream.id,
+            .streams.localStreams[StreamTypeCamera]!.streamId,
           },
         }]])
 

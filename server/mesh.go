@@ -23,6 +23,9 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			var err error
 
 			switch msg.Type {
+			case "hangUp":
+				log.Printf("[%s] hangUp event", clientID)
+				adapter.SetMetadata(clientID, "")
 			case "ready":
 				// FIXME check for errors
 				payload, _ := msg.Payload.(map[string]interface{})
