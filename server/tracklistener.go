@@ -103,6 +103,8 @@ func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
+	metadata = make([]TrackMetadata, 0)
+
 	for _, trackInfo := range p.trackInfoByTrack {
 		m := trackInfo.TrackMetadata
 		m.Mid = trackInfo.RTPTransceiver.Mid()
