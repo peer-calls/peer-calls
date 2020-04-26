@@ -1,11 +1,12 @@
+import _debug from 'debug'
+import { MetadataPayload, SocketEvent } from '../../shared'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
-import _debug from 'debug'
-import { Store, Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
-import { SocketEvent } from '../../shared'
-import { setNicknames, removeNickname } from './NicknameActions'
+import { Dispatch, GetState, Store } from '../store'
+import { removeNickname, setNicknames } from './NicknameActions'
+import { tracksMetadata } from './StreamActions'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -47,6 +48,11 @@ class SocketHandler {
     const { dispatch } = this
     debug('socket hangUp, userId: %s', userId)
     dispatch(removeNickname({ userId }))
+  }
+  handleMetadata = (payload: MetadataPayload) => {
+    const { dispatch } = this
+    debug('metadata', payload)
+    dispatch(tracksMetadata(payload))
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
@@ -99,6 +105,7 @@ export function handshake (options: HandshakeOptions) {
   // remove listeneres to make socket reusable
   removeEventListeners(socket)
 
+  socket.on(constants.SOCKET_EVENT_METADATA, handler.handleMetadata)
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
@@ -112,6 +119,7 @@ export function handshake (options: HandshakeOptions) {
 }
 
 export function removeEventListeners (socket: ClientSocket) {
+  socket.removeAllListeners(constants.SOCKET_EVENT_METADATA)
   socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
   socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
   socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)

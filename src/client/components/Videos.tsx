@@ -1,12 +1,13 @@
 import React from 'react'
 import { StreamWithURL, StreamsState } from '../reducers/streams'
 import forEach from 'lodash/forEach'
+import map from 'lodash/map'
 import { ME } from '../constants'
 import { getNickname } from '../nickname'
 import Video from './Video'
 import { Nicknames } from '../reducers/nicknames'
 import { getStreamKey, WindowStates, WindowState } from '../reducers/windowStates'
-import { MinimizeTogglePayload } from '../actions/StreamActions'
+import { MinimizeTogglePayload, StreamTypeCamera, StreamType } from '../actions/StreamActions'
 
 export interface VideosProps {
   nicknames: Nicknames
@@ -41,12 +42,13 @@ export default class Videos extends React.PureComponent<VideosProps> {
       }
     }
 
-    function addStreamsByUser(userId: string) {
-      const localUser = userId === ME
+    function addStreamsByUser(
+      localUser: boolean,
+      userId: string,
+      streams: Array<StreamWithURL & { type?: StreamType }>,
+    ) {
 
-      const userStreams = streams[userId]
-
-      if (!userStreams) {
+      if (!streams.length) {
         const key = getStreamKey(userId, undefined)
         const props: StreamProps = {
           key,
@@ -58,13 +60,13 @@ export default class Videos extends React.PureComponent<VideosProps> {
         return
       }
 
-      userStreams.streams.forEach((stream, i) => {
-        const key = getStreamKey(userId, stream.stream.id)
+      streams.forEach((stream, i) => {
+        const key = getStreamKey(userId, stream.streamId)
         const props: StreamProps = {
           key,
           stream: stream,
           userId,
-          mirrored: localUser && stream.type === 'camera',
+          mirrored: localUser && stream.type === StreamTypeCamera,
           muted: localUser,
           localUser,
           windowState: windowStates[key],
@@ -73,8 +75,15 @@ export default class Videos extends React.PureComponent<VideosProps> {
       })
     }
 
-    // this includes ME and other peers
-    forEach(nicknames, (_, userId) => addStreamsByUser(userId))
+    const localStreams = map(streams.localStreams, s => s!)
+    addStreamsByUser(true, ME, localStreams)
+
+    forEach(nicknames, (_, userId) => {
+      if (userId != ME) {
+        const s = streams.streamsByUserId[userId]
+        addStreamsByUser(false, userId, s && s.streams || [])
+      }
+    })
 
     return { minimized, maximized }
   }

@@ -57,39 +57,36 @@ class PeerHandler {
 
     const state = getState()
     const peer = state.peers[user.id]
-    const localStream = state.streams[constants.ME]
-    localStream && localStream.streams.forEach(s => {
+    forEach(state.streams.localStreams, s => {
       // If the local user pressed join call before this peer has joined the
       // call, now is the time to share local media stream with the peer since
       // we no longer automatically send the stream to the peer.
-      s.stream.getTracks().forEach(track => {
-        peer.addTrack(track, s.stream)
+      s!.stream.getTracks().forEach(track => {
+        peer.addTrack(track, s!.stream)
       })
     })
   }
-  handleTrack = (track: MediaStreamTrack, stream: MediaStream) => {
+  handleTrack = (track: MediaStreamTrack, stream: MediaStream, mid: string) => {
     const { user, dispatch } = this
     const userId = user.id
-    debug('peer: %s, track: %s, stream: %s', userId, track.id, stream.id)
+    debug('peer: %s, track: %s, stream: %s, mid: %s',
+          userId, track.id, stream.id, mid)
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {
       debug(
         'peer: %s, track mute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
-      dispatch(StreamActions.removeTrack({
-        userId,
-        stream,
-        track,
-      }))
+      dispatch(StreamActions.removeTrack({ track }))
     }
     track.onunmute = () => {
       debug(
         'peer: %s, track unmute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
       dispatch(StreamActions.addTrack({
+        streamId: stream.id,
+        mid,
         userId,
-        stream,
         track,
       }))
     }
@@ -117,13 +114,8 @@ class PeerHandler {
     }
   }
   handleClose = () => {
-    const { dispatch, user, getState } = this
+    const { dispatch, user } = this
     dispatch(NotifyActions.error('Peer connection closed'))
-    const state = getState()
-    const userStreams = state.streams[user.id]
-    userStreams && userStreams.streams.forEach(s => {
-      dispatch(StreamActions.removeStream(user.id, s.stream))
-    })
     dispatch(removePeer(user.id))
   }
 }

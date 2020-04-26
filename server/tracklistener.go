@@ -27,34 +27,42 @@ type TrackEvent struct {
 	Type     TrackEventType
 }
 
+type TrackMetadata struct {
+	Mid      string `json:"mid"`
+	UserID   string `json:"userId"`
+	StreamID string `json:"streamId"`
+	Kind     string `json:"kind"`
+}
+
+type TrackInfo struct {
+	RTPTransceiver *webrtc.RTPTransceiver
+	RTPSender      *webrtc.RTPSender
+	TrackMetadata  TrackMetadata
+}
+
 type trackListener struct {
 	log              Logger
 	clientID         string
 	peerConnection   *webrtc.PeerConnection
 	localTracks      []*webrtc.Track
 	localTracksMu    sync.RWMutex
-	rtpSenderByTrack map[*webrtc.Track]*webrtc.RTPSender
-
-	tracksChannel       chan TrackEvent
-	tracksChannelClosed bool
-	closeChannel        chan struct{}
-	mu                  sync.RWMutex
-	closeOnce           sync.Once
+	trackInfoByTrack map[*webrtc.Track]TrackInfo
+	onTrackEvent     func(TrackEvent)
+	mu               sync.RWMutex
 }
 
 func newTrackListener(
 	loggerFactory LoggerFactory,
 	clientID string,
 	peerConnection *webrtc.PeerConnection,
+	onTrackEvent func(TrackEvent),
 ) *trackListener {
 	p := &trackListener{
 		log:              loggerFactory.GetLogger("peer"),
 		clientID:         clientID,
 		peerConnection:   peerConnection,
-		rtpSenderByTrack: map[*webrtc.Track]*webrtc.RTPSender{},
-
-		tracksChannel: make(chan TrackEvent),
-		closeChannel:  make(chan struct{}),
+		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
+		onTrackEvent:     onTrackEvent,
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -63,29 +71,26 @@ func newTrackListener(
 	return p
 }
 
-// FIXME add support for data channel messages for sending chat messages, and images/files
-
-func (p *trackListener) Close() {
-	p.closeOnce.Do(func() {
-		close(p.closeChannel)
-
-		p.mu.Lock()
-		defer p.mu.Unlock()
-
-		close(p.tracksChannel)
-		p.tracksChannelClosed = true
-	})
-}
-
-func (p *trackListener) TracksChannel() <-chan TrackEvent {
-	return p.tracksChannel
-}
-
 func (p *trackListener) ClientID() string {
 	return p.clientID
 }
 
-func (p *trackListener) AddTrack(track *webrtc.Track) error {
+// GetTracksMetadata gets metadata of the sending tracks with updated Mid
+func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	metadata = make([]TrackMetadata, 0)
+
+	for _, trackInfo := range p.trackInfoByTrack {
+		m := trackInfo.TrackMetadata
+		m.Mid = trackInfo.RTPTransceiver.Mid()
+		metadata = append(metadata, m)
+	}
+	return
+}
+
+func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 
@@ -98,12 +103,28 @@ func (p *trackListener) AddTrack(track *webrtc.Track) error {
 	// 	},
 	// )
 
+	var transceiver *webrtc.RTPTransceiver
+	for _, tr := range p.peerConnection.GetTransceivers() {
+		if tr.Sender() == rtpSender {
+			transceiver = tr
+			break
+		}
+	}
+
 	if err != nil {
 		return fmt.Errorf("[%s] peer.AddTrack: error adding track: %s: %s", p.clientID, track.ID(), err)
 	}
 
-	// p.rtpSenderByTrack[track] = t.Sender()
-	p.rtpSenderByTrack[track] = rtpSender
+	p.trackInfoByTrack[track] = TrackInfo{
+		RTPSender:      rtpSender,
+		RTPTransceiver: transceiver,
+		TrackMetadata: TrackMetadata{
+			Mid:      "",
+			Kind:     track.Kind().String(),
+			UserID:   sourceClientID,
+			StreamID: track.Label(),
+		},
+	}
 	return nil
 }
 
@@ -111,12 +132,12 @@ func (p *trackListener) RemoveTrack(track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 	p.log.Printf("[%s] peer.RemoveTrack: %s", p.clientID, track.ID())
-	rtpSender, ok := p.rtpSenderByTrack[track]
+	trackInfo, ok := p.trackInfoByTrack[track]
 	if !ok {
 		return fmt.Errorf("[%s] peer.RemoveTrack: cannot find sender for track: %s", p.clientID, track.ID())
 	}
-	delete(p.rtpSenderByTrack, track)
-	return p.peerConnection.RemoveTrack(rtpSender)
+	delete(p.trackInfoByTrack, track)
+	return p.peerConnection.RemoveTrack(trackInfo.RTPSender)
 }
 
 func (p *trackListener) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
@@ -132,24 +153,12 @@ func (p *trackListener) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.
 	p.localTracksMu.Unlock()
 
 	p.log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
-	p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeAdd}
+
+	p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeAdd})
 }
 
 func (p *trackListener) sendTrackEvent(t TrackEvent) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	ch := p.tracksChannel
-	if p.tracksChannelClosed {
-		ch = nil
-	}
-
-	select {
-	case ch <- t:
-		p.log.Printf("[%s] sendTrackEvent success", p.clientID)
-	case <-p.closeChannel:
-		p.log.Printf("[%s] sendTrackEvent channel closed", p.clientID)
-	}
+	go p.onTrackEvent(t)
 }
 
 func (p *trackListener) Tracks() []*webrtc.Track {
@@ -211,14 +220,8 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Tr
 	}()
 
 	go func() {
+		defer p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeRemove})
 		defer ticker.Stop()
-		defer func() {
-			p.mu.RLock()
-			if !p.tracksChannelClosed {
-				p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeRemove}
-			}
-			p.mu.RUnlock()
-		}()
 		rtpBuf := make([]byte, 1400)
 		for {
 			i, err := remoteTrack.Read(rtpBuf)

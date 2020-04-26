@@ -48,7 +48,7 @@ export default class Video extends React.PureComponent<VideoProps> {
   handleMinimize = () => {
     this.props.onMinimizeToggle({
       userId: this.props.userId,
-      streamId: this.props.stream && this.props.stream.stream.id,
+      streamId: this.props.stream && this.props.stream.streamId,
     })
   }
   handleToggleCover = () => {
