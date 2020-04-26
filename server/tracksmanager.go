@@ -106,10 +106,20 @@ func (t *MemoryTracksManager) Add(
 ) {
 	t.log.Printf("[%s] TrackManager.Add peer to room: %s", clientID, room)
 
+	onTrackEvent := func(e TrackEvent) {
+		switch e.Type {
+		case TrackEventTypeAdd:
+			t.addTrack(room, e.ClientID, e.Track)
+		case TrackEventTypeRemove:
+			t.removeTrack(e.ClientID, e.Track)
+		}
+	}
+
 	trackListener := newTrackListener(
 		t.loggerFactory,
 		clientID,
 		peerConnection,
+		onTrackEvent,
 	)
 
 	t.mu.Lock()
@@ -152,18 +162,6 @@ func (t *MemoryTracksManager) Add(
 		}
 	}()
 
-	tracksChannel := trackListener.TracksChannel()
-	go func() {
-		for e := range tracksChannel {
-			switch e.Type {
-			case TrackEventTypeAdd:
-				t.addTrack(room, e.ClientID, e.Track)
-			case TrackEventTypeRemove:
-				t.removeTrack(e.ClientID, e.Track)
-			}
-		}
-	}()
-
 	go func() {
 		<-signaller.CloseChannel()
 		t.removePeer(clientID)
@@ -195,7 +193,6 @@ func (t *MemoryTracksManager) removePeer(clientID string) {
 		return
 	}
 
-	peerLeavingRoom.trackListener.Close()
 	peerLeavingRoom.dataTransceiver.Close()
 	t.removePeerTracks(peerLeavingRoom)
 

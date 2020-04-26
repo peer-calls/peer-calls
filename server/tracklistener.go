@@ -47,51 +47,28 @@ type trackListener struct {
 	localTracks      []*webrtc.Track
 	localTracksMu    sync.RWMutex
 	trackInfoByTrack map[*webrtc.Track]TrackInfo
-
-	tracksChannel       chan TrackEvent
-	tracksChannelClosed bool
-	closeChannel        chan struct{}
-	mu                  sync.RWMutex
-	closeOnce           sync.Once
+	onTrackEvent     func(TrackEvent)
+	mu               sync.RWMutex
 }
 
 func newTrackListener(
 	loggerFactory LoggerFactory,
 	clientID string,
 	peerConnection *webrtc.PeerConnection,
+	onTrackEvent func(TrackEvent),
 ) *trackListener {
 	p := &trackListener{
 		log:              loggerFactory.GetLogger("peer"),
 		clientID:         clientID,
 		peerConnection:   peerConnection,
 		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
-
-		tracksChannel: make(chan TrackEvent),
-		closeChannel:  make(chan struct{}),
+		onTrackEvent:     onTrackEvent,
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
 	peerConnection.OnTrack(p.handleTrack)
 
 	return p
-}
-
-// FIXME add support for data channel messages for sending chat messages, and images/files
-
-func (p *trackListener) Close() {
-	p.closeOnce.Do(func() {
-		close(p.closeChannel)
-
-		p.mu.Lock()
-		defer p.mu.Unlock()
-
-		close(p.tracksChannel)
-		p.tracksChannelClosed = true
-	})
-}
-
-func (p *trackListener) TracksChannel() <-chan TrackEvent {
-	return p.tracksChannel
 }
 
 func (p *trackListener) ClientID() string {
@@ -176,24 +153,12 @@ func (p *trackListener) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.
 	p.localTracksMu.Unlock()
 
 	p.log.Printf("[%s] peer.handleTrack add track to list of local tracks: %s", p.clientID, localTrack.ID())
-	p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeAdd}
+
+	p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeAdd})
 }
 
 func (p *trackListener) sendTrackEvent(t TrackEvent) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	ch := p.tracksChannel
-	if p.tracksChannelClosed {
-		ch = nil
-	}
-
-	select {
-	case ch <- t:
-		p.log.Printf("[%s] sendTrackEvent success", p.clientID)
-	case <-p.closeChannel:
-		p.log.Printf("[%s] sendTrackEvent channel closed", p.clientID)
-	}
+	go p.onTrackEvent(t)
 }
 
 func (p *trackListener) Tracks() []*webrtc.Track {
@@ -255,14 +220,8 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Tr
 	}()
 
 	go func() {
+		defer p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeRemove})
 		defer ticker.Stop()
-		defer func() {
-			p.mu.RLock()
-			if !p.tracksChannelClosed {
-				p.tracksChannel <- TrackEvent{p.clientID, localTrack, TrackEventTypeRemove}
-			}
-			p.mu.RUnlock()
-		}()
 		rtpBuf := make([]byte, 1400)
 		for {
 			i, err := remoteTrack.Read(rtpBuf)
