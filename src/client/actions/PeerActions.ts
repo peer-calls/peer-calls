@@ -77,12 +77,7 @@ class PeerHandler {
       debug(
         'peer: %s, track mute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
-      dispatch(StreamActions.removeTrack({
-        streamId: stream.id,
-        mid,
-        userId,
-        track,
-      }))
+      dispatch(StreamActions.removeTrack({ track }))
     }
     track.onunmute = () => {
       debug(

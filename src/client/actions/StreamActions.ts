@@ -31,9 +31,6 @@ export interface MinimizeToggleAction {
 }
 
 export interface RemoveTrackPayload {
-  mid: string
-  streamId: string
-  userId: string
   track: MediaStreamTrack
 }
 

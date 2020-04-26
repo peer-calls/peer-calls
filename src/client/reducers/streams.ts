@@ -2,15 +2,14 @@
 import forEach from 'lodash/forEach'
 import keyBy from 'lodash/keyBy'
 import omit from 'lodash/omit'
+import { MetadataPayload, TrackMetadata } from '../../shared'
 import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction } from '../actions/MediaActions'
-import { RemovePeerAction } from '../actions/PeerActions'
-import { AddTrackPayload, RemoveLocalStreamPayload, RemoveTrackPayload, StreamAction, StreamType, TracksMetadataAction, AddLocalStreamPayload } from '../actions/StreamActions'
-import { HANG_UP, MEDIA_STREAM, PEER_REMOVE, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, NICKNAME_REMOVE, TRACKS_METADATA } from '../constants'
-import { createObjectURL, revokeObjectURL } from '../window'
 import { NicknameRemoveAction, NicknameRemovePayload } from '../actions/NicknameActions'
-import { TrackMetadata, MetadataPayload } from '../../shared'
-import { MediaStream } from '../window'
+import { RemovePeerAction } from '../actions/PeerActions'
+import { AddLocalStreamPayload, AddTrackPayload, RemoveLocalStreamPayload, StreamAction, StreamType, TracksMetadataAction } from '../actions/StreamActions'
+import { HANG_UP, MEDIA_STREAM, NICKNAME_REMOVE, PEER_REMOVE, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, TRACKS_METADATA } from '../constants'
+import { createObjectURL, MediaStream, revokeObjectURL } from '../window'
 
 // const debug = _debug('peercalls')
 const defaultState = Object.freeze({
@@ -154,15 +153,23 @@ function removeLocalStream (
 }
 
 function removeTrack(
-  state: StreamsState, payload: RemoveTrackPayload,
+  state: StreamsState, track: MediaStreamTrack,
 ): StreamsState {
-  const peerIdMid = getPeerIdMid(payload.userId, payload.mid)
-  const { userId, streamId } = getUserId(state, payload)
-  const { track } = payload
+  const peerIdMid = state.trackIdToPeerIdMid[track.id]
+  const t = state.tracksByPeerIdMid[peerIdMid]
+
+  if (!t) {
+    console.log('trackInfo not found', peerIdMid)
+    return state
+  }
+  const {association} = t
+  if (!association) {
+    return state
+  }
+  const {userId, streamId} = association
 
   const userStreams = state.streamsByUserId[userId]
   if (!userStreams) {
-    console.log('userId not found', userId)
     return state
   }
 
@@ -183,7 +190,7 @@ function removeTrack(
     ...state.tracksByPeerIdMid,
     [peerIdMid]: {
       track,
-      mid: payload.mid,
+      mid: t.mid,
       association: undefined,
     },
   }
@@ -318,35 +325,22 @@ function setMetadata(
   payload: MetadataPayload,
 ): StreamsState {
 
-  const oldMetadata = state.metadataByPeerIdMid
-
   let newState = state
-  const newMetadata = keyBy(
+  const metadataByPeerIdMid = keyBy(
     payload.metadata,
     m => getPeerIdMid(payload.userId, m.mid),
   )
 
-  const omitOldKeys: string[] = []
-  forEach(oldMetadata, m => {
-    const  { mid } = m
-    const peerIdMid = getPeerIdMid(payload.userId, mid)
-    const t = state.tracksByPeerIdMid[peerIdMid]
-
-    if (!newMetadata[peerIdMid] && t && t.association) {
+  forEach(state.tracksByPeerIdMid, (t, peerIdMid) => {
+    if (!metadataByPeerIdMid[peerIdMid] && t && t.association) {
       // remove any track the server has lost track of
-      newState = removeTrack(newState, {
-        mid,
-        streamId: t.association.streamId,
-        track: t.track,
-        userId: t.association.userId,
-      })
-      omitOldKeys.push(peerIdMid)
+      newState = removeTrack(newState, t.track)
     }
   })
 
-  const metadataByPeerIdMid = {
-    ...omit(oldMetadata, omitOldKeys),
-    ...newMetadata,
+  newState = {
+    ...newState,
+    metadataByPeerIdMid,
   }
 
   payload.metadata.forEach(m => {
@@ -365,7 +359,7 @@ function setMetadata(
         mid,
         streamId,
         track: t.track,
-        userId,
+        userId: payload.userId,
       })
       return
     }
@@ -376,24 +370,16 @@ function setMetadata(
       return
     }
 
-    newState = removeTrack(newState, {
+    newState = removeTrack(newState, t.track)
+    newState = addTrack(newState, {
       mid,
       streamId: a.streamId,
       track: t.track,
-      userId: a.userId,
-    })
-    newState = addTrack(newState, {
-      mid,
-      streamId,
-      track: t.track,
-      userId,
+      userId: payload.userId,
     })
   })
 
-  return {
-    ...newState,
-    metadataByPeerIdMid,
-  }
+  return newState
 }
 
 function removePeer(
@@ -409,22 +395,17 @@ function removePeer(
 
   keysToRemove.forEach(key => {
     const t = state.tracksByPeerIdMid[key]
-    delete trackIdToPeerIdMid[t.track.id]
     if (t.association) {
-      newState = removeTrack(newState, {
-        mid: t.mid,
-        streamId: t.association.streamId,
-        track: t.track,
-        userId: t.association.userId,
-      })
+      newState = removeTrack(newState, t.track)
     }
+    delete trackIdToPeerIdMid[t.track.id]
   })
 
   const tracksByPeerIdMid = omit(state.tracksByPeerIdMid, keysToRemove)
 
   return {
     ...newState,
-    trackIdToPeerIdMid,
+    trackIdToPeerIdMid: {...trackIdToPeerIdMid},
     tracksByPeerIdMid,
   }
 }
@@ -445,7 +426,7 @@ export default function streams(
     case STREAM_TRACK_ADD:
       return addTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
-      return removeTrack(state, action.payload)
+      return removeTrack(state, action.payload.track)
     case NICKNAME_REMOVE:
       return unassociateUserTracks(state, action.payload)
     case TRACKS_METADATA:
