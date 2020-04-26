@@ -79,8 +79,10 @@ export default class Videos extends React.PureComponent<VideosProps> {
     addStreamsByUser(true, ME, localStreams)
 
     forEach(nicknames, (_, userId) => {
-      const s = streams.streamsByUserId[userId]
-      addStreamsByUser(false, userId, s && s.streams || [])
+      if (userId != ME) {
+        const s = streams.streamsByUserId[userId]
+        addStreamsByUser(false, userId, s && s.streams || [])
+      }
     })
 
     return { minimized, maximized }
