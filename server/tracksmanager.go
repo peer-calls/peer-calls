@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/pion/webrtc/v2"
@@ -36,12 +37,12 @@ type peer struct {
 	signaller       *Signaller
 }
 
-func (t *MemoryTracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
+func (t *MemoryTracksManager) addTrack(room string, sourcePC *webrtc.PeerConnection, clientID string, track *webrtc.Track) {
 	t.mu.Lock()
 
 	for otherClientID, otherPeerInRoom := range t.peers {
 		if otherClientID != clientID {
-			if err := addTrackToPeer(t.log, otherPeerInRoom, clientID, track); err != nil {
+			if err := t.addTrackToPeer(otherPeerInRoom, sourcePC, clientID, track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
 			}
@@ -79,9 +80,9 @@ func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelM
 	t.mu.Unlock()
 }
 
-func addTrackToPeer(log Logger, p peer, sourceClientID string, track *webrtc.Track) error {
+func (t *MemoryTracksManager) addTrackToPeer(p peer, sourcePC *webrtc.PeerConnection, sourceClientID string, track *webrtc.Track) error {
 	trackListener := p.trackListener
-	if err := trackListener.AddTrack(sourceClientID, track); err != nil {
+	if err := trackListener.AddTrack(sourcePC, sourceClientID, track); err != nil {
 		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %s: %s", trackListener.ClientID(), track.ID(), err)
 	}
 
@@ -109,7 +110,7 @@ func (t *MemoryTracksManager) Add(
 	onTrackEvent := func(e TrackEvent) {
 		switch e.Type {
 		case TrackEventTypeAdd:
-			t.addTrack(room, e.ClientID, e.Track)
+			t.addTrack(room, peerConnection, e.ClientID, e.Track)
 		case TrackEventTypeRemove:
 			t.removeTrack(e.ClientID, e.Track)
 		}
@@ -140,7 +141,7 @@ func (t *MemoryTracksManager) Add(
 		}
 		for _, track := range existingPeerInRoom.trackListener.Tracks() {
 			// TODO what if tracks list changes in the meantime?
-			err := addTrackToPeer(t.log, peerJoiningRoom, existingPeerClientID, track)
+			err := t.addTrackToPeer(peerJoiningRoom, existingPeerInRoom.signaller.peerConnection, existingPeerClientID, track)
 			if err != nil {
 				t.log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
