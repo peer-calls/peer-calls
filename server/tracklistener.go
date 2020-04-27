@@ -109,14 +109,13 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 				break
 			}
 			for _, pkt := range rtcps {
-				switch pktType := pkt.(type) {
+				switch pkt.(type) {
 				case *rtcp.PictureLossIndication:
 					err := sourcePC.WriteRTCP(
 						[]rtcp.Packet{
-							pktType,
-							// &rtcp.PictureLossIndication{
-							// 	MediaSSRC: track.SSRC(),
-							// },
+							&rtcp.PictureLossIndication{
+								MediaSSRC: track.SSRC(),
+							},
 						},
 					)
 					if err != nil {
