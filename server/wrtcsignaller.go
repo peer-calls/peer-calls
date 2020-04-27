@@ -7,6 +7,8 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
+
 type Signaller struct {
 	log    Logger
 	sdpLog Logger
@@ -75,7 +77,27 @@ func (s *Signaller) SignalChannel() <-chan Payload {
 func (s *Signaller) initialize() error {
 	if s.initiator {
 		s.log.Printf("[%s] NewSignaller: Initiator registering default codecs", s.remotePeerID)
-		s.mediaEngine.RegisterDefaultCodecs()
+		// s.mediaEngine.RegisterDefaultCodecs()
+		s.mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+
+		rtcpfb := []webrtc.RTCPFeedback{
+			webrtc.RTCPFeedback{
+				Type: webrtc.TypeRTCPFBGoogREMB,
+			},
+			webrtc.RTCPFeedback{
+				Type: webrtc.TypeRTCPFBCCM,
+			},
+			webrtc.RTCPFeedback{
+				Type: webrtc.TypeRTCPFBNACK,
+			},
+			webrtc.RTCPFeedback{
+				Type: "nack pli",
+			},
+		}
+
+		s.mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
+		// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
+		// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
 	}
 
 	s.log.Printf("[%s] NewSignaller: Non-Initiator pre-add video transceiver", s.remotePeerID)
