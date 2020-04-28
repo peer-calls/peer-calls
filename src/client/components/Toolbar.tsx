@@ -203,7 +203,7 @@ export default class Toolbar extends React.PureComponent<
           <ToolbarButton
             className="copy-url"
             key="copy-url"
-            icon="icon-icon-copy"
+            icon="icon-copy"
             onClick={this.copyInvitationURL}
             title="Copy Invitation URL"
           />
