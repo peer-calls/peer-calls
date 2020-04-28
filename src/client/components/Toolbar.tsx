@@ -1,26 +1,26 @@
-import classnames from 'classnames'
-import React from 'react'
-import screenfull from 'screenfull'
-import { getDesktopStream } from '../actions/MediaActions'
-import { removeLocalStream } from '../actions/StreamActions'
-import { DialState, DIAL_STATE_IN_CALL } from '../constants'
-import { LocalStream } from '../reducers/streams'
+import classnames from "classnames";
+import React from "react";
+import screenfull from "screenfull";
+import { getDesktopStream } from "../actions/MediaActions";
+import { removeLocalStream } from "../actions/StreamActions";
+import { DialState, DIAL_STATE_IN_CALL } from "../constants";
+import { LocalStream } from "../reducers/streams";
 
 const hidden = {
   display: "none",
 };
 
 export interface ToolbarProps {
-  dialState: DialState
-  messagesCount: number
-  cameraStream: LocalStream | undefined
-  desktopStream: LocalStream | undefined
-  onToggleChat: () => void
-  onGetDesktopStream: typeof getDesktopStream
-  onRemoveLocalStream: typeof removeLocalStream
-  onSendFile: (file: File) => void
-  onHangup: () => void
-  chatVisible: boolean
+  dialState: DialState;
+  messagesCount: number;
+  cameraStream: LocalStream | undefined;
+  desktopStream: LocalStream | undefined;
+  onToggleChat: () => void;
+  onGetDesktopStream: typeof getDesktopStream;
+  onRemoveLocalStream: typeof removeLocalStream;
+  onSendFile: (file: File) => void;
+  onHangup: () => void;
+  chatVisible: boolean;
 }
 
 export interface ToolbarState {
@@ -76,30 +76,30 @@ export default class Toolbar extends React.PureComponent<
   }
 
   handleMicClick = () => {
-    const { cameraStream } = this.props
+    const { cameraStream } = this.props;
     if (cameraStream) {
-      cameraStream.stream.getAudioTracks().forEach(track => {
-        track.enabled = !track.enabled
-      })
+      cameraStream.stream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
       this.setState({
         ...this.state,
         micMuted: !this.state.micMuted,
-      })
+      });
     }
-  }
+  };
   handleCamClick = () => {
-    const { cameraStream } = this.props
+    const { cameraStream } = this.props;
     if (cameraStream) {
-      cameraStream.stream.getVideoTracks().forEach(track => {
-        track.enabled = !track.enabled
-      })
+      cameraStream.stream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
       this.setState({
         ...this.state,
         camDisabled: !this.state.camDisabled,
-      })
+      });
     }
-  }
-  
+  };
+
   handleFullscreenClick = () => {
     if (screenfull.isEnabled) {
       screenfull.toggle();
@@ -116,18 +116,18 @@ export default class Toolbar extends React.PureComponent<
     this.file.current!.click();
   };
   copyInvitationURL = () => {
-    let usernameElem = document.querySelector(".nickname");
+    const usernameElem = document.querySelector(".nickname");
     let username = null;
     let id = null;
-    let idElem = document.querySelector("#callId");
+    const idElem = document.querySelector("#callId");
     if (idElem) {
       id = idElem.getAttribute("value");
     }
     if (usernameElem) {
       username = usernameElem.innerHTML;
     }
-    let link = location.href;
-    let text = `${username} has invited you for a meeting on Peer Calls\nRoom id: ${id}\nLink: ${link}`;
+    const link = location.href;
+    const text = `${username} has invited you for a meeting on Peer Calls\nRoom id: ${id}\nLink: ${link}`;
     if ("clipboard" in navigator) {
       navigator.clipboard.writeText(text).then(
         () => {
@@ -154,17 +154,17 @@ export default class Toolbar extends React.PureComponent<
   };
   handleToggleShareDesktop = () => {
     if (this.props.desktopStream) {
-      const { stream, type } = this.props.desktopStream
-      this.props.onRemoveLocalStream(stream, type)
+      const { stream, type } = this.props.desktopStream;
+      this.props.onRemoveLocalStream(stream, type);
     } else {
       this.props.onGetDesktopStream().catch(() => {});
     }
-  }
-  render () {
-    const { messagesCount, cameraStream } = this.props
-    const unreadCount = messagesCount - this.state.readMessages
-    const hasUnread = unreadCount > 0
-    const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
+  };
+  render() {
+    const { messagesCount, cameraStream } = this.props;
+    const unreadCount = messagesCount - this.state.readMessages;
+    const hasUnread = unreadCount > 0;
+    const isInCall = this.props.dialState === DIAL_STATE_IN_CALL;
 
     return (
       <div className="toolbar active">
