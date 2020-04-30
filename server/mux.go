@@ -73,6 +73,7 @@ func NewMux(
 		router.Handle("/static/*", static(baseURL+"/static", packr.NewBox("../build")))
 		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
 		router.Post("/call", mux.routeNewCall)
+		router.Get("/predefined-call", renderer.Render(mux.routePredefinedCall))
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
 
 		router.Mount("/ws", wsHandler)
@@ -110,6 +111,39 @@ func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	}
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
 	http.Redirect(w, r, url, 302)
+}
+
+func (mux *Mux) routePredefinedCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
+	callIDs, ok := r.URL.Query()["callID"]
+
+	var callID string
+	var userID string
+
+	if !ok || len(callIDs[0]) < 1 {
+		callID = NewUUIDBase62()
+	} else {
+		callID = callIDs[0]
+	}
+
+	userIDs, ok := r.URL.Query()["userID"]
+
+	if !ok || len(userIDs[0]) < 1 {
+		userID = NewUUIDBase62()
+	} else {
+		userID = userIDs[0]
+	}
+
+	iceServers := GetICEAuthServers(mux.iceServers)
+	iceServersJSON, _ := json.Marshal(iceServers)
+
+	data := map[string]interface{}{
+		"Nickname":   r.Header.Get("X-Forwarded-User"),
+		"CallID":     callID,
+		"UserID":     userID,
+		"ICEServers": template.HTML(iceServersJSON),
+	}
+
+	return "call.html", data, nil
 }
 
 func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {

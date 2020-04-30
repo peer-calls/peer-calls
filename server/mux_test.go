@@ -124,3 +124,21 @@ func Test_routeCall(t *testing.T) {
 	assert.Regexp(t, "id=\"iceServers\" value='.*stun:", w.Body.String())
 	assert.Regexp(t, "id=\"userId\" value=\"[^\"]", w.Body.String())
 }
+
+func Test_routePredefinedCall(t *testing.T) {
+	mrm := NewMockRoomManager()
+	trk := newMockTracksManager()
+	defer mrm.close()
+	iceServers := []server.ICEServer{{
+		URLs: []string{"stun:"},
+	}}
+	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/test/predefined-call?userID=foo&callID=bar", nil)
+	mux.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Regexp(t, "id=\"baseUrl\" value=\"/test\"", w.Body.String())
+	assert.Regexp(t, "id=\"callId\" value=\"bar\"", w.Body.String())
+	assert.Regexp(t, "id=\"iceServers\" value='.*stun:", w.Body.String())
+	assert.Regexp(t, "id=\"userId\" value=\"foo\"", w.Body.String())
+}
