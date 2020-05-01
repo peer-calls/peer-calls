@@ -1,5 +1,6 @@
 FROM node:12-alpine
 WORKDIR /app
+RUN apk add --no-cache git
 RUN chown node:node /app
 COPY package.json .
 USER node
