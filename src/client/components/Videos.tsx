@@ -28,6 +28,17 @@ interface StreamProps {
 }
 
 export default class Videos extends React.PureComponent<VideosProps> {
+  private gridRef = React.createRef<HTMLDivElement>()
+  componentDidUpdate() {
+    const videos = this.gridRef.current!
+    .querySelectorAll('.video-container') as unknown as HTMLElement[]
+    const size = videos.length
+    const x = (1 / Math.ceil(Math.sqrt(size))) * 100
+
+    videos.forEach(v => {
+      v.style.flexBasis = x + '%'
+    })
+  }
   private getStreams() {
     const { windowStates, nicknames, streams } = this.props
 
@@ -105,7 +116,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
     )
 
     const videosGrid = (
-      <div className="videos videos-grid" key="videos-grid">
+      <div className="videos videos-grid" key="videos-grid" ref={this.gridRef}>
         {maximized.map(props => (
           <Video
             {...props}
