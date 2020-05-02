@@ -78,8 +78,8 @@
     top: inherit;
     bottom: 100%;
     transform: translateY(100%);
-    width: 200px;
-    left: calc(-100px + 50%);
+    width: 140px;
+    left: calc(-70px + 50%);
     text-align: center;
   }
 
@@ -113,6 +113,23 @@
     }
     &.on .icon {
       background: lighten(#407cf7, 10%);
+    }
+  }
+
+  @media (max-width: 350px) {
+    .button {
+      margin: 0.25rem;
+    }
+
+    .icon {
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      line-height: 10px;
+    }
+
+    .tooltip {
+      font-size: 0.8rem;
     }
   }
 
