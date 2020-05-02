@@ -2,6 +2,7 @@ import React, { ReactEventHandler, ChangeEventHandler, KeyboardEventHandler, Mou
 import { Message } from '../actions/PeerActions'
 
 export interface InputProps {
+  sendFile: (file: File) => void
   sendMessage: (message: Message) => void
 }
 
@@ -9,7 +10,12 @@ export interface InputState {
   message: string
 }
 
+const hidden = {
+  display: 'none',
+}
+
 export default class Input extends React.PureComponent<InputProps, InputState> {
+  file = React.createRef<HTMLInputElement>()
   textArea = React.createRef<HTMLTextAreaElement>()
   state = {
     message: '',
@@ -34,6 +40,12 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
       message: this.textArea.current!.value + event.currentTarget.innerHTML,
     })
   }
+  handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    Array.from(event.target!.files!)
+    .forEach((file) =>
+      this.props.sendFile(file),
+    )
+  }
   submit = () => {
     const { sendMessage } = this.props
     const { message } = this.state
@@ -42,27 +54,23 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
         payload: message,
         type: 'text',
       })
-      // let image = null
-
-      // // take snapshoot
-      // try {
-      //   const video = videos[userId]
-      //   if (video) {
-      //     const canvas = document.createElement('canvas')
-      //     canvas.height = video.videoHeight
-      //     canvas.width = video.videoWidth
-      //     const avatar = canvas.getContext('2d')
-      //     avatar.drawImage(video, 0, 0, canvas.width, canvas.height)
-      //     image = canvas.toDataURL()
-      //   }
-      // } catch (e) {}
     }
     this.setState({ message: '' })
+  }
+  handleSendFile = () => {
+    this.file.current!.click()
   }
   render () {
     const { message } = this.state
     return (
       <form className="chat-controls" onSubmit={this.handleSubmit}>
+        <input
+          style={hidden}
+          type='file'
+          multiple
+          ref={this.file}
+          onChange={this.handleSelectFiles}
+        />
         <textarea
           className="chat-controls-textarea"
           onChange={this.handleChange}
@@ -73,7 +81,14 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
         />
         <div className="chat-controls-buttons">
           <input type="submit" value="Send"
-            className="chat-controls-buttons-send" />
+            className="chat-controls-buttons-send"
+          />
+          <input
+            type="submit"
+            value="Send File"
+            className="chat-controls-buttons-send-file"
+            onClick={this.handleSendFile}
+          />
 
           <div className="chat-controls-buttons-wrapper">
             <div className="emoji">

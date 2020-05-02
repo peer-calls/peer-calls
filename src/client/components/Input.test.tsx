@@ -8,13 +8,16 @@ describe('components/Input', () => {
 
   let node: Element
   let sendMessage: jest.MockedFunction<(message: Message) => void>
+  let sendFile: jest.MockedFunction<(file: File) => void>
   async function render () {
     sendMessage = jest.fn()
+    sendFile = jest.fn()
     const div = document.createElement('div')
     await new Promise<Input>(resolve => {
       ReactDOM.render(
         <Input
           ref={input => resolve(input!)}
+          sendFile={sendFile}
           sendMessage={sendMessage}
         />,
         div,
@@ -88,6 +91,31 @@ describe('components/Input', () => {
       })
     })
 
+  })
+
+  describe('handleSendFile', () => {
+    it('triggers input dialog', () => {
+      const sendFileButton = node
+      .querySelector('.chat-controls-buttons-send-file')!
+      const click = jest.fn()
+      const file = node.querySelector('input[type=file]')!;
+      (file as any).click = click
+      TestUtils.Simulate.click(sendFileButton)
+      expect(click.mock.calls.length).toBe(1)
+    })
+  })
+
+  describe('handleSelectFiles', () => {
+    it('iterates through files and calls onSendFile for each', () => {
+      const file = node.querySelector('input[type=file]')!
+      const files = [{ name: 'first' }] as any
+      TestUtils.Simulate.change(file, {
+        target: {
+          files,
+        } as any,
+      })
+      expect(sendFile.mock.calls).toEqual([[ files[0] ]])
+    })
   })
 
 })

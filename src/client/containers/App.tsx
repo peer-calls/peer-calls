@@ -28,7 +28,7 @@ const mapDispatchToProps = {
   getDesktopStream,
   removeLocalStream,
   init,
-  onSendFile: sendFile,
+  sendFile,
   play,
 }
 

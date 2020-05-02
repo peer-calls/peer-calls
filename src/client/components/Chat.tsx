@@ -28,6 +28,7 @@ export interface ChatProps {
   messages: ChatMessage[]
   nicknames: Nicknames
   onClose: () => void
+  sendFile: (file: File) => void
   sendMessage: (message: Message) => void
 }
 
@@ -53,7 +54,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
     }
   }
   render () {
-    const { messages, sendMessage } = this.props
+    const { messages, sendFile, sendMessage } = this.props
     return (
       <div className={classnames('chat-container', {
         show: this.props.visible,
@@ -115,7 +116,11 @@ export default class Chat extends React.PureComponent<ChatProps> {
 
         </div>
 
-        <Input ref={this.inputRef} sendMessage={sendMessage} />
+        <Input
+          ref={this.inputRef}
+          sendMessage={sendMessage}
+          sendFile={sendFile}
+        />
       </div>
     )
   }

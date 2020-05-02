@@ -7,10 +7,6 @@ import { DialState, DIAL_STATE_IN_CALL } from '../constants'
 import { LocalStream } from '../reducers/streams'
 import { callId } from '../window'
 
-const hidden = {
-  display: 'none',
-}
-
 export interface ToolbarProps {
   dialState: DialState
   nickname: string
@@ -20,12 +16,12 @@ export interface ToolbarProps {
   onToggleChat: () => void
   onGetDesktopStream: typeof getDesktopStream
   onRemoveLocalStream: typeof removeLocalStream
-  onSendFile: (file: File) => void
   onHangup: () => void
   chatVisible: boolean
 }
 
 export interface ToolbarState {
+  hidden: boolean
   readMessages: number
   camDisabled: boolean
   micMuted: boolean
@@ -65,18 +61,37 @@ export default class Toolbar extends React.PureComponent<
   ToolbarProps,
   ToolbarState
 > {
-  file = React.createRef<HTMLInputElement>()
 
   constructor(props: ToolbarProps) {
     super(props)
     this.state = {
+      hidden: false,
       readMessages: props.messagesCount,
       camDisabled: false,
       micMuted: false,
       fullScreenEnabled: false,
     }
   }
+  componentDidMount() {
+    document.body.addEventListener('click', this.toggleHidden)
+    screenfull.isEnabled && screenfull.on('change', this.fullscreenChange)
+  }
+  componentDidWillUnmount() {
+    document.body.removeEventListener('click', this.toggleHidden)
+    screenfull.isEnabled && screenfull.off('change', this.fullscreenChange)
+  }
+  fullscreenChange = () => {
+    this.setState({
+      fullScreenEnabled: screenfull.isEnabled && screenfull.isFullscreen,
+    })
+  }
+  toggleHidden = (e: MouseEvent) => {
+    const t = e.target && (e.target as HTMLElement).tagName
 
+    if (t === 'DIV' || t === 'VIDEO') {
+      this.setState({ hidden: !this.state.hidden })
+    }
+  }
   handleMicClick = () => {
     const { cameraStream } = this.props
     if (cameraStream) {
@@ -105,17 +120,10 @@ export default class Toolbar extends React.PureComponent<
   handleFullscreenClick = () => {
     if (screenfull.isEnabled) {
       screenfull.toggle()
-      this.setState({
-        ...this.state,
-        fullScreenEnabled: !screenfull.isFullscreen,
-      })
     }
   }
   handleHangoutClick = () => {
     window.location.href = '/'
-  }
-  handleSendFile = () => {
-    this.file.current!.click()
   }
   copyInvitationURL = async () => {
     const { nickname } = this.props
@@ -123,12 +131,6 @@ export default class Toolbar extends React.PureComponent<
     const text = `${nickname} has invited you for a meeting on Peer Calls. ` +
         `\nRoom: ${callId} \nLink: ${link}`
     await navigator.clipboard.writeText(text)
-  }
-  handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    Array.from(event.target!.files!)
-    .forEach((file) =>
-      this.props.onSendFile(file),
-    )
   }
   handleToggleChat = () => {
     this.setState({
@@ -150,60 +152,47 @@ export default class Toolbar extends React.PureComponent<
     const hasUnread = unreadCount > 0
     const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
 
+    const className = classnames('toolbar', {
+      'toolbar-hidden': this.state.hidden,
+    })
+
     return (
-      <div className='toolbar active'>
-        <input
-          style={hidden}
-          type='file'
-          multiple
-          ref={this.file}
-          onChange={this.handleSelectFiles}
-        />
-
-        {isInCall && (
+      <React.Fragment>
+        <div className={'toolbar-other ' + className}>
           <ToolbarButton
-            badge={unreadCount}
-            className='chat'
-            key='chat'
-            icon='icon-question_answer'
-            blink={!this.props.chatVisible && hasUnread}
-            onClick={this.handleToggleChat}
-            on={this.props.chatVisible}
-            title='Toggle Chat'
+            className='copy-url'
+            key='copy-url'
+            icon='icon-copy'
+            onClick={this.copyInvitationURL}
+            title='Copy Invitation URL'
           />
-        )}
+          {isInCall && (
+            <ToolbarButton
+              badge={unreadCount}
+              className='chat'
+              key='chat'
+              icon='icon-question_answer'
+              blink={!this.props.chatVisible && hasUnread}
+              onClick={this.handleToggleChat}
+              on={this.props.chatVisible}
+              title='Toggle Chat'
+            />
+          )}
+        </div>
 
-        {isInCall && (
-          <ToolbarButton
-            className='send-file'
-            key='send-file'
-            icon='icon-file-text2'
-            onClick={this.handleSendFile}
-            title='Send File'
-          />
-        )}
+        <div className={'toolbar-call ' + className}>
+          {isInCall && (
+            <ToolbarButton
+              className='stream-desktop'
+              icon='icon-display'
+              onClick={this.handleToggleShareDesktop}
+              on={!!this.props.desktopStream}
+              key='stream-desktop'
+              title='Share Desktop'
+            />
+          )}
 
-        <ToolbarButton
-          className='copy-url'
-          key='copy-url'
-          icon='icon-copy'
-          onClick={this.copyInvitationURL}
-          title='Copy Invitation URL'
-        />
-
-        {isInCall && (
-          <ToolbarButton
-            className='stream-desktop'
-            icon='icon-display'
-            onClick={this.handleToggleShareDesktop}
-            on={!!this.props.desktopStream}
-            key='stream-desktop'
-            title='Share Desktop'
-          />
-        )}
-
-        {cameraStream && (
-          <React.Fragment>
+          {cameraStream && (
             <ToolbarButton
               onClick={this.handleMicClick}
               className='mute-audio'
@@ -213,6 +202,19 @@ export default class Toolbar extends React.PureComponent<
               offIcon='icon-mic'
               title='Toggle Microphone'
             />
+          )}
+
+          {isInCall && (
+            <ToolbarButton
+              onClick={this.props.onHangup}
+              key='hangup'
+              className='hangup'
+              icon='icon-call_end'
+              title='Hang Up'
+            />
+          )}
+
+          {cameraStream && (
             <ToolbarButton
               onClick={this.handleCamClick}
               className='mute-video'
@@ -222,29 +224,22 @@ export default class Toolbar extends React.PureComponent<
               offIcon='icon-videocam'
               title='Toggle Camera'
             />
-          </React.Fragment>
-        )}
+          )}
 
-        <ToolbarButton
-          onClick={this.handleFullscreenClick}
-          className='fullscreen'
-          key='fullscreen'
-          icon='icon-fullscreen_exit'
-          offIcon='icon-fullscreen'
-          on={this.state.fullScreenEnabled}
-          title='Toggle Fullscreen'
-        />
+          {isInCall && (
+            <ToolbarButton
+              onClick={this.handleFullscreenClick}
+              className='fullscreen'
+              key='fullscreen'
+              icon='icon-fullscreen_exit'
+              offIcon='icon-fullscreen'
+              on={this.state.fullScreenEnabled}
+              title='Toggle Fullscreen'
+            />
+          )}
 
-        {isInCall && (
-          <ToolbarButton
-            onClick={this.props.onHangup}
-            key='hangup'
-            className='hangup'
-            icon='icon-call_end'
-            title='Hang Up'
-          />
-        )}
-      </div>
+        </div>
+      </React.Fragment>
     )
   }
 }

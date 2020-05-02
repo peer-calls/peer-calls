@@ -30,7 +30,6 @@ describe('components/Toolbar', () => {
         onHangup={this.props.onHangup}
         onGetDesktopStream={this.props.onGetDesktopStream}
         onRemoveLocalStream={this.props.onRemoveLocalStream}
-        onSendFile={this.props.onSendFile}
         messagesCount={this.props.messagesCount}
         cameraStream={this.state.cameraStream || this.props.cameraStream}
         desktopStream={this.state.desktopStream || this.props.desktopStream}
@@ -42,7 +41,6 @@ describe('components/Toolbar', () => {
   let mediaStream: MediaStream
   let url: string
   let onToggleChat: jest.Mock<() => void>
-  let onSendFile: jest.Mock<(file: File) => void>
   let onHangup: jest.Mock<() => void>
   let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
   let onRemoveLocalStream: jest.MockedFunction<typeof removeLocalStream>
@@ -53,7 +51,6 @@ describe('components/Toolbar', () => {
     dialState = DIAL_STATE_IN_CALL
     mediaStream = new MediaStream()
     onToggleChat = jest.fn()
-    onSendFile = jest.fn()
     onHangup = jest.fn()
     onGetDesktopStream = jest.fn().mockImplementation(() => Promise.resolve())
     onRemoveLocalStream = jest.fn()
@@ -72,7 +69,6 @@ describe('components/Toolbar', () => {
           chatVisible
           onHangup={onHangup}
           onToggleChat={onToggleChat}
-          onSendFile={onSendFile}
           messagesCount={1}
           nickname={nickname}
           cameraStream={cameraStream}
@@ -83,7 +79,7 @@ describe('components/Toolbar', () => {
         div,
       )
     })
-    node = div.children[0]
+    node = div
   }
 
   beforeEach(async () => {
@@ -128,30 +124,6 @@ describe('components/Toolbar', () => {
       const button = node.querySelector('.hangup')!
       TestUtils.Simulate.click(button)
       expect(window.location.href).toBe('http://localhost/')
-    })
-  })
-
-  describe('handleSendFile', () => {
-    it('triggers input dialog', () => {
-      const sendFileButton = node.querySelector('.send-file')!
-      const click = jest.fn()
-      const file = node.querySelector('input[type=file]')!;
-      (file as any).click = click
-      TestUtils.Simulate.click(sendFileButton)
-      expect(click.mock.calls.length).toBe(1)
-    })
-  })
-
-  describe('handleSelectFiles', () => {
-    it('iterates through files and calls onSendFile for each', () => {
-      const file = node.querySelector('input[type=file]')!
-      const files = [{ name: 'first' }] as any
-      TestUtils.Simulate.change(file, {
-        target: {
-          files,
-        } as any,
-      })
-      expect(onSendFile.mock.calls).toEqual([[ files[0] ]])
     })
   })
 

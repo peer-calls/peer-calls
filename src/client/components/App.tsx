@@ -33,7 +33,7 @@ export interface AppProps {
   streams: StreamsState
   getDesktopStream: typeof getDesktopStream
   removeLocalStream: typeof removeLocalStream
-  onSendFile: (file: File) => void
+  sendFile: (file: File) => void
   windowStates: WindowStates
   minimizeToggle: (payload: MinimizeTogglePayload) => void
   hangUp: typeof hangUp
@@ -80,7 +80,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       nicknames,
       messages,
       messagesCount,
-      onSendFile,
+      sendFile,
       sendMessage,
     } = this.props
 
@@ -92,21 +92,18 @@ export default class App extends React.PureComponent<AppProps, AppState> {
 
     return (
       <div className="app">
-        <Side align='flex-end' left zIndex={2}>
-          <Toolbar
-            chatVisible={this.state.chatVisible}
-            dialState={this.props.dialState}
-            messagesCount={messagesCount}
-            nickname={nicknames[constants.ME]}
-            onToggleChat={this.handleToggleChat}
-            onSendFile={onSendFile}
-            onHangup={this.onHangup}
-            cameraStream={localStreams[StreamTypeCamera]}
-            desktopStream={localStreams[StreamTypeDesktop]}
-            onGetDesktopStream={this.props.getDesktopStream}
-            onRemoveLocalStream={this.props.removeLocalStream}
-          />
-        </Side>
+        <Toolbar
+          chatVisible={this.state.chatVisible}
+          dialState={this.props.dialState}
+          messagesCount={messagesCount}
+          nickname={nicknames[constants.ME]}
+          onToggleChat={this.handleToggleChat}
+          onHangup={this.onHangup}
+          cameraStream={localStreams[StreamTypeCamera]}
+          desktopStream={localStreams[StreamTypeDesktop]}
+          onGetDesktopStream={this.props.getDesktopStream}
+          onRemoveLocalStream={this.props.removeLocalStream}
+        />
         <Side className={chatVisibleClassName} top zIndex={1}>
           <Notifications
             dismiss={dismissNotification}
@@ -119,6 +116,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           nicknames={nicknames}
           onClose={this.handleHideChat}
           sendMessage={sendMessage}
+          sendFile={sendFile}
           visible={this.state.chatVisible}
         />
 

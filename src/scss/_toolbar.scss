@@ -1,6 +1,29 @@
 .toolbar {
-  margin: 0 0 1rem 1rem;
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms;
+
+  &.toolbar-hidden {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms;
+  }
+
+
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  z-index: 2;
+  // margin: 0 0 1rem 1rem;
   /* on icons are hidden by default */
+
+  &.toolbar-call {
+    bottom: 1rem;
+    left: 50%;
+    transform: translate(-50%);
+    flex-direction: row;
+  }
 
   .icon {
     position: relative;
@@ -50,6 +73,16 @@
     line-height: 48px;
   }
 
+  &.toolbar-call .tooltip {
+    margin-left: 0;
+    top: inherit;
+    bottom: 100%;
+    transform: translateY(100%);
+    width: 200px;
+    left: calc(-100px + 50%);
+    text-align: center;
+  }
+
   .button {
     outline: none;
     text-decoration: none;
@@ -58,7 +91,11 @@
     align-items: center;
     cursor: pointer;
     position: relative;
+    margin: 0.5rem;
 
+    .icon.icon-call_end {
+      background-color: #dd2c00;
+    }
     &:hover {
       .icon {
         box-shadow: 2px 2px 24px rgba(white, 0.1);
@@ -66,7 +103,7 @@
         background-color: #407cf7;
       }
       .icon.icon-call_end {
-        background-color: #dd2c00;
+        background-color: darken(#dd2c00, 5%);
       }
       .tooltip {
         opacity: 1;
@@ -77,10 +114,6 @@
     &.on .icon {
       background: lighten(#407cf7, 10%);
     }
-  }
-
-  .button + .button {
-    margin-top: 1rem;
   }
 
   .chat.blink .icon {

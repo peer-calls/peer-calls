@@ -215,9 +215,9 @@
   .chat-controls-buttons {
     margin-top: 15px;
     display: flex;
-    justify-content: space-between;
 
-    .chat-controls-buttons-send {
+    .chat-controls-buttons-send,
+    .chat-controls-buttons-send-file {
       padding: 0 15px;
       background: #407cf7;
       line-height: 25px;
@@ -233,7 +233,12 @@
       }
     }
 
+    .chat-controls-buttons-send-file {
+      margin-left: 0.5rem;
+    }
+
     .chat-controls-buttons-wrapper {
+      margin-left: auto;
       display: flex;
     }
   }
