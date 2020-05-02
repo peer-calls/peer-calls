@@ -97,6 +97,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
             chatVisible={this.state.chatVisible}
             dialState={this.props.dialState}
             messagesCount={messagesCount}
+            nickname={nicknames[constants.ME]}
             onToggleChat={this.handleToggleChat}
             onSendFile={onSendFile}
             onHangup={this.onHangup}

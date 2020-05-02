@@ -25,6 +25,7 @@ describe('components/Toolbar', () => {
       return <Toolbar
         chatVisible={this.props.chatVisible}
         dialState={this.props.dialState}
+        nickname={this.props.nickname}
         onToggleChat={this.props.onToggleChat}
         onHangup={this.props.onHangup}
         onGetDesktopStream={this.props.onGetDesktopStream}
@@ -47,6 +48,7 @@ describe('components/Toolbar', () => {
   let onRemoveLocalStream: jest.MockedFunction<typeof removeLocalStream>
   let desktopStream: LocalStream | undefined
   let dialState: DialState
+  const nickname = 'john'
   async function render () {
     dialState = DIAL_STATE_IN_CALL
     mediaStream = new MediaStream()
@@ -72,6 +74,7 @@ describe('components/Toolbar', () => {
           onToggleChat={onToggleChat}
           onSendFile={onSendFile}
           messagesCount={1}
+          nickname={nickname}
           cameraStream={cameraStream}
           desktopStream={desktopStream}
           onGetDesktopStream={onGetDesktopStream}
@@ -183,6 +186,27 @@ describe('components/Toolbar', () => {
       TestUtils.Simulate.click(shareDesktop)
       await Promise.resolve()
       expect(onRemoveLocalStream.mock.calls.length).toBe(1)
+    })
+  })
+
+  describe('copy invitation url', () => {
+
+    let promise: Promise<string>
+    beforeEach(() => {
+      promise = new Promise<string>(resolve => {
+        (navigator.clipboard as any) = {}
+        navigator.clipboard.writeText = async text => {
+          resolve(text)
+        }
+      })
+    })
+
+    it('copies invite url using navigator.clipboard', async () => {
+      const copyUrl = node.querySelector('.copy-url')!
+      expect(copyUrl).toBeDefined()
+      TestUtils.Simulate.click(copyUrl)
+      const result = await promise
+      expect(result).toMatch(/john has invited you/)
     })
   })
 

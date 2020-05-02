@@ -5,6 +5,7 @@ import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL } from '../constants'
 import { LocalStream } from '../reducers/streams'
+import { callId } from '../window'
 
 const hidden = {
   display: 'none',
@@ -12,6 +13,7 @@ const hidden = {
 
 export interface ToolbarProps {
   dialState: DialState
+  nickname: string
   messagesCount: number
   cameraStream: LocalStream | undefined
   desktopStream: LocalStream | undefined
@@ -41,7 +43,6 @@ export interface ToolbarButtonProps {
   title: string
 }
 
-
 function ToolbarButton(props: ToolbarButtonProps) {
   const { blink, on } = props
   const icon = !on && props.offIcon ? props.offIcon : props.icon
@@ -55,13 +56,15 @@ function ToolbarButton(props: ToolbarButtonProps) {
       <span className={classnames('icon', icon)}>
         {!!props.badge && <span className='badge'>{props.badge}</span>}
       </span>
-      <span className="tooltip">{props.title}</span>
+      <span className='tooltip'>{props.title}</span>
     </a>
   )
 }
 
-export default class Toolbar
-extends React.PureComponent<ToolbarProps, ToolbarState> {
+export default class Toolbar extends React.PureComponent<
+  ToolbarProps,
+  ToolbarState
+> {
   file = React.createRef<HTMLInputElement>()
 
   constructor(props: ToolbarProps) {
@@ -77,7 +80,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   handleMicClick = () => {
     const { cameraStream } = this.props
     if (cameraStream) {
-      cameraStream.stream.getAudioTracks().forEach(track => {
+      cameraStream.stream.getAudioTracks().forEach((track) => {
         track.enabled = !track.enabled
       })
       this.setState({
@@ -89,7 +92,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   handleCamClick = () => {
     const { cameraStream } = this.props
     if (cameraStream) {
-      cameraStream.stream.getVideoTracks().forEach(track => {
+      cameraStream.stream.getVideoTracks().forEach((track) => {
         track.enabled = !track.enabled
       })
       this.setState({
@@ -98,6 +101,7 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
       })
     }
   }
+
   handleFullscreenClick = () => {
     if (screenfull.isEnabled) {
       screenfull.toggle()
@@ -113,10 +117,18 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
   handleSendFile = () => {
     this.file.current!.click()
   }
+  copyInvitationURL = async () => {
+    const { nickname } = this.props
+    const link = location.href
+    const text = `${nickname} has invited you for a meeting on Peer Calls. ` +
+        `\nRoom: ${callId} \nLink: ${link}`
+    await navigator.clipboard.writeText(text)
+  }
   handleSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    Array
-    .from(event.target!.files!)
-    .forEach(file => this.props.onSendFile(file))
+    Array.from(event.target!.files!)
+    .forEach((file) =>
+      this.props.onSendFile(file),
+    )
   }
   handleToggleChat = () => {
     this.setState({
@@ -132,17 +144,17 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
       this.props.onGetDesktopStream().catch(() => {})
     }
   }
-  render () {
+  render() {
     const { messagesCount, cameraStream } = this.props
     const unreadCount = messagesCount - this.state.readMessages
     const hasUnread = unreadCount > 0
     const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
 
     return (
-      <div className="toolbar active">
+      <div className='toolbar active'>
         <input
           style={hidden}
-          type="file"
+          type='file'
           multiple
           ref={this.file}
           onChange={this.handleSelectFiles}
@@ -170,6 +182,14 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
             title='Send File'
           />
         )}
+
+        <ToolbarButton
+          className='copy-url'
+          key='copy-url'
+          icon='icon-copy'
+          onClick={this.copyInvitationURL}
+          title='Copy Invitation URL'
+        />
 
         {isInCall && (
           <ToolbarButton
@@ -221,10 +241,9 @@ extends React.PureComponent<ToolbarProps, ToolbarState> {
             key='hangup'
             className='hangup'
             icon='icon-call_end'
-            title="Hang Up"
+            title='Hang Up'
           />
         )}
-
       </div>
     )
   }
