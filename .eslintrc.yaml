@@ -10,11 +10,11 @@ settings:
     version: 'detect'
 rules:
   max-len:
-    - warn
+    - error
     - code: 80
       ignorePattern: '^import .* from '
   comma-dangle:
-    - warn
+    - error
     - arrays: always-multiline
       objects: always-multiline
       imports: always-multiline
@@ -22,22 +22,22 @@ rules:
       functions: always-multiline
 
   semi:
-    - warn
+    - error
     - never
   quotes:
-    - warn
+    - error
     - single
     - allowTemplateLiterals: true
   # interface-name-prefix:
   'import/no-extraneous-dependencies': off
   '@typescript-eslint/member-delimiter-style':
-    - warn
+    - error
     - multiline:
         delimiter: none
       singleline:
         delimiter: comma
   '@typescript-eslint/no-unused-vars':
-    - warn
+    - error
     - vars: all
       args: none
       ignoreRestSiblings: true
@@ -46,10 +46,10 @@ rules:
   '@typescript-eslint/no-use-before-define': off
   '@typescript-eslint/no-empty-interface': off
   '@typescript-eslint/no-explicit-any':
-    - warn
+    - error
     - ignoreRestArgs: true
   '@typescript-eslint/triple-slash-reference':
-    - warn
+    - error
     - path: always
   '@typescript-eslint/no-empty-function': off
 overrides:
