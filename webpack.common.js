@@ -48,5 +48,9 @@ module.exports = {
     filename: 'index.js',
     path: path.resolve(__dirname, 'build'),
   },
+  performance: {
+    maxEntrypointSize: 650000,
+    maxAssetSize: 650000,
+  },
   mode: 'development',
 }
