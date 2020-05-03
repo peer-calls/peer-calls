@@ -111,6 +111,9 @@ export const play = makeAction('MEDIA_PLAY', async () => {
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
+    if (constraints.audio === false && constraints.video === false) {
+      return new MediaStream()
+    }
     debug('getMediaStream', constraints)
     const payload: AddLocalStreamPayload = {
       stream: await getUserMedia(constraints),

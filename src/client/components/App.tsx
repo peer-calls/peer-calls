@@ -99,7 +99,6 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           nickname={nicknames[constants.ME]}
           onToggleChat={this.handleToggleChat}
           onHangup={this.onHangup}
-          cameraStream={localStreams[StreamTypeCamera]}
           desktopStream={localStreams[StreamTypeDesktop]}
           onGetDesktopStream={this.props.getDesktopStream}
           onRemoveLocalStream={this.props.removeLocalStream}

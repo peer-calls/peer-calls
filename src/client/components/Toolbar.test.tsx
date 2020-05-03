@@ -2,12 +2,14 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import { getDesktopStream } from '../actions/MediaActions'
-import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
-import { DialState, DIAL_STATE_IN_CALL } from '../constants'
+import { getDesktopStream, MediaEnumerateAction } from '../actions/MediaActions'
+import { removeLocalStream, StreamTypeDesktop } from '../actions/StreamActions'
+import { DialState, DIAL_STATE_IN_CALL, MEDIA_ENUMERATE } from '../constants'
 import { LocalStream } from '../reducers/streams'
 import { MediaStream } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
+import { Store, createStore } from '../store'
+import { Provider } from 'react-redux'
 
 describe('components/Toolbar', () => {
 
@@ -31,15 +33,12 @@ describe('components/Toolbar', () => {
         onGetDesktopStream={this.props.onGetDesktopStream}
         onRemoveLocalStream={this.props.onRemoveLocalStream}
         messagesCount={this.props.messagesCount}
-        cameraStream={this.state.cameraStream || this.props.cameraStream}
         desktopStream={this.state.desktopStream || this.props.desktopStream}
       />
     }
   }
 
   let node: Element
-  let mediaStream: MediaStream
-  let url: string
   let onToggleChat: jest.Mock<() => void>
   let onHangup: jest.Mock<() => void>
   let onGetDesktopStream: jest.MockedFunction<typeof getDesktopStream>
@@ -49,40 +48,50 @@ describe('components/Toolbar', () => {
   const nickname = 'john'
   async function render () {
     dialState = DIAL_STATE_IN_CALL
-    mediaStream = new MediaStream()
     onToggleChat = jest.fn()
     onHangup = jest.fn()
     onGetDesktopStream = jest.fn().mockImplementation(() => Promise.resolve())
     onRemoveLocalStream = jest.fn()
     const div = document.createElement('div')
-    const cameraStream: LocalStream = {
-      stream: mediaStream,
-      type: StreamTypeCamera,
-      url,
-      streamId: mediaStream.id,
-    }
     await new Promise<ToolbarWrapper>(resolve => {
       ReactDOM.render(
-        <ToolbarWrapper
-          ref={instance => resolve(instance!)}
-          dialState={dialState}
-          chatVisible
-          onHangup={onHangup}
-          onToggleChat={onToggleChat}
-          messagesCount={1}
-          nickname={nickname}
-          cameraStream={cameraStream}
-          desktopStream={desktopStream}
-          onGetDesktopStream={onGetDesktopStream}
-          onRemoveLocalStream={onRemoveLocalStream}
-        />,
+        <Provider store={store}>
+          <ToolbarWrapper
+            ref={instance => resolve(instance!)}
+            dialState={dialState}
+            chatVisible
+            onHangup={onHangup}
+            onToggleChat={onToggleChat}
+            messagesCount={1}
+            nickname={nickname}
+            desktopStream={desktopStream}
+            onGetDesktopStream={onGetDesktopStream}
+            onRemoveLocalStream={onRemoveLocalStream}
+          />
+        </Provider>,
         div,
       )
     })
     node = div
   }
 
+  const action: MediaEnumerateAction = {
+    type: MEDIA_ENUMERATE,
+    status: 'resolved',
+    payload: [{
+      id: 'cam1',
+      name: 'Camera',
+      type: 'videoinput',
+    }, {
+      id: 'mic1',
+      name: 'Microphone',
+      type: 'audioinput',
+    }],
+  }
+  let store: Store
   beforeEach(async () => {
+    store = createStore()
+    store.dispatch(action)
     await render()
   })
 
@@ -95,19 +104,39 @@ describe('components/Toolbar', () => {
     })
   })
 
-  describe('handleMicClick', () => {
-    it('toggle mic', () => {
-      const button = node.querySelector('.mute-audio')!
-      TestUtils.Simulate.click(button)
-      expect(button.classList.contains('on')).toBe(true)
+  describe('mic dropdown', () => {
+    const expected = [false, true, {deviceId: 'mic1', name: 'Microphone'}]
+    it('switches microphone', () => {
+      const button = node.querySelector('.dropdown .audio')!
+      const items = button.parentElement!.querySelectorAll('li')
+      expect(items.length).toBe(3)
+      items.forEach((item, i) => {
+        expect(button).toBeTruthy()
+        TestUtils.Simulate.click(button)
+        TestUtils.Simulate.click(item)
+        expect(store.getState().media.audio).toEqual(expected[i])
+        // TODO test for getMediaStream
+      })
     })
   })
 
-  describe('handleCamClick', () => {
-    it('toggle cam', () => {
-      const button = node.querySelector('.mute-video')!
-      TestUtils.Simulate.click(button)
-      expect(button.classList.contains('on')).toBe(true)
+  describe('camera dropdown', () => {
+    const expected = [
+      false,
+      {facingMode: 'user'},
+      {deviceId: 'cam1', name: 'Camera'},
+    ]
+    it('switches camera', () => {
+      const button = node.querySelector('.dropdown .video')!
+      const items = button.parentElement!.querySelectorAll('li')
+      expect(items.length).toBe(3)
+      items.forEach((item, i) => {
+        expect(button).toBeTruthy()
+        TestUtils.Simulate.click(button)
+        TestUtils.Simulate.click(item)
+        expect(store.getState().media.video).toEqual(expected[i])
+        // TODO test for getMediaStream
+      })
     })
   })
 

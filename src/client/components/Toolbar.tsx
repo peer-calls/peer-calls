@@ -1,19 +1,19 @@
 import classnames from 'classnames'
 import React from 'react'
+import { MdCallEnd, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL } from '../constants'
 import { LocalStream } from '../reducers/streams'
 import { callId } from '../window'
-import { MdScreenShare, MdStopScreenShare, MdMic, MdMicOff, MdCallEnd, MdVideocam, MdVideocamOff, MdFullscreenExit, MdFullscreen, MdContentCopy, MdQuestionAnswer } from 'react-icons/md'
-import { IconType } from 'react-icons'
+import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
+import { ToolbarButton } from './ToolbarButton'
 
 export interface ToolbarProps {
   dialState: DialState
   nickname: string
   messagesCount: number
-  cameraStream: LocalStream | undefined
   desktopStream: LocalStream | undefined
   onToggleChat: () => void
   onGetDesktopStream: typeof getDesktopStream
@@ -28,36 +28,6 @@ export interface ToolbarState {
   camDisabled: boolean
   micMuted: boolean
   fullScreenEnabled: boolean
-}
-
-export interface ToolbarButtonProps {
-  className?: string
-  badge?: string | number
-  blink?: boolean
-  onClick: () => void
-  icon: IconType
-  offIcon?: IconType
-  on?: boolean
-  title: string
-}
-
-function ToolbarButton(props: ToolbarButtonProps) {
-  const { blink, on } = props
-  const Icon: IconType = !on && props.offIcon ? props.offIcon : props.icon
-
-  return (
-    <a
-      className={classnames('button', props.className, { blink, on })}
-      onClick={props.onClick}
-      href='#'
-    >
-      <span className='icon'>
-        <Icon />
-        {!!props.badge && <span className='badge'>{props.badge}</span>}
-      </span>
-      <span className='tooltip'>{props.title}</span>
-    </a>
-  )
 }
 
 export default class Toolbar extends React.PureComponent<
@@ -95,31 +65,6 @@ export default class Toolbar extends React.PureComponent<
       this.setState({ hidden: !this.state.hidden })
     }
   }
-  handleMicClick = () => {
-    const { cameraStream } = this.props
-    if (cameraStream) {
-      cameraStream.stream.getAudioTracks().forEach((track) => {
-        track.enabled = !track.enabled
-      })
-      this.setState({
-        ...this.state,
-        micMuted: !this.state.micMuted,
-      })
-    }
-  }
-  handleCamClick = () => {
-    const { cameraStream } = this.props
-    if (cameraStream) {
-      cameraStream.stream.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled
-      })
-      this.setState({
-        ...this.state,
-        camDisabled: !this.state.camDisabled,
-      })
-    }
-  }
-
   handleFullscreenClick = () => {
     if (screenfull.isEnabled) {
       screenfull.toggle()
@@ -150,7 +95,7 @@ export default class Toolbar extends React.PureComponent<
     }
   }
   render() {
-    const { messagesCount, cameraStream } = this.props
+    const { messagesCount } = this.props
     const unreadCount = messagesCount - this.state.readMessages
     const hasUnread = unreadCount > 0
     const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
@@ -183,8 +128,8 @@ export default class Toolbar extends React.PureComponent<
           )}
         </div>
 
-        <div className={'toolbar-call ' + className}>
-          {isInCall && (
+        {isInCall && (
+          <div className={'toolbar-call ' + className}>
             <ToolbarButton
               className='stream-desktop'
               icon={MdStopScreenShare}
@@ -194,21 +139,9 @@ export default class Toolbar extends React.PureComponent<
               key='stream-desktop'
               title='Share Desktop'
             />
-          )}
 
-          {cameraStream && (
-            <ToolbarButton
-              onClick={this.handleMicClick}
-              className='mute-audio'
-              key='mute-audio'
-              on={this.state.micMuted}
-              icon={MdMicOff}
-              offIcon={MdMic}
-              title='Toggle Microphone'
-            />
-          )}
+            <VideoDropdown />
 
-          {isInCall && (
             <ToolbarButton
               onClick={this.props.onHangup}
               key='hangup'
@@ -216,21 +149,9 @@ export default class Toolbar extends React.PureComponent<
               icon={MdCallEnd}
               title='Hang Up'
             />
-          )}
 
-          {cameraStream && (
-            <ToolbarButton
-              onClick={this.handleCamClick}
-              className='mute-video'
-              key='mute-video'
-              on={this.state.camDisabled}
-              icon={MdVideocamOff}
-              offIcon={MdVideocam}
-              title='Toggle Camera'
-            />
-          )}
+            <AudioDropdown />
 
-          {isInCall && (
             <ToolbarButton
               onClick={this.handleFullscreenClick}
               className='fullscreen'
@@ -240,9 +161,9 @@ export default class Toolbar extends React.PureComponent<
               on={this.state.fullScreenEnabled}
               title='Toggle Fullscreen'
             />
-          )}
 
-        </div>
+          </div>
+        )}
       </React.Fragment>
     )
   }

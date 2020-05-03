@@ -15,6 +15,7 @@ import { middlewares, State, Store } from '../store'
 import { MediaStream } from '../window'
 import App from './App'
 import { StreamTypeCamera } from '../actions/StreamActions'
+import media from '../reducers/media'
 
 describe('App', () => {
 
@@ -24,7 +25,9 @@ describe('App', () => {
   let state: Partial<State>
   let dispatchSpy: jest.SpyInstance<AnyAction, AnyAction[]>
   beforeEach(() => {
-    state = {};
+    state = {
+      media: media(undefined, {} as any),
+    };
     (init as jest.Mock).mockReturnValue(connectedAction)
 
     window.HTMLMediaElement.prototype.play = jest.fn()
@@ -68,9 +71,7 @@ describe('App', () => {
 
   describe('chat toggle', () => {
     it('toggles chat state', async () => {
-      state.media = {
-        dialState: constants.DIAL_STATE_IN_CALL,
-      } as any
+      state.media!.dialState = constants.DIAL_STATE_IN_CALL
       await render()
       const chatButton = node.querySelector('.toolbar .button.chat')!
       expect(chatButton).toBeTruthy()
