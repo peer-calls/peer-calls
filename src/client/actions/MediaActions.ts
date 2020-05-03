@@ -112,7 +112,11 @@ export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
     if (constraints.audio === false && constraints.video === false) {
-      return new MediaStream()
+      const payload: AddLocalStreamPayload = {
+        stream: new MediaStream(),
+        type: StreamTypeCamera,
+      }
+      return payload
     }
     debug('getMediaStream', constraints)
     const payload: AddLocalStreamPayload = {
