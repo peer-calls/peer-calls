@@ -1,0 +1,240 @@
+.chat-container
+  position: fixed
+  top: 0
+  bottom: 0
+  right: 0
+  -ms-transform: translateX(100%)
+  -webkit-transform: translateX(100%)
+  transform: translateX(100%)
+  -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1)
+  transition: transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1)
+  width: 320px
+  margin: 0 auto
+  z-index: 4
+
+  &.show
+    -ms-transform: none
+    -webkit-transform: none
+    transform: none
+    box-shadow: 0 5px 5px 5px rgba(0, 0, 0, 0.19), 0 1px 6px rgba(0, 0, 0, 0.12)
+
+  @media (max-width: 375.98px)
+    &.show
+      width: 100% !important
+
+.chat-header
+  background: #42a7a1
+  color: #fff
+  height: 52px
+  line-height: 52px
+
+  .chat-close
+    font-size: 24px
+    height: 100%
+    line-height: 35px
+    padding: 12px
+    text-align: center
+    float: left
+    width: 64px
+    cursor: pointer
+
+    .chat-button
+      float: right
+      a
+        font-size: 24px
+        color: #fff
+
+  .chat-title
+    font-size: 18px
+    font-weight: 500
+    color: #fff
+    text-overflow: ellipsis
+    text-transform: uppercase
+
+.chat-history
+  bottom: 0
+  left: 0
+  overflow-y: auto
+  position: absolute
+  right: 0
+  top: 52px
+  bottom: 130px
+  padding: 20px 20px 0
+  background-color: #fff
+
+  .chat-empty
+    color: #f6f6f6
+    left: 0
+    position: absolute
+    right: 0
+    text-align: center
+    top: 50%
+    -ms-transform: translateY(-50%)
+    -webkit-transform: translateY(-50%)
+    transform: translateY(-50%)
+
+    .chat-empty-icon
+      font-size: 88px
+
+
+    .chat-empty-message
+      font-size: 15px
+      font-weight: bold
+
+  .chat-item
+    display: flex
+    align-items: flex-start
+    margin-bottom: 15px
+
+    .chat-item-img
+      width: 36px
+      height: 36px
+      border-radius: 50%
+
+      font-size: 36px
+      color: #777
+
+    .message
+      position: relative
+      padding: 10px
+      border-radius: 5px
+      background: #f6f6f6
+      width: calc(100% - 40px)
+
+      div
+        font-size: 13px
+        color: #777
+        word-wrap: break-word
+
+      .message-user-name
+        font-size: 12px
+        font-weight: bold
+        color: #000
+
+      .icon:before
+        color: #999
+        font-size: 11px
+        margin: 0 2px
+
+      .message-time
+        font-size: 10px
+        margin-left: 0.5rem
+        color: #999
+
+      .message-text
+        font-size: 13px
+        color: #777
+        overflow: hidden
+        white-space: pre-wrap
+        word-wrap: break-word
+        margin: 5px 0
+
+    &.chat-item-me
+      .message
+        margin-right: 15px
+
+        &::after
+          left: 100%
+          border: solid transparent
+          border-left-color: #f6f6f6
+          content: ""
+          height: 0
+          width: 0
+          position: absolute
+          pointer-events: none
+          border-width: 10px
+          top: 10px
+
+    &.chat-item-other
+      .message
+        margin-left: 15px
+
+        &::before
+          right: 100%
+          border: solid transparent
+          border-right-color: #f6f6f6
+          content: ""
+          height: 0
+          width: 0
+          position: absolute
+          pointer-events: none
+          border-width: 10px
+          top: 10px
+
+.chat-controls
+  position: absolute
+  bottom: 0
+  left: 0
+  right: 0
+  margin-top: 10px
+  background-color: #fff
+  border-top: 1px solid #f6f6f6
+  padding: 20px
+
+  .chat-controls-textarea
+    width: 100%
+    border: none
+    border-radius: 5px
+    resize: none
+    outline: none
+    max-height: 80px
+    height: 50px
+    overflow: auto
+    color: #777
+    word-wrap: break-word
+    overflow-wrap: break-word
+
+  .chat-controls-buttons
+    margin-top: 15px
+    display: flex
+
+    .chat-controls-buttons-send,
+    .chat-controls-buttons-send-file
+      padding: 0 15px
+      background: #407cf7
+      line-height: 25px
+      display: inline-block
+      color: #fff
+      text-decoration: none
+      border-radius: 3px
+      border: 0
+      cursor: pointer
+
+      &:focus
+        outline: none
+
+    .chat-controls-buttons-send-file
+      margin-left: 0.5rem
+
+    .chat-controls-buttons-wrapper
+      margin-left: auto
+      display: flex
+
+.emoji
+  display: flex
+
+  .chat-controls-buttons-smiles
+    display: flex
+    align-items: center
+    position: relative
+
+    .icon
+      color: #777
+      z-index: 1
+
+    .chat-controls-buttons-smiles-menu
+      background-color: #fff
+      display: none
+      position: absolute
+      width: 140px
+      height: 50px
+      line-height: 50px
+
+      .chat-controls-buttons-smile
+        cursor: pointer
+        margin-left: 5px
+
+    &:hover
+      .chat-controls-buttons-smiles-menu
+        display: flex
+        right: 10px

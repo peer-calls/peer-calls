@@ -1,0 +1,25 @@
+.alert
+  left: 0
+  opacity: 1
+  right: 0
+  text-align: center
+  transition: visibility 100ms ease-in, opacity 100ms ease-in
+  color: $color-warning
+  text-shadow: 0px 0px 3px black
+  padding: 1rem
+  font-size: 1.2rem
+
+  span
+    display: inline-block
+    margin: 1rem 0
+    padding: 0 1rem
+
+  button
+    @include button($color-primary, $color-warning)
+    font-size: 1.2rem
+    padding: 1rem
+
+.alert.hidden
+  opacity: 0
+  visibility: hidden
+

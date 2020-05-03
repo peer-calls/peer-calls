@@ -1,13 +1,13 @@
-.toolbar {
+.toolbar
   visibility: visible;
   opacity: 1;
   transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms;
 
-  &.toolbar-hidden {
+  &.toolbar-hidden
     opacity: 0;
     visibility: hidden;
     transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms;
-  }
+
 
 
   position: absolute;
@@ -15,17 +15,15 @@
   flex-direction: column;
   padding: 0.5rem;
   z-index: 2;
-  // margin: 0 0 1rem 1rem;
-  /* on icons are hidden by default */
+  // on icons are hidden by default
 
-  &.toolbar-call {
+  &.toolbar-call
     bottom: 1rem;
     left: 50%;
     transform: translate(-50%);
     flex-direction: row;
-  }
 
-  .icon {
+  .icon
     position: relative;
     font-size: 24px;
     color: #fff;
@@ -38,7 +36,7 @@
     transition-timing-function: ease-in-out;
     padding: 12px;
 
-    .badge {
+    .badge
       font-family: sans-serif;
       font-weight: bold;
       color: white;
@@ -48,11 +46,8 @@
       right: 0;
       text-align: center;
       bottom: 2px;
-    }
 
-  }
-
-  .tooltip {
+  .tooltip
     margin-left: 0.5rem;
     opacity: 0;
     visibility: hidden;
@@ -67,9 +62,9 @@
     bottom: 0;
     white-space: nowrap;
     line-height: 48px;
-  }
 
-  &.toolbar-call .tooltip {
+
+  &.toolbar-call .tooltip
     margin-left: 0;
     top: inherit;
     bottom: 100%;
@@ -77,9 +72,9 @@
     width: 140px;
     left: calc(-70px + 50%);
     text-align: center;
-  }
 
-  .button {
+
+  .button
     outline: none;
     text-decoration: none;
     display: flex;
@@ -89,80 +84,68 @@
     position: relative;
     margin: 0.5rem;
 
-    &.hangup .icon {
+    &.hangup .icon
       background-color: #dd2c00;
-    }
-    &:hover {
-      .icon {
+
+    &:hover
+      .icon
         box-shadow: 2px 2px 24px rgba(white, 0.1);
         cursor: pointer;
         background-color: #407cf7;
-      }
-      &.hangup .icon {
+
+      &.hangup .icon
         background-color: darken(#dd2c00, 5%);
-      }
-      .tooltip {
+
+      .tooltip
         opacity: 1;
         visibility: visible;
         transform: translateX(0);
-      }
-    }
-    &.on .icon {
+
+
+    &.on .icon
       background: lighten(#407cf7, 10%);
-    }
-  }
 
-  @media (max-width: 350px) {
-    .button {
+
+
+  @media (max-width: 350px)
+    .button
       margin: 0.25rem;
-    }
 
-    .icon {
+
+    .icon
       width: 32px;
       height: 32px;
       font-size: 16px;
       line-height: 10px;
-    }
 
-    .tooltip {
+
+    .tooltip
       font-size: 0.8rem;
-    }
-  }
 
-  .chat.blink .icon {
+  .chat.blink .icon
     -webkit-animation: bg-blink 1s infinite;
     -moz-animation: bg-blink 1s infinite;
     animation: bg-blink 1s infinite;
-  }
 
-}
-
-@-webkit-keyframes bg_blink {
-  50% {
+@-webkit-keyframes bg_blink
+  50%
     background-color: #407cf7;
-  }
 
-  99% {
+  99%
     background-color: #407cf7;
-  }
-}
 
-@-moz-keyframes bg-blink {
-  50% {
+@-moz-keyframes bg-blink
+  50%
     background-color: #407cf7;
-  }
 
-  99% {
-    background-color: #407cf7;
-  }
-}
 
-@keyframes bg-blink {
-  50% {
+  99%
     background-color: #407cf7;
-  }
 
-  99% {
+@keyframes bg-blink
+  50%
     background-color: #407cf7;
-  }
-}
+
+  99%
+    background-color: #407cf7;
+

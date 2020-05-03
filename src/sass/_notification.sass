@@ -1,0 +1,38 @@
+.notifications
+  position: absolute
+  right: 0
+  left: 0
+  top: 0
+  height: 20px
+  overflow-y: hidden
+  transition: height 200ms ease-in, background-color 200ms ease-in
+
+  font-family: $font-monospace
+  font-size: 10px
+  text-align: right
+
+  .notification
+    color: $color-info
+    text-shadow: 0px 0px 3px black
+    padding: 0.25rem
+
+    white-space: nowrap
+    overflow: hidden
+    text-overflow: ellipsis
+
+  .notification.error
+    color: $color-error
+
+  .notification.warning
+    color: $color-warning
+
+  &:focus
+    outline: none
+    top: 0
+    height: 200px
+    background-color: rgba(0, 0, 0, 0.3)
+    overflow-y: auto
+
+    .notification
+      white-space: normal
+      overflow: auto
