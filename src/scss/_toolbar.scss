@@ -36,22 +36,18 @@
     box-shadow: 2px 2px 24px rgba(black, 0.3);
     transition: all .1s;
     transition-timing-function: ease-in-out;
-
-    &::before {
-      position: absolute;
-      left: 1px;
-      right: 0;
-      text-align: center;
-      top: 12px;
-    }
+    padding: 12px;
 
     .badge {
       font-family: sans-serif;
       font-weight: bold;
       color: white;
-      position: relative;
+      position: absolute;
       font-size: 12px;
-      top: 23px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      bottom: 2px;
     }
 
   }
@@ -93,7 +89,7 @@
     position: relative;
     margin: 0.5rem;
 
-    .icon.icon-call_end {
+    &.hangup .icon {
       background-color: #dd2c00;
     }
     &:hover {
@@ -102,7 +98,7 @@
         cursor: pointer;
         background-color: #407cf7;
       }
-      .icon.icon-call_end {
+      &.hangup .icon {
         background-color: darken(#dd2c00, 5%);
       }
       .tooltip {

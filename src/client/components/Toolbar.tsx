@@ -6,6 +6,8 @@ import { removeLocalStream } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL } from '../constants'
 import { LocalStream } from '../reducers/streams'
 import { callId } from '../window'
+import { MdScreenShare, MdStopScreenShare, MdMic, MdMicOff, MdCallEnd, MdVideocam, MdVideocamOff, MdFullscreenExit, MdFullscreen, MdContentCopy, MdQuestionAnswer } from 'react-icons/md'
+import { IconType } from 'react-icons'
 
 export interface ToolbarProps {
   dialState: DialState
@@ -33,15 +35,15 @@ export interface ToolbarButtonProps {
   badge?: string | number
   blink?: boolean
   onClick: () => void
-  icon: string
-  offIcon?: string
+  icon: IconType
+  offIcon?: IconType
   on?: boolean
   title: string
 }
 
 function ToolbarButton(props: ToolbarButtonProps) {
   const { blink, on } = props
-  const icon = !on && props.offIcon ? props.offIcon : props.icon
+  const Icon: IconType = !on && props.offIcon ? props.offIcon : props.icon
 
   return (
     <a
@@ -49,7 +51,8 @@ function ToolbarButton(props: ToolbarButtonProps) {
       onClick={props.onClick}
       href='#'
     >
-      <span className={classnames('icon', icon)}>
+      <span className='icon'>
+        <Icon />
         {!!props.badge && <span className='badge'>{props.badge}</span>}
       </span>
       <span className='tooltip'>{props.title}</span>
@@ -162,7 +165,7 @@ export default class Toolbar extends React.PureComponent<
           <ToolbarButton
             className='copy-url'
             key='copy-url'
-            icon='icon-copy'
+            icon={MdContentCopy}
             onClick={this.copyInvitationURL}
             title='Copy Invitation URL'
           />
@@ -171,7 +174,7 @@ export default class Toolbar extends React.PureComponent<
               badge={unreadCount}
               className='chat'
               key='chat'
-              icon='icon-question_answer'
+              icon={MdQuestionAnswer}
               blink={!this.props.chatVisible && hasUnread}
               onClick={this.handleToggleChat}
               on={this.props.chatVisible}
@@ -184,7 +187,8 @@ export default class Toolbar extends React.PureComponent<
           {isInCall && (
             <ToolbarButton
               className='stream-desktop'
-              icon='icon-display'
+              icon={MdStopScreenShare}
+              offIcon={MdScreenShare}
               onClick={this.handleToggleShareDesktop}
               on={!!this.props.desktopStream}
               key='stream-desktop'
@@ -198,8 +202,8 @@ export default class Toolbar extends React.PureComponent<
               className='mute-audio'
               key='mute-audio'
               on={this.state.micMuted}
-              icon='icon-mic_off'
-              offIcon='icon-mic'
+              icon={MdMicOff}
+              offIcon={MdMic}
               title='Toggle Microphone'
             />
           )}
@@ -209,7 +213,7 @@ export default class Toolbar extends React.PureComponent<
               onClick={this.props.onHangup}
               key='hangup'
               className='hangup'
-              icon='icon-call_end'
+              icon={MdCallEnd}
               title='Hang Up'
             />
           )}
@@ -220,8 +224,8 @@ export default class Toolbar extends React.PureComponent<
               className='mute-video'
               key='mute-video'
               on={this.state.camDisabled}
-              icon='icon-videocam_off'
-              offIcon='icon-videocam'
+              icon={MdVideocamOff}
+              offIcon={MdVideocam}
               title='Toggle Camera'
             />
           )}
@@ -231,8 +235,8 @@ export default class Toolbar extends React.PureComponent<
               onClick={this.handleFullscreenClick}
               className='fullscreen'
               key='fullscreen'
-              icon='icon-fullscreen_exit'
-              offIcon='icon-fullscreen'
+              icon={MdFullscreenExit}
+              offIcon={MdFullscreen}
               on={this.state.fullScreenEnabled}
               title='Toggle Fullscreen'
             />

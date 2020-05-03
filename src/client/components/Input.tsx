@@ -1,5 +1,6 @@
 import React, { ReactEventHandler, ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react'
 import { Message } from '../actions/PeerActions'
+import { MdSentimentSatisfied } from 'react-icons/md'
 
 export interface InputProps {
   sendFile: (file: File) => void
@@ -93,18 +94,18 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
           <div className="chat-controls-buttons-wrapper">
             <div className="emoji">
               <div className="chat-controls-buttons-smiles">
-                <span className="icon icon-sentiment_satisfied" />
+                <MdSentimentSatisfied />
                 <div className="chat-controls-buttons-smiles-menu">
-                  <div className="chat-controls-buttons-smile"
-                    onClick={this.handleSmileClick}>😑</div>
-                  <div className="chat-controls-buttons-smile"
-                    onClick={this.handleSmileClick}>😕</div>
-                  <div className="chat-controls-buttons-smile"
-                    onClick={this.handleSmileClick}>😊</div>
-                  <div className="chat-controls-buttons-smile"
-                    onClick={this.handleSmileClick}>😎</div>
-                  <div className="chat-controls-buttons-smile"
-                    onClick={this.handleSmileClick}>💪</div>
+                  <span className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😑</span>
+                  <span className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😕</span>
+                  <span className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😊</span>
+                  <span className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>😎</span>
+                  <span className="chat-controls-buttons-smile"
+                    onClick={this.handleSmileClick}>💪</span>
                 </div>
               </div>
             </div>

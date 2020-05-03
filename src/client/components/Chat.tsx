@@ -6,6 +6,7 @@ import { Nicknames } from '../reducers/nicknames'
 import Input from './Input'
 import { ME } from '../constants'
 import { getNickname } from '../nickname'
+import { MdClose, MdFace, MdQuestionAnswer } from 'react-icons/md'
 
 export interface MessageProps {
   message: ChatMessage
@@ -61,9 +62,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
       })}>
         <div className="chat-header">
           <div className="chat-close" onClick={this.props.onClose}>
-            <div className="button button-icon">
-              <span className="icon icon-arrow_forward" />
-            </div>
+            <MdClose />
           </div>
           <div className="chat-title">Chat</div>
         </div>
@@ -78,28 +77,22 @@ export default class Chat extends React.PureComponent<ChatProps> {
                       <span className="message-user-name">
                         {getNickname(this.props.nicknames, message.userId)}
                       </span>
-                      <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
                       <MessageEntry message={message} />
                     </div>
-                    {message.image ? (
-                      <img className="chat-item-img" src={message.image} />
-                    ) : (
-                      <span className="chat-item-img icon icon-face" />
-                    )}
+                    <span className="chat-item-img">
+                      <MdFace />
+                    </span>
                   </div>
                 ) : (
                   <div className="chat-item chat-item-other">
-                    {message.image ? (
-                      <img className="chat-item-img" src={message.image} />
-                    ) : (
-                      <span className="chat-item-img icon icon-face" />
-                    )}
+                    <span className="chat-item-img">
+                      <MdFace />
+                    </span>
                     <div className="message">
                       <span className="message-user-name">
                         {getNickname(this.props.nicknames, message.userId)}
                       </span>
-                      <span className="icon icon-schedule" />
                       <time className="message-time">{message.timestamp}</time>
                       <MessageEntry message={message} />
                     </div>
@@ -109,7 +102,9 @@ export default class Chat extends React.PureComponent<ChatProps> {
             ))
           ) : (
             <div className="chat-empty">
-              <span className="chat-empty-icon icon icon-question_answer" />
+              <span className="chat-empty-icon">
+                <MdQuestionAnswer />
+              </span>
               <div className="chat-empty-message">No Notifications</div>
             </div>
           )}
