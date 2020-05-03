@@ -51,8 +51,8 @@ function ToolbarButton(props: ToolbarButtonProps) {
       onClick={props.onClick}
       href='#'
     >
-      <span>
-        <Icon className='icon' />
+      <span className='icon'>
+        <Icon />
         {!!props.badge && <span className='badge'>{props.badge}</span>}
       </span>
       <span className='tooltip'>{props.title}</span>
