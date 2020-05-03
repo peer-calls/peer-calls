@@ -1,4 +1,4 @@
-import { MetadataPayload } from '../../shared'
+import { MetadataPayload } from '../SocketEvent'
 import * as constants from '../constants'
 
 export type StreamType = 'camera' | 'desktop'

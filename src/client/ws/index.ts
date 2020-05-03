@@ -1,8 +1,10 @@
-import { Callback, Events, TypedEmitter } from '../../shared'
+import { Callback, Events, TypedEmitter } from './TypedEmitter'
 import { EventEmitter } from 'events'
 import _debug from 'debug'
 
 const debug = _debug('peercalls')
+
+export { TypedEmitter }
 
 interface Message {
   type: string

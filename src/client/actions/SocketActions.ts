@@ -1,5 +1,5 @@
 import _debug from 'debug'
-import { MetadataPayload, SocketEvent } from '../../shared'
+import { MetadataPayload, SocketEvent } from '../SocketEvent'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'

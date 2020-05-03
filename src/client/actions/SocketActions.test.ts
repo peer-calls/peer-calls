@@ -10,7 +10,7 @@ import { EventEmitter } from 'events'
 import { createStore, Store } from '../store'
 import { ClientSocket } from '../socket'
 import { MediaStream, MediaStreamTrack } from '../window'
-import { SocketEvent } from '../../shared'
+import { SocketEvent } from '../SocketEvent'
 import { StreamsState } from '../reducers/streams'
 
 describe('SocketActions', () => {
