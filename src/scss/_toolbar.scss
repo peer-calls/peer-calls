@@ -89,7 +89,7 @@
     position: relative;
     margin: 0.5rem;
 
-    .icon.icon-call_end {
+    &.hangup .icon {
       background-color: #dd2c00;
     }
     &:hover {
@@ -98,7 +98,7 @@
         cursor: pointer;
         background-color: #407cf7;
       }
-      .icon.icon-call_end {
+      &.hangup .icon {
         background-color: darken(#dd2c00, 5%);
       }
       .tooltip {
