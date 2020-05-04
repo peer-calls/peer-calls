@@ -66,6 +66,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
       await props.getMediaStream({ audio, video })
     } catch (err) {
       props.logError('Error getting media stream: {0}', err)
+      return
     }
 
     props.logInfo('Dialling...')

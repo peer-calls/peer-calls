@@ -9,6 +9,7 @@ import { createStore, Store } from '../store'
 import { Media } from './Media'
 import { MEDIA_ENUMERATE, ME, DIAL, DIAL_STATE_IN_CALL, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
+import { MediaStream } from '../window'
 
 describe('Media', () => {
 
@@ -47,7 +48,7 @@ describe('Media', () => {
   }
 
   describe('submit', () => {
-    const stream = {} as MediaStream
+    const stream = new MediaStream()
     let promise1: Promise<MediaStream>
 
     let dialPromise: Promise<void>
@@ -79,7 +80,7 @@ describe('Media', () => {
       await dialPromise
       expect(store.getState().media.dialState).toBe(DIAL_STATE_IN_CALL)
     })
-    it('dials even when stream is unavailable', async () => {
+    it('does not dial when stream is not available', async () => {
       navigator.mediaDevices.getUserMedia = async () => {
         promise1 = Promise.reject(new Error('test stream error'))
         return promise1
@@ -96,8 +97,7 @@ describe('Media', () => {
       }
       expect(err).toBeTruthy()
       expect(err.message).toBe('test stream error')
-      await dialPromise
-      expect(store.getState().media.dialState).toBe(DIAL_STATE_IN_CALL)
+      expect(store.getState().media.dialState).toEqual(DIAL_STATE_HUNG_UP)
     })
     it('returns  to hung up state when dialling fails', async () => {
       (dial as jest.Mock).mockImplementation(() => {

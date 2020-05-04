@@ -2,6 +2,7 @@ import _debug from 'debug'
 import { AsyncAction, makeAction } from '../async'
 import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
 import { AddLocalStreamPayload, StreamTypeCamera, StreamTypeDesktop } from './StreamActions'
+import { MediaStream } from '../window'
 
 const debug = _debug('peercalls')
 
@@ -11,8 +12,30 @@ export interface MediaDevice {
   type: 'audioinput' | 'videoinput'
 }
 
+const getUserMediaFail = (
+  constraints: MediaStreamConstraints,
+  resolve: () => void,
+  reject: (err: Error) => void,
+) => {
+  reject(new Error(
+    'No API to retrieve media stream. This can happen if you ' +
+    'are using an old browser, or the application is not using HTTPS'))
+}
+
 export const enumerateDevices = makeAction(MEDIA_ENUMERATE, async () => {
-  const devices = await navigator.mediaDevices.enumerateDevices()
+  let stream: MediaStream
+  try {
+    stream = await getUserMedia({ audio: true, video: true })
+  } catch (err) {
+    stream = new MediaStream()
+  }
+
+  let devices: MediaDeviceInfo[]
+  try {
+    devices = await navigator.mediaDevices.enumerateDevices()
+  } finally {
+    stream.getTracks().forEach(track => track.stop())
+  }
 
   return devices
   .filter(
@@ -60,7 +83,8 @@ async function getUserMedia(
   const _getUserMedia: typeof navigator.getUserMedia =
     navigator.getUserMedia ||
     navigator.webkitGetUserMedia ||
-    navigator.mozGetUserMedia
+    navigator.mozGetUserMedia ||
+    getUserMediaFail
 
   return new Promise<MediaStream>((resolve, reject) => {
     _getUserMedia.call(navigator, constraints, resolve, reject)

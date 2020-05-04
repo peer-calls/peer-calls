@@ -77,7 +77,8 @@ export default class Videos extends React.PureComponent<VideosProps> {
           key,
           stream: stream,
           userId,
-          mirrored: localUser && stream.type === StreamTypeCamera,
+          mirrored: localUser && stream.type === StreamTypeCamera &&
+            !!stream.stream.getVideoTracks().find(t => /front/i.test(t.label)),
           muted: localUser,
           localUser,
           windowState: windowStates[key],
