@@ -1,10 +1,9 @@
 ---
-name: Bug report
-about: Create a report to help improve Peer Calls
+name: Bug Report
+about: Create a bug report to help improve Peer Calls
 title: ''
 labels: bug
 assignees: ''
-
 ---
 
 **Describe the bug**
