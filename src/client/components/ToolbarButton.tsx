@@ -6,7 +6,7 @@ export interface ToolbarButtonProps {
   className?: string
   badge?: string | number
   blink?: boolean
-  onClick: () => void
+  onClick: (event: React.MouseEvent) => void
   icon: IconType
   offIcon?: IconType
   on?: boolean

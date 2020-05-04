@@ -1,11 +1,13 @@
 import React from 'react'
+import ReactDOM from 'react-dom'
 import classnames from 'classnames'
 import { IconType } from 'react-icons'
 import { AudioConstraint, VideoConstraint, enumerateDevices, getMediaStream, MediaDevice, setAudioConstraint, setVideoConstraint, FacingConstraint, DeviceConstraint } from '../actions/MediaActions'
 import { ToolbarButton } from './ToolbarButton'
 import { State } from '../store'
-import { MdVideocam, MdMic, MdVideocamOff, MdMicOff } from 'react-icons/md'
+import { MdVideocam, MdMic, MdVideocamOff, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked } from 'react-icons/md'
 import { connect } from 'react-redux'
+import { Backdrop } from './Backdrop'
 
 export type Constraint = AudioConstraint | VideoConstraint
 
@@ -50,11 +52,19 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
   state: DeviceDropdownState = {
     open: false,
   }
-  handleOpen = () => {
-    this.setState({ open: !this.state.open })
+  toggleOpen = (e: React.SyntheticEvent) => {
+    e.stopPropagation()
+    this.setOpen(!this.state.open)
+  }
+  close = () => {
+    this.setOpen(false)
+  }
+  setOpen = (open: boolean) => {
+    console.log(this.props.kind, 'setOpen', this.props.kind, open)
+    this.setState({ open })
   }
   handleDevice = async (constraint: AudioConstraint | VideoConstraint) => {
-    this.setState({ open: false })
+    this.close()
     let { audioinput: audio, videoinput: video } = this.props
 
     if (this.props.kind === 'audioinput') {
@@ -89,9 +99,10 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
           icon={this.props.icon}
           offIcon={this.props.offIcon}
           on={selectedDevice === false}
-          onClick={this.handleOpen}
+          onClick={this.toggleOpen}
           title={this.props.title}
         />
+        <Backdrop visible={this.state.open} onClick={this.close} />
         <ul className={classNames}>
           <DeviceOption
             device={false}
@@ -134,11 +145,14 @@ export interface DeviceOptionProps {
 }
 
 export class DeviceOption extends React.PureComponent<DeviceOptionProps> {
-  handleClick = () => {
+  handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     this.props.onClick(this.props.device)
   }
   render() {
-    const checked = this.props.selected ? '✓' : ''
+    const checked = this.props.selected
+      ? <MdRadioButtonChecked />
+      : <MdRadioButtonUnchecked />
     return (
       <li onClick={this.handleClick}>
         {checked} {this.props.name}
