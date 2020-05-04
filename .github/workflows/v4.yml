@@ -4,7 +4,10 @@ name: Peer Calls CI
 
 on:
   push:
-    branches: [ github-actions ]
+    branches:
+      - github-actions
+    tags:
+      - v4.*
   pull_request:
     branches: []
 
@@ -25,7 +28,7 @@ jobs:
     - name: Upload client-side artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: client-build
+        name: build
         path: build
   go:
     runs-on: ubuntu-latest
@@ -70,7 +73,8 @@ jobs:
     - name: Download client-side artifacts
       uses: actions/download-artifact@v1
       with:
-        name: client-build
+        name: build
+    - run: find build/
     - run: mkdir -p build/release
     - run: echo "::set-env name=git_describe::$(git describe --always --tags)"
     - run: echo $git_describe
@@ -88,6 +92,7 @@ jobs:
         sha7=${GITHUB_SHA:7}
         assets=()
         for asset in build/release/*; do
-          assets+=("-a" "$asset")
+          tar czvf $asset.tar.gz $asset
+          assets+=("-a" "$asset.tar.gz")
         done
-        hub release create --prerelease "${assets[@]}" -m "$git_describe" "$git_describe"
+        hub release create --prerelease "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls Alpha $git_describe" "$git_describe"
