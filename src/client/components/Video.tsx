@@ -4,6 +4,7 @@ import { StreamWithURL } from '../reducers/streams'
 import { Dropdown } from './Dropdown'
 import { WindowState } from '../reducers/windowStates'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
+import { MdCrop, MdZoomIn, MdZoomOut, MdMenu } from 'react-icons/md'
 
 export interface VideoProps {
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
@@ -59,8 +60,9 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   render () {
     const { mirrored, muted, userId, stream, windowState } = this.props
+    const minimized =  windowState === 'minimized'
     const className = classnames('video-container', {
-      minimized: windowState === 'minimized',
+      minimized,
       mirrored,
     })
 
@@ -80,12 +82,13 @@ export default class Video extends React.PureComponent<VideoProps> {
         )}
         <div className='video-footer'>
           <span className='nickname'>{this.props.nickname}</span>
-          <Dropdown label={'☰'}>
+          <Dropdown label={<MdMenu />}>
             <li className='action-minimize' onClick={this.handleMinimize}>
-              Toggle Minimize
+              {minimized ? <MdZoomIn /> : <MdZoomOut /> }&nbsp;
+              {minimized ? 'Maximize': 'Minimize' }
             </li>
             <li className='action-toggle-fit' onClick={this.handleToggleCover}>
-              Toggle Fit
+              <MdCrop /> Toggle Fit
             </li>
           </Dropdown>
         </div>

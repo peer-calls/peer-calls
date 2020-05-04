@@ -1,5 +1,4 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
 import classnames from 'classnames'
 import { IconType } from 'react-icons'
 import { AudioConstraint, VideoConstraint, enumerateDevices, getMediaStream, MediaDevice, setAudioConstraint, setVideoConstraint, FacingConstraint, DeviceConstraint } from '../actions/MediaActions'
@@ -60,7 +59,6 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
     this.setOpen(false)
   }
   setOpen = (open: boolean) => {
-    console.log(this.props.kind, 'setOpen', this.props.kind, open)
     this.setState({ open })
   }
   handleDevice = async (constraint: AudioConstraint | VideoConstraint) => {
