@@ -1,5 +1,6 @@
 import React from 'react'
 import classnames from 'classnames'
+import { Backdrop } from './Backdrop'
 
 export interface DropdownProps {
   label: string | React.ReactElement
@@ -43,6 +44,7 @@ extends React.PureComponent<DropdownProps, DropdownState> {
     return (
       <div className='dropdown'>
         <button onClick={handleClick} >{this.props.label}</button>
+        <Backdrop onClick={this.close} visible={this.state.open} />
         <ul className={classNames}>
           {menu}
         </ul>

@@ -123,7 +123,7 @@ export default class Toolbar extends React.PureComponent<
     const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
 
     const className = classnames('toolbar', {
-      'toolbar-hidden': this.state.hidden,
+      'toolbar-hidden': this.props.chatVisible || this.state.hidden,
     })
 
     return (

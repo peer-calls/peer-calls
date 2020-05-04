@@ -1,5 +1,4 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
 
 export interface BackdropProps {
   visible: boolean
@@ -12,10 +11,10 @@ export class Backdrop extends React.PureComponent<BackdropProps> {
       return null
     }
 
-    return ReactDOM.createPortal(
-      <section className='dropdown-backdrop' onClick={this.props.onClick} />,
-      document.body,
-    )
+    return <section
+      className='dropdown-backdrop'
+      onClick={this.props.onClick}
+    />
   }
 }
 

@@ -6,11 +6,10 @@
   -ms-transform: translateX(100%)
   -webkit-transform: translateX(100%)
   transform: translateX(100%)
-  -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1)
   transition: transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1)
   width: 320px
   margin: 0 auto
-  z-index: 4
+  z-index: $z-index-chat
 
   &.show
     -ms-transform: none

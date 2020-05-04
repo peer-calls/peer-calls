@@ -1,151 +1,159 @@
 .toolbar
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms;
+  visibility: visible
+  opacity: 1
+  transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms
 
   &.toolbar-hidden
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms;
+    opacity: 0
+    visibility: hidden
+    transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms
 
-
-
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem;
-  z-index: 2;
+  position: absolute
+  display: flex
+  flex-direction: column
+  padding: 0.5rem
+  z-index: $z-index-toolbar
   // on icons are hidden by default
 
   &.toolbar-call
-    bottom: 1rem;
-    left: 50%;
-    transform: translate(-50%);
-    flex-direction: row;
+    bottom: 1rem
+    left: 50%
+    margin-left: -168px
+    flex-direction: row
 
   .icon
-    position: relative;
-    font-size: 24px;
-    color: #fff;
-    width: 48px;
-    height: 48px;
-    border-radius: 48px;
-    background-color: rgba(0, 0, 0, 0.2);
-    box-shadow: 2px 2px 24px rgba(black, 0.3);
-    transition: all .1s;
-    transition-timing-function: ease-in-out;
-    padding: 12px;
+    position: relative
+    font-size: 24px
+    color: #fff
+    width: 48px
+    height: 48px
+    border-radius: 48px
+    background-color: rgba(0, 0, 0, 0.2)
+    box-shadow: 2px 2px 24px rgba(black, 0.3)
+    transition: all .1s
+    transition-timing-function: ease-in-out
+    padding: 12px
 
     .badge
-      font-family: sans-serif;
-      font-weight: bold;
-      color: white;
-      position: absolute;
-      font-size: 12px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      bottom: 2px;
+      font-family: sans-serif
+      font-weight: bold
+      color: white
+      position: absolute
+      font-size: 12px
+      left: 0
+      right: 0
+      text-align: center
+      bottom: 2px
 
   .tooltip
-    margin-left: 0.5rem;
-    opacity: 0;
-    visibility: hidden;
-    color: white;
-    text-shadow: 0 0 5px black;
-    transition: opacity 200ms ease-in 25ms, transform 100ms ease-in;
-    transform: translateX(-100%);
-    pointer-events: none;
-    position: absolute;
-    left: 100%;
-    top: 0;
-    bottom: 0;
-    white-space: nowrap;
-    line-height: 48px;
+    margin-left: 0.5rem
+    opacity: 0
+    visibility: hidden
+    color: white
+    text-shadow: 0 0 5px black
+    transition: opacity 200ms ease-in 25ms, transform 100ms ease-in
+    transform: translateX(-100%)
+    pointer-events: none
+    position: absolute
+    left: 100%
+    top: 0
+    bottom: 0
+    white-space: nowrap
+    line-height: 48px
 
 
   &.toolbar-call .tooltip
-    margin-left: 0;
-    top: inherit;
-    bottom: 100%;
-    transform: translateY(100%);
-    width: 140px;
-    left: calc(-70px + 50%);
-    text-align: center;
+    margin-left: 0
+    top: inherit
+    bottom: 100%
+    transform: translateY(100%)
+    width: 140px
+    left: calc(-70px + 50%)
+    text-align: center
 
 
   .button
-    outline: none;
-    text-decoration: none;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    cursor: pointer;
-    position: relative;
-    margin: 0.5rem;
+    outline: none
+    text-decoration: none
+    display: flex
+    flex-direction: row
+    align-items: center
+    cursor: pointer
+    position: relative
+    margin: 0.5rem
 
     &.hangup .icon
-      background-color: #dd2c00;
+      background-color: #dd2c00
 
     &:hover
       .icon
-        box-shadow: 2px 2px 24px rgba(white, 0.1);
-        cursor: pointer;
-        background-color: #407cf7;
+        box-shadow: 2px 2px 24px rgba(white, 0.1)
+        cursor: pointer
+        background-color: #407cf7
 
       &.hangup .icon
-        background-color: darken(#dd2c00, 5%);
+        background-color: darken(#dd2c00, 5%)
 
       .tooltip
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(0);
+        opacity: 1
+        visibility: visible
+        transform: translateX(0)
 
 
     &.on .icon
-      background: lighten(#407cf7, 10%);
+      background: lighten(#407cf7, 10%)
 
 
 
   @media (max-width: 350px)
-    .button
-      margin: 0.25rem;
+    &.toolbar-call
+      margin-left: -108px
 
+    .button
+      margin: 0.25rem
 
     .icon
-      width: 32px;
-      height: 32px;
-      font-size: 16px;
-      line-height: 10px;
-
+      width: 32px
+      height: 32px
+      font-size: 16px
+      line-height: 10px
+      padding: 0.5rem
 
     .tooltip
-      font-size: 0.8rem;
+      font-size: 0.8rem
+
+  .dropdown-list::after
+    position: absolute
+    content: ' '
+    border: 0.8rem solid transparent
+    border-top: 1rem solid white
+    left: 50%
+    transform: translateX(-50%)
 
   .chat.blink .icon
-    -webkit-animation: bg-blink 1s infinite;
-    -moz-animation: bg-blink 1s infinite;
-    animation: bg-blink 1s infinite;
+    -webkit-animation: bg-blink 1s infinite
+    -moz-animation: bg-blink 1s infinite
+    animation: bg-blink 1s infinite
 
 @-webkit-keyframes bg_blink
   50%
-    background-color: #407cf7;
+    background-color: #407cf7
 
   99%
-    background-color: #407cf7;
+    background-color: #407cf7
 
 @-moz-keyframes bg-blink
   50%
-    background-color: #407cf7;
+    background-color: #407cf7
 
 
   99%
-    background-color: #407cf7;
+    background-color: #407cf7
 
 @keyframes bg-blink
   50%
-    background-color: #407cf7;
+    background-color: #407cf7
 
   99%
-    background-color: #407cf7;
+    background-color: #407cf7
 

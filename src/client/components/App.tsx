@@ -15,7 +15,6 @@ import { WindowStates } from '../reducers/windowStates'
 import Chat from './Chat'
 import { Media } from './Media'
 import Notifications from './Notifications'
-import { Side } from './Side'
 import Toolbar from './Toolbar'
 import Videos from './Videos'
 
@@ -103,13 +102,11 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           onGetDesktopStream={this.props.getDesktopStream}
           onRemoveLocalStream={this.props.removeLocalStream}
         />
-        <Side className={chatVisibleClassName} top zIndex={1}>
-          <Notifications
-            dismiss={dismissNotification}
-            notifications={notifications}
-          />
-          <Media />
-        </Side>
+        <Notifications
+          className={chatVisibleClassName}
+          dismiss={dismissNotification}
+          notifications={notifications}
+        />
         <Chat
           messages={messages}
           nicknames={nicknames}
@@ -118,14 +115,16 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           sendFile={sendFile}
           visible={this.state.chatVisible}
         />
-
-        <Videos
-          onMinimizeToggle={this.props.minimizeToggle}
-          streams={this.props.streams}
-          play={this.props.play}
-          nicknames={this.props.nicknames}
-          windowStates={this.props.windowStates}
-        />
+        <Media />
+        {this.props.dialState !== constants.DIAL_STATE_HUNG_UP &&
+          <Videos
+            onMinimizeToggle={this.props.minimizeToggle}
+            streams={this.props.streams}
+            play={this.props.play}
+            nicknames={this.props.nicknames}
+            windowStates={this.props.windowStates}
+          />
+        }
       </div>
     )
   }

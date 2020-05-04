@@ -5,20 +5,12 @@ $shadow-size: 2px
   white-space: nowrap
 
 .videos-grid
-  position: absolute
-  bottom: 0
-  left: 0
-  right: 0
-  top: 0
-
   display: flex
   flex-wrap: wrap
   flex: 1 1 25%
 
   @media (orientation:portrait)
     flex-direction: column
-
-  z-index: -1
 
 .video-container
   background-color: rgba($color-bg, 0.8)
@@ -59,15 +51,17 @@ $shadow-size: 2px
     right: 0
     width: 100%
     height: 100%
-    z-index: 0
 
 .videos-toolbar
+  position: absolute
+  z-index: $z-index-videos-toolbar
+  left: 0
+  right: 0
   display: flex
   flex-wrap: nowrap
   justify-content: flex-end
   overflow-x: auto
   overflow-y: hidden
-  z-index: 0
   padding-bottom: 1px
 
 .videos-toolbar .video-container

@@ -5,6 +5,7 @@ import classnames from 'classnames'
 import { dismissNotification, Notification as NotificationType } from '../actions/NotifyActions'
 
 export interface NotificationsProps {
+  className?: string
   notifications: Record<string, NotificationType>
   dismiss: typeof dismissNotification
   max: number
@@ -38,9 +39,9 @@ extends React.PureComponent<NotificationsProps> {
     max: 20,
   }
   render () {
-    const { dismiss, notifications, max } = this.props
+    const { className, dismiss, notifications, max } = this.props
     return (
-      <div className="notifications" tabIndex={0}>
+      <div className={classnames('notifications', className)} tabIndex={0}>
         <TransitionGroup>
           {Object.keys(notifications).slice(-max).reverse().map(id => (
             <CSSTransition

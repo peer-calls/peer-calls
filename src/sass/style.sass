@@ -5,11 +5,9 @@
 *:after
   box-sizing: border-box
 
-html
-  height: 100%
-
 html, body
-  z-index: -99
+  width: 100vw
+  height: 100vh
 
 body
   background-color: $color-bg
@@ -35,6 +33,8 @@ body.call
   background-position: 50% 50%
   background-repeat: no-repeat
   background-blend-mode: soft-light
+  padding: 0
+  display: flex
 
 #github-ribbon
   position: absolute
@@ -139,7 +139,14 @@ body.call
 .info
   color: $color-info
 
+#container
+  display: flex
+  flex: 1 1 100%
+
 .app
+  display: flex
+  flex: 1 1 100%
+
   @import '_alert'
   @import '_notification'
   @import '_video'
@@ -162,35 +169,6 @@ body.call
 .fade-exit.fade-exit-active
   opacity: 0.01
   transition: opacity 100ms ease-in
-
-.side
-  position: absolute
-  display: flex
-  transition: right cubic-bezier(0.55, 0, 0, 1) 500ms
-
-  &.left
-    flex-direction: row
-    left: 0
-    top: 0
-    bottom: 0
-
-  &.right
-    flex-direction: row
-    right: 0
-    top: 0
-    bottom: 0
-
-  &.top
-    flex-direction: column
-    top: 0
-    left: 0
-    right: 0
-
-  &.bottom
-    flex-direction: column
-    bottom: 0
-    left: 0
-    right: 0
 
 .app .chat-visible
   right: 320px
