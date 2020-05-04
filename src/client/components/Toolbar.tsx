@@ -1,6 +1,6 @@
 import classnames from 'classnames'
 import React from 'react'
-import { MdCallEnd, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare } from 'react-icons/md'
+import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
@@ -28,6 +28,20 @@ export interface ToolbarState {
   camDisabled: boolean
   micMuted: boolean
   fullScreenEnabled: boolean
+}
+
+interface ShareData {
+  title: string
+  text: string
+  url: string
+}
+
+interface ShareNavigator extends Navigator {
+  share: (data: ShareData) => Promise<void>
+}
+
+function canShare(navigator: Navigator): navigator is ShareNavigator {
+  return 'share' in navigator
 }
 
 export default class Toolbar extends React.PureComponent<
@@ -76,9 +90,17 @@ export default class Toolbar extends React.PureComponent<
   copyInvitationURL = async () => {
     const { nickname } = this.props
     const link = location.href
-    const text = `${nickname} has invited you for a meeting on Peer Calls. ` +
-        `\nRoom: ${callId} \nLink: ${link}`
-    await navigator.clipboard.writeText(text)
+    const text = `${nickname} has invited you to a meeting on Peer Calls`
+    if (canShare(navigator)) {
+      await navigator.share({
+        title: 'Peer Call',
+        text,
+        url: link,
+      })
+      return
+    }
+    const value = `${text}. \nRoom: ${callId} \nLink: ${link}`
+    await navigator.clipboard.writeText(value)
   }
   handleToggleChat = () => {
     this.setState({
@@ -110,9 +132,9 @@ export default class Toolbar extends React.PureComponent<
           <ToolbarButton
             className='copy-url'
             key='copy-url'
-            icon={MdContentCopy}
+            icon={canShare(navigator) ? MdShare : MdContentCopy}
             onClick={this.copyInvitationURL}
-            title='Copy Invitation URL'
+            title={canShare(navigator) ? 'Share' : 'Copy Invitation URL'}
           />
           {isInCall && (
             <ToolbarButton

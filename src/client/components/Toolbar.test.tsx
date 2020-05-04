@@ -190,7 +190,7 @@ describe('components/Toolbar', () => {
     })
   })
 
-  describe('copy invitation url', () => {
+  describe('share / copy invitation url', () => {
 
     let promise: Promise<string>
     beforeEach(() => {
@@ -203,11 +203,27 @@ describe('components/Toolbar', () => {
     })
 
     it('copies invite url using navigator.clipboard', async () => {
+      await render()
       const copyUrl = node.querySelector('.copy-url')!
       expect(copyUrl).toBeDefined()
       TestUtils.Simulate.click(copyUrl)
       const result = await promise
       expect(result).toMatch(/john has invited you/)
+    })
+
+    it('opens share dialog when available', async () => {
+      let res: (value: any) => void
+      const p = new Promise<any>(resolve => res = resolve)
+      ;(navigator as any).share = (value: any) => res(value)
+      await render()
+      const copyUrl = node.querySelector('.copy-url')!
+      expect(copyUrl).toBeDefined()
+      TestUtils.Simulate.click(copyUrl)
+      expect(await p).toEqual({
+        title: 'Peer Call',
+        text: 'john has invited you to a meeting on Peer Calls',
+        url: jasmine.stringMatching(/^http/),
+      })
     })
   })
 
