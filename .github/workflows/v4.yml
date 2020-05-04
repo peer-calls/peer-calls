@@ -4,12 +4,11 @@ name: Peer Calls CI
 
 on:
   push:
-    branches:
-      - github-actions
+    branches: '*'
     tags:
       - v4*
   pull_request:
-    branches: []
+    branches: [master]
 
 jobs:
   nodejs:
