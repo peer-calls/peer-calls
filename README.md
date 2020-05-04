@@ -1,10 +1,7 @@
 # Peer Calls v4 (alpha)
 
-[![Build Status][travis-badge]][travis]
+![Peer Calls CI](https://github.com/peer-calls/peer-calls/workflows/Peer%20Calls%20CI/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/peer-calls/peer-calls)](https://goreportcard.com/report/github.com/peer-calls/peer-calls)
-
-[travis-badge]: https://travis-ci.com/peer-calls/peer-calls.svg?branch=master
-[travis]: https://travis-ci.com/peer-calls/peer-calls
 
 WebRTC peer to peer calls for everyone. See it live in action at
 [peercalls.com/alpha][peer-calls].
@@ -57,6 +54,17 @@ See [go.mod](go.mod) for more information
 See [package.json](package.json) for more information.
 
 # Installation & Running
+
+## Download Release
+
+Head to [Releases](https://github.com/peer-calls/peer-calls/releases) and
+download a precompiled version. Currently the binaries for the following
+systems are built automatically:
+
+ - linux amd64
+ - linux arm
+ - darwin (macOS) amd64
+ - windows amd64
 
 ## Using Docker
 
