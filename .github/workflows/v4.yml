@@ -94,4 +94,4 @@ jobs:
           tar czvf $asset.tar.gz $asset
           assets+=("-a" "$asset.$git_describe.tar.gz")
         done
-        hub release create --prerelease "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls Alpha $git_describe" "$git_describe"
+        hub release create --prerelease "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls $git_describe" "$git_describe"
