@@ -7,7 +7,7 @@ on:
     branches:
       - github-actions
     tags:
-      - v4.*
+      - v4*
   pull_request:
     branches: []
 
@@ -79,20 +79,20 @@ jobs:
     - run: echo "::set-env name=git_describe::$(git describe --always --tags)"
     - run: echo $git_describe
     - run: export GOOS=linux GOARCH=amd64; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go
-    # - run: export GOOS=linux GOARCH=arm; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go
+    - run: export GOOS=linux GOARCH=arm; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go
     - run: export GOOS=darwin GOARCH=amd64; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go
-    # - run: export GOOS=windows GOARCH=amd64; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH.exe main.go
+    - run: export GOOS=windows GOARCH=amd64; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH.exe main.go
     - name: Release
-      # if: startsWith(github.ref, 'refs/tags/v')
-      if: ${{ github.ref == 'refs/heads/github-actions' }}
+      if: startsWith(github.ref, 'refs/tags/v')
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -xeu
         sha7=${GITHUB_SHA:7}
         assets=()
-        for asset in build/release/*; do
+        cd build/release
+        for asset in ./*; do
           tar czvf $asset.tar.gz $asset
-          assets+=("-a" "$asset.tar.gz")
+          assets+=("-a" "$asset.$git_describe.tar.gz")
         done
         hub release create --prerelease "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls Alpha $git_describe" "$git_describe"
