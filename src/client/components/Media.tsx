@@ -113,6 +113,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
           name='video-input'
           onChange={this.handleVideoChange}
           value={videoId}
+          autoComplete='off'
         >
           <Options
             devices={props.devices}
@@ -125,6 +126,7 @@ export class MediaForm extends React.PureComponent<MediaProps> {
           name='audio-input'
           onChange={this.handleAudioChange}
           value={audioId}
+          autoComplete='off'
         >
           <Options
             devices={props.devices}

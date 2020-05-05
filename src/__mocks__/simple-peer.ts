@@ -10,6 +10,7 @@ const Peer = jest.fn().mockImplementation(() => {
   (peer as any).removeTrack = jest.fn();
   (peer as any).addStream = jest.fn();
   (peer as any).removeStream = jest.fn();
+  (peer as any).replaceTrack = jest.fn();
   (Peer as any).instances.push(peer)
   return peer
 });
