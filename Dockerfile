@@ -5,7 +5,7 @@ RUN chown node:node /app
 COPY package.json .
 USER node
 RUN npm install
-COPY tsconfig.json .
+COPY webpack* tsconfig.json ./
 COPY src src
 RUN npm run build
 
