@@ -1,7 +1,7 @@
 import React from 'react'
 import classnames from 'classnames'
 import { IconType } from 'react-icons'
-import { AudioConstraint, VideoConstraint, enumerateDevices, getMediaStream, MediaDevice, setAudioConstraint, setVideoConstraint, FacingConstraint, DeviceConstraint } from '../actions/MediaActions'
+import { AudioConstraint, VideoConstraint, enumerateDevices, enableMediaTrack, MediaDevice, setAudioConstraint, setVideoConstraint, FacingConstraint, DeviceConstraint, getMediaTrack, GetMediaTrackParams } from '../actions/MediaActions'
 import { ToolbarButton } from './ToolbarButton'
 import { State } from '../store'
 import { MdVideocam, MdMic, MdVideocamOff, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked } from 'react-icons/md'
@@ -22,7 +22,8 @@ export interface DeviceDropdownProps {
   videoinput: VideoConstraint
 
   enumerateDevices: typeof enumerateDevices
-  getMediaStream: typeof getMediaStream
+  getMediaTrack: typeof getMediaTrack
+  enableMediaTrack: typeof enableMediaTrack
 
   setAudioConstraint: typeof setAudioConstraint
   setVideoConstraint: typeof setVideoConstraint
@@ -46,8 +47,18 @@ function isDeviceConstraint(d: Constraint): d is DeviceConstraint {
   return typeof d === 'object' && 'deviceId' in d && !!d.deviceId
 }
 
+// Remove "name" from constraint so we can compare using stringify
+function toPlainConstraint(c: Constraint): Constraint{
+  if (isDeviceConstraint(c)) {
+    return { deviceId: c.deviceId }
+  }
+  return c
+}
+
 export class DeviceDropdown
 extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
+  private lastDevice?: AudioConstraint | VideoConstraint
+
   state: DeviceDropdownState = {
     open: false,
   }
@@ -66,14 +77,44 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
     let { audioinput: audio, videoinput: video } = this.props
 
     if (this.props.kind === 'audioinput') {
-      audio = constraint as AudioConstraint
+      audio = toPlainConstraint(constraint) as AudioConstraint
+
+      if (!audio && this.props.audioinput) {
+        this.lastDevice = this.props.audioinput
+      }
+
       this.props.setAudioConstraint(audio)
+      await this.getMediaTrack({
+        constraint: audio,
+        kind: 'audio',
+      })
     } else {
-      video = constraint as VideoConstraint
+      video = toPlainConstraint(constraint) as VideoConstraint
+
+      if (!video && this.props.videoinput) {
+        this.lastDevice = this.props.videoinput
+      }
+
       this.props.setVideoConstraint(video)
+      await this.getMediaTrack({
+        constraint: video,
+        kind: 'video',
+      })
+    }
+  }
+  async getMediaTrack(
+    params: GetMediaTrackParams,
+  ) {
+    if (
+      params.constraint &&
+      JSON.stringify(params.constraint) === JSON.stringify(this.lastDevice)
+    ) {
+      // enable the track that was disabled when No <device> was clicked
+      this.props.enableMediaTrack(params.kind)
+      return
     }
 
-    await this.props.getMediaStream({ audio, video })
+    await this.props.getMediaTrack(params)
   }
   render() {
     const selectedDevice: Constraint = this.props[this.props.kind]
@@ -187,7 +228,8 @@ function mapAudioStateToProps(state: State) {
 
 const avDispatch = {
   enumerateDevices,
-  getMediaStream,
+  getMediaTrack,
+  enableMediaTrack,
   setVideoConstraint,
   setAudioConstraint,
 }

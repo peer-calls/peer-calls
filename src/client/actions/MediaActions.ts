@@ -1,10 +1,12 @@
 import _debug from 'debug'
 import { AsyncAction, makeAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET } from '../constants'
-import { AddLocalStreamPayload, StreamTypeCamera, StreamTypeDesktop } from './StreamActions'
+import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_TRACK, MEDIA_TRACK_ENABLE } from '../constants'
+import { AddLocalStreamPayload, StreamTypeCamera, StreamTypeDesktop, StreamType } from './StreamActions'
 import { MediaStream } from '../window'
 
 const debug = _debug('peercalls')
+
+export type MediaKind = 'audio' | 'video'
 
 export interface MediaDevice {
   id: string
@@ -132,6 +134,69 @@ export const play = makeAction('MEDIA_PLAY', async () => {
   await Promise.all(promises)
 })
 
+export type GetMediaTrackParams = {
+  kind: 'audio'
+  constraint: AudioConstraint
+} | {
+  kind: 'video'
+  constraint: VideoConstraint
+}
+
+export interface MediaTrackPayload {
+  kind: MediaKind
+  track: MediaStreamTrack | undefined
+  type: StreamType
+}
+
+export const getMediaTrack = makeAction(
+  MEDIA_TRACK,
+  async (params: GetMediaTrackParams) => {
+    const payload: MediaTrackPayload = {
+      kind: params.kind,
+      track: undefined,
+      type: StreamTypeCamera,
+    }
+    if (!params.constraint) {
+      return payload
+    }
+    if (params.kind === 'audio') {
+      const mediaStream = await getUserMedia({
+        audio: params.constraint,
+        video: false,
+      })
+      payload.track = mediaStream.getAudioTracks()[0]
+    } else {
+      const mediaStream = await getUserMedia({
+        audio: false,
+        video: params.constraint,
+      })
+      payload.track = mediaStream.getVideoTracks()[0]
+    }
+    return payload
+  },
+)
+
+export interface MediaTrackEnablePayload {
+  kind: MediaKind
+  type: StreamType
+}
+
+export interface MediaTrackEnableAction {
+  type: 'MEDIA_TRACK_ENABLE'
+  payload: MediaTrackEnablePayload
+}
+
+// Enables (unmutes) the current desktop A/V track
+export function enableMediaTrack(kind: MediaKind): MediaTrackEnableAction {
+  return {
+    payload: {
+      kind,
+      type: StreamTypeCamera,
+    },
+    type: MEDIA_TRACK_ENABLE,
+  }
+}
+
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
@@ -167,10 +232,13 @@ export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
 export type MediaStreamAction =
   AsyncAction<'MEDIA_STREAM', AddLocalStreamPayload>
 export type MediaPlayAction = AsyncAction<'MEDIA_PLAY', void>
+export type MediaTrackAction = AsyncAction<'MEDIA_TRACK', MediaTrackPayload>
 
 export type MediaAction =
   MediaVideoConstraintAction |
   MediaAudioConstraintAction |
   MediaEnumerateAction |
   MediaStreamAction |
+  MediaTrackAction |
+  MediaTrackEnableAction |
   MediaPlayAction

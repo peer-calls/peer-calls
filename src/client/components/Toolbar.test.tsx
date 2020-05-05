@@ -105,7 +105,7 @@ describe('components/Toolbar', () => {
   })
 
   describe('mic dropdown', () => {
-    const expected = [false, true, {deviceId: 'mic1', name: 'Microphone'}]
+    const expected = [false, true, {deviceId: 'mic1'}]
     it('switches microphone', () => {
       const button = node.querySelector('.dropdown .audio')!
       const items = button.parentElement!.querySelectorAll('li')
@@ -124,7 +124,7 @@ describe('components/Toolbar', () => {
     const expected = [
       false,
       {facingMode: 'user'},
-      {deviceId: 'cam1', name: 'Camera'},
+      {deviceId: 'cam1'},
     ]
     it('switches camera', () => {
       const button = node.querySelector('.dropdown .video')!
