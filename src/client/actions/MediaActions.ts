@@ -200,7 +200,7 @@ export function enableMediaTrack(kind: MediaKind): MediaTrackEnableAction {
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: GetMediaConstraints) => {
-    if (constraints.audio === false && constraints.video === false) {
+    if (!constraints.audio && !constraints.video) {
       const payload: AddLocalStreamPayload = {
         stream: new MediaStream(),
         type: StreamTypeCamera,
