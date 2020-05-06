@@ -134,6 +134,7 @@ describe('components/Toolbar', () => {
         stream,
         streamId: stream.id,
         type: StreamTypeDesktop,
+        mirror: false,
       }
       await render(store)
       const shareDesktop = node.querySelector('.stream-desktop')!
