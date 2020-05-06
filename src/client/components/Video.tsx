@@ -67,7 +67,6 @@ export default class Video extends React.PureComponent<VideoProps> {
       mirrored,
     })
 
-
     return (
       <div className={className}>
         {stream && stream.stream && (

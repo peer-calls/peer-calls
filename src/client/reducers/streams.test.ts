@@ -53,6 +53,7 @@ describe('reducers/alerts', () => {
           streamId: stream.id,
           url: jasmine.any(String),
           type: StreamActions.StreamTypeCamera,
+          mirror: false,
         },
       })
     })
@@ -66,6 +67,7 @@ describe('reducers/alerts', () => {
           streamId: stream.id,
           type: StreamActions.StreamTypeCamera,
           url: undefined,
+          mirror: false,
         },
       })
     })

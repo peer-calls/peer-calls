@@ -1,5 +1,5 @@
 import React from 'react'
-import { StreamWithURL, StreamsState } from '../reducers/streams'
+import { StreamWithURL, StreamsState, LocalStream } from '../reducers/streams'
 import forEach from 'lodash/forEach'
 import map from 'lodash/map'
 import { ME } from '../constants'
@@ -7,7 +7,7 @@ import { getNickname } from '../nickname'
 import Video from './Video'
 import { Nicknames } from '../reducers/nicknames'
 import { getStreamKey, WindowStates, WindowState } from '../reducers/windowStates'
-import { MinimizeTogglePayload, StreamTypeCamera, StreamType } from '../actions/StreamActions'
+import { MinimizeTogglePayload, StreamTypeCamera } from '../actions/StreamActions'
 
 export interface VideosProps {
   nicknames: Nicknames
@@ -53,10 +53,14 @@ export default class Videos extends React.PureComponent<VideosProps> {
       }
     }
 
+    function isLocalStream(s: StreamWithURL): s is LocalStream {
+      return 'mirror' in s && 'type' in s
+    }
+
     function addStreamsByUser(
       localUser: boolean,
       userId: string,
-      streams: Array<StreamWithURL & { type?: StreamType }>,
+      streams: Array<StreamWithURL | LocalStream>,
     ) {
 
       if (!streams.length) {
@@ -77,8 +81,8 @@ export default class Videos extends React.PureComponent<VideosProps> {
           key,
           stream: stream,
           userId,
-          mirrored: localUser && stream.type === StreamTypeCamera &&
-            !!stream.stream.getVideoTracks().find(t => /front/i.test(t.label)),
+          mirrored: localUser && isLocalStream(stream) &&
+            stream.type === StreamTypeCamera && stream.mirror,
           muted: localUser,
           localUser,
           windowState: windowStates[key],

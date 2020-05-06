@@ -4,11 +4,11 @@ import keyBy from 'lodash/keyBy'
 import omit from 'lodash/omit'
 import { MetadataPayload, TrackMetadata } from '../SocketEvent'
 import { HangUpAction } from '../actions/CallActions'
-import { MediaStreamAction } from '../actions/MediaActions'
+import { MediaTrackAction, MediaStreamAction, MediaTrackPayload } from '../actions/MediaActions'
 import { NicknameRemoveAction, NicknameRemovePayload } from '../actions/NicknameActions'
 import { RemovePeerAction } from '../actions/PeerActions'
-import { AddLocalStreamPayload, AddTrackPayload, RemoveLocalStreamPayload, StreamAction, StreamType, TracksMetadataAction } from '../actions/StreamActions'
-import { HANG_UP, MEDIA_STREAM, NICKNAME_REMOVE, PEER_REMOVE, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, TRACKS_METADATA } from '../constants'
+import { AddLocalStreamPayload, AddTrackPayload, RemoveLocalStreamPayload, StreamAction, StreamType, TracksMetadataAction, StreamTypeCamera } from '../actions/StreamActions'
+import { HANG_UP, MEDIA_STREAM, NICKNAME_REMOVE, PEER_REMOVE, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, TRACKS_METADATA, MEDIA_TRACK } from '../constants'
 import { createObjectURL, MediaStream, revokeObjectURL } from '../window'
 
 const debug = _debug('peercalls')
@@ -42,6 +42,7 @@ export interface StreamWithURL {
 
 export interface LocalStream extends StreamWithURL {
   type: StreamType
+  mirror: boolean
 }
 
 export interface UserStreams {
@@ -125,6 +126,8 @@ function addLocalStream (
     streamId: payload.stream.id,
     type: payload.type,
     url: safeCreateObjectURL(stream),
+    mirror: payload.type === StreamTypeCamera &&
+      !!stream.getVideoTracks().find(t => !notMirroredRegexp.test(t.label)),
   }
 
   const existingStream = state.localStreams[payload.type]
@@ -432,11 +435,42 @@ function removePeer(
   }
 }
 
+const notMirroredRegexp = /back/i
+
+function setLocalStreamMirror(
+  state: StreamsState,
+  payload: MediaTrackPayload,
+): StreamsState {
+  const { track, type } = payload
+  const existingStream = state.localStreams[type]
+
+  if (
+    track &&
+    track.kind === 'video' &&
+    type === StreamTypeCamera &&
+    existingStream
+  ) {
+    return {
+     ...state,
+      localStreams: {
+        ...state.localStreams,
+        [type]: {
+          ...existingStream,
+          mirror: !notMirroredRegexp.test(track.label),
+        },
+      },
+    }
+  }
+
+  return state
+}
+
 export default function streams(
   state: StreamsState = defaultState,
   action:
     StreamAction |
     MediaStreamAction |
+    MediaTrackAction |
     HangUpAction |
     NicknameRemoveAction |
     RemovePeerAction |
@@ -462,6 +496,12 @@ export default function streams(
     case MEDIA_STREAM:
       if (action.status === 'resolved') {
         return addLocalStream(state, action.payload)
+      } else {
+        return state
+      }
+    case MEDIA_TRACK:
+      if (action.status === 'resolved') {
+        return setLocalStreamMirror(state, action.payload)
       } else {
         return state
       }
