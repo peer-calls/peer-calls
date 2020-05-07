@@ -5,9 +5,10 @@ import * as constants from '../constants'
 import Peer, { SignalData } from 'simple-peer'
 import forEach from 'lodash/forEach'
 import _debug from 'debug'
-import { iceServers } from '../window'
+import { iceServers, userId } from '../window'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
+import { Encoder, Decoder } from '../codec'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -28,12 +29,20 @@ class PeerHandler {
   user: { id: string }
   dispatch: Dispatch
   getState: GetState
+  decoder?: Decoder
 
   constructor (readonly options: PeerHandlerOptions) {
     this.socket = options.socket
     this.user = options.user
     this.dispatch = options.dispatch
     this.getState = options.getState
+  }
+  getDecoder(): Decoder {
+    if (this.decoder) {
+      return this.decoder
+    }
+    this.decoder = new Decoder()
+    return this.decoder
   }
   handleError = (err: Error) => {
     const { dispatch, getState, user } = this
@@ -92,13 +101,24 @@ class PeerHandler {
     }
   }
   handleData = (buffer: ArrayBuffer) => {
+    console.log('handleData', buffer)
     const { dispatch, user } = this
-    const message = JSON.parse(new window.TextDecoder('utf-8').decode(buffer))
+
+    const dataContainer = this.getDecoder().decode(buffer)
+    if (!dataContainer) {
+      console.log('data - waiting for other chunks')
+      // not all chunks have been received yet
+      return
+    }
+
+    const { senderId, data } = dataContainer
+    const message = JSON.parse(new TextDecoder('utf-8').decode(data))
+
     debug('peer: %s, message: %o', user.id, message)
     switch (message.type) {
       case 'file':
         dispatch(ChatActions.addMessage({
-          userId: message.userId || user.id,
+          userId: senderId,
           message: message.payload.name,
           timestamp: new Date().toLocaleString(),
           image: message.payload.data,
@@ -106,7 +126,7 @@ class PeerHandler {
         break
       default:
         dispatch(ChatActions.addMessage({
-          userId: message.userId || user.id,
+          userId: senderId,
           message: message.payload,
           timestamp: new Date().toLocaleString(),
           image: undefined,
@@ -232,10 +252,6 @@ export interface FileMessage {
 
 export type Message = TextMessage | FileMessage
 
-function sendData(peer: Peer.Instance, message: Message) {
-  peer.send(JSON.stringify(message))
-}
-
 export const sendMessage = (message: Message) =>
 (dispatch: Dispatch, getState: GetState) => {
   const { peers } = getState()
@@ -259,8 +275,17 @@ export const sendMessage = (message: Message) =>
         image: undefined,
       }))
   }
-  forEach(peers, (peer, userId) => {
-    sendData(peer, message)
+
+  const encoder = new Encoder()
+  const chunks = encoder.encode({
+    senderId: userId,
+    data: new TextEncoder().encode(JSON.stringify(message)),
+  })
+  chunks.forEach(chunk => {
+    console.log('sending chunk', chunk)
+    forEach(peers, (peer, userId) => {
+      peer.send(chunk)
+    })
   })
 }
 
