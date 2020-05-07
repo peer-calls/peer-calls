@@ -1,10 +1,9 @@
-import React, { ReactEventHandler, ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react'
-import { Message } from '../actions/PeerActions'
+import React, { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler, ReactEventHandler } from 'react'
 import { MdSentimentSatisfied } from 'react-icons/md'
 
 export interface InputProps {
   sendFile: (file: File) => void
-  sendMessage: (message: Message) => void
+  sendText: (message: string) => void
 }
 
 export interface InputState {
@@ -48,13 +47,10 @@ export default class Input extends React.PureComponent<InputProps, InputState> {
     )
   }
   submit = () => {
-    const { sendMessage } = this.props
+    const { sendText } = this.props
     const { message } = this.state
     if (message) {
-      sendMessage({
-        payload: message,
-        type: 'text',
-      })
+      sendText(message)
     }
     this.setState({ message: '' })
   }

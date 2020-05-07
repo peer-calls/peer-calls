@@ -1,15 +1,14 @@
 import classnames from 'classnames'
 import React from 'react'
-import { Message as ChatMessage } from '../actions/ChatActions'
-import { Message } from '../actions/PeerActions'
 import { Nicknames } from '../reducers/nicknames'
 import Input from './Input'
 import { ME } from '../constants'
 import { getNickname } from '../nickname'
 import { MdClose, MdFace, MdQuestionAnswer } from 'react-icons/md'
+import { Message } from '../reducers/messages'
 
 export interface MessageProps {
-  message: ChatMessage
+  message: Message
 }
 
 function MessageEntry (props: MessageProps) {
@@ -26,11 +25,11 @@ function MessageEntry (props: MessageProps) {
 
 export interface ChatProps {
   visible: boolean
-  messages: ChatMessage[]
+  messages: Message[]
   nicknames: Nicknames
   onClose: () => void
   sendFile: (file: File) => void
-  sendMessage: (message: Message) => void
+  sendText: (message: string) => void
 }
 
 export default class Chat extends React.PureComponent<ChatProps> {
@@ -55,7 +54,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
     }
   }
   render () {
-    const { messages, sendFile, sendMessage } = this.props
+    const { messages, sendFile, sendText } = this.props
     return (
       <div className={classnames('chat-container', {
         show: this.props.visible,
@@ -113,7 +112,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
 
         <Input
           ref={this.inputRef}
-          sendMessage={sendMessage}
+          sendText={sendText}
           sendFile={sendFile}
         />
       </div>

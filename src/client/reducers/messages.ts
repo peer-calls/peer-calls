@@ -1,6 +1,15 @@
 import * as constants from '../constants'
-import { Message, MessageAddAction } from '../actions/ChatActions'
+import { MessageAddAction, MessageSendAction } from '../actions/ChatActions'
 import { NotificationAddAction } from '../actions/NotifyActions'
+
+export interface Message {
+  userId: string
+  message: string
+  timestamp: string
+  image?: string
+  // Indicates whether or not the message should be counted
+  system?: boolean
+}
 
 export interface MessagesState {
   list: Message[]
@@ -21,8 +30,43 @@ function convertNotificationToMessage(action: NotificationAddAction): Message {
   }
 }
 
+function handleMessage(
+  state: MessagesState,
+  action: MessageAddAction,
+): MessagesState {
+  const { payload } = action
+
+  const count = state.count + 1
+
+  switch (payload.type) {
+    case 'file':
+      return {
+        ...state,
+        count,
+        list: [...state.list, {
+          image: payload.payload.data,
+          userId: payload.userId,
+          message: payload.payload.name,
+          timestamp: new Date(payload.timestamp).toLocaleString(),
+        }],
+      }
+    case 'text':
+      return {
+        ...state,
+        list: [...state.list, {
+          userId: payload.userId,
+          message: payload.payload,
+          timestamp: new Date(payload.timestamp).toLocaleString(),
+        }],
+      }
+    default:
+      return state
+  }
+}
+
 export default function messages (
-  state = defaultState, action: MessageAddAction | NotificationAddAction,
+  state = defaultState,
+    action: MessageAddAction | MessageSendAction | NotificationAddAction,
 ): MessagesState {
   switch (action.type) {
     case constants.NOTIFY:
@@ -31,10 +75,7 @@ export default function messages (
         list: [...state.list, convertNotificationToMessage(action)],
       }
     case constants.MESSAGE_ADD:
-      return {
-        count: action.payload.system ? state.count : state.count + 1,
-        list: [...state.list, action.payload],
-      }
+      return handleMessage(state, action)
     default:
       return state
   }

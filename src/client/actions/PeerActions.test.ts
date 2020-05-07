@@ -2,16 +2,16 @@ jest.mock('../window')
 jest.mock('simple-peer')
 jest.useFakeTimers()
 
-import * as PeerActions from './PeerActions'
-import { TextMessage } from './PeerActions'
-import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
-import { ClientSocket } from '../socket'
-import { PEERCALLS, PEER_EVENT_DATA, HANG_UP } from '../constants'
+import Peer from 'simple-peer'
 import { Encoder } from '../codec'
+import { HANG_UP, PEER_EVENT_DATA } from '../constants'
+import { ClientSocket } from '../socket'
+import { createStore, GetState, Store } from '../store'
 import { TextEncoder } from '../textcodec'
+import { MessageType } from './ChatActions'
+import * as PeerActions from './PeerActions'
 import { userId } from '../window'
 
 describe('PeerActions', () => {
@@ -95,23 +95,30 @@ describe('PeerActions', () => {
 
     describe('data', () => {
 
-      it('decodes a message', () => {
+      it('decodes a message', async () => {
         const peer = createPeer()
-        const message = {
+        const message: MessageType = {
+          timestamp: new Date().toISOString(),
+          userId: 'test-user',
           type: 'text',
           payload: 'test',
         }
-        const chunks = new Encoder().encode({
+        const encoder = new Encoder()
+        encoder.on('data', event => {
+          peer.emit(PEER_EVENT_DATA, event.chunk)
+        })
+        const messageId = encoder.encode({
           senderId: user.id,
           data: new TextEncoder().encode(JSON.stringify(message)),
         })
-        expect(chunks.length).toBe(1)
-        peer.emit('data', chunks[0])
+        const promise = encoder.waitFor(messageId)
+        jest.runAllTimers()
+        await promise
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
-          userId: user.id,
-          timestamp: jasmine.any(String),
+          userId: 'test-user',
+          timestamp: new Date(message.timestamp).toLocaleString(),
           image: undefined,
           message: 'test',
         })
@@ -157,70 +164,4 @@ describe('PeerActions', () => {
     })
   })
 
-  describe('sendMessage', () => {
-
-    beforeEach(() => {
-      PeerActions.createPeer({
-        socket, user: { id: 'user2' }, initiator: true, stream,
-      })(dispatch, getState)
-      PeerActions.createPeer({
-        socket, user: { id: 'user3' }, initiator: true, stream,
-      })(dispatch, getState)
-    })
-
-    it('sends a text message to all peers', () => {
-      const message: TextMessage = { payload: 'test', type: 'text' }
-      const chunks = new Encoder().encode({
-        senderId: userId,
-        data: new TextEncoder().encode(JSON.stringify(message)),
-      })
-      expect(chunks.length).toBe(1)
-      PeerActions.sendMessage(message)(dispatch, getState)
-      const { peers } = store.getState()
-      expect((peers['user2'].send as jest.Mock).mock.calls)
-      .toEqual([[ chunks[0] ]])
-      expect((peers['user3'].send as jest.Mock).mock.calls)
-      .toEqual([[ chunks[0] ]])
-    })
-
-  })
-
-  describe('receive message (handleData)', () => {
-    let peer: Peer.Instance
-    function emitData(message: PeerActions.Message) {
-      const chunks = new Encoder().encode({
-        senderId: 'user2',
-        data: new TextEncoder().encode(JSON.stringify(message)),
-      })
-      chunks.forEach(chunk => {
-        peer.emit(PEER_EVENT_DATA, chunk)
-      })
-    }
-    beforeEach(() => {
-      PeerActions.createPeer({
-        socket, user: { id: 'user2' }, initiator: true, stream,
-      })(dispatch, getState)
-      peer = store.getState().peers['user2']
-    })
-
-    it('handles a message', () => {
-      emitData({
-        payload: 'hello',
-        type: 'text',
-      })
-      expect(store.getState().messages.list)
-      .toEqual([{
-        message: 'Connecting to peer...',
-        userId: PEERCALLS,
-        system: true,
-        timestamp: jasmine.any(String),
-      }, {
-        message: 'hello',
-        userId: 'user2',
-        image: undefined,
-        timestamp: jasmine.any(String),
-      }])
-    })
-
-  })
 })

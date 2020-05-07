@@ -21,6 +21,7 @@ export const NOTIFY_DISMISS = 'NOTIFY_DISMISS'
 export const NOTIFY_CLEAR = 'NOTIFY_CLEAR'
 
 export const MESSAGE_ADD = 'MESSAGE_ADD'
+export const MESSAGE_SEND = 'MESSAGE_SEND'
 
 export const MEDIA_ENUMERATE = 'MEDIA_ENUMERATE'
 export const MEDIA_STREAM = 'MEDIA_STREAM'
