@@ -1,13 +1,7 @@
 import { Encoder, Decoder } from './index'
 import { headerSizeBytes, decodeHeader } from './header'
-import { TextDecoder, TextEncoder } from 'util'
 
 describe('chunks/encoder', () => {
-
-  beforeAll(() => {
-    window.TextDecoder = TextDecoder as any
-    window.TextEncoder = TextEncoder
-  })
 
   describe('constructor', () => {
     it('throws when max message size is <= headerSize', () => {

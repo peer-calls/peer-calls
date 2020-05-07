@@ -3,12 +3,16 @@ jest.mock('simple-peer')
 jest.useFakeTimers()
 
 import * as PeerActions from './PeerActions'
+import { TextMessage } from './PeerActions'
 import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
 import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
 import { PEERCALLS, PEER_EVENT_DATA, HANG_UP } from '../constants'
+import { Encoder } from '../codec'
+import { TextEncoder } from 'util'
+import { userId } from '../window'
 
 describe('PeerActions', () => {
   function createSocket () {
@@ -107,8 +111,12 @@ describe('PeerActions', () => {
           type: 'text',
           payload: 'test',
         }
-        const object = JSON.stringify(message)
-        peer.emit('data', Buffer.from(object, 'utf-8'))
+        const chunks = new Encoder().encode({
+          senderId: user.id,
+          data: new TextEncoder().encode(JSON.stringify(message)),
+        })
+        expect(chunks.length).toBe(1)
+        peer.emit('data', chunks[0])
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
@@ -171,13 +179,18 @@ describe('PeerActions', () => {
     })
 
     it('sends a text message to all peers', () => {
-      PeerActions.sendMessage({ payload: 'test', type: 'text' })(
-        dispatch, getState)
+      const message: TextMessage = { payload: 'test', type: 'text' }
+      const chunks = new Encoder().encode({
+        senderId: userId,
+        data: new TextEncoder().encode(JSON.stringify(message)),
+      })
+      expect(chunks.length).toBe(1)
+      PeerActions.sendMessage(message)(dispatch, getState)
       const { peers } = store.getState()
       expect((peers['user2'].send as jest.Mock).mock.calls)
-      .toEqual([[ '{"payload":"test","type":"text"}' ]])
+      .toEqual([[ chunks[0] ]])
       expect((peers['user3'].send as jest.Mock).mock.calls)
-      .toEqual([[ '{"payload":"test","type":"text"}' ]])
+      .toEqual([[ chunks[0] ]])
     })
 
   })
@@ -185,7 +198,13 @@ describe('PeerActions', () => {
   describe('receive message (handleData)', () => {
     let peer: Peer.Instance
     function emitData(message: PeerActions.Message) {
-      peer.emit(PEER_EVENT_DATA, JSON.stringify(message))
+      const chunks = new Encoder().encode({
+        senderId: 'user2',
+        data: new TextEncoder().encode(JSON.stringify(message)),
+      })
+      chunks.forEach(chunk => {
+        peer.emit(PEER_EVENT_DATA, chunk)
+      })
     }
     beforeEach(() => {
       PeerActions.createPeer({
