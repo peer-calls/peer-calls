@@ -1,4 +1,5 @@
 import { Header, decodeHeader, encodeHeader, headerSizeBytes } from './header'
+import { SimpleEmitter } from '../emitter'
 import { TextEncoder, TextDecoder } from '../textcodec'
 
 const maxMessageId = 2**16
@@ -8,45 +9,90 @@ export interface DataContainer {
   data: ArrayBuffer
 }
 
+export interface ChunkEvent {
+  type: 'data'
+  messageId: number
+  chunkNum: number
+  totalChunks: number
+  senderId: string
+  chunk: ArrayBuffer
+}
+
+export interface DoneEvent {
+  type: 'done'
+  senderId: string
+  messageId: number
+}
+
+export interface ErrorEvent {
+  type: 'error'
+  error: Error
+  senderId: string
+  messageId: number
+}
+
+export interface EncoderEvents {
+  error: ErrorEvent
+  data: ChunkEvent
+  done: DoneEvent
+}
+
+type Values<T, K extends keyof T = keyof T> = T[K]
+
+export interface WebWorker<RecvType, SendType> {
+  onmessage: ((e: WorkerMessageEvent<RecvType>) => void) | null
+  postMessage: (data: SendType, transfer: Transferable[]) => void
+}
+
+export interface WorkerPayload {
+  messageId: number
+  maxMessageSizeBytes: number
+  data: ArrayBuffer
+  senderId: string
+  senderIdBytes: Uint8Array
+}
+
+export interface WorkerMessageEvent<T> {
+  data: T
+}
+
+export type EncoderWorker = WebWorker<WorkerPayload, Values<EncoderEvents>>
+export type EncoderWorkerShim = WebWorker<Values<EncoderEvents>, WorkerPayload>
+
 /**
  *
  * A chunk follows a header, and consists of senderId and data.
  *
  */
+const workerFunc = function (self: EncoderWorker) {
+  self.onmessage = event => {
+    const {
+      messageId,
+      maxMessageSizeBytes,
+      data,
+      senderId,
+      senderIdBytes,
+    } = event.data
 
-export class Encoder {
-  protected counter = 0
-  protected textEncoder: TextEncoder
-
-  constructor(readonly maxMessageSizeBytes = 2**16) {
-    if (maxMessageSizeBytes <= headerSizeBytes) {
-      throw new Error('maxMessageSizeBytes should be greater than headerSize')
-    }
-    this.textEncoder = new TextEncoder()
-  }
-
-  encode(dataContainer: DataContainer): ArrayBuffer[] {
-    const { senderId, data } = dataContainer
     const input = new Uint8Array(data)
 
     const totalSizeBytes = input.length
 
-    const maxChunkSize = this.maxMessageSizeBytes - headerSizeBytes
+    const maxChunkSize = maxMessageSizeBytes - headerSizeBytes
 
-    if (this.counter >= maxMessageId) {
-      this.counter = 0
-    }
-    const messageId = ++this.counter
     let readOffset = 0
 
-    const chunks: Uint8Array[] = []
-
-    const senderIdBytes = this.textEncoder.encode(senderId)
     const senderIdSizeBytes = senderIdBytes.length
     const dataBytesInChunk = maxChunkSize - senderIdSizeBytes
 
     if (dataBytesInChunk <= 0) {
-      throw new Error('Not enough space for data.')
+      self.postMessage({
+        messageId,
+        senderId,
+        type: 'error',
+        error: new Error('Not enough space for data.'),
+      }, [])
+      return
     }
 
     const totalChunks = Math.ceil(totalSizeBytes / dataBytesInChunk)
@@ -77,12 +123,134 @@ export class Encoder {
       writeOffset += senderIdSizeBytes
       chunk.set(input.slice(readOffset, readOffset + readSize), writeOffset)
 
-      chunks.push(chunk)
+      const chunkEvent: ChunkEvent = {
+        type: 'data',
+        chunkNum: chunkNum,
+        totalChunks,
+        messageId,
+        senderId,
+        chunk,
+      }
+
+      self.postMessage(chunkEvent, [chunk])
 
       readOffset += readSize
     }
 
-    return chunks
+    const doneEvent: DoneEvent = {
+      type: 'done',
+      messageId,
+      senderId,
+    }
+
+    self.postMessage(doneEvent, [])
+  }
+}
+
+export class WorkerShim implements EncoderWorkerShim {
+  protected readonly instance: EncoderWorker
+  onmessage: EncoderWorkerShim['onmessage'] = null
+
+  constructor(readonly initWorker: (fn: EncoderWorker) => void) {
+    this.instance = {
+      onmessage: null,
+      postMessage: this.handlePostMessage,
+    }
+    initWorker(this.instance)
+  }
+
+  protected handlePostMessage: EncoderWorker['postMessage'] = data => {
+    this.onmessage && this.onmessage({ data })
+  }
+
+  postMessage(data: WorkerPayload) {
+    this.instance.onmessage && this.instance.onmessage({ data })
+  }
+}
+
+export class Encoder extends SimpleEmitter<EncoderEvents> {
+  protected counter = 0
+  protected readonly textEncoder: TextEncoder
+  protected readonly worker: EncoderWorkerShim
+
+  protected readonly workerBlobURL?: string
+
+  constructor(readonly maxMessageSizeBytes = 2**16) {
+    super()
+    if (maxMessageSizeBytes <= headerSizeBytes) {
+      throw new Error('maxMessageSizeBytes should be greater than headerSize')
+    }
+    this.textEncoder = new TextEncoder()
+
+    try {
+      this.workerBlobURL = URL.createObjectURL(
+        new Blob(
+          ['(', workerFunc.toString(), ')(self)'],
+          {type: 'application/javascript'},
+        ),
+      )
+      this.worker = new Worker(this.workerBlobURL) as EncoderWorkerShim
+    } catch (err) {
+      this.worker = new WorkerShim(workerFunc)
+    }
+
+    this.worker.onmessage = event => {
+      const payload = event.data
+      this.emit(payload.type, payload)
+    }
+  }
+
+  async waitFor(messageId: number) {
+    // eslint-disable-next-line
+    const self = this
+
+    return new Promise<DoneEvent>((resolve, reject) => {
+      function handleDone (event: DoneEvent) {
+        if (event.messageId === messageId) {
+          self.removeListener('done', handleDone)
+          self.removeListener('error', handleError)
+          resolve(event)
+        }
+      }
+
+      function handleError (event: ErrorEvent) {
+        if (event.messageId === messageId) {
+          self.removeListener('done', handleDone)
+          self.removeListener('error', handleError)
+          reject(event.error)
+        }
+      }
+
+      self.on('done', handleDone)
+      self.on('error', handleError)
+    })
+  }
+
+  encode(dataContainer: DataContainer): number {
+
+    const { maxMessageSizeBytes } = this
+    const { senderId, data } = dataContainer
+    const senderIdBytes = this.textEncoder.encode(senderId)
+
+    ++this.counter
+    if (this.counter >= maxMessageId) {
+      this.counter = 1
+    }
+    const messageId = this.counter
+
+    const payload: WorkerPayload = {
+      messageId,
+      maxMessageSizeBytes,
+      senderIdBytes,
+      senderId,
+      data,
+    }
+
+    setTimeout(() => {
+      this.worker.postMessage(payload, [ data, senderIdBytes ])
+    })
+
+    return messageId
   }
 }
 

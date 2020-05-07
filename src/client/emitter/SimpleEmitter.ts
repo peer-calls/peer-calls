@@ -31,5 +31,7 @@ implements TypedEmitter<E> {
     return this
   }
 
-  abstract emit<K extends keyof E>(name: K, value: E[K]): void
+  emit<K extends keyof E>(name: K, value: E[K]): void {
+    this.emitter.emit(name as string, value)
+  }
 }
