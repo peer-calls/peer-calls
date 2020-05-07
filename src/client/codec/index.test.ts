@@ -117,7 +117,7 @@ describe('chunks/encoder', () => {
     it('rollovers counter', async () => {
       const encoder = new Encoder()
       ;(encoder as any).counter = 0xFFFFF
-      const dataContainer = { senderId, data: new Uint16Array(1) }
+      const dataContainer = { senderId, data: new Uint8Array(1) }
       const chunks = await encode(encoder, dataContainer)
       const h = decodeHeader(new Uint8Array(chunks[0]))
       expect(h.messageId).toBe(1)

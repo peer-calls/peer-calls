@@ -6,7 +6,7 @@ const maxMessageId = 2**16
 
 export interface DataContainer {
   senderId: string
-  data: ArrayBuffer
+  data: Uint8Array
 }
 
 export interface ChunkEvent {
@@ -15,7 +15,7 @@ export interface ChunkEvent {
   chunkNum: number
   totalChunks: number
   senderId: string
-  chunk: ArrayBuffer
+  chunk: Uint8Array
 }
 
 export interface DoneEvent {
@@ -47,7 +47,7 @@ export interface WebWorker<RecvType, SendType> {
 export interface WorkerPayload {
   messageId: number
   maxMessageSizeBytes: number
-  data: ArrayBuffer
+  data: Uint8Array
   senderId: string
   senderIdBytes: Uint8Array
 }
@@ -132,7 +132,7 @@ const workerFunc = function (self: EncoderWorker) {
         chunk,
       }
 
-      self.postMessage(chunkEvent, [chunk])
+      self.postMessage(chunkEvent, [chunk.buffer])
 
       readOffset += readSize
     }
@@ -247,7 +247,11 @@ export class Encoder extends SimpleEmitter<EncoderEvents> {
     }
 
     setTimeout(() => {
-      this.worker.postMessage(payload, [ data, senderIdBytes ])
+      this.worker
+      .postMessage(payload, [
+        data.buffer,
+        senderIdBytes.buffer,
+      ])
     })
 
     return messageId
