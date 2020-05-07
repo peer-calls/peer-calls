@@ -14,6 +14,7 @@ import { LocalStream } from '../reducers/streams'
 import { middlewares, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
+import { deferred } from '../deferred'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -183,20 +184,6 @@ describe('components/Toolbar', () => {
   })
 
 })
-
-function deferred<T>(): [
-  Promise<T>,
-  (value: T | PromiseLike<T> | undefined) => void,
-  (reason?: any) => void
-] {
-  let resolve: (value: T | PromiseLike<T> | undefined) => void
-  let reject: (reason?: any) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return [promise, resolve!, reject!]
-}
 
 describe('components/Toolbar track dropdowns', () => {
 
