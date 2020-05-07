@@ -1,6 +1,6 @@
-import { Header, decodeHeader, encodeHeader, headerSizeBytes } from './header'
 import { SimpleEmitter } from '../emitter'
-import { TextEncoder, TextDecoder } from '../textcodec'
+import { TextDecoder, TextEncoder } from '../textcodec'
+import { decodeHeader, encodeHeader, Header, headerSizeBytes } from './header'
 
 const maxMessageId = 2**16
 
@@ -59,12 +59,18 @@ export interface WorkerMessageEvent<T> {
 export type EncoderWorker = WebWorker<WorkerPayload, Values<EncoderEvents>>
 export type EncoderWorkerShim = WebWorker<Values<EncoderEvents>, WorkerPayload>
 
+type EncodeHeader = typeof encodeHeader
+
 /**
  *
  * A chunk follows a header, and consists of senderId and data.
  *
  */
-const workerFunc = function (self: EncoderWorker) {
+
+const workerFunc = (
+  encodeHeader: EncodeHeader,
+  headerSizeBytes: number,
+) => (self: EncoderWorker) => {
   self.onmessage = event => {
     const {
       messageId,
@@ -151,7 +157,7 @@ export class WorkerShim implements EncoderWorkerShim {
   protected readonly instance: EncoderWorker
   onmessage: EncoderWorkerShim['onmessage'] = null
 
-  constructor(readonly initWorker: (fn: EncoderWorker) => void) {
+  constructor(readonly initWorker: (self: EncoderWorker) => void) {
     this.instance = {
       onmessage: null,
       postMessage: this.handlePostMessage,
@@ -185,13 +191,14 @@ export class Encoder extends SimpleEmitter<EncoderEvents> {
     try {
       this.workerBlobURL = URL.createObjectURL(
         new Blob(
-          ['(', workerFunc.toString(), ')(self)'],
+          ['(', workerFunc.toString(), ')(' +
+            encodeHeader.toString() + ', ' + headerSizeBytes+ ')(self)'],
           {type: 'application/javascript'},
         ),
       )
       this.worker = new Worker(this.workerBlobURL) as EncoderWorkerShim
     } catch (err) {
-      this.worker = new WorkerShim(workerFunc)
+      this.worker = new WorkerShim(workerFunc(encodeHeader, headerSizeBytes))
     }
 
     this.worker.onmessage = event => {

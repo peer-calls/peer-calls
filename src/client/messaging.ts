@@ -3,7 +3,7 @@ import { Middleware } from 'redux'
 import { addMessage, MessageSendAction } from './actions/ChatActions'
 import * as NotifyActions from './actions/NotifyActions'
 import { Encoder } from './codec'
-import { MESSAGE_SEND } from './constants'
+import { MESSAGE_SEND, ME } from './constants'
 import { State, Store } from './store'
 import { TextEncoder } from './textcodec'
 import { userId } from './window'
@@ -38,7 +38,10 @@ export function createMessagingMiddleware(
             senderId: userId,
             data: textEncoder.encode(JSON.stringify(action.payload)),
           })
-          return next(addMessage(action.payload))
+          return next(addMessage({
+            ...action.payload,
+            userId: ME,
+          }))
         default:
           return next(action)
       }

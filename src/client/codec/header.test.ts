@@ -1,4 +1,4 @@
-import { Header, encodeHeader, decodeHeader } from './header'
+import { Header, encodeHeader, decodeHeader, headerSizeBytes } from './header'
 
 describe('chunks/header', () => {
 
@@ -17,6 +17,7 @@ describe('chunks/header', () => {
         totalSizeBytes,
       }
       const data = encodeHeader(h)
+      expect(data.byteLength).toBe(headerSizeBytes)
       const h2 = decodeHeader(data)
       expect(h2).toEqual(h)
     })

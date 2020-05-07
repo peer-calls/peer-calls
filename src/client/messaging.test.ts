@@ -9,7 +9,7 @@ import { Store } from './store'
 import { deferred } from './deferred'
 import { Encoder } from './codec'
 import Peer from 'simple-peer'
-import { userId } from './window'
+import { ME } from './constants'
 
 describe('messaging', () => {
 
@@ -66,7 +66,7 @@ describe('messaging', () => {
       expect(store.getState().messages).toEqual({
         count: 1,
         list: [{
-          userId,
+          userId: ME,
           timestamp: jasmine.any(String),
           message: 'hello',
         }],
