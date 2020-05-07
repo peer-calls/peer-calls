@@ -1,5 +1,5 @@
 import { Header, decodeHeader, encodeHeader, headerSizeBytes } from './header'
-import { TextEncoder, TextDecoder } from 'util'
+import { TextEncoder, TextDecoder } from '../textcodec'
 
 const maxMessageId = 2**16
 

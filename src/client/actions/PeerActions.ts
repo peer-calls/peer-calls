@@ -9,7 +9,7 @@ import { iceServers, userId } from '../window'
 import { Dispatch, GetState } from '../store'
 import { ClientSocket } from '../socket'
 import { Encoder, Decoder } from '../codec'
-import { TextDecoder, TextEncoder } from 'util'
+import { TextDecoder, TextEncoder } from '../textcodec'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')

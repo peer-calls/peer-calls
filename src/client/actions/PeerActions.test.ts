@@ -11,7 +11,7 @@ import { Dispatch } from 'redux'
 import { ClientSocket } from '../socket'
 import { PEERCALLS, PEER_EVENT_DATA, HANG_UP } from '../constants'
 import { Encoder } from '../codec'
-import { TextEncoder } from 'util'
+import { TextEncoder } from '../textcodec'
 import { userId } from '../window'
 
 describe('PeerActions', () => {
@@ -94,16 +94,6 @@ describe('PeerActions', () => {
     })
 
     describe('data', () => {
-
-      beforeEach(() => {
-        (window as any).TextDecoder = class TextDecoder {
-          constructor (readonly encoding: string) {
-          }
-          decode (object: any) {
-            return object.toString(this.encoding)
-          }
-        }
-      })
 
       it('decodes a message', () => {
         const peer = createPeer()
