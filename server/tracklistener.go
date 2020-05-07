@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -91,7 +90,7 @@ func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
 	return
 }
 
-var udpConn, _ = net.ListenUDP("udp", &net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 6999, Zone: ""})
+// var udpConn, _ = net.ListenUDP("udp", &net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 6999, Zone: ""})
 
 func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID string, track *webrtc.Track) error {
 	p.localTracksMu.Lock()
@@ -132,17 +131,10 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 				break
 			}
 			for _, pkt := range rtcps {
-				switch pktType := pkt.(type) {
-				case *rtcp.PictureLossIndication, *rtcp.TransportLayerNack, *rtcp.ReceiverEstimatedMaximumBitrate, *rtcp.SourceDescription:
-					// p.log.Printf("[%s] Got RTCP %T for trackID: %d", p.clientID, pkt, track.SSRC())
+				switch pkt.(type) {
+				case *rtcp.PictureLossIndication:
 					err := sourcePC.WriteRTCP(
-						[]rtcp.Packet{
-							pktType,
-							// &rtcp.PictureLossIndication{
-							// 	MediaSSRC: pktType.MediaSSRC,
-							// 	MediaSSRC: track.SSRC(),
-							// },
-						},
+						[]rtcp.Packet{pkt},
 					)
 					if err != nil {
 						p.log.Printf("[%s] Error sending rtcp for local track: %d: %s",
@@ -151,12 +143,10 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 							err,
 						)
 					}
-				// case *rtcp.SourceDescription:
-				// case *rtcp.ReceiverEstimatedMaximumBitrate:
+				case *rtcp.SourceDescription:
+				case *rtcp.ReceiverEstimatedMaximumBitrate: // TODO hadle this
 				case *rtcp.SenderReport:
 				case *rtcp.ReceiverReport:
-				case *rtcp.Goodbye:
-					p.log.Printf("[%s] Got Goodbye RTCP pkt for track: %d: %s", p.clientID, track.SSRC(), pktType.Reason)
 				default:
 					p.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", p.clientID, track.SSRC(), pkt)
 				}
@@ -286,9 +276,8 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 	go func() {
 		defer p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeRemove})
 		// defer ticker.Stop()
-		rtpBuf := make([]byte, 1400)
 		for {
-			i, err := remoteTrack.Read(rtpBuf)
+			pkt, err := remoteTrack.ReadRTP()
 			if err != nil {
 				p.log.Printf(
 					"[%s] Error reading from remote track: %s: %s",
@@ -300,7 +289,8 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 			}
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
-			if _, err = localTrack.Write(rtpBuf[:i]); err != nil && err != io.ErrClosedPipe {
+			err = localTrack.WriteRTP(pkt)
+			if err != nil && err != io.ErrClosedPipe {
 				p.log.Printf(
 					"[%s] Error writing to local track: %s: %s",
 					p.clientID,

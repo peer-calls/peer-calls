@@ -81,17 +81,19 @@ func (s *Signaller) initialize() error {
 		s.mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 
 		rtcpfb := []webrtc.RTCPFeedback{
+			// webrtc.RTCPFeedback{
+			// 	Type: webrtc.TypeRTCPFBGoogREMB,
+			// },
 			webrtc.RTCPFeedback{
-				Type: webrtc.TypeRTCPFBGoogREMB,
-			},
-			webrtc.RTCPFeedback{
-				Type: webrtc.TypeRTCPFBCCM,
+				Type:      webrtc.TypeRTCPFBCCM,
+				Parameter: "fir",
 			},
 			webrtc.RTCPFeedback{
 				Type: webrtc.TypeRTCPFBNACK,
 			},
 			webrtc.RTCPFeedback{
-				Type: "nack pli",
+				Type:      webrtc.TypeRTCPFBNACK,
+				Parameter: "pli",
 			},
 		}
 
