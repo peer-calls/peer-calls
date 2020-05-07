@@ -6,7 +6,8 @@ export interface Message {
   userId: string
   message: string
   timestamp: string
-  image?: string
+  data?: string
+  image?: boolean
   // Indicates whether or not the message should be counted
   system?: boolean
 }
@@ -30,6 +31,8 @@ function convertNotificationToMessage(action: NotificationAddAction): Message {
   }
 }
 
+const imageRegexp = /^data:image\/(png|jpg|jpeg|gif);base64/
+
 function handleMessage(
   state: MessagesState,
   action: MessageAddAction,
@@ -44,7 +47,8 @@ function handleMessage(
         ...state,
         count,
         list: [...state.list, {
-          image: payload.payload.data,
+          data: payload.payload.data,
+          image: imageRegexp.test(payload.payload.data),
           userId: payload.userId,
           message: payload.payload.name,
           timestamp: new Date(payload.timestamp).toLocaleString(),
