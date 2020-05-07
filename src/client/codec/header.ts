@@ -29,7 +29,7 @@ export interface Header {
 }
 
 export function encodeHeader(header: Header): Uint8Array {
-  const data = new Uint8Array(headerSizeBytes)
+  const data = new Uint8Array(16)
 
   data[0] = (header.messageId & 0xFF00) >> 8
   data[1] = header.messageId & 0x00FF

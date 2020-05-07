@@ -22,3 +22,4 @@ export interface TypedEmitter<E extends Events> {
 
   emit<K extends keyof E>(t: K, value: E[K]): void
 }
+

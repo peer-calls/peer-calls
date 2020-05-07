@@ -2,13 +2,16 @@ jest.mock('../window')
 jest.mock('simple-peer')
 jest.useFakeTimers()
 
-import * as PeerActions from './PeerActions'
-import Peer from 'simple-peer'
 import { EventEmitter } from 'events'
-import { createStore, Store, GetState } from '../store'
 import { Dispatch } from 'redux'
+import Peer from 'simple-peer'
+import { Encoder } from '../codec'
+import { HANG_UP, PEER_EVENT_DATA } from '../constants'
 import { ClientSocket } from '../socket'
-import { PEERCALLS, PEER_EVENT_DATA, HANG_UP } from '../constants'
+import { createStore, GetState, Store } from '../store'
+import { TextEncoder } from '../textcodec'
+import { MessageType } from './ChatActions'
+import * as PeerActions from './PeerActions'
 
 describe('PeerActions', () => {
   function createSocket () {
@@ -91,29 +94,30 @@ describe('PeerActions', () => {
 
     describe('data', () => {
 
-      beforeEach(() => {
-        (window as any).TextDecoder = class TextDecoder {
-          constructor (readonly encoding: string) {
-          }
-          decode (object: any) {
-            return object.toString(this.encoding)
-          }
-        }
-      })
-
-      it('decodes a message', () => {
+      it('decodes a message', async () => {
         const peer = createPeer()
-        const message = {
+        const message: MessageType = {
+          timestamp: new Date().toISOString(),
+          userId: 'test-user',
           type: 'text',
           payload: 'test',
         }
-        const object = JSON.stringify(message)
-        peer.emit('data', Buffer.from(object, 'utf-8'))
+        const encoder = new Encoder()
+        encoder.on('data', event => {
+          peer.emit(PEER_EVENT_DATA, event.chunk)
+        })
+        const messageId = encoder.encode({
+          senderId: user.id,
+          data: new TextEncoder().encode(JSON.stringify(message)),
+        })
+        const promise = encoder.waitFor(messageId)
+        jest.runAllTimers()
+        await promise
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
-          userId: user.id,
-          timestamp: jasmine.any(String),
+          userId: 'test-user',
+          timestamp: new Date(message.timestamp).toLocaleString(),
           image: undefined,
           message: 'test',
         })
@@ -159,59 +163,4 @@ describe('PeerActions', () => {
     })
   })
 
-  describe('sendMessage', () => {
-
-    beforeEach(() => {
-      PeerActions.createPeer({
-        socket, user: { id: 'user2' }, initiator: true, stream,
-      })(dispatch, getState)
-      PeerActions.createPeer({
-        socket, user: { id: 'user3' }, initiator: true, stream,
-      })(dispatch, getState)
-    })
-
-    it('sends a text message to all peers', () => {
-      PeerActions.sendMessage({ payload: 'test', type: 'text' })(
-        dispatch, getState)
-      const { peers } = store.getState()
-      expect((peers['user2'].send as jest.Mock).mock.calls)
-      .toEqual([[ '{"payload":"test","type":"text"}' ]])
-      expect((peers['user3'].send as jest.Mock).mock.calls)
-      .toEqual([[ '{"payload":"test","type":"text"}' ]])
-    })
-
-  })
-
-  describe('receive message (handleData)', () => {
-    let peer: Peer.Instance
-    function emitData(message: PeerActions.Message) {
-      peer.emit(PEER_EVENT_DATA, JSON.stringify(message))
-    }
-    beforeEach(() => {
-      PeerActions.createPeer({
-        socket, user: { id: 'user2' }, initiator: true, stream,
-      })(dispatch, getState)
-      peer = store.getState().peers['user2']
-    })
-
-    it('handles a message', () => {
-      emitData({
-        payload: 'hello',
-        type: 'text',
-      })
-      expect(store.getState().messages.list)
-      .toEqual([{
-        message: 'Connecting to peer...',
-        userId: PEERCALLS,
-        system: true,
-        timestamp: jasmine.any(String),
-      }, {
-        message: 'hello',
-        userId: 'user2',
-        image: undefined,
-        timestamp: jasmine.any(String),
-      }])
-    })
-
-  })
 })

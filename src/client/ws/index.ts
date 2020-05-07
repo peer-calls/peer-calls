@@ -1,4 +1,4 @@
-import { Callback, Events, TypedEmitter } from './TypedEmitter'
+import { Events, TypedEmitter, SimpleEmitter } from '../emitter'
 import { EventEmitter } from 'events'
 import _debug from 'debug'
 
@@ -12,7 +12,7 @@ interface Message {
   payload: unknown
 }
 
-export class SocketClient<E extends Events> implements TypedEmitter<E> {
+export class SocketClient<E extends Events> extends SimpleEmitter<E> {
 
   protected readonly emitter = new EventEmitter()
   protected ws!: WebSocket
@@ -23,6 +23,7 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   protected pingInterval: NodeJS.Timeout | undefined
 
   constructor(readonly url: string) {
+    super()
     this.connect()
   }
 
@@ -70,32 +71,6 @@ export class SocketClient<E extends Events> implements TypedEmitter<E> {
   protected wsHandleMessage = (e: MessageEvent) => {
     const message: Message = JSON.parse(e.data)
     this.emitter.emit(message.type, message.payload)
-  }
-
-  removeAllListeners(event?: string) {
-    if (arguments.length === 0) {
-      this.emitter.removeAllListeners()
-    } else {
-      this.emitter.removeAllListeners(event)
-    }
-    // this.ws.removeEventListener('close', this.wsHandleClose)
-    // this.ws.removeEventListener('open', this.wsHandleOpen)
-    // this.ws.removeEventListener('message', this.wsHandleMessage)
-  }
-
-  removeListener<K extends keyof E>(name: K, callback: Callback<E[K]>): this {
-    this.emitter.removeListener(name as string, callback)
-    return this
-  }
-
-  on<K extends keyof E>(name: K, callback: Callback<E[K]>): this {
-    this.emitter.on(name as string, callback)
-    return this
-  }
-
-  once<K extends keyof E>(name: K, callback: Callback<E[K]>): this {
-    this.emitter.once(name as string, callback)
-    return this
   }
 
   emit<K extends keyof E>(name: K, value: E[K]): void {

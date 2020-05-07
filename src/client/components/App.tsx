@@ -3,12 +3,11 @@ import forEach from 'lodash/forEach'
 import React from 'react'
 import Peer from 'simple-peer'
 import { hangUp } from '../actions/CallActions'
-import { Message } from '../actions/ChatActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
-import { Message as MessageType } from '../actions/PeerActions'
 import { MinimizeTogglePayload, removeLocalStream, StreamTypeDesktop } from '../actions/StreamActions'
 import * as constants from '../constants'
+import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
 import { StreamsState } from '../reducers/streams'
 import { WindowStates } from '../reducers/windowStates'
@@ -28,7 +27,7 @@ export interface AppProps {
   messagesCount: number
   peers: Record<string, Peer.Instance>
   play: () => void
-  sendMessage: (message: MessageType) => void
+  sendText: (message: string) => void
   streams: StreamsState
   getDesktopStream: typeof getDesktopStream
   removeLocalStream: typeof removeLocalStream
@@ -80,7 +79,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       messages,
       messagesCount,
       sendFile,
-      sendMessage,
+      sendText,
     } = this.props
 
     const chatVisibleClassName = classnames({
@@ -111,7 +110,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           messages={messages}
           nicknames={nicknames}
           onClose={this.handleHideChat}
-          sendMessage={sendMessage}
+          sendText={sendText}
           sendFile={sendFile}
           visible={this.state.chatVisible}
         />

@@ -2,15 +2,14 @@ import Input from './Input'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import { Message } from '../actions/PeerActions'
 
 describe('components/Input', () => {
 
   let node: Element
-  let sendMessage: jest.MockedFunction<(message: Message) => void>
+  let sendText: jest.MockedFunction<(message: string) => void>
   let sendFile: jest.MockedFunction<(file: File) => void>
   async function render () {
-    sendMessage = jest.fn()
+    sendText = jest.fn()
     sendFile = jest.fn()
     const div = document.createElement('div')
     await new Promise<Input>(resolve => {
@@ -18,7 +17,7 @@ describe('components/Input', () => {
         <Input
           ref={input => resolve(input!)}
           sendFile={sendFile}
-          sendMessage={sendMessage}
+          sendText={sendText}
         />,
         div,
       )
@@ -33,7 +32,7 @@ describe('components/Input', () => {
 
     let input: HTMLTextAreaElement
     beforeEach(() => {
-      sendMessage.mockClear()
+      sendText.mockClear()
       input = node.querySelector('textarea')!
     })
 
@@ -43,7 +42,7 @@ describe('components/Input', () => {
           target: { value: '' } as any,
         })
         TestUtils.Simulate.submit(node)
-        expect(sendMessage.mock.calls)
+        expect(sendText.mock.calls)
         .toEqual([])
       })
 
@@ -53,8 +52,8 @@ describe('components/Input', () => {
         })
         TestUtils.Simulate.submit(node)
         expect(input.value).toBe('')
-        expect(sendMessage.mock.calls)
-        .toEqual([[ { payload: message, type: 'text' } ]])
+        expect(sendText.mock.calls)
+        .toEqual([[ message ]])
       })
 
     })
@@ -68,15 +67,15 @@ describe('components/Input', () => {
           key: 'Enter',
         })
         expect(input.value).toBe('')
-        expect(sendMessage.mock.calls)
-        .toEqual([[ { payload: message, type: 'text' } ]])
+        expect(sendText.mock.calls)
+        .toEqual([[ message ]])
       })
 
       it('does nothing when other key pressed', () => {
         TestUtils.Simulate.keyPress(input, {
           key: 'test',
         })
-        expect(sendMessage.mock.calls.length).toBe(0)
+        expect(sendText.mock.calls.length).toBe(0)
       })
     })
 

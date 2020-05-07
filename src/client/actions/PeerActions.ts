@@ -1,13 +1,15 @@
-import * as ChatActions from './ChatActions'
+import _debug from 'debug'
+import forEach from 'lodash/forEach'
+import Peer, { SignalData } from 'simple-peer'
+import { Decoder } from '../codec'
+import * as constants from '../constants'
+import { ClientSocket } from '../socket'
+import { Dispatch, GetState } from '../store'
+import { TextDecoder } from '../textcodec'
+import { iceServers } from '../window'
+import { addMessage } from './ChatActions'
 import * as NotifyActions from './NotifyActions'
 import * as StreamActions from './StreamActions'
-import * as constants from '../constants'
-import Peer, { SignalData } from 'simple-peer'
-import forEach from 'lodash/forEach'
-import _debug from 'debug'
-import { iceServers } from '../window'
-import { Dispatch, GetState } from '../store'
-import { ClientSocket } from '../socket'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -28,6 +30,9 @@ class PeerHandler {
   user: { id: string }
   dispatch: Dispatch
   getState: GetState
+  decoder = new Decoder()
+  textDecoder = new TextDecoder('utf-8')
+
 
   constructor (readonly options: PeerHandlerOptions) {
     this.socket = options.socket
@@ -93,25 +98,18 @@ class PeerHandler {
   }
   handleData = (buffer: ArrayBuffer) => {
     const { dispatch, user } = this
-    const message = JSON.parse(new window.TextDecoder('utf-8').decode(buffer))
-    debug('peer: %s, message: %o', user.id, message)
-    switch (message.type) {
-      case 'file':
-        dispatch(ChatActions.addMessage({
-          userId: message.userId || user.id,
-          message: message.payload.name,
-          timestamp: new Date().toLocaleString(),
-          image: message.payload.data,
-        }))
-        break
-      default:
-        dispatch(ChatActions.addMessage({
-          userId: message.userId || user.id,
-          message: message.payload,
-          timestamp: new Date().toLocaleString(),
-          image: undefined,
-        }))
+
+    const dataContainer = this.decoder.decode(buffer)
+    if (!dataContainer) {
+      // not all chunks have been received yet
+      return
     }
+
+    const { data } = dataContainer
+    const message = JSON.parse(this.textDecoder.decode(data))
+
+    debug('peer: %s, message: %o', user.id, message)
+    dispatch(addMessage(message))
   }
   handleClose = () => {
     const { dispatch, user } = this
@@ -212,77 +210,3 @@ export const removePeer = (userId: string): RemovePeerAction => ({
 export type PeerAction =
   AddPeerAction |
   RemovePeerAction
-
-export interface TextMessage {
-  type: 'text'
-  payload: string
-}
-
-export interface Base64File {
-  name: string
-  size: number
-  type: string
-  data: string
-}
-
-export interface FileMessage {
-  type: 'file'
-  payload: Base64File
-}
-
-export type Message = TextMessage | FileMessage
-
-function sendData(peer: Peer.Instance, message: Message) {
-  peer.send(JSON.stringify(message))
-}
-
-export const sendMessage = (message: Message) =>
-(dispatch: Dispatch, getState: GetState) => {
-  const { peers } = getState()
-  debug('Sending message type: %s to %s peers.',
-    message.type, Object.keys(peers).length)
-  switch (message.type) {
-    case 'file':
-      dispatch(ChatActions.addMessage({
-        userId: constants.ME,
-        message: 'Send file: "' +
-          message.payload.name + '" to all peers',
-        timestamp: new Date().toLocaleString(),
-        image: message.payload.data,
-      }))
-      break
-    default:
-      dispatch(ChatActions.addMessage({
-        userId: constants.ME,
-        message: message.payload,
-        timestamp: new Date().toLocaleString(),
-        image: undefined,
-      }))
-  }
-  forEach(peers, (peer, userId) => {
-    sendData(peer, message)
-  })
-}
-
-export const sendFile = (file: File) =>
-async (dispatch: Dispatch, getState: GetState) => {
-  const { name, size, type } = file
-  if (!window.FileReader) {
-    dispatch(NotifyActions.error('File API is not supported by your browser'))
-    return
-  }
-  const reader = new window.FileReader()
-  const base64File = await new Promise<Base64File>(resolve => {
-    reader.addEventListener('load', () => {
-      resolve({
-        name,
-        size,
-        type,
-        data: reader.result as string,
-      })
-    })
-    reader.readAsDataURL(file)
-  })
-
-  sendMessage({ payload: base64File, type: 'file' })(dispatch, getState)
-}
