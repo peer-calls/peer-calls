@@ -53,6 +53,7 @@ function handleMessage(
     case 'text':
       return {
         ...state,
+        count,
         list: [...state.list, {
           userId: payload.userId,
           message: payload.payload,

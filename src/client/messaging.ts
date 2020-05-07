@@ -8,10 +8,12 @@ import { State, Store } from './store'
 import { TextEncoder } from './textcodec'
 import { userId } from './window'
 
-export function createMessagingMiddleware(): Middleware<Store, State> {
+export function createMessagingMiddleware(
+  createEncoder = () => new Encoder(),
+): Middleware<Store, State> {
   return store => {
     const textEncoder = new TextEncoder()
-    const encoder = new Encoder()
+    const encoder = createEncoder()
 
     encoder.on('data', event => {
       const { peers } = store.getState()
