@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/pion/webrtc/v2"
@@ -89,10 +88,10 @@ func (t *MemoryTracksManager) addTrackToPeer(p peer, sourcePC *webrtc.PeerConnec
 	kind := track.Kind()
 	signaller := p.signaller
 	if signaller.Initiator() {
-		log.Printf("[%s] addTrackToPeer Calling signaller.Negotiate() because a new %s track was added", trackListener.ClientID(), kind)
+		t.log.Printf("[%s] addTrackToPeer Calling signaller.Negotiate() because a new %s track was added", trackListener.ClientID(), kind)
 		signaller.Negotiate()
 	} else {
-		log.Printf("[%s] addTrackToPeer Calling signaller.AddTransceiverRequest() because a new %s track was added", trackListener.ClientID(), kind)
+		t.log.Printf("[%s] addTrackToPeer Calling signaller.AddTransceiverRequest() because a new %s track was added", trackListener.ClientID(), kind)
 		signaller.SendTransceiverRequest(kind, webrtc.RTPTransceiverDirectionRecvonly)
 	}
 	return nil
