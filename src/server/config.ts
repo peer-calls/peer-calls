@@ -22,6 +22,11 @@ export interface Config {
     key: string
   }
   store?: StoreConfig
+  prerelease?: {
+    version: string
+    url: string
+    title: string
+  }
 }
 
 export interface StoreRedisConfig {
@@ -44,4 +49,5 @@ export const config: Config = {
   iceServers: cfg.get('iceServers'),
   ssl: cfg.get('ssl', undefined),
   store: cfg.get('store', {type: 'memory'}),
+  prerelease: cfg.value().prerelease,
 }

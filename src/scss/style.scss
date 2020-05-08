@@ -147,6 +147,30 @@ body.call {
   }
 }
 
+.prerelease {
+  width: 300px;
+  margin: 4rem auto 0;
+  text-align: center;
+
+  .round {
+    width: 0.8rem;
+    height: 0.8rem;
+    display: inline-block;
+    background-color: $color-warning;
+    border-radius: 50%;
+    margin-right: 0.25rem;
+    margin-bottom: -1px;
+  }
+
+  &, p {
+    color: $color-fg
+  }
+
+  a {
+    color: lighten($color-fg, 5%);
+  }
+}
+
 .warning {
   color: $color-warning;
 }

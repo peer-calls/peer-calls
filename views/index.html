@@ -17,7 +17,14 @@
       <p>Group peer-to-peer calls for everyone. Create a private room. Share the link.</p>
       <input type="text" value="" name="call" placeholder="Room ID (Leave empty for random)" autofocus>
       <input type="submit" value="Start Session">
+
     </form>
+    <% if (prerelease) { %>
+      <div class="prerelease">
+        <p><span class="round"></span>Psst! Peer Calls <%= prerelease.version %> is available at <a href="<%= prerelease.url %>"><%= prerelease.title %></a></p>
+      </div>
+    <% } %>
+
   </div>
 
   <footer>

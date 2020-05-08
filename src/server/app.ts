@@ -26,6 +26,7 @@ export const io = SocketIO(server, { path: SOCKET_URL })
 app.set('x-powered-by', false)
 app.locals.version = require('../../package.json').version
 app.locals.baseUrl = BASE_URL
+app.locals.prerelease = config.prerelease
 // eslint-disable-next-line
 app.engine('html', ejs.renderFile as any)
 
