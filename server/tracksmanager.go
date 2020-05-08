@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -39,7 +38,9 @@ type peer struct {
 func (t *MemoryTracksManager) addTrack(room string, sourcePC *webrtc.PeerConnection, clientID string, track *webrtc.Track) {
 	t.mu.Lock()
 
-	for otherClientID, otherPeerInRoom := range t.peers {
+	peersSet := t.peerIDsByRoom[room]
+	for otherClientID := range peersSet {
+		otherPeerInRoom := t.peers[otherClientID]
 		if otherClientID != clientID {
 			if err := t.addTrackToPeer(otherPeerInRoom, sourcePC, clientID, track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
@@ -54,19 +55,21 @@ func (t *MemoryTracksManager) addTrack(room string, sourcePC *webrtc.PeerConnect
 func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
 	t.mu.Lock()
 
-	for otherClientID, otherPeerInRoom := range t.peers {
+	peer, ok := t.peers[clientID]
+	if ok {
+		t.log.Printf("[%s] broadcast peer not found", clientID)
+		return
+	}
+
+	peersSet := t.peerIDsByRoom[peer.room]
+	for otherClientID := range peersSet {
+		otherPeerInRoom := t.peers[otherClientID]
 		if otherClientID != clientID {
 			t.log.Printf("[%s] broadcast from %s", otherClientID, clientID)
 			tr := otherPeerInRoom.dataTransceiver
 			var err error
 			if msg.IsString {
-				textData := msg.Data
-				data := map[string]interface{}{}
-				if unmarshalErr := json.Unmarshal(textData, &data); unmarshalErr == nil {
-					data["userId"] = clientID
-					textData, _ = json.Marshal(data)
-				}
-				err = tr.SendText(string(textData))
+				err = tr.SendText(string(msg.Data))
 			} else {
 				err = tr.Send(msg.Data)
 			}
