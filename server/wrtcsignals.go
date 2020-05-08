@@ -92,15 +92,15 @@ func newCandidate(candidate interface{}) (c Candidate, err error) {
 	}
 
 	sdpMid, ok := candidateMap["sdpMid"].(string)
-	if !ok {
-		err = fmt.Errorf("Expected candidate.sdpMid to be string: %#v", candidate)
-		return
+	var sdpMidPtr *string
+	if ok {
+		sdpMidPtr = &sdpMid
 	}
 
 	sdpMLineIndexUint16 := uint16(sdpMLineIndex)
 	c.Candidate.Candidate = candidateString
 	c.Candidate.SDPMLineIndex = &sdpMLineIndexUint16
-	c.Candidate.SDPMid = &sdpMid
+	c.Candidate.SDPMid = sdpMidPtr
 
 	return
 }
