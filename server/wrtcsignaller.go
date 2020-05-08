@@ -20,11 +20,15 @@ type Signaller struct {
 	remotePeerID   string
 	negotiator     *Negotiator
 
-	signalMu      sync.RWMutex
+	signalMu      sync.Mutex
 	closed        bool
 	signalChannel chan Payload
 	closeChannel  chan struct{}
 	closeOnce     sync.Once
+	wg            sync.WaitGroup
+
+	descriptionSent     chan struct{}
+	descriptionSentOnce sync.Once
 }
 
 func NewSignaller(
@@ -36,15 +40,16 @@ func NewSignaller(
 	remotePeerID string,
 ) (*Signaller, error) {
 	s := &Signaller{
-		log:            loggerFactory.GetLogger("signaller"),
-		sdpLog:         loggerFactory.GetLogger("sdp"),
-		initiator:      initiator,
-		peerConnection: peerConnection,
-		mediaEngine:    mediaEngine,
-		localPeerID:    localPeerID,
-		remotePeerID:   remotePeerID,
-		signalChannel:  make(chan Payload),
-		closeChannel:   make(chan struct{}),
+		log:             loggerFactory.GetLogger("signaller"),
+		sdpLog:          loggerFactory.GetLogger("sdp"),
+		initiator:       initiator,
+		peerConnection:  peerConnection,
+		mediaEngine:     mediaEngine,
+		localPeerID:     localPeerID,
+		remotePeerID:    remotePeerID,
+		signalChannel:   make(chan Payload),
+		closeChannel:    make(chan struct{}),
+		descriptionSent: make(chan struct{}),
 	}
 
 	negotiator := NewNegotiator(
@@ -147,10 +152,10 @@ func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICECon
 }
 
 func (s *Signaller) onSignal(payload Payload) {
-	s.signalMu.RLock()
+	s.signalMu.Lock()
 
 	go func() {
-		defer s.signalMu.RUnlock()
+		defer s.signalMu.Unlock()
 
 		ch := s.signalChannel
 		if s.closed {
@@ -180,10 +185,17 @@ func (s *Signaller) Close() (err error) {
 
 		err = s.peerConnection.Close()
 	})
+	s.closeDescriptionSent()
 	return
 }
 
 func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
+	// wait until local description is set to prevent sending ice candidates
+	// before local offer is sent
+	s.log.Printf("[%s] Got ice candidate (waiting)", s.remotePeerID)
+	<-s.descriptionSent
+	s.log.Printf("[%s] Got ice candidate (processing...)", s.remotePeerID)
+
 	if c == nil {
 		return
 	}
@@ -272,6 +284,9 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 
 	s.sdpLog.Printf("[%s] Local signal.type: %s, signal.sdp: %s", s.remotePeerID, answer.Type, answer.SDP)
 	s.onSignal(NewPayloadSDP(s.localPeerID, answer))
+
+	// allow ice candidates to be sent
+	s.closeDescriptionSent()
 	return nil
 }
 
@@ -297,6 +312,18 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 	}
 
 	s.onSignal(NewPayloadSDP(s.localPeerID, offer))
+
+	// allow ice candidates to be sent
+	s.closeDescriptionSent()
+}
+
+// closeDescriptionSent closes the descriptionSent channel which allows the ICE
+// candidates to be processed.
+func (s *Signaller) closeDescriptionSent() {
+	s.descriptionSentOnce.Do(func() {
+		s.log.Printf("[%s] DESCRIPTION SENT", s.remotePeerID)
+		close(s.descriptionSent)
+	})
 }
 
 // Sends a request for a new transceiver, only if the peer is not the initiator.

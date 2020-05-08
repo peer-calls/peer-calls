@@ -101,11 +101,11 @@ loop:
 		for msgChan != nil && signalChan != nil {
 			select {
 			case msg, ok := <-msgChan:
-				t.Log("ws message")
 				if !ok {
 					msgChan = nil
 					continue
 				}
+				t.Log("ws message", msg.Type, msg.Payload)
 				if msg.Type == "signal" {
 					payload, ok := msg.Payload.(map[string]interface{})
 					require.True(t, ok, "invalid signal msg payload type")
@@ -113,7 +113,7 @@ loop:
 					require.NoError(t, err, "error in receiving signal payload: %w", err)
 				}
 			case signal, ok := <-signalChan:
-				t.Log("signal")
+				t.Log("signal", signal)
 				if !ok {
 					signalChan = nil
 					continue
