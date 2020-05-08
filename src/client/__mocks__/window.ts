@@ -75,4 +75,6 @@ export const userId = 'user1234'
 
 export const nickname = 'nick1234'
 
+export const network = 'mesh'
+
 export const iceServers = []
