@@ -52,7 +52,7 @@ jobs:
       uses: actions/setup-go@v2.0.3
       with:
         go-version: ${{ matrix.go-version }}
-    - run: go test ./... -race -coverprofile=coverage.out
+    - run: go test ./... -race -coverprofile=coverage.out -v
     - run: go tool cover -func=coverage.out
   build:
     runs-on: ubuntu-latest
