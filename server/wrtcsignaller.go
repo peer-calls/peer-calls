@@ -77,20 +77,19 @@ func (s *Signaller) SignalChannel() <-chan Payload {
 func (s *Signaller) initialize() error {
 	if s.initiator {
 		s.log.Printf("[%s] NewSignaller: Initiator registering default codecs", s.remotePeerID)
-		// s.mediaEngine.RegisterDefaultCodecs()
 		s.mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 
 		rtcpfb := []webrtc.RTCPFeedback{
 			// webrtc.RTCPFeedback{
 			// 	Type: webrtc.TypeRTCPFBGoogREMB,
 			// },
-			webrtc.RTCPFeedback{
-				Type:      webrtc.TypeRTCPFBCCM,
-				Parameter: "fir",
-			},
-			webrtc.RTCPFeedback{
-				Type: webrtc.TypeRTCPFBNACK,
-			},
+			// webrtc.RTCPFeedback{
+			// 	Type:      webrtc.TypeRTCPFBCCM,
+			// 	Parameter: "fir",
+			// },
+			// webrtc.RTCPFeedback{
+			// 	Type: webrtc.TypeRTCPFBNACK,
+			// },
 			webrtc.RTCPFeedback{
 				Type:      webrtc.TypeRTCPFBNACK,
 				Parameter: "pli",

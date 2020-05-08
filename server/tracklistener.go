@@ -10,10 +10,6 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-const (
-	rtcpPLIInterval = time.Second * 3
-)
-
 type TrackEventType uint32
 
 const (
@@ -49,6 +45,7 @@ type trackListener struct {
 	trackInfoByTrack map[*webrtc.Track]TrackInfo
 	onTrackEvent     func(TrackEvent)
 	mu               sync.RWMutex
+	pliInterval      time.Duration
 }
 
 func newTrackListener(
@@ -90,8 +87,6 @@ func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
 	return
 }
 
-// var udpConn, _ = net.ListenUDP("udp", &net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 6999, Zone: ""})
-
 func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID string, track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
@@ -100,26 +95,6 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 	rtpSender, err := p.peerConnection.AddTrack(track)
 
 	go func() {
-		// buf := make([]byte, 8192)
-		// for {
-		// 	n, err := rtpSender.Read(buf)
-		// 	if err != nil {
-		// 		p.log.Printf("[%s] Error reading rtcp for sender track: %d: %s",
-		// 			p.clientID,
-		// 			track.SSRC(),
-		// 			err,
-		// 		)
-		// 		break
-		// 	}
-		// 	_, err = udpConn.WriteTo(buf[:n], &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 5000})
-		// 	if err != nil {
-		// 		p.log.Printf("[%s] Error writing rtcp for sender track: %d: %s",
-		// 			p.clientID,
-		// 			track.SSRC(),
-		// 			err,
-		// 		)
-		// 	}
-		// }
 		for {
 			rtcps, err := rtpSender.ReadRTCP()
 			if err != nil {
@@ -153,12 +128,6 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 			}
 		}
 	}()
-	// t, err := p.peerConnection.AddTransceiverFromTrack(
-	// 	track,
-	// 	webrtc.RtpTransceiverInit{
-	// 		Direction: webrtc.RTPTransceiverDirectionSendonly,
-	// 	},
-	// )
 
 	var transceiver *webrtc.RTPTransceiver
 	for _, tr := range p.peerConnection.GetTransceivers() {
@@ -250,32 +219,38 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 
 	// Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
 	// This can be less wasteful by processing incoming RTCP events, then we would emit a NACK/PLI when a viewer requests it
-	// ticker := time.NewTicker(rtcpPLIInterval)
-	// go func() {
-	// 	writeRTCP := func() {
-	// 		err := p.peerConnection.WriteRTCP(
-	// 			[]rtcp.Packet{
-	// 				&rtcp.PictureLossIndication{
-	// 					MediaSSRC: ssrc,
-	// 				},
-	// 			},
-	// 		)
-	// 		if err != nil {
-	// 			p.log.Printf("[%s] Error sending rtcp PLI for local track: %s: %s",
-	// 				p.clientID,
-	// 				localTrackID,
-	// 				err,
-	// 			)
-	// 		}
-	// 	}
-	// 	for range ticker.C {
-	// 		writeRTCP()
-	// 	}
-	// }()
+
+	var ticker *time.Ticker
+	if p.pliInterval > 0 {
+		ticker = time.NewTicker(p.pliInterval)
+		go func() {
+			writeRTCP := func() {
+				err := p.peerConnection.WriteRTCP(
+					[]rtcp.Packet{
+						&rtcp.PictureLossIndication{
+							MediaSSRC: ssrc,
+						},
+					},
+				)
+				if err != nil {
+					p.log.Printf("[%s] Error sending rtcp PLI for local track: %s: %s",
+						p.clientID,
+						localTrackID,
+						err,
+					)
+				}
+			}
+			for range ticker.C {
+				writeRTCP()
+			}
+		}()
+	}
 
 	go func() {
 		defer p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeRemove})
-		// defer ticker.Stop()
+		if ticker != nil {
+			defer ticker.Stop()
+		}
 		for {
 			pkt, err := remoteTrack.ReadRTP()
 			if err != nil {
