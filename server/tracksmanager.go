@@ -56,7 +56,7 @@ func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelM
 	t.mu.Lock()
 
 	peer, ok := t.peers[clientID]
-	if ok {
+	if !ok {
 		t.log.Printf("[%s] broadcast peer not found", clientID)
 		return
 	}
