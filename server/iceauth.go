@@ -31,7 +31,7 @@ func newICEServer(server ICEServer) ICEAuthServer {
 }
 
 func getICEStaticAuthSecretCredentials(server ICEServer) ICEAuthServer {
-	timestamp := time.Now().UnixNano() / 1_000_000
+	timestamp := time.Now().Unix() + 24*3600
 	username := fmt.Sprintf("%d:%s", timestamp, server.AuthSecret.Username)
 	h := hmac.New(sha1.New, []byte(server.AuthSecret.Secret))
 	h.Write([]byte(username))
