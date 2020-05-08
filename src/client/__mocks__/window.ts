@@ -43,6 +43,7 @@ export class MediaStream {
 export class MediaStreamTrack {
   kind = 'video'
   enabled = true
+  muted = false
   readonly id: string
   readonly stop: () => void
 
