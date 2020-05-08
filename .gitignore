@@ -9,3 +9,4 @@ coverage/
 config/local.yaml
 lib/
 tsconfig.tsbuildinfo
+*.out
