@@ -181,7 +181,7 @@ export class Encoder extends SimpleEmitter<EncoderEvents> {
 
   protected readonly workerBlobURL?: string
 
-  constructor(readonly maxMessageSizeBytes = 2**16) {
+  constructor(readonly maxMessageSizeBytes = 2**16 - 1) {
     super()
     if (maxMessageSizeBytes <= headerSizeBytes) {
       throw new Error('maxMessageSizeBytes should be greater than headerSize')

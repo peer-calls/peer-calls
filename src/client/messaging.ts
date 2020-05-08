@@ -1,3 +1,4 @@
+import _debug from 'debug'
 import forEach from 'lodash/forEach'
 import { Middleware } from 'redux'
 import { addMessage, MessageSendAction } from './actions/ChatActions'
@@ -8,6 +9,8 @@ import { State, Store } from './store'
 import { TextEncoder } from './textcodec'
 import { userId } from './window'
 
+const debug = _debug('peercalls')
+
 export function createMessagingMiddleware(
   createEncoder = () => new Encoder(),
 ): Middleware<Store, State> {
@@ -17,8 +20,9 @@ export function createMessagingMiddleware(
 
     encoder.on('data', event => {
       const { peers } = store.getState()
-      forEach(peers, peer => {
+      forEach(peers, (peer, id) => {
         try {
+          debug('Send %d bytes to peer %s', event.chunk.byteLength, id)
           peer.send(event.chunk)
         } catch (err) {
           NotifyActions.error('Error sending message to peer: {0}', err)
