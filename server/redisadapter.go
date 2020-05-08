@@ -251,32 +251,32 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
 func (a *RedisAdapter) subscribeUntilReady() {
 	var wg sync.WaitGroup
 	wg.Add(1)
-	errChan := make(chan error)
+	subscribeEndedChan := make(chan struct{})
+	var subscribeEndErr error
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		err := a.subscribe(ctx, wg.Done)
-		errChan <- err
-		close(errChan)
+		subscribeEndErr = a.subscribe(ctx, wg.Done)
+		close(subscribeEndedChan)
 	}()
 	wg.Wait()
 
 	a.stop = func() error {
 		cancel()
-		err, _ := <-errChan
-		return err
+		<-subscribeEndedChan
+		return subscribeEndErr
 	}
 }
 
+// Close closes the subscription
 func (a *RedisAdapter) Close() (err error) {
-	a.clientsMu.Lock()
-	if removeErr := a.removeAll(); removeErr != nil && err == nil {
-		err = removeErr
-	}
 	if a.stop != nil {
 		if stopErr := a.stop(); !errors.Is(stopErr, context.Canceled) && err == nil {
 			err = stopErr
 		}
-		a.stop = nil
+	}
+	a.clientsMu.Lock()
+	if removeErr := a.removeAll(); removeErr != nil && err == nil {
+		err = removeErr
 	}
 	a.clientsMu.Unlock()
 	return
