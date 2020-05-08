@@ -84,7 +84,8 @@ class PeerHandler {
         userId, track.id, stream.id)
       dispatch(StreamActions.removeTrack({ track }))
     }
-    track.onunmute = () => {
+
+    function addTrack() {
       debug(
         'peer: %s, track unmute (id: %s, stream.id: %s)',
         userId, track.id, stream.id)
@@ -95,6 +96,11 @@ class PeerHandler {
         track,
       }))
     }
+
+    if (!track.muted) {
+      addTrack()
+    }
+    track.onunmute = addTrack
   }
   handleData = (buffer: ArrayBuffer) => {
     const { dispatch, user } = this

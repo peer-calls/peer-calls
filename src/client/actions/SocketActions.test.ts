@@ -148,6 +148,7 @@ describe('SocketActions', () => {
       it('adds a stream to streamStore', () => {
         const stream = new MediaStream()
         const track = new MediaStreamTrack()
+        ;(track as any).muted = true
         stream.addTrack(track)
         peer.emit(constants.PEER_EVENT_TRACK, track, stream, '0')
 
@@ -237,9 +238,6 @@ describe('SocketActions', () => {
         const track = new MediaStreamTrack()
         const mid = '0'
         peer.emit(constants.PEER_EVENT_TRACK, track, stream, mid)
-
-        track.onunmute!(new Event('unmute'))
-
         const streams = store.getState().streams.streamsByUserId
         expect(Object.keys(streams)).toEqual([ peerB ])
         const userStreams = streams[peerB].streams

@@ -7,6 +7,7 @@ import { Alerts, Alert } from './Alerts'
 import { info, warning, error } from '../actions/NotifyActions'
 import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
+import { network } from '../window'
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean
@@ -138,6 +139,10 @@ export class MediaForm extends React.PureComponent<MediaProps> {
         <button type='submit' disabled={!props.joinEnabled}>
           Join Call
         </button>
+
+        <div className='network-info'>
+          <span>Network: {network}</span>
+        </div>
       </form>
     )
   }

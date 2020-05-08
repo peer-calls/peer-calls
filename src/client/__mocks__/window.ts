@@ -43,6 +43,7 @@ export class MediaStream {
 export class MediaStreamTrack {
   kind = 'video'
   enabled = true
+  muted = false
   readonly id: string
   readonly stop: () => void
 
@@ -74,5 +75,7 @@ export const callId = 'call1234'
 export const userId = 'user1234'
 
 export const nickname = 'nick1234'
+
+export const network = 'mesh'
 
 export const iceServers = []
