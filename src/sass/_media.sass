@@ -2,12 +2,33 @@
   margin: 0 auto
 
 .media-container form.media
-  margin: 4rem auto 0
+  margin: 0 auto
   max-width: 450px
   text-align: center
+  padding: 4rem 0.5rem 1rem
 
   display: flex
   flex-direction: column
+
+  .form-item
+    position: relative
+    margin-bottom: 1rem
+
+  label
+    position: absolute
+    bottom: 0.25rem
+    left: 0
+    right: 0
+    opacity: 0
+    color: #D35731
+    font-size: 0.8rem
+    width: 100%
+    display: block
+    pointer-events: none
+    transition: opacity 100ms ease-in
+
+  label.label-error
+    opacity: 1
 
   select, input
     padding: 15px 10px
@@ -15,12 +36,16 @@
     -moz-appearance: none
     //  Remove default arrow
     appearance: none
-    border: none
+    border: 2px solid transparent
     border-radius: 4px
     border-bottom: 2px solid darken(#fff, 10%)
     color: black
     background-color: white
-    margin-bottom: 1rem
+    width: 100%
+    transition: border-radius 100ms ease-in, border-color 100ms ease-in
+
+  input.error
+    border: 2px solid #D35731
 
   select
     cursor: pointer

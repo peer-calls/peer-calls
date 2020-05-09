@@ -8,6 +8,7 @@ import { info, warning, error } from '../actions/NotifyActions'
 import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
 import { network } from '../window'
+import classnames from 'classnames'
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean
@@ -23,6 +24,10 @@ export type MediaProps = MediaState & {
   logWarning: typeof warning
   logError: typeof error
   nickname?: string
+}
+
+export interface MediaComponentState {
+  nickname: string
 }
 
 function mapStateToProps(state: State) {
@@ -51,14 +56,20 @@ const mapDispatchToProps = {
 
 const c = connect(mapStateToProps, mapDispatchToProps)
 
-export class MediaForm extends React.PureComponent<MediaProps> {
-  nicknameRef = React.createRef<HTMLInputElement>()
+export class MediaForm
+extends React.PureComponent<MediaProps, MediaComponentState> {
+  constructor(props: MediaProps) {
+    super(props)
+    this.state = {
+      nickname: props.nickname || '',
+    }
+  }
 
   componentDidMount() {
     this.props.enumerateDevices()
   }
   handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    const nickname = this.nicknameRef.current!.value
+    const { nickname } = this.state
     localStorage && (localStorage.nickname = nickname)
     event.preventDefault()
     const { props } = this
@@ -88,9 +99,12 @@ export class MediaForm extends React.PureComponent<MediaProps> {
     const constraint: AudioConstraint = JSON.parse(event.target.value)
     this.props.onSetAudioConstraint(constraint)
   }
-
+  handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ nickname: event.target.value })
+  }
   render() {
     const { props } = this
+    const { nickname } = this.state
     if (!props.visible) {
       return null
     }
@@ -100,41 +114,51 @@ export class MediaForm extends React.PureComponent<MediaProps> {
 
     return (
       <form className='media' onSubmit={this.handleSubmit}>
-        <input
-          required
-          name='nickname'
-          type='text'
-          placeholder='Nickname'
-          defaultValue={props.nickname}
-          ref={this.nicknameRef}
-          autoFocus
-        />
-
-        <select
-          name='video-input'
-          onChange={this.handleVideoChange}
-          value={videoId}
-          autoComplete='off'
-        >
-          <Options
-            devices={props.devices}
-            default='{"facingMode":"user"}'
-            type='videoinput'
+        <div className='form-item'>
+          <label className={classnames({ 'label-error': !nickname })}>
+            Enter your name
+          </label>
+          <input
+            required
+            className={classnames({error: !nickname})}
+            name='nickname'
+            type='text'
+            placeholder='Name'
+            autoFocus
+            onChange={this.handleNicknameChange}
+            value={nickname}
           />
-        </select>
+        </div>
 
-        <select
-          name='audio-input'
-          onChange={this.handleAudioChange}
-          value={audioId}
-          autoComplete='off'
-        >
-          <Options
-            devices={props.devices}
-            default='true'
-            type='audioinput'
-          />
-        </select>
+        <div className='form-item'>
+          <select
+            name='video-input'
+            onChange={this.handleVideoChange}
+            value={videoId}
+            autoComplete='off'
+          >
+            <Options
+              devices={props.devices}
+              default='{"facingMode":"user"}'
+              type='videoinput'
+            />
+          </select>
+        </div>
+
+        <div className='form-item'>
+          <select
+            name='audio-input'
+            onChange={this.handleAudioChange}
+            value={audioId}
+            autoComplete='off'
+          >
+            <Options
+              devices={props.devices}
+              default='true'
+              type='audioinput'
+            />
+          </select>
+        </div>
 
         <button type='submit' disabled={!props.joinEnabled}>
           Join Call
