@@ -29,7 +29,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Improved toolbar layout. Can be toggled by clicking or tapping.
 - [x] Multiple videos are now shown in a full-size grid and each can be minimized.
 - [x] Video cropping can be turned off.
-- [x] Improved file sending. Users are now able to send files larger tha 64 or 256 KB (depends on the browser).
+- [x] Improved file sending. Users are now able to send files larger than 64 or 256 KB (depends on the browser).
 - [x] Device names are correctly populated in the dropdown list.
 - [x] Improved desktop sharing.
 - [x] Copy invite link to clipboard. Will show as share icon on devices that support it.
