@@ -96,11 +96,12 @@ func (t *MemoryTracksManager) addTrackToPeer(p peer, sourceClientID string, trac
 			if !ok {
 				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. Peer not found", p.trackListener.clientID, sourceClientID)
 				// do not return early since the rtcp channel needs to be emptied
-			}
-			err := sourcePeer.trackListener.WriteRTCP(pkt)
-			if err != nil {
-				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. %s", p.trackListener.clientID, sourceClientID, err)
-				// do not return early since the rtcp channel needs to be emptied
+			} else {
+				err := sourcePeer.trackListener.WriteRTCP(pkt)
+				if err != nil {
+					t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. %s", p.trackListener.clientID, sourceClientID, err)
+					// do not return early since the rtcp channel needs to be emptied
+				}
 			}
 			t.mu.Unlock()
 		}
