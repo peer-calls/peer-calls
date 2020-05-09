@@ -46,6 +46,7 @@ type trackListener struct {
 	onTrackEvent     func(TrackEvent)
 	mu               sync.RWMutex
 	pliInterval      time.Duration
+	ssrcMaxBitrates  map[uint32]uint64
 }
 
 func newTrackListener(
@@ -60,6 +61,7 @@ func newTrackListener(
 		peerConnection:   peerConnection,
 		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
 		onTrackEvent:     onTrackEvent,
+		ssrcMaxBitrates:  map[uint32]uint64{},
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -87,12 +89,50 @@ func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
 	return
 }
 
-func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID string, track *webrtc.Track) error {
+func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	switch pkt := anyPacket.(type) {
+	case *rtcp.PictureLossIndication:
+		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
+	case *rtcp.SourceDescription:
+	case *rtcp.ReceiverEstimatedMaximumBitrate:
+		bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
+		if !ok || pkt.Bitrate < bitrate {
+			p.ssrcMaxBitrates[pkt.SenderSSRC] = bitrate
+			return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
+		}
+	case *rtcp.ReceiverReport:
+	case *rtcp.SenderReport:
+	default:
+		p.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", p.clientID, pkt.DestinationSSRC(), pkt)
+	}
+
+	return nil
+}
+
+func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (chan rtcp.Packet, error) {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 
 	p.log.Printf("[%s] peer.AddTrack: add sendonly transceiver for track: %s", p.clientID, track.ID())
 	rtpSender, err := p.peerConnection.AddTrack(track)
+
+	var transceiver *webrtc.RTPTransceiver
+	for _, tr := range p.peerConnection.GetTransceivers() {
+		if tr.Sender() == rtpSender {
+			transceiver = tr
+			break
+		}
+	}
+
+	rtcpCh := make(chan rtcp.Packet)
+
+	if err != nil {
+		close(rtcpCh)
+		return rtcpCh, fmt.Errorf("[%s] peer.AddTrack: error adding track: %s: %s", p.clientID, track.ID(), err)
+	}
 
 	go func() {
 		for {
@@ -103,43 +143,14 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 					track.SSRC(),
 					err,
 				)
+				close(rtcpCh)
 				break
 			}
 			for _, pkt := range rtcps {
-				switch pkt.(type) {
-				case *rtcp.PictureLossIndication:
-					err := sourcePC.WriteRTCP(
-						[]rtcp.Packet{pkt},
-					)
-					if err != nil {
-						p.log.Printf("[%s] Error sending rtcp for local track: %d: %s",
-							p.clientID,
-							track.SSRC(),
-							err,
-						)
-					}
-				case *rtcp.SourceDescription:
-				case *rtcp.ReceiverEstimatedMaximumBitrate: // TODO hadle this
-				case *rtcp.SenderReport:
-				case *rtcp.ReceiverReport:
-				default:
-					p.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", p.clientID, track.SSRC(), pkt)
-				}
+				rtcpCh <- pkt
 			}
 		}
 	}()
-
-	var transceiver *webrtc.RTPTransceiver
-	for _, tr := range p.peerConnection.GetTransceivers() {
-		if tr.Sender() == rtpSender {
-			transceiver = tr
-			break
-		}
-	}
-
-	if err != nil {
-		return fmt.Errorf("[%s] peer.AddTrack: error adding track: %s: %s", p.clientID, track.ID(), err)
-	}
 
 	p.trackInfoByTrack[track] = TrackInfo{
 		RTPSender:      rtpSender,
@@ -151,7 +162,7 @@ func (p *trackListener) AddTrack(sourcePC *webrtc.PeerConnection, sourceClientID
 			StreamID: track.Label(),
 		},
 	}
-	return nil
+	return rtcpCh, nil
 }
 
 func (p *trackListener) RemoveTrack(track *webrtc.Track) error {
@@ -163,6 +174,7 @@ func (p *trackListener) RemoveTrack(track *webrtc.Track) error {
 		return fmt.Errorf("[%s] peer.RemoveTrack: cannot find sender for track: %s", p.clientID, track.ID())
 	}
 	delete(p.trackInfoByTrack, track)
+	delete(p.ssrcMaxBitrates, track.SSRC())
 	return p.peerConnection.RemoveTrack(trackInfo.RTPSender)
 }
 

@@ -35,14 +35,14 @@ type peer struct {
 	signaller       *Signaller
 }
 
-func (t *MemoryTracksManager) addTrack(room string, sourcePC *webrtc.PeerConnection, clientID string, track *webrtc.Track) {
+func (t *MemoryTracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
 	t.mu.Lock()
 
 	peersSet := t.peerIDsByRoom[room]
 	for otherClientID := range peersSet {
 		otherPeerInRoom := t.peers[otherClientID]
 		if otherClientID != clientID {
-			if err := t.addTrackToPeer(otherPeerInRoom, sourcePC, clientID, track); err != nil {
+			if err := t.addTrackToPeer(otherPeerInRoom, clientID, track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
 			}
@@ -82,11 +82,29 @@ func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelM
 	t.mu.Unlock()
 }
 
-func (t *MemoryTracksManager) addTrackToPeer(p peer, sourcePC *webrtc.PeerConnection, sourceClientID string, track *webrtc.Track) error {
+func (t *MemoryTracksManager) addTrackToPeer(p peer, sourceClientID string, track *webrtc.Track) error {
 	trackListener := p.trackListener
-	if err := trackListener.AddTrack(sourcePC, sourceClientID, track); err != nil {
+	rtcpCh, err := trackListener.AddTrack(sourceClientID, track)
+	if err != nil {
 		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %s: %s", trackListener.ClientID(), track.ID(), err)
 	}
+
+	go func() {
+		for pkt := range rtcpCh {
+			t.mu.Lock()
+			sourcePeer, ok := t.peers[sourceClientID]
+			if !ok {
+				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. Peer not found", p.trackListener.clientID, sourceClientID)
+				// do not return early since the rtcp channel needs to be emptied
+			}
+			err := sourcePeer.trackListener.WriteRTCP(pkt)
+			if err != nil {
+				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. %s", p.trackListener.clientID, sourceClientID, err)
+				// do not return early since the rtcp channel needs to be emptied
+			}
+			t.mu.Unlock()
+		}
+	}()
 
 	kind := track.Kind()
 	signaller := p.signaller
@@ -112,7 +130,7 @@ func (t *MemoryTracksManager) Add(
 	onTrackEvent := func(e TrackEvent) {
 		switch e.Type {
 		case TrackEventTypeAdd:
-			t.addTrack(room, peerConnection, e.ClientID, e.Track)
+			t.addTrack(room, e.ClientID, e.Track)
 		case TrackEventTypeRemove:
 			t.removeTrack(e.ClientID, e.Track)
 		}
@@ -143,7 +161,7 @@ func (t *MemoryTracksManager) Add(
 		}
 		for _, track := range existingPeerInRoom.trackListener.Tracks() {
 			// TODO what if tracks list changes in the meantime?
-			err := t.addTrackToPeer(peerJoiningRoom, existingPeerInRoom.signaller.peerConnection, existingPeerClientID, track)
+			err := t.addTrackToPeer(peerJoiningRoom, existingPeerClientID, track)
 			if err != nil {
 				t.log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",

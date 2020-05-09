@@ -39,8 +39,9 @@ published on NPM since the server is no longer written in NodeJS.
 ## TODO for Selective Forwarding Unit
 
 - [x] Support dynamic adding and removing of streams
-- [x] Support Picture Loss Indicator
-- [ ] Add handling of other RTCP packets besides PLI
+- [x] Support RTCP packet Picture Loss Indicator (PLI)
+- [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
+- [ ] Add handling of other RTCP packets besides PLI and REMB
 - [ ] Add JitterBuffer
 - [ ] Support multiple Peer Calls nodes when using SFU
 
