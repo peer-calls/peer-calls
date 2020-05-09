@@ -101,7 +101,6 @@ export class MediaForm extends React.PureComponent<MediaProps> {
     return (
       <form className='media' onSubmit={this.handleSubmit}>
         <input
-          required
           name='nickname'
           type='text'
           placeholder='Nickname'
