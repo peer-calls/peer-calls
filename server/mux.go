@@ -13,6 +13,23 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
+func buildManifest(baseURL string) []byte {
+	b, _ := json.Marshal(map[string]interface{}{
+		"name":             "Peer Calls",
+		"short_name":       "Peer Calls",
+		"start_url":        baseURL,
+		"display":          "standalone",
+		"background_color": "#086788",
+		"description":      "Group peer-to-peer calls for everyone. Create a private room. Share the link.",
+		"icons": []map[string]string{{
+			"src":   baseURL + "/res/icon.png",
+			"sizes": "256x256",
+			"type":  "image/png",
+		}},
+	})
+	return b
+}
+
 type Mux struct {
 	BaseURL    string
 	handler    *chi.Mux
@@ -70,12 +87,17 @@ func NewMux(
 		tracks,
 	)
 
+	manifest := buildManifest(baseURL)
 	handler.Route(root, func(router chi.Router) {
 		router.Get("/", renderer.Render(mux.routeIndex))
 		router.Handle("/static/*", static(baseURL+"/static", packr.NewBox("../build")))
 		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
 		router.Post("/call", mux.routeNewCall)
 		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
+		router.Get("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(manifest)
+		})
 
 		router.Mount("/ws", wsHandler)
 	})

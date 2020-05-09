@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,4 +124,19 @@ func Test_routeCall(t *testing.T) {
 	assert.Regexp(t, "id=\"callId\" value=\"abc\"", w.Body.String())
 	assert.Regexp(t, "id=\"iceServers\" value='.*stun:", w.Body.String())
 	assert.Regexp(t, "id=\"userId\" value=\"[^\"]", w.Body.String())
+}
+
+func Test_manifest(t *testing.T) {
+	mrm := NewMockRoomManager()
+	trk := newMockTracksManager()
+	defer mrm.close()
+	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk)
+	w := httptest.NewRecorder()
+	reader := strings.NewReader("call=my room")
+	r := httptest.NewRequest("GET", "/test/manifest.json", reader)
+	mux.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	data := map[string]interface{}{}
+	err := json.Unmarshal(w.Body.Bytes(), &data)
+	assert.NoError(t, err)
 }
