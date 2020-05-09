@@ -132,7 +132,7 @@ func (t *MemoryTracksManager) Add(
 		case TrackEventTypeAdd:
 			t.addTrack(room, e.ClientID, e.Track)
 		case TrackEventTypeRemove:
-			t.removeTrack(e.ClientID, e.Track)
+			t.removeTrack(room, e.ClientID, e.Track)
 		}
 	}
 
@@ -262,20 +262,15 @@ func (t *MemoryTracksManager) removePeerTracks(peerLeavingRoom peer) {
 	}
 }
 
-func (t *MemoryTracksManager) removeTrack(clientID string, track *webrtc.Track) {
+func (t *MemoryTracksManager) removeTrack(room string, clientID string, track *webrtc.Track) {
 	t.log.Printf("[%s] removeTrack ssrc: %d from other peers", clientID, track.SSRC())
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	peer, ok := t.peers[clientID]
+	clientIDs, ok := t.peerIDsByRoom[room]
 	if !ok {
-		t.log.Printf("[%s] removeTrack: Cannot find peer with clientID: %s", clientID)
-		return
-	}
-	clientIDs, ok := t.peerIDsByRoom[peer.room]
-	if !ok {
-		t.log.Printf("[%s] removeTrack: Cannot find any peers in room: %s", clientID, peer.room)
+		t.log.Printf("[%s] removeTrack: Cannot find any peers in room: %s", clientID, room)
 		return
 	}
 	for otherClientID := range clientIDs {
