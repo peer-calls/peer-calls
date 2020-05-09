@@ -1,12 +1,12 @@
-# Peer Calls v4 (alpha)
+# Peer Calls v4 beta
 
 ![Peer Calls CI](https://github.com/peer-calls/peer-calls/workflows/Peer%20Calls%20CI/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/peer-calls/peer-calls)](https://goreportcard.com/report/github.com/peer-calls/peer-calls)
 
 WebRTC peer to peer calls for everyone. See it live in action at
-[peercalls.com/alpha][peer-calls].
+[peercalls.com/beta][peer-calls].
 
-[peer-calls]: https://peercalls.com/alpha
+[peer-calls]: https://peercalls.com/beta
 
 This branch contains ground work for version 4. The server has been completely
 rewriten in Go and all the original functionality works. An optional
@@ -20,6 +20,29 @@ awesome [pion/webrtc][pion] library.
 The config file format is still YAML, but is different than what was in v3. The
 v3 source code is available in `version-3` branch.  Version 4 will no longer be
 published on NPM since the server is no longer written in NodeJS.
+
+# What's New in v4
+
+- [x] Core rewritten in Golang.
+- [x] Selective Forwarding Unit. Can be enabled using `NETWORK_TYPE=sfu` environment variable. The [peercalls.com/beta][peer-calls] instance has this enabled.
+- [x] Ability to change video and audio devices without reconnecting.
+- [x] Improved toolbar layout. Can be toggled by clicking or tapping.
+- [x] Multiple videos are now shown in a full-size grid and each can be minimized.
+- [x] Video cropping can be turned off.
+- [x] Improved file sending. Users are now able to send files larger tha 64 or 256 KB (depends on the browser).
+- [x] Device names are correctly populated in the dropdown list.
+- [x] Improved desktop sharing.
+- [x] Copy invite link to clipboard. Will show as share icon on devices that support it.
+- [x] Fix: Toolbar icons render correctly on iOS 12 devices.
+- [x] Fix: Video autoplays.
+
+## TODO for Selective Forwarding Unit
+
+- [x] Support dynamic adding and removing of streams
+- [x] Support Picture Loss Indicator
+- [ ] Add handling of other RTCP packets besides PLI
+- [ ] Add JitterBuffer
+- [ ] Support multiple Peer Calls nodes when using SFU
 
 # Requirements
 
@@ -71,7 +94,7 @@ systems are built automatically:
 Use the [`peercalls/peercalls`][hub] image from Docker Hub:
 
 ```bash
-docker run --rm -it -p 3000:3000 peercalls/peercalls:alpha
+docker run --rm -it -p 3000:3000 peercalls/peercalls:latest
 ```
 
 [hub]: https://hub.docker.com/r/peercalls/peercalls
@@ -97,7 +120,7 @@ npm run start
 git clone https://github.com/peer-calls/peer-calls
 cd peer-calls
 docker build -t peer-calls .
-docker run --rm -it -p 3000:3000 peer-calls:alpha
+docker run --rm -it -p 3000:3000 peer-calls
 ```
 
 # Configuration
@@ -299,17 +322,6 @@ Finally, enable and start the `coturn` service:
 sudo systemctl enable coturn
 sudo systemctl start coturn
 ```
-
-# TODO
-
-- [x] Do not require config files and allow configuration via environment
-  variables. (Fixed in 23fabb0)
-- [x] Show menu dialog before connecting (Fixed in 0b4aa45)
-- [x] Reduce production build size by removing Pug. (Fixed in 2d14e5f c743f19)
-- [x] Add ability to share files (Fixed in 3877893)
-- [x] Add Socket.IO support for Redis (to scale horizontally).
-- [x] Allow other methods of connectivity, beside mesh.
-- [ ] Fix connectivity issues with SFU
 
 # Contributing
 
