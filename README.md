@@ -328,15 +328,21 @@ sudo systemctl start coturn
 
 See [Contributing](CONTRIBUTING.md) section.
 
-If you encounter a bug, please open a new issue! Thank you ❤️
+If you encounter a bug, please open a new issue!
 
-# Enterprise Support
+# Support
 
 The development of Peer Calls is sponsored by [rondomoon][rondomoon]. If you'd
-like on-site support  or become a sponsor, please contact
+like enterprise on-site support or become a sponsor, please contact
 [hello@rondomoon.com](mailto:hello@rondomoon.com).
 
 [rondomoon]: https://rondomoon.com
+
+If you wish to support future development of Peer Calls, you can donate here:
+
+[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=364CXPNDPK2YG&source=url)
+
+Thank you ❤️
 
 # License
 
