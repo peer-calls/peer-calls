@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
 	"github.com/pion/webrtc/v2"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func buildManifest(baseURL string) []byte {
@@ -44,6 +46,13 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type TracksManager interface {
 	Add(room string, clientID string, pc *webrtc.PeerConnection, dc *webrtc.DataChannel, s *Signaller)
 	GetTracksMetadata(clientID string) ([]TrackMetadata, bool)
+}
+
+func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		counter.Inc()
+		h.ServeHTTP(w, r)
+	}
 }
 
 type RoomManager interface {
@@ -89,14 +98,18 @@ func NewMux(
 
 	manifest := buildManifest(baseURL)
 	handler.Route(root, func(router chi.Router) {
-		router.Get("/", renderer.Render(mux.routeIndex))
+		router.Get("/", withGauge(prometheusHomeViewsTotal, renderer.Render(mux.routeIndex)))
 		router.Handle("/static/*", static(baseURL+"/static", packr.NewBox("../build")))
 		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
-		router.Post("/call", mux.routeNewCall)
-		router.Get("/call/{callID}", renderer.Render(mux.routeCall))
+		router.Post("/call", withGauge(prometheusCallJoinTotal, mux.routeNewCall))
+		router.Get("/call/{callID}", withGauge(prometheusCallViewsTotal, renderer.Render(mux.routeCall)))
 		router.Get("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(manifest)
+		})
+		router.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
+			// TODO add token protection
+			promhttp.Handler().ServeHTTP(w, r)
 		})
 
 		router.Mount("/ws", wsHandler)

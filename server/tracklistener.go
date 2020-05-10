@@ -95,12 +95,14 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 
 	switch pkt := anyPacket.(type) {
 	case *rtcp.PictureLossIndication:
+		prometheusRTCPPacketsSent.Inc()
 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
 	case *rtcp.SourceDescription:
 	case *rtcp.ReceiverEstimatedMaximumBitrate:
 		bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
 		if !ok || pkt.Bitrate < bitrate {
 			p.ssrcMaxBitrates[pkt.SenderSSRC] = bitrate
+			prometheusRTCPPacketsSent.Inc()
 			return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
 		}
 	case *rtcp.ReceiverReport:
@@ -147,6 +149,7 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 				break
 			}
 			for _, pkt := range rtcps {
+				prometheusRTCPPacketsReceived.Inc()
 				rtcpCh <- pkt
 			}
 		}
@@ -259,6 +262,13 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 	}
 
 	go func() {
+		start := time.Now()
+		prometheusWebRTCTracksTotal.Inc()
+		prometheusWebRTCTracksActive.Inc()
+		defer func() {
+			prometheusWebRTCTracksActive.Dec()
+			prometheusWebRTCTracksDuration.Observe(time.Now().Sub(start).Seconds())
+		}()
 		defer p.sendTrackEvent(TrackEvent{p.clientID, localTrack, TrackEventTypeRemove})
 		if ticker != nil {
 			defer ticker.Stop()
@@ -274,6 +284,8 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 				)
 				return
 			}
+
+			prometheusRTPPacketsReceived.Inc()
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			err = localTrack.WriteRTP(pkt)

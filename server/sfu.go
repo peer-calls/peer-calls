@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/pion/logging"
@@ -188,6 +189,10 @@ func NewSFUHandler(
 					}
 				}
 			case "ready":
+				start := time.Now()
+				prometheusWebRTCConnTotal.Inc()
+				prometheusWebRTCConnActive.Inc()
+
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
 
 				peerConnection, pcErr := api.NewPeerConnection(webrtcConfig)
@@ -264,6 +269,9 @@ func NewSFUHandler(
 								// TODO abort connection
 							}
 						}
+
+						prometheusWebRTCConnActive.Dec()
+						prometheusWebRTCConnDuration.Observe(time.Now().Sub(start).Seconds())
 
 						signallerMu.Lock()
 						defer signallerMu.Unlock()
