@@ -47,7 +47,7 @@ func main() {
 	newAdapter := server.NewAdapterFactory(loggerFactory, c.Store)
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	tracks := server.NewMemoryTracksManager(loggerFactory)
-	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks)
+	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	panicOnError(err, "Error starting server listener")
 	addr := l.Addr().(*net.TCPAddr)

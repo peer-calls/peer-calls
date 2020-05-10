@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
@@ -68,6 +69,7 @@ func NewMux(
 	iceServers []ICEServer,
 	rooms RoomManager,
 	tracks TracksManager,
+	prom PrometheusConfig,
 ) *Mux {
 	box := packr.NewBox("./templates")
 	templates := ParseTemplates(box)
@@ -108,7 +110,17 @@ func NewMux(
 			w.Write(manifest)
 		})
 		router.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
-			// TODO add token protection
+			accessToken := r.Header.Get("Authorization")
+			if strings.HasPrefix(accessToken, "Bearer ") {
+				accessToken = accessToken[len("Bearer "):]
+			} else {
+				accessToken = r.FormValue("access_token")
+			}
+
+			if accessToken == "" || accessToken != prom.AccessToken {
+				w.WriteHeader(401)
+				return
+			}
 			promhttp.Handler().ServeHTTP(w, r)
 		})
 

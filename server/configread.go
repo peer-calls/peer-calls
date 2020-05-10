@@ -79,6 +79,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 		setEnvString(&ice.AuthSecret.Username, prefix+"ICE_SERVER_USERNAME")
 		c.ICEServers = append(c.ICEServers, ice)
 	}
+
+	setEnvString(&c.Prometheus.AccessToken, prefix+"PROMETHEUS_ACCESS_TOKEN")
 }
 
 func setEnvSlice(dest *[]string, name string) {
