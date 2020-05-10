@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"path"
+	"time"
 
 	"nhooyr.io/websocket"
 )
@@ -42,7 +43,22 @@ func (wss *WSS) HandleRoom(w http.ResponseWriter, r *http.Request, handleMessage
 }
 
 func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, handleMessage func(RoomEvent), cleanup func(CleanupEvent)) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+	var err error
+
+	start := time.Now()
+	prometheusWSConnTotal.Inc()
+	prometheusWSConnActive.Inc()
+	defer func() {
+		prometheusWSConnActive.Dec()
+		if err != nil {
+			prometheusWSConnErrTotal.Inc()
+		}
+		duration := time.Now().Sub(start)
+		prometheusWSConnDuration.Observe(duration.Seconds())
+	}()
+
+	var c *websocket.Conn
+	c, err = websocket.Accept(w, r, &websocket.AcceptOptions{
 		CompressionMode: websocket.CompressionDisabled,
 	})
 	if err != nil {
@@ -102,10 +118,12 @@ func (wss *WSS) HandleRoomWithCleanup(w http.ResponseWriter, r *http.Request, ha
 	err = client.Err()
 
 	if errors.Is(err, context.Canceled) {
+		err = nil
 		return
 	}
 	if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
 		websocket.CloseStatus(err) == websocket.StatusGoingAway {
+		err = nil
 		return
 	}
 	if err != nil {

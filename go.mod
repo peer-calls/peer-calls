@@ -12,6 +12,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.1
 	github.com/pion/webrtc/v2 v2.2.9
+	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/yaml.v2 v2.2.8
 	nhooyr.io/websocket v1.8.4

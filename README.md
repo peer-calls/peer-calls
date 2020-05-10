@@ -147,6 +147,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_ICE_SERVER_AUTH_TYPE`    | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
 | `PEERCALLS_ICE_SERVER_SECRET`       | string | Secret for coturn                                                            |           |
 | `PEERCALLS_ICE_SERVER_USERNAME`     | string | Username for coturn                                                          |           |
+| `PEERCALLS_PROMETHEUS_ACCESS_TOKEN` | string | Access token for prometheus `/metrics` URL                                   |           |
 
 The default ICE servers in use are:
 
@@ -194,7 +195,15 @@ network:
   # sfu:
   #   interfaces:
   #   - eth0
+prometheus:
+  access_token: "mytoken"
 ```
+
+Prometheus `/metrics` URL will not be accessible without an access token set.
+The access token can be provided by either:
+
+- Setting `Authorization` header to `Bearer mytoken`, or
+- Providing the access token as a query string: `/metrics?access_token=mytoken`
 
 To access the server, go to http://localhost:3000.
 

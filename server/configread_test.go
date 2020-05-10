@@ -72,6 +72,7 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"ICE_SERVER_SECRET", "test_secret")
 	os.Setenv(prefix+"NETWORK_TYPE", "sfu")
 	os.Setenv(prefix+"NETWORK_SFU_INTERFACES", "a,b")
+	os.Setenv(prefix+"PROMETHEUS_ACCESS_TOKEN", "at1234")
 	var c server.Config
 	server.ReadConfigFromEnv(prefix, &c)
 	assert.Equal(t, "/test", c.BaseURL)
@@ -92,4 +93,5 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
 	assert.Equal(t, server.NetworkType("sfu"), c.Network.Type)
 	assert.Equal(t, []string{"a", "b"}, c.Network.SFU.Interfaces)
+	assert.Equal(t, "at1234", c.Prometheus.AccessToken)
 }

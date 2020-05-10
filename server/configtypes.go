@@ -55,12 +55,17 @@ type NetworkConfigSFU struct {
 	Interfaces []string `yaml:"interfaces"`
 }
 
+type PrometheusConfig struct {
+	AccessToken string `yaml:"access_token"`
+}
+
 type Config struct {
-	BaseURL    string        `yaml:"base_url"`
-	BindHost   string        `yaml:"bind_host"`
-	BindPort   int           `yaml:"bind_port"`
-	ICEServers []ICEServer   `yaml:"ice_servers"`
-	TLS        TLSConfig     `yaml:"tls"`
-	Store      StoreConfig   `yaml:"store"`
-	Network    NetworkConfig `yaml:"network"`
+	BaseURL    string           `yaml:"base_url"`
+	BindHost   string           `yaml:"bind_host"`
+	BindPort   int              `yaml:"bind_port"`
+	ICEServers []ICEServer      `yaml:"ice_servers"`
+	TLS        TLSConfig        `yaml:"tls"`
+	Store      StoreConfig      `yaml:"store"`
+	Network    NetworkConfig    `yaml:"network"`
+	Prometheus PrometheusConfig `yaml:"prometheus"`
 }
