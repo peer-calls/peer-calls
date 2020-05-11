@@ -44,6 +44,8 @@ func (m *MemoryAdapter) Remove(clientID string) (err error) {
 }
 
 func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
+	m.clientsMu.RLock()
+	defer m.clientsMu.RUnlock()
 	client, ok := m.clients[clientID]
 	if ok {
 		metadata = client.Metadata()
@@ -52,6 +54,8 @@ func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
 }
 
 func (m *MemoryAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
+	m.clientsMu.Lock()
+	defer m.clientsMu.Unlock()
 	client, ok := m.clients[clientID]
 	if ok {
 		client.SetMetadata(metadata)
@@ -97,9 +101,9 @@ func (m *MemoryAdapter) broadcast(msg Message) (err error) {
 // Sends a message to specific socket.
 func (m *MemoryAdapter) Emit(clientID string, msg Message) error {
 	m.clientsMu.RLock()
-	m.emit(clientID, msg)
+	err := m.emit(clientID, msg)
 	m.clientsMu.RUnlock()
-	return nil
+	return err
 }
 
 func (m *MemoryAdapter) emit(clientID string, msg Message) error {
