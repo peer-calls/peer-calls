@@ -140,7 +140,7 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 		for {
 			rtcps, err := rtpSender.ReadRTCP()
 			if err != nil {
-				p.log.Printf("[%s] Error reading rtcp for sender track: %d: %s",
+				p.log.Printf("[%s] RTCP stream for sender track: %d has ended: %s",
 					p.clientID,
 					track.SSRC(),
 					err,

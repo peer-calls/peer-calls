@@ -220,13 +220,13 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 
 	switch signal := signalPayload.Signal.(type) {
 	case Candidate:
-		s.log.Printf("[%s] Remote signal.canidate: %s", s.remotePeerID, signal.Candidate)
+		s.log.Printf("[%s] Remote signal.canidate: %v", s.remotePeerID, signal.Candidate.Candidate)
 		if signal.Candidate.Candidate != "" {
 			return s.peerConnection.AddICECandidate(signal.Candidate)
 		}
 		return nil
 	case Renegotiate:
-		s.log.Printf("[%s] Remote signal.renegotiate ", s.remotePeerID)
+		s.log.Printf("[%s] Remote signal.renegotiate", s.remotePeerID)
 		s.log.Printf("[%s] Calling signaller.Negotiate() because remote peer wanted to negotiate", s.remotePeerID)
 		s.Negotiate()
 		return nil
