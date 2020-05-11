@@ -321,7 +321,6 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 // candidates to be processed.
 func (s *Signaller) closeDescriptionSent() {
 	s.descriptionSentOnce.Do(func() {
-		s.log.Printf("[%s] DESCRIPTION SENT", s.remotePeerID)
 		close(s.descriptionSent)
 	})
 }
