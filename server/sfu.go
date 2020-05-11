@@ -285,7 +285,7 @@ func NewSFUHandler(
 							}),
 						)
 						if err != nil {
-							log.Printf("[%s] Error brodacastin hangUp: %s", event.ClientID, err)
+							log.Printf("[%s] Error broadcasting hangUp: %s", event.ClientID, err)
 						}
 						return
 					}()
