@@ -224,6 +224,9 @@ func (t *MemoryTracksManager) removePeer(clientID string) {
 		return
 	}
 	delete(peerIDs, clientID)
+	if len(peerIDs) == 0 {
+		delete(t.peerIDsByRoom, peerLeavingRoom.room)
+	}
 }
 
 func (t *MemoryTracksManager) removeTrack(room string, clientID string, track *webrtc.Track) {
