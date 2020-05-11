@@ -291,9 +291,11 @@ func NewSFUHandler(
 					}()
 				}
 			case "signal":
-				payload, _ := msg.Payload.(map[string]interface{})
-				if signaller == nil {
-					err = fmt.Errorf("[%s] Ignoring signal because signaller is not initialized", clientID)
+				payload, ok := msg.Payload.(map[string]interface{})
+				if !ok {
+					err = fmt.Errorf("[%s] Ignoring signal because it is of unexpected type: %T", clientID, payload)
+				} else if signaller == nil {
+					err = fmt.Errorf("[%s] Ignoring signal '%v' because signaller is not initialized", clientID, payload)
 				} else {
 					err = signaller.Signal(payload)
 				}
