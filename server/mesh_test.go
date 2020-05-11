@@ -101,7 +101,8 @@ func (m *MockAdapter) Emit(clientID string, message server.Message) error {
 }
 
 const roomName = "test-room"
-const clientID = "user1234"
+const clientID = "user1"
+const clientID2 = "user2"
 
 func mustDialWS(t *testing.T, ctx context.Context, url string) *websocket.Conn {
 	t.Helper()
