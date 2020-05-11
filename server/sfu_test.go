@@ -41,19 +41,78 @@ func TestSFU_ConnectDisconnect(t *testing.T) {
 	require.Nil(t, err, "error closing client socket")
 }
 
-func TestSFU_Peer(t *testing.T) {
-	defer goleak.VerifyNone(t)
+func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Message) {
+	t.Helper()
+	for {
+		select {
+		case msg := <-ch:
+			// t.Log("1 msg.Type", msg)
+			if msg.Type == "users" {
+				assert.Equal(t, "users", msg.Type)
+				assert.Equal(t, roomName, msg.Room)
+				payload := msg.Payload.(map[string]interface{})
+				assert.Equal(t, "__SERVER__", payload["initiator"])
+				assert.Equal(t, []interface{}{"__SERVER__"}, payload["peerIds"])
+				assert.Equal(t, map[string]interface{}{clientID: "some-user"}, payload["nicknames"])
+				return
+			}
+		case <-ctx.Done():
+			t.Errorf("context timeout: %s", ctx.Err())
+			return
+		}
+	}
+}
+
+func startSignalling(t *testing.T, wsClient *server.Client, wsRecvCh <-chan server.Message, signaller *server.Signaller) {
+	t.Helper()
+	signalChan := signaller.SignalChannel()
+	// t.Log("listening for events")
+	for wsRecvCh != nil && signalChan != nil {
+		select {
+		case msg, ok := <-wsRecvCh:
+			if !ok {
+				wsRecvCh = nil
+				continue
+			}
+			// t.Log("ws message", msg.Type, msg.Payload)
+			if msg.Type == "signal" {
+				payload, ok := msg.Payload.(map[string]interface{})
+				require.True(t, ok, "invalid signal msg payload type")
+				err := signaller.Signal(payload)
+				require.NoError(t, err, "error in receiving signal payload: %w", err)
+			}
+		case signal, ok := <-signalChan:
+			// t.Log("signal", signal)
+			if !ok {
+				signalChan = nil
+				continue
+			}
+			err := wsClient.Write(server.NewMessage("signal", roomName, signal))
+			require.NoError(t, err, "error sending singal to ws: %w", err)
+		}
+	}
+}
+
+func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID string) (pc *webrtc.PeerConnection, cleanup func() error) {
+	t.Helper()
+	var cleanups []func() error
+	cleanup = func() error {
+		var err error
+		for _, clean := range cleanups {
+			err2 := clean()
+			if err == nil {
+				err = err2
+			}
+		}
+		return err
+	}
 	// TODO fix mediaEngine should not be touched
 	mediaEngine := webrtc.MediaEngine{}
-	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
-	defer newAdapter.Close()
-	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	srv, url := setupSFUServer(rooms)
-	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+
 	wsc := mustDialWS(t, ctx, url)
-	defer wsc.Close(websocket.StatusNormalClosure, "")
+	cleanups = append(cleanups, func() error {
+		return wsc.Close(websocket.StatusNormalClosure, "")
+	})
 
 	wsClient := server.NewClientWithID(wsc, clientID)
 	msgChan := wsClient.Subscribe(ctx)
@@ -63,28 +122,10 @@ func TestSFU_Peer(t *testing.T) {
 	}))
 	require.NoError(t, err, "error sending ready message")
 
-loop:
-	for {
-		select {
-		case msg := <-msgChan:
-			t.Log("1 msg.Type", msg)
-			if msg.Type == "users" {
-				assert.Equal(t, "users", msg.Type)
-				assert.Equal(t, roomName, msg.Room)
-				payload := msg.Payload.(map[string]interface{})
-				assert.Equal(t, "__SERVER__", payload["initiator"])
-				assert.Equal(t, []interface{}{"__SERVER__"}, payload["peerIds"])
-				assert.Equal(t, map[string]interface{}{clientID: "some-user"}, payload["nicknames"])
-				break loop
-			}
-		case <-ctx.Done():
-			t.Errorf("context timeout: %s", ctx.Err())
-			return
-		}
-	}
+	waitForUsersEvent(t, ctx, msgChan)
 	require.Nil(t, wsClient.Err())
 
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	pc, err = webrtc.NewPeerConnection(webrtc.Configuration{})
 	require.Nil(t, err, "error creating peer connection")
 
 	signaller, err := server.NewSignaller(
@@ -96,48 +137,41 @@ loop:
 		"__SERVER__",
 	)
 	require.Nil(t, err, "error creating signaller")
-	defer signaller.Close() // also closes pc
-	signalChan := signaller.SignalChannel()
 
-	go func() {
-		t.Log("listening for events")
-		for msgChan != nil && signalChan != nil {
-			select {
-			case msg, ok := <-msgChan:
-				if !ok {
-					msgChan = nil
-					continue
-				}
-				t.Log("ws message", msg.Type, msg.Payload)
-				if msg.Type == "signal" {
-					payload, ok := msg.Payload.(map[string]interface{})
-					require.True(t, ok, "invalid signal msg payload type")
-					err := signaller.Signal(payload)
-					require.NoError(t, err, "error in receiving signal payload: %w", err)
-				}
-			case signal, ok := <-signalChan:
-				t.Log("signal", signal)
-				if !ok {
-					signalChan = nil
-					continue
-				}
-				err := wsClient.Write(server.NewMessage("signal", roomName, signal))
-				require.NoError(t, err, "error sending singal to ws: %w", err)
-			}
-		}
-	}()
+	cleanups = append(cleanups, signaller.Close) // also closes pc
 
+	go startSignalling(t, wsClient, msgChan, signaller)
+
+	return
+}
+
+func waitPeerConnected(t *testing.T, ctx context.Context, pc *webrtc.PeerConnection) {
+	t.Helper()
 	waitCh := make(chan struct{})
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		t.Log("connection state", state)
-	})
-	pc.OnDataChannel(func(d *webrtc.DataChannel) {
-		close(waitCh)
+		if state == webrtc.PeerConnectionStateConnected {
+			pc.OnConnectionStateChange(nil)
+			close(waitCh)
+		}
 	})
 	select {
 	case <-waitCh:
-		t.Log("Got data channel")
+		// connected
 	case <-ctx.Done():
 		t.Errorf("context timeout: %s", ctx.Err())
 	}
+}
+
+func TestSFU_PeerConnection(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
+	defer newAdapter.Close()
+	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
+	srv, url := setupSFUServer(rooms)
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	pc, cleanup := createPeerConnection(t, ctx, url, clientID)
+	defer cleanup()
+	waitPeerConnected(t, ctx, pc)
 }
