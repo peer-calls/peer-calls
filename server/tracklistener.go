@@ -275,12 +275,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 		for {
 			pkt, err := remoteTrack.ReadRTP()
 			if err != nil {
-				p.log.Printf(
-					"[%s] Remote track has ended: %d: %s",
-					p.clientID,
-					remoteTrack.SSRC(),
-					err,
-				)
+				p.log.Printf("[%s] RTP stream for track: %d has ended: %s", p.clientID, remoteTrack.SSRC(), err)
 				return
 			}
 
