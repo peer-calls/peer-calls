@@ -257,10 +257,13 @@ func NewSFUHandler(
 						for signal := range signalChannel {
 							if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
 								if metadata, ok := tracksManager.GetTracksMetadata(clientID); ok {
-									adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
+									err := adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
 										UserID:   localPeerID,
 										Metadata: metadata,
 									}))
+									if err != nil {
+										log.Printf("[%s] Error sending metadata: %s", clientID, err)
+									}
 								}
 							}
 							err := adapter.Emit(clientID, NewMessage("signal", room, signal))
