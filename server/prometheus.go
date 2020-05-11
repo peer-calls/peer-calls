@@ -6,17 +6,17 @@ import (
 )
 
 var prometheusHomeViewsTotal = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "home_views_total",
+	Name: "pageviews_index_total",
 	Help: "Total number of homepage views",
 })
 
 var prometheusCallJoinTotal = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "call_join_total",
+	Name: "pageviews_call_join_total",
 	Help: "Total number of new call requests",
 })
 
 var prometheusCallViewsTotal = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "call_views_total",
+	Name: "pageviews_call_total",
 	Help: "Total number of homepage views",
 })
 
@@ -36,8 +36,9 @@ var prometheusWSConnErrTotal = promauto.NewCounter(prometheus.CounterOpts{
 })
 
 var prometheusWSConnDuration = promauto.NewHistogram(prometheus.HistogramOpts{
-	Name: "ws_conn_duration",
-	Help: "Duration of websocket connections",
+	Name:    "ws_conn_duration",
+	Help:    "Duration of websocket connections",
+	Buckets: []float64{1, 60, 5 * 60, 15 * 60, 30 * 60, 45 * 60, 60 * 60, 120 * 60},
 })
 
 var prometheusWebRTCConnTotal = promauto.NewCounter(prometheus.CounterOpts{
@@ -56,8 +57,9 @@ var prometheusWebRTCConnActive = promauto.NewGauge(prometheus.GaugeOpts{
 // })
 
 var prometheusWebRTCConnDuration = promauto.NewHistogram(prometheus.HistogramOpts{
-	Name: "webrtc_conn_duration_seconds",
-	Help: "Duration of webrtc connections",
+	Name:    "webrtc_conn_duration_seconds",
+	Help:    "Duration of webrtc connections",
+	Buckets: []float64{1, 60, 5 * 60, 15 * 60, 30 * 60, 45 * 60, 60 * 60, 120 * 60},
 })
 
 var prometheusWebRTCTracksTotal = promauto.NewCounter(prometheus.CounterOpts{
@@ -71,8 +73,9 @@ var prometheusWebRTCTracksActive = promauto.NewGauge(prometheus.GaugeOpts{
 })
 
 var prometheusWebRTCTracksDuration = promauto.NewHistogram(prometheus.HistogramOpts{
-	Name: "webrtc_tracks_duration_seconds",
-	Help: "Duration of webrtc tracks",
+	Name:    "webrtc_tracks_duration_seconds",
+	Help:    "Duration of webrtc tracks",
+	Buckets: []float64{1, 60, 5 * 60, 15 * 60, 30 * 60, 45 * 60, 60 * 60, 120 * 60},
 })
 
 var prometheusRTCPPacketsReceived = promauto.NewGauge(prometheus.GaugeOpts{
