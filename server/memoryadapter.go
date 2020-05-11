@@ -37,8 +37,8 @@ func (m *MemoryAdapter) Close() error {
 // Remove a client from the room
 func (m *MemoryAdapter) Remove(clientID string) (err error) {
 	m.clientsMu.Lock()
-	err = m.broadcast(NewMessageRoomLeave(m.room, clientID))
 	delete(m.clients, clientID)
+	err = m.broadcast(NewMessageRoomLeave(m.room, clientID))
 	m.clientsMu.Unlock()
 	return
 }
