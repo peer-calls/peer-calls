@@ -22,7 +22,7 @@ type MemoryTracksManager struct {
 func NewMemoryTracksManager(loggerFactory LoggerFactory) *MemoryTracksManager {
 	return &MemoryTracksManager{
 		loggerFactory: loggerFactory,
-		log:           loggerFactory.GetLogger("tracks"),
+		log:           loggerFactory.GetLogger("tracksmanager"),
 		peers:         map[string]peer{},
 		peerIDsByRoom: map[string]map[string]struct{}{},
 	}
@@ -86,7 +86,7 @@ func (t *MemoryTracksManager) addTrackToPeer(p peer, sourceClientID string, trac
 	trackListener := p.trackListener
 	rtcpCh, err := trackListener.AddTrack(sourceClientID, track)
 	if err != nil {
-		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %s: %s", trackListener.ClientID(), track.ID(), err)
+		return fmt.Errorf("[%s] addTrackToPeer Error adding track: %d: %s", trackListener.ClientID(), track.SSRC(), err)
 	}
 
 	go func() {
