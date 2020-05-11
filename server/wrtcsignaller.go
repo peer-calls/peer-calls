@@ -104,32 +104,30 @@ func (s *Signaller) initialize() error {
 		s.mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
 		// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
 		// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
-	}
 
-	s.log.Printf("[%s] NewSignaller: Non-Initiator pre-add video transceiver", s.remotePeerID)
-	_, err := s.peerConnection.AddTransceiverFromKind(
-		webrtc.RTPCodecTypeVideo,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		s.log.Printf("ERROR: %s", err)
-		return fmt.Errorf("[%s] NewSignaller: Error pre-adding video transceiver: %s", s.remotePeerID, err)
-	}
+		s.log.Printf("[%s] NewSignaller: Initiator pre-add video transceiver", s.remotePeerID)
+		_, err := s.peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeVideo,
+			webrtc.RtpTransceiverInit{
+				Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			},
+		)
+		if err != nil {
+			s.log.Printf("ERROR: %s", err)
+			return fmt.Errorf("[%s] NewSignaller: Error pre-adding video transceiver: %s", s.remotePeerID, err)
+		}
 
-	s.log.Printf("[%s] NewSignaller: Non-Initiator pre-add audio transceiver", s.remotePeerID)
-	_, err = s.peerConnection.AddTransceiverFromKind(
-		webrtc.RTPCodecTypeAudio,
-		webrtc.RtpTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("[%s] NewSignaller: Error pre-adding audio transceiver: %s", s.remotePeerID, err)
-	}
+		s.log.Printf("[%s] NewSignaller: Initiator pre-add audio transceiver", s.remotePeerID)
+		_, err = s.peerConnection.AddTransceiverFromKind(
+			webrtc.RTPCodecTypeAudio,
+			webrtc.RtpTransceiverInit{
+				Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("[%s] NewSignaller: Error pre-adding audio transceiver: %s", s.remotePeerID, err)
+		}
 
-	if s.initiator {
 		s.log.Printf("[%s] NewSignaller: Initiator calling Negotiate()", s.remotePeerID)
 		s.negotiator.Negotiate()
 	}
