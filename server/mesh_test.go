@@ -164,6 +164,7 @@ func TestMesh_event_ready(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
+	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
 	mustWriteWS(t, ctx, ws, server.NewMessage("ready", "test-room", map[string]interface{}{
 		"nickname": "abc",
@@ -191,6 +192,7 @@ func TestMesh_event_signal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
+	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
 	otherClientID := "other-user"
 	var signal interface{} = "a-signal"
