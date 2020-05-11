@@ -216,7 +216,6 @@ func (t *MemoryTracksManager) removePeer(clientID string) {
 	}
 
 	peerLeavingRoom.dataTransceiver.Close()
-	t.removePeerTracks(peerLeavingRoom)
 
 	delete(t.peers, clientID)
 	peerIDs, ok := t.peerIDsByRoom[peerLeavingRoom.room]
@@ -225,42 +224,6 @@ func (t *MemoryTracksManager) removePeer(clientID string) {
 		return
 	}
 	delete(peerIDs, clientID)
-}
-
-func (t *MemoryTracksManager) removePeerTracks(peerLeavingRoom peer) {
-	leavingClientID := peerLeavingRoom.trackListener.ClientID()
-	t.log.Printf("Remove all peer tracks for clientID: %s", leavingClientID)
-	clientIDs, ok := t.peerIDsByRoom[peerLeavingRoom.room]
-	if !ok {
-		t.log.Println("Cannot find any peers in room", peerLeavingRoom.room)
-		return
-	}
-
-	tracks := peerLeavingRoom.trackListener.Tracks()
-	for clientID := range clientIDs {
-		if clientID != leavingClientID {
-			otherPeerInRoom := t.peers[clientID]
-			for _, track := range tracks {
-				t.log.Printf(
-					"Removing track: %s from peer clientID: %s (source clientID: %s)",
-					track.ID(),
-					clientID,
-					leavingClientID,
-				)
-				err := otherPeerInRoom.trackListener.RemoveTrack(track)
-				if err != nil {
-					t.log.Printf(
-						"Error removing track: %s from peer clientID: %s (source clientID: %s): %s",
-						track.ID(),
-						clientID,
-						leavingClientID,
-						err,
-					)
-				}
-			}
-			otherPeerInRoom.signaller.Negotiate()
-		}
-	}
 }
 
 func (t *MemoryTracksManager) removeTrack(room string, clientID string, track *webrtc.Track) {
