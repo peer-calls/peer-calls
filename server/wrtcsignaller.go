@@ -334,8 +334,8 @@ func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction w
 // TODO check offer voice activation detection feature of webrtc
 
 // Create an offer and send it to remote peer
-func (s *Signaller) Negotiate() {
-	s.negotiator.Negotiate()
+func (s *Signaller) Negotiate() <-chan struct{} {
+	return s.negotiator.Negotiate()
 }
 
 func (s *Signaller) handleRemoteAnswer(sessionDescription webrtc.SessionDescription) (err error) {
@@ -343,4 +343,13 @@ func (s *Signaller) handleRemoteAnswer(sessionDescription webrtc.SessionDescript
 		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
 	}
 	return nil
+}
+
+// NegotiationDone returns the channel that will be closed as soon as the
+// current negotiation is done. If there is no negotiation in progress, it
+// returns a closed channel. If there is a negotiation in progress, and the
+// negotiation was initiated by a call to Negotiate(), it will return the same
+// channel as Negotiate.
+func (s *Signaller) NegotiationDone() <-chan struct{} {
+	return s.negotiator.Done()
 }

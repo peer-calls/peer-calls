@@ -20,7 +20,7 @@ type Negotiator struct {
 	onOffer              func(webrtc.SessionDescription, error)
 	onRequestNegotiation func()
 
-	isNegotiating     bool
+	negotiationDone   chan struct{}
 	mu                sync.Mutex
 	queuedNegotiation bool
 
@@ -57,40 +57,68 @@ func (n *Negotiator) AddTransceiverFromKind(t TransceiverRequest) {
 	n.Negotiate()
 }
 
+func (n *Negotiator) closeDoneChannel() {
+	if n.negotiationDone != nil {
+		close(n.negotiationDone)
+		n.negotiationDone = nil
+	}
+}
+
+func (n *Negotiator) Done() <-chan struct{} {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.negotiationDone != nil {
+		return n.negotiationDone
+	}
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+
 func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 	// TODO check if we need to have a check for first stable state
 	// like simple-peer has.
-	n.log.Printf("[%s] Signaling state change for: %s", n.remotePeerID, state)
+	n.log.Printf("[%s] Signaling state change: %s", n.remotePeerID, state)
 
-	if state == webrtc.SignalingStateStable {
-		n.mu.Lock()
-		defer n.mu.Unlock()
-		n.isNegotiating = false
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
+	switch state {
+	case webrtc.SignalingStateHaveRemoteOffer:
+		if n.negotiationDone == nil {
+			// we are the passive peer. make this channel in case Negotiate is called
+			// since we should not negotiate until it changes to stable
+			n.negotiationDone = make(chan struct{})
+		}
+	case webrtc.SignalingStateClosed:
+		n.closeDoneChannel()
+	case webrtc.SignalingStateStable:
 		if n.queuedNegotiation {
-			n.isNegotiating = true
 			n.log.Printf("[%s] Executing queued negotiation", n.remotePeerID)
 			n.queuedNegotiation = false
 			n.negotiate()
+		} else {
+			n.closeDoneChannel()
 		}
 	}
 }
 
-func (n *Negotiator) Negotiate() {
+func (n *Negotiator) Negotiate() (done <-chan struct{}) {
 	n.log.Printf("[%s] Negotiate", n.remotePeerID)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	if n.isNegotiating {
+	if n.negotiationDone != nil {
 		n.log.Printf("[%s] Negotiate: already negotiating, queueing for later", n.remotePeerID)
 		n.queuedNegotiation = true
 		return
 	}
 
 	n.log.Printf("[%s] Negotiate: start", n.remotePeerID)
-	n.isNegotiating = true
+	n.negotiationDone = make(chan struct{})
 
 	n.negotiate()
+	return n.negotiationDone
 }
 
 func (n *Negotiator) addQueuedTransceivers() {
