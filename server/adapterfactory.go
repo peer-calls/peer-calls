@@ -47,13 +47,12 @@ func NewAdapterFactory(
 }
 
 func (a *AdapterFactory) Close() (err error) {
+	var errs []error
 	if a.pubClient != nil {
-		err = a.pubClient.Close()
+		errs = append(errs, a.pubClient.Close())
 	}
 	if a.subClient != nil {
-		if subError := a.subClient.Close(); subError != nil && err == nil {
-			err = subError
-		}
+		errs = append(errs, a.subClient.Close())
 	}
-	return
+	return firstError(errs...)
 }

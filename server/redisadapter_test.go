@@ -9,6 +9,7 @@ import (
 	"github.com/go-redis/redis/v7"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
@@ -31,6 +32,7 @@ func getClientIDs(t *testing.T, a *server.RedisAdapter) map[string]string {
 }
 
 func TestRedisAdapter_add_remove_client(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	pub, sub, stop := configureRedis(t)
 	defer stop()
 	adapter1 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)

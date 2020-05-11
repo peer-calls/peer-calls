@@ -10,6 +10,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 var handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -17,6 +18,7 @@ var handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 })
 
 func TestServerStarter_HTTP(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	addr := net.JoinHostPort("127.0.0.1", "0")
 	l, err := net.Listen("tcp", addr)
 	port := l.Addr().(*net.TCPAddr).Port
@@ -36,6 +38,7 @@ func TestServerStarter_HTTP(t *testing.T) {
 }
 
 func TestServerStarter_HTTPS(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	addr := net.JoinHostPort("127.0.0.1", "0")
 	l, err := net.Listen("tcp", addr)
 	port := l.Addr().(*net.TCPAddr).Port

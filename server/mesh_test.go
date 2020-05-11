@@ -10,6 +10,7 @@ import (
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"nhooyr.io/websocket"
 )
 
@@ -134,7 +135,8 @@ func setupMeshServer(rooms server.RoomManager) (s *httptest.Server, url string) 
 	return
 }
 
-func TestWS_disconnect(t *testing.T) {
+func TestMesh_disconnect(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	rooms := NewMockRoomManager()
 	defer rooms.close()
 	server, url := setupMeshServer(rooms)
@@ -152,7 +154,8 @@ func TestWS_disconnect(t *testing.T) {
 	assert.Equal(t, roomName, room)
 }
 
-func TestWS_event_ready(t *testing.T) {
+func TestMesh_event_ready(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	rooms := NewMockRoomManager()
 	defer rooms.close()
 	srv, url := setupMeshServer(rooms)
@@ -160,6 +163,7 @@ func TestWS_event_ready(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
+	defer ws.Close(websocket.StatusGoingAway, "")
 	mustWriteWS(t, ctx, ws, server.NewMessage("ready", "test-room", map[string]interface{}{
 		"nickname": "abc",
 	}))
@@ -177,7 +181,8 @@ func TestWS_event_ready(t *testing.T) {
 	}, payload)
 }
 
-func TestWS_event_signal(t *testing.T) {
+func TestMesh_event_signal(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	rooms := NewMockRoomManager()
 	defer rooms.close()
 	srv, url := setupMeshServer(rooms)
@@ -185,6 +190,7 @@ func TestWS_event_signal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ws := mustDialWS(t, ctx, url)
+	defer ws.Close(websocket.StatusGoingAway, "")
 	otherClientID := "other-user"
 	var signal interface{} = "a-signal"
 	mustWriteWS(t, ctx, ws, server.NewMessage("signal", "test-room", map[string]interface{}{

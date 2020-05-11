@@ -8,9 +8,11 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
 func TestMemoryAdapter_add_remove_clients(t *testing.T) {
+	goleak.VerifyNone(t)
 	adapter := server.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	client := server.NewClient(mockWriter)
@@ -34,6 +36,7 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 }
 
 func TestMemoryAdapter_emitFound(t *testing.T) {
+	goleak.VerifyNone(t)
 	adapter := server.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	defer close(mockWriter.out)
@@ -62,12 +65,14 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 }
 
 func TestMemoryAdapter_emitMissing(t *testing.T) {
+	goleak.VerifyNone(t)
 	adapter := server.NewMemoryAdapter(room)
 	msg := server.NewMessage("test-type", room, []byte("test"))
 	adapter.Emit("123", msg)
 }
 
 func TestMemoryAdapter_Broadcast(t *testing.T) {
+	goleak.VerifyNone(t)
 	adapter := server.NewMemoryAdapter(room)
 	mockWriter1 := NewMockWriter()
 	client1 := server.NewClient(mockWriter1)

@@ -10,6 +10,7 @@ import (
 	"github.com/pion/webrtc/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"nhooyr.io/websocket"
 )
 
@@ -26,7 +27,8 @@ func setupSFUServer(rooms server.RoomManager) (s *httptest.Server, url string) {
 	return
 }
 
-func TestWS_P2S_ConnectDisconnect(t *testing.T) {
+func TestSFU_ConnectDisconnect(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
@@ -39,7 +41,8 @@ func TestWS_P2S_ConnectDisconnect(t *testing.T) {
 	require.Nil(t, err, "error closing client socket")
 }
 
-func TestWS_P2S_Peer(t *testing.T) {
+func TestSFU_Peer(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	// TODO fix mediaEngine should not be touched
 	mediaEngine := webrtc.MediaEngine{}
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})

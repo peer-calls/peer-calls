@@ -267,19 +267,20 @@ func (a *RedisAdapter) subscribeUntilReady() {
 	}
 }
 
-// Close closes the subscription
-func (a *RedisAdapter) Close() (err error) {
+// Close closes the subscription, but not the redis clients
+func (a *RedisAdapter) Close() error {
+	var errs []error
 	if a.stop != nil {
-		if stopErr := a.stop(); !errors.Is(stopErr, context.Canceled) && err == nil {
-			err = stopErr
+		if err := a.stop(); !errors.Is(err, context.Canceled) {
+			errs = append(errs, err)
 		}
 	}
 	a.clientsMu.Lock()
-	if removeErr := a.removeAll(); removeErr != nil && err == nil {
-		err = removeErr
+	defer a.clientsMu.Unlock()
+	if err := a.removeAll(); err != nil {
+		errs = append(errs, err)
 	}
-	a.clientsMu.Unlock()
-	return
+	return firstError(errs...)
 }
 
 func (a *RedisAdapter) publish(channel string, msg Message) error {
