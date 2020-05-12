@@ -121,7 +121,7 @@ func NewSFUHandler(
 				return ok
 			})
 		}
-		// settingEngine.SetTrickle(true)
+		settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
 			webrtc.WithMediaEngine(webrtc.MediaEngine{}),
 			webrtc.WithSettingEngine(settingEngine),

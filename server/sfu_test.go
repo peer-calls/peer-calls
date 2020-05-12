@@ -165,7 +165,6 @@ func sendVideoUntilDone(t *testing.T, done <-chan struct{}, track *webrtc.Track)
 	for {
 		select {
 		case <-time.After(20 * time.Millisecond):
-			t.Log("write sample")
 			assert.NoError(t, track.WriteSample(media.Sample{Data: []byte{0x00}, Samples: 1}))
 		case <-done:
 			return
