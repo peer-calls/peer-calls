@@ -84,12 +84,6 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 	defer n.mu.Unlock()
 
 	switch state {
-	case webrtc.SignalingStateHaveRemoteOffer:
-		if n.negotiationDone == nil {
-			// we are the passive peer. make this channel in case Negotiate is called
-			// since we should not negotiate until it changes to stable
-			n.negotiationDone = make(chan struct{})
-		}
 	case webrtc.SignalingStateClosed:
 		n.closeDoneChannel()
 	case webrtc.SignalingStateStable:

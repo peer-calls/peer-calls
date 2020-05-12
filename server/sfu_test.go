@@ -3,11 +3,12 @@ package server_test
 import (
 	"context"
 	"io"
-	"math/rand"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
@@ -74,7 +75,6 @@ func startSignalling(t *testing.T, wsClient *server.Client, wsRecvCh <-chan serv
 
 	go func() {
 		for msg := range wsRecvCh {
-			// t.Log("ws message", msg.Type, msg.Payload)
 			if msg.Type == "signal" {
 				payload, ok := msg.Payload.(map[string]interface{})
 				require.True(t, ok, "invalid signal msg payload type")
@@ -98,7 +98,6 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	var closer test.TestCloser
 	cleanup = closer.Close
 	// TODO fix mediaEngine should not be touched
-	mediaEngine := webrtc.MediaEngine{}
 
 	wsc := mustDialWS(t, ctx, url)
 	closer.AddFuncErr(func() error {
@@ -116,14 +115,25 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	waitForUsersEvent(t, ctx, msgChan)
 	require.Nil(t, wsClient.Err())
 
-	pc, err = webrtc.NewPeerConnection(webrtc.Configuration{})
+	api := webrtc.NewAPI(
+		webrtc.WithMediaEngine(webrtc.MediaEngine{}),
+		webrtc.WithSettingEngine(webrtc.SettingEngine{
+			LoggerFactory: server.NewPionLoggerFactory(loggerFactory),
+		}),
+	)
+	field := reflect.ValueOf(api).Elem().FieldByName("mediaEngine")
+	unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+	mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
+	require.True(t, ok, "error getting media engine (hack)")
+
+	pc, err = api.NewPeerConnection(webrtc.Configuration{})
 	require.Nil(t, err, "error creating peer connection")
 
 	signaller, err = server.NewSignaller(
 		loggerFactory,
 		false,
 		pc,
-		&mediaEngine,
+		mediaEngine,
 		clientID,
 		"__SERVER__",
 	)
@@ -155,6 +165,7 @@ func sendVideoUntilDone(t *testing.T, done <-chan struct{}, track *webrtc.Track)
 	for {
 		select {
 		case <-time.After(20 * time.Millisecond):
+			t.Log("write sample")
 			assert.NoError(t, track.WriteSample(media.Sample{Data: []byte{0x00}, Samples: 1}))
 		case <-done:
 			return
@@ -189,6 +200,7 @@ func TestSFU_PeerConnection(t *testing.T) {
 func TestSFU_OnTrack(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
+	log := loggerFactory.GetLogger("test")
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms)
@@ -206,48 +218,54 @@ func TestSFU_OnTrack(t *testing.T) {
 
 	onTrackFired, onTrackFiredDone := context.WithCancel(ctx)
 	onTrackEOF, onTrackEOFDone := context.WithCancel(ctx)
-	pc2.OnTrack(func(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
-		t.Log("OnTrack", track.SSRC())
+	pc2.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+		log.Println("OnTrack", remoteTrack.SSRC())
 		onTrackFiredDone()
 		for {
-			_, err := track.ReadRTP()
-			if err == io.EOF {
+			_, err := remoteTrack.ReadRTP()
+			if remoteTrack != nil {
+				log.Printf("pc2 remote track ended")
+				assert.Equal(t, io.EOF, err, "error reading track")
 				onTrackEOFDone()
-				return
-			} else if err != nil {
-				t.Errorf("Error reading track: %s", err)
 				return
 			}
 		}
 	})
 
-	track, err := pc1.NewTrack(webrtc.DefaultPayloadTypeVP8, rand.Uint32(), "track-one", "stream-one")
+	localTrack, err := pc1.NewTrack(webrtc.DefaultPayloadTypeVP8, 12345, "track-one", "stream-one")
 	require.NoError(t, err)
 
-	sender, err := pc1.AddTrack(track)
+	log.Println("AddTrack start")
+	sender, err := pc1.AddTrack(localTrack)
+	log.Println("AddTrack end")
 	require.NoError(t, err)
+	require.NotNil(t, sender)
 
+	go sendVideoUntilDone(t, onTrackFired.Done(), localTrack)
+
+	log.Printf("sending negotiate request (1)")
 	wait(t, ctx, signaller1.Negotiate())
-	t.Log("Negotiate (1) done ======================================================")
+	log.Println("Negotiate (1) done ======================================================")
 
-	t.Log("sending video")
-	sendVideoUntilDone(t, onTrackFired.Done(), track)
-	t.Log("sending video done")
+	<-onTrackFired.Done()
+	log.Println("sending video done")
 	assert.Equal(t, context.Canceled, onTrackFired.Err(), "test timed out")
 
-	t.Log("stopping sender")
-
+	log.Println("removing track")
 	// trigger io.EOF when reading from track2
 	assert.NoError(t, pc1.RemoveTrack(sender))
-	wait(t, ctx, signaller1.Negotiate())
-	t.Log("Negotiate (2) done ======================================================")
 
-	wait(t, ctx, onTrackEOF.Done())
+	log.Printf("sending negotiate request (2)")
+	wait(t, ctx, signaller1.Negotiate())
+	log.Println("Negotiate (2) done ======================================================")
+
+	<-onTrackEOF.Done()
 	assert.Equal(t, context.Canceled, onTrackEOF.Err(), "test timed out")
 
+	log.Printf("waiting for peer2 negotiation to be done (3)")
 	// server will want to negotiate after track is removed so we wait for negotiation to complete
 	wait(t, ctx, signaller2.NegotiationDone())
-	t.Log("NegotiationDone (2) done ======================================================")
+	log.Println("Negotiation (3) done ======================================================")
 
-	t.Log("-- test end --")
+	log.Println("-- test end --")
 }

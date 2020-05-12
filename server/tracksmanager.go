@@ -37,6 +37,7 @@ type peer struct {
 
 func (t *MemoryTracksManager) addTrack(room string, clientID string, track *webrtc.Track) {
 	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	peersSet := t.peerIDsByRoom[room]
 	for otherClientID := range peersSet {
@@ -48,12 +49,11 @@ func (t *MemoryTracksManager) addTrack(room string, clientID string, track *webr
 			}
 		}
 	}
-
-	t.mu.Unlock()
 }
 
 func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
 	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	peer, ok := t.peers[clientID]
 	if !ok {
@@ -78,8 +78,6 @@ func (t *MemoryTracksManager) broadcast(clientID string, msg webrtc.DataChannelM
 			}
 		}
 	}
-
-	t.mu.Unlock()
 }
 
 func (t *MemoryTracksManager) addTrackToPeer(p peer, sourceClientID string, track *webrtc.Track) error {
@@ -145,6 +143,8 @@ func (t *MemoryTracksManager) Add(
 	)
 
 	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	dataTransceiver := newDataTransceiver(t.loggerFactory, clientID, dataChannel, peerConnection)
 	peerJoiningRoom := peer{trackListener, dataTransceiver, room, signaller}
 
@@ -188,8 +188,6 @@ func (t *MemoryTracksManager) Add(
 		<-signaller.CloseChannel()
 		t.removePeer(clientID)
 	}()
-
-	t.mu.Unlock()
 }
 
 // GetTracksMetadata retrieves track metadata for a specific peer

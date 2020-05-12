@@ -22,15 +22,15 @@ type pionLogger struct {
 	errorLogger Logger
 }
 
-type pionLoggerFactory struct {
+type PionLoggerFactory struct {
 	loggerFactory LoggerFactory
 }
 
-func newPionLoggerFactory(loggerFactory LoggerFactory) *pionLoggerFactory {
-	return &pionLoggerFactory{loggerFactory}
+func NewPionLoggerFactory(loggerFactory LoggerFactory) *PionLoggerFactory {
+	return &PionLoggerFactory{loggerFactory}
 }
 
-func (p pionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
+func (p PionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
 	return &pionLogger{
 		traceLogger: p.loggerFactory.GetLogger("pion:" + subsystem + ":trace"),
 		debugLogger: p.loggerFactory.GetLogger("pion:" + subsystem + ":debug"),
@@ -113,7 +113,7 @@ func NewSFUHandler(
 		}
 
 		settingEngine := webrtc.SettingEngine{
-			LoggerFactory: newPionLoggerFactory(loggerFactory),
+			// LoggerFactory: NewPionLoggerFactory(loggerFactory),
 		}
 		if len(allowedInterfaces) > 0 {
 			settingEngine.SetInterfaceFilter(func(iface string) bool {
@@ -121,7 +121,7 @@ func NewSFUHandler(
 				return ok
 			})
 		}
-		settingEngine.SetTrickle(true)
+		// settingEngine.SetTrickle(true)
 		api := webrtc.NewAPI(
 			webrtc.WithMediaEngine(webrtc.MediaEngine{}),
 			webrtc.WithSettingEngine(settingEngine),
