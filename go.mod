@@ -11,7 +11,7 @@ require (
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.1
-	github.com/pion/webrtc/v2 v2.2.9
+	github.com/pion/webrtc/v2 v2.2.11
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/goleak v1.0.0
@@ -20,3 +20,4 @@ require (
 )
 
 // replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200420091005-4cc16a2df9e0
+// replace github.com/pion/webrtc/v2 => ../../pion/webrtc
