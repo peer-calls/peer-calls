@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -137,6 +136,7 @@ func newWebSocketHandler(
 	iceServers []ICEServer,
 	tracks TracksManager,
 ) http.Handler {
+	log := loggerFactory.GetLogger("mux")
 	switch network.Type {
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
