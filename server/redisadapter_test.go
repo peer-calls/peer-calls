@@ -36,7 +36,6 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	pub, sub, stop := configureRedis(t)
 	defer stop()
 	adapter1 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
-	adapter2 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
 	client1 := server.NewClient(mockWriter1)
@@ -65,6 +64,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	t.Log("waiting for room join message broadcast (1)")
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "a")), <-mockWriter1.out)
 
+	adapter2 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
 	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), <-mockWriter1.out)
