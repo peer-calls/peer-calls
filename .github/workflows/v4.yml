@@ -95,4 +95,8 @@ jobs:
           tar czvf $archive $asset
           assets+=("-a" "$archive")
         done
-        hub release create --prerelease "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls $git_describe" "$git_describe"
+        args=()
+        if [[ $git_describe =~ alpha|beta ]]; then
+          args+=("--prerelease")
+        fi
+        hub release create "${args[@]}" "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls $git_describe" "$git_describe"
