@@ -113,7 +113,7 @@ func NewSFUHandler(
 		}
 
 		settingEngine := webrtc.SettingEngine{
-			// LoggerFactory: NewPionLoggerFactory(loggerFactory),
+			LoggerFactory: NewPionLoggerFactory(loggerFactory),
 		}
 		if len(allowedInterfaces) > 0 {
 			settingEngine.SetInterfaceFilter(func(iface string) bool {
