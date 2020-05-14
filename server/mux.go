@@ -37,6 +37,7 @@ type Mux struct {
 	handler    *chi.Mux
 	iceServers []ICEServer
 	network    NetworkConfig
+	version    string
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +81,7 @@ func NewMux(
 		handler:    handler,
 		iceServers: iceServers,
 		network:    network,
+		version:    version,
 	}
 
 	var root string
@@ -178,6 +180,7 @@ func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, inter
 		"UserID":     userID,
 		"ICEServers": template.HTML(iceServersJSON),
 		"Network":    mux.network.Type,
+		"Version":    mux.version,
 	}
 	return "call.html", data, nil
 }
