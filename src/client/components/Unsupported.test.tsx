@@ -30,8 +30,9 @@ describe('components/Unsupported', () => {
     describe('required browser features present', () => {
       const g = global as any
       beforeEach(() => {
-        g.navigator.getUserMedia = () => undefined
-        g.navigator.enumerateDevices = () => undefined
+        g.navigator.mediaDevices = {}
+        g.navigator.mediaDevices.getUserMedia = () => undefined
+        g.navigator.mediaDevices.enumerateDevices = () => undefined
         g.TextEncoder = () => undefined
         g.TextDecoder = () => undefined
         g.MediaStream = () => undefined
@@ -41,8 +42,7 @@ describe('components/Unsupported', () => {
         g.RTCPeerConnection.prototype.createDataChannel = () => undefined
       })
       afterEach(() => {
-        delete g.navigator.enumerateDevices
-        delete g.navigator.getUserMedia
+        delete g.navigator.mediaDevices
         delete g.TextEncoder
         delete g.TextDecoder
         delete g.MediaStream

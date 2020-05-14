@@ -33,15 +33,12 @@ export class Unsupported extends React.PureComponent {
   }
 }
 
-interface Enumerator {
-  enumerateDevices(): unknown
-}
-
 export function isBrowserSupported() {
   const media =
-    'getUserMedia' in navigator &&
-    typeof navigator.getUserMedia === 'function' &&
-    typeof (navigator as unknown as Enumerator).enumerateDevices === 'function'
+    'mediaDevices' in navigator &&
+    typeof navigator.mediaDevices === 'object' &&
+    typeof navigator.mediaDevices.getUserMedia === 'function' &&
+    typeof navigator.mediaDevices.enumerateDevices === 'function'
   const mediaStream =
     typeof MediaStream === 'function' && typeof MediaStreamTrack === 'function'
   const buffers =
