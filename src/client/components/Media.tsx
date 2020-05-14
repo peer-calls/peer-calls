@@ -9,6 +9,7 @@ import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
 import { dial } from '../actions/CallActions'
 import { network } from '../window'
 import classnames from 'classnames'
+import { Unsupported } from './Unsupported'
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean
@@ -163,6 +164,8 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
         <button type='submit' disabled={!props.joinEnabled}>
           Join Call
         </button>
+
+        <Unsupported />
 
         <div className='network-info'>
           <span>Network: {network}</span>
