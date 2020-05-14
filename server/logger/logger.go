@@ -22,7 +22,7 @@ type Logger interface {
 	// Printf formats a message and writes to output. If logger is not enabled,
 	// the message will not be formatted.
 	Printf(message string, values ...interface{})
-	// Println writes all values similar to fmt.Println. If logger is not enable,d
+	// Println writes all values similar to fmt.Println. If logger is not enabled,
 	// the message will not be formatted
 	Println(values ...interface{})
 }

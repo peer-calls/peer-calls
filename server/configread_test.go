@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,7 +59,7 @@ func TestReadYAML_error(t *testing.T) {
 
 func TestReadFromEnv(t *testing.T) {
 	prefix := "PEERCALLSTEST_"
-	defer os.Unsetenv(prefix)
+	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BASE_URL", "/test")
 	os.Setenv(prefix+"TLS_CERT", "test.pem")
 	os.Setenv(prefix+"TLS_KEY", "test.key")

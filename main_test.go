@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStartMissingConfig(t *testing.T) {
 	prefix := "PEERCALLS_"
-	defer os.Unsetenv(prefix)
+	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BIND_PORT", "0")
 	os.Setenv(prefix+"LOG", "-*")
 	_, stop, errCh := start([]string{"-c", "/missing/file.yml"})
@@ -25,7 +26,7 @@ func TestStartMissingConfig(t *testing.T) {
 
 func TestStartWrongPort(t *testing.T) {
 	prefix := "PEERCALLS_"
-	defer os.Unsetenv(prefix)
+	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BIND_PORT", "100000")
 	os.Setenv(prefix+"LOG", "-*")
 	_, stop, errCh := start([]string{})
@@ -37,7 +38,7 @@ func TestStartWrongPort(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	prefix := "PEERCALLS_"
-	defer os.Unsetenv(prefix)
+	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BIND_PORT", "0")
 	os.Setenv(prefix+"LOG", "-*")
 	addr, stop, errCh := start([]string{})

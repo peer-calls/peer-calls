@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetLogger_Printf(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "a,b")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -23,7 +24,7 @@ func TestGetLogger_Printf(t *testing.T) {
 }
 
 func TestGetLogger_Println(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "a,b")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -35,7 +36,9 @@ func TestGetLogger_Println(t *testing.T) {
 }
 
 func TestGetLogger_default(t *testing.T) {
-	os.Unsetenv("TESTLOG_")
+	test.UnsetEnvPrefix("TESTLOG_")
+	os.Setenv("TESTLOG_LOG", "b")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
 	logB := loggerFactory.GetLogger("b")
@@ -44,17 +47,20 @@ func TestGetLogger_default(t *testing.T) {
 }
 
 func TestSetDefaultEnabled(t *testing.T) {
-	os.Unsetenv("TESTLOG_")
+	test.UnsetEnvPrefix("TESTLOG_")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
-	loggerFactory.SetDefaultEnabled([]string{"b"})
 	logB := loggerFactory.GetLogger("b")
+	b := logB.(*logger.WriterLogger)
+	b.Enabled = false
+	loggerFactory.SetDefaultEnabled([]string{"b"})
+	assert.True(t, b.Enabled)
 	logB.Println(1, "one")
 	assert.Regexp(t, " \\[              b] 1 one\n", out.String())
 }
 
 func TestGetLogger_Wildcard_All(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "*")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -64,7 +70,7 @@ func TestGetLogger_Wildcard_All(t *testing.T) {
 }
 
 func TestGetLogger_Wildcard_Middle(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "a:*:warn")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -90,7 +96,7 @@ func TestGetLogger_Wildcard_Middle(t *testing.T) {
 }
 
 func TestGetLogger_Wildcard_End(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "a:*")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -112,7 +118,7 @@ func TestGetLogger_Wildcard_End(t *testing.T) {
 }
 
 func TestGetLogger_Wildcard_Disabled(t *testing.T) {
-	defer os.Unsetenv("TESTLOG_")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "-a:*:warn,-a:*:info,*")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
