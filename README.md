@@ -1,19 +1,18 @@
-# Peer Calls v4 beta
+# Peer Calls v4
 
 ![Peer Calls CI](https://github.com/peer-calls/peer-calls/workflows/Peer%20Calls%20CI/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/peer-calls/peer-calls)](https://goreportcard.com/report/github.com/peer-calls/peer-calls)
 
 WebRTC peer to peer calls for everyone. See it live in action at
-[peercalls.com/beta][peer-calls].
+[peercalls.com][peer-calls].
 
-[peer-calls]: https://peercalls.com/beta
+[peer-calls]: https://peercalls.com
 
-This branch contains ground work for version 4. The server has been completely
-rewriten in Go and all the original functionality works. An optional
-implementation of a Selective Forwarding Unit (SFU) is available to make Peer
-Calls consume less bandwith for user video uploads. Once fully tested, it will
-be released as `Peer Calls v4`. This wouldn't haven been possible without the
-awesome [pion/webrtc][pion] library.
+The server has been completely rewriten in Go and all the original
+functionality works. An optional implementation of a Selective Forwarding Unit
+(SFU) is available to make Peer Calls consume less bandwith for user video
+uploads. This wouldn't haven been possible without the awesome
+[pion/webrtc][pion] library.
 
 [pion]: https://github.com/pion/webrtc
 
@@ -24,7 +23,7 @@ published on NPM since the server is no longer written in NodeJS.
 # What's New in v4
 
 - [x] Core rewritten in Golang.
-- [x] Selective Forwarding Unit. Can be enabled using `NETWORK_TYPE=sfu` environment variable. The [peercalls.com/beta][peer-calls] instance has this enabled.
+- [x] Selective Forwarding Unit. Can be enabled using `NETWORK_TYPE=sfu` environment variable. The [peercalls.com][peer-calls] instance has this enabled.
 - [x] Ability to change video and audio devices without reconnecting.
 - [x] Improved toolbar layout. Can be toggled by clicking or tapping.
 - [x] Multiple videos are now shown in a full-size grid and each can be minimized.
@@ -35,6 +34,9 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Copy invite link to clipboard. Will show as share icon on devices that support it.
 - [x] Fix: Toolbar icons render correctly on iOS 12 devices.
 - [x] Fix: Video autoplays.
+- [x] Fix: Toolbar is no longer visible until call is joined
+- [x] Fix: Add warning when using an unsupported browser
+- [x] Fix: Add warning when JavaScript is disabled
 
 ## TODO for Selective Forwarding Unit
 
