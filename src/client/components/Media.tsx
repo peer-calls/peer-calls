@@ -10,6 +10,8 @@ import { dial } from '../actions/CallActions'
 import { network } from '../window'
 import classnames from 'classnames'
 import { Unsupported } from './Unsupported'
+import { Message } from './Message'
+import { MdError } from 'react-icons/md'
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean
@@ -29,6 +31,7 @@ export type MediaProps = MediaState & {
 
 export interface MediaComponentState {
   nickname: string
+  error?: boolean
 }
 
 function mapStateToProps(state: State) {
@@ -78,9 +81,10 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
     try {
       await props.getMediaStream({ audio, video })
     } catch (err) {
-      props.logError('Error getting media stream: {0}', err)
+      this.setState({ error: true })
       return
     }
+    this.setState({ error: false })
 
     props.logInfo('Dialling...')
     try {
@@ -164,6 +168,16 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
         <button type='submit' disabled={!props.joinEnabled}>
           Join Call
         </button>
+
+        {this.state.error && (
+          <Message className='message-error'>
+            <MdError className='icon' />
+            <span>
+              Could not get access to microphone or camera. Please grant the
+              necessary permissions and try again.
+            </span>
+          </Message>
+        )}
 
         <Unsupported />
 

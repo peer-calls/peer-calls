@@ -85,7 +85,8 @@ describe('Media', () => {
         promise1 = Promise.reject(new Error('test stream error'))
         return promise1
       }
-      const node = (await render()).querySelector('.media')!
+      const root = await render()
+      const node = root.querySelector('.media')!
       expect(node.tagName).toBe('FORM')
       TestUtils.Simulate.submit(node)
       expect(promise1).toBeDefined()
@@ -98,6 +99,8 @@ describe('Media', () => {
       expect(err).toBeTruthy()
       expect(err.message).toBe('test stream error')
       expect(store.getState().media.dialState).toEqual(DIAL_STATE_HUNG_UP)
+      await new Promise(resolve => setImmediate(resolve))
+      expect(root.textContent).toMatch(/access to microphone/)
     })
     it('returns  to hung up state when dialling fails', async () => {
       (dial as jest.Mock).mockImplementation(() => {

@@ -1,14 +1,15 @@
 import _debug from 'debug'
 import React from 'react'
 import { MdError } from 'react-icons/md'
+import { Message } from './Message'
 
 const debug = _debug('peercalls')
 
 export class Unsupported extends React.PureComponent {
   supported = isBrowserSupported()
   render() {
-    return !this.supported &&  (
-      <div className='unsupported'>
+    return !this.supported && (
+      <Message className='message-error'>
         <MdError className='icon' />
         <span>
           <strong>You are using an unsupported browser!</strong>
@@ -28,7 +29,7 @@ export class Unsupported extends React.PureComponent {
           <br />
           On iOS devices, only Safari v12+ is supported.
         </span>
-      </div>
+      </Message>
     )
   }
 }
