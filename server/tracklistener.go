@@ -47,6 +47,7 @@ type trackListener struct {
 	mu               sync.RWMutex
 	pliInterval      time.Duration
 	ssrcMaxBitrates  map[uint32]uint64
+	jitterBuffer     *JitterBuffer
 }
 
 func newTrackListener(
@@ -62,6 +63,7 @@ func newTrackListener(
 		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
 		onTrackEvent:     onTrackEvent,
 		ssrcMaxBitrates:  map[uint32]uint64{},
+		jitterBuffer:     NewJitterBuffer(),
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -107,6 +109,7 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 		}
 	case *rtcp.ReceiverReport:
 	case *rtcp.SenderReport:
+	case *rtcp.TransportLayerNack:
 	default:
 		p.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", p.clientID, pkt.DestinationSSRC(), pkt)
 	}
@@ -150,7 +153,31 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 			}
 			for _, pkt := range rtcps {
 				prometheusRTCPPacketsReceived.Inc()
-				rtcpCh <- pkt
+				switch pktType := pkt.(type) {
+				case *rtcp.TransportLayerNack:
+					for _, nackPair := range pktType.Nacks {
+						for _, sn := range nackPair.PacketList() {
+							rtpPacket := p.jitterBuffer.GetPacket(pktType.MediaSSRC, sn)
+							if rtpPacket != nil {
+								// jitterBuffer had the missing packet, send it
+								_, err := rtpSender.SendRTP(&rtpPacket.Header, rtpPacket.Payload)
+								if err != nil {
+									p.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", p.clientID, track.SSRC(), err)
+								}
+							} else {
+								// otherwise let the track source sender know we have a missing packet
+								// TODO this can be optimized instead of sending each PacketID separately
+								rtcpCh <- &rtcp.TransportLayerNack{
+									MediaSSRC:  pktType.MediaSSRC,
+									SenderSSRC: pktType.SenderSSRC,
+									Nacks:      []rtcp.NackPair{rtcp.NackPair{PacketID: nackPair.PacketID}},
+								}
+							}
+						}
+					}
+				default:
+					rtcpCh <- pkt
+				}
 			}
 		}
 	}()
@@ -280,6 +307,14 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 			}
 
 			prometheusRTPPacketsReceived.Inc()
+			rtcpPkt := p.jitterBuffer.PushRTP(pkt)
+			if rtcpPkt != nil {
+				err := p.peerConnection.WriteRTCP([]rtcp.Packet{rtcpPkt})
+				if err != nil {
+					p.log.Printf("[%s] Error writing rtcp packet from jitter buffer for track: %d: %s", p.clientID, remoteTrack.SSRC(), err)
+					// TODO maybe return here
+				}
+			}
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			err = localTrack.WriteRTP(pkt)

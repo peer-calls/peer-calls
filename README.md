@@ -44,7 +44,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Support RTCP packet Picture Loss Indicator (PLI)
 - [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
 - [ ] Add handling of other RTCP packets besides PLI and REMB
-- [ ] Add JitterBuffer
+- [x] Add JitterBuffer (experimental)
 - [ ] Support multiple Peer Calls nodes when using SFU
 
 # Requirements
