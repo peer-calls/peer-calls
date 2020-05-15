@@ -10,26 +10,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuffer_snDelta(t *testing.T) {
-	assert := assert.New(t)
-	assert.EqualValues(5, snDelta(5, 10))
-
-	assert.EqualValues(1, snDelta(maxSN, 0))
-	assert.EqualValues(2, snDelta(maxSN-1, 0))
-	assert.EqualValues(3, snDelta(maxSN-2, 0))
-	assert.EqualValues(4, snDelta(maxSN-3, 0))
-
-	assert.EqualValues(2, snDelta(maxSN, 1))
-	assert.EqualValues(3, snDelta(maxSN, 2))
-	assert.EqualValues(4, snDelta(maxSN, 3))
-}
-
 func TestBuffer_tsDelta(t *testing.T) {
 	assert := assert.New(t)
 	assert.EqualValues(2, tsDelta(4, 2))
 	assert.EqualValues(3, tsDelta(5, 2))
 	assert.EqualValues(2, tsDelta(2, 4))
 	assert.EqualValues(3, tsDelta(2, 5))
+}
+
+func TestBuffer_Push_2N(t *testing.T) {
+	b := NewBuffer()
+
+	for n := 0; n < 2; n++ {
+		// do not start from 0 just because sn starts from a random number per RFC
+		var offset uint16 = 32000
+		for i := 0; i < int(maxSN)+1; i++ {
+			p := rtp.Packet{}
+			p.SSRC = 111
+			p.SequenceNumber = uint16(i) + offset
+			p.Timestamp = uint32(n)*uint32(maxSN) + uint32(i)
+			b.Push(&p)
+		}
+	}
 }
 
 func TestBuffer_Push_FirstPacket(t *testing.T) {
@@ -182,4 +184,28 @@ func TestBuffer_Push_ClearOldPackets(t *testing.T) {
 	assert.Nil(b.GetPacket(2))
 	assert.NotNil(b.GetPacket(3))
 	assert.NotNil(b.GetPacket(4))
+}
+
+func TestBuffer_AddBLP_SubBLP(t *testing.T) {
+	assert := assert.New(t)
+
+	fsn := uint16(65535)
+	for i := uint16(0); i <= 16; i++ {
+		assert.EqualValues(uint16(1)<<(i-1), AddBLP(fsn, fsn+i, 0))
+	}
+
+	for i := uint16(0); i <= 16; i++ {
+		assert.EqualValues(0xFFFF, AddBLP(fsn, fsn+i, 0xFFFF))
+	}
+
+	for i := uint16(0); i <= 16; i++ {
+		assert.EqualValues(0xFFFF & ^AddBLP(fsn, fsn+i, 0), SubBLP(fsn, fsn+i, 0xFFFF))
+	}
+}
+
+func TestBuffer_CreateNackPair(t *testing.T) {
+	assert := assert.New(t)
+	sequenceNumbers := []uint16{1, 3, 4}
+	nackPair := CreateNackPair(sequenceNumbers)
+	assert.Equal(rtcp.NackPair{PacketID: 1, LostPackets: 0b110}, nackPair)
 }

@@ -153,27 +153,11 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 			}
 			for _, pkt := range rtcps {
 				prometheusRTCPPacketsReceived.Inc()
-				switch pktType := pkt.(type) {
+				switch rtcpPkt := pkt.(type) {
 				case *rtcp.TransportLayerNack:
-					for _, nackPair := range pktType.Nacks {
-						for _, sn := range nackPair.PacketList() {
-							rtpPacket := p.jitterBuffer.GetPacket(pktType.MediaSSRC, sn)
-							if rtpPacket != nil {
-								// jitterBuffer had the missing packet, send it
-								_, err := rtpSender.SendRTP(&rtpPacket.Header, rtpPacket.Payload)
-								if err != nil {
-									p.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", p.clientID, track.SSRC(), err)
-								}
-							} else {
-								// otherwise let the track source sender know we have a missing packet
-								// TODO this can be optimized instead of sending each PacketID separately
-								rtcpCh <- &rtcp.TransportLayerNack{
-									MediaSSRC:  pktType.MediaSSRC,
-									SenderSSRC: pktType.SenderSSRC,
-									Nacks:      []rtcp.NackPair{rtcp.NackPair{PacketID: nackPair.PacketID}},
-								}
-							}
-						}
+					nack := p.processNack(rtpSender, rtcpPkt)
+					if nack != nil {
+						rtcpCh <- nack
 					}
 				default:
 					rtcpCh <- pkt
@@ -331,4 +315,40 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 	}()
 
 	return localTrack, nil
+}
+
+func (p *trackListener) processNack(rtpSender *webrtc.RTPSender, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
+	actualNacks := make([]rtcp.NackPair, 0, len(nack.Nacks))
+
+	for _, nackPair := range nack.Nacks {
+		nackPackets := nackPair.PacketList()
+		notFound := make([]uint16, 0, len(nackPackets))
+		for _, sn := range nackPackets {
+			rtpPacket := p.jitterBuffer.GetPacket(nack.MediaSSRC, sn)
+			if rtpPacket == nil {
+				// missing packet not found in jitter buffer
+				notFound = append(notFound, sn)
+				continue
+			}
+
+			// JitterBuffer had the missing packet, send it
+			_, err := rtpSender.SendRTP(&rtpPacket.Header, rtpPacket.Payload)
+			if err != nil {
+				p.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", p.clientID, nack.MediaSSRC, err)
+			}
+		}
+		if len(notFound) > 0 {
+			actualNacks = append(actualNacks, CreateNackPair(notFound))
+		}
+	}
+
+	if len(actualNacks) == 0 {
+		return nil
+	}
+
+	return &rtcp.TransportLayerNack{
+		MediaSSRC:  nack.MediaSSRC,
+		SenderSSRC: nack.SenderSSRC,
+		Nacks:      actualNacks,
+	}
 }

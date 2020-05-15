@@ -47,10 +47,7 @@ func NewBuffer() *Buffer {
 // snDelta calculates the distance between the start and end when using the
 // ring buffer.
 func snDelta(startSN uint16, endSN uint16) uint16 {
-	if endSN >= startSN {
-		return endSN - startSN
-	}
-	return endSN + (maxSN - startSN) + 1
+	return endSN - startSN
 }
 
 func tsDelta(ts1, ts2 uint32) uint32 {
@@ -80,7 +77,7 @@ func (b *Buffer) Push(p *rtp.Packet) rtcp.Packet {
 
 	b.clearOldPackets(p.Timestamp, sn)
 
-	isNackReportWindow := snDelta(b.lastNackSN, sn) >= b.nackWindowSize
+	isNackReportWindow := sn-b.lastNackSN >= b.nackWindowSize
 	// limit nack range
 	if isNackReportWindow {
 		windowStart := sn - b.nackWindowSize
@@ -110,7 +107,7 @@ func (b *Buffer) SSRC() uint32 {
 }
 
 func (b *Buffer) getNackPairs(start uint16, end uint16) ([]rtcp.NackPair, int) {
-	delta := snDelta(start, end)
+	delta := end - start
 	size := delta / maxNackPairSize
 	arraySize := size
 	if delta%maxNackPairSize > 0 {
@@ -140,8 +137,7 @@ func (b *Buffer) getNackPairs(start uint16, end uint16) ([]rtcp.NackPair, int) {
 }
 
 // getNackPair returns the information about lost packets in the last nack
-// window
-// TODO return []rtcp.NackPair depending on the start/end size
+// window. The delta between start and end should be equal to maxNackPairSize.
 func (b *Buffer) getNackPair(start uint16, end uint16) (rtcp.NackPair, int) {
 	var lostPkts int
 
@@ -154,7 +150,7 @@ func (b *Buffer) getNackPair(start uint16, end uint16) (rtcp.NackPair, int) {
 	// other than that being NACKed (using the FSN field) has been
 	// lost. BLP is set to 0x00001 if the packet corresponding to
 	// the FSN and the following packet have been lost, etc.
-	var blp uint16
+	var blp rtcp.PacketBitmap
 
 	// use != instead of < in case the sequence number has overflown
 	for i := start; i != end; i++ {
@@ -171,12 +167,12 @@ func (b *Buffer) getNackPair(start uint16, end uint16) (rtcp.NackPair, int) {
 
 	for i := fsn + 1; i != end; i++ {
 		if b.packets[i] == nil {
-			blp = blp | (1 << (snDelta(fsn, i) - 1))
+			blp = AddBLP(fsn, i, blp)
 			lostPkts++
 		}
 	}
 
-	return rtcp.NackPair{PacketID: fsn, LostPackets: rtcp.PacketBitmap(blp)}, lostPkts
+	return rtcp.NackPair{PacketID: fsn, LostPackets: blp}, lostPkts
 }
 
 // clearOldPackets clears old packets by timestamp
@@ -200,4 +196,32 @@ func (b *Buffer) clearOldPackets(ts uint32, sn uint16) {
 			b.packets[i] = nil
 		}
 	}
+}
+
+func calcBLP(fsn uint16, missingSN uint16) rtcp.PacketBitmap {
+	return (1 << (missingSN - fsn - 1))
+}
+
+func AddBLP(fsn uint16, missingSN uint16, blp rtcp.PacketBitmap) rtcp.PacketBitmap {
+	return blp | calcBLP(fsn, missingSN)
+}
+
+func SubBLP(fsn uint16, foundSN uint16, blp rtcp.PacketBitmap) rtcp.PacketBitmap {
+	return blp & ^calcBLP(fsn, foundSN)
+}
+
+func CreateNackPair(sequenceNumbers []uint16) rtcp.NackPair {
+	lostPkts := len(sequenceNumbers)
+	if lostPkts == 0 {
+		return rtcp.NackPair{}
+	}
+
+	fsn := sequenceNumbers[0]
+	var blp rtcp.PacketBitmap
+
+	for _, i := range sequenceNumbers[1:] {
+		blp = AddBLP(fsn, i, blp)
+	}
+
+	return rtcp.NackPair{PacketID: fsn, LostPackets: blp}
 }
