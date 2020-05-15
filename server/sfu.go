@@ -87,6 +87,26 @@ func NewSFUHandler(
 ) http.Handler {
 	log := loggerFactory.GetLogger("sfu")
 
+	allowedInterfaces := map[string]struct{}{}
+	for _, iface := range sfuConfig.Interfaces {
+		allowedInterfaces[iface] = struct{}{}
+	}
+
+	settingEngine := webrtc.SettingEngine{
+		LoggerFactory: NewPionLoggerFactory(loggerFactory),
+	}
+	if len(allowedInterfaces) > 0 {
+		settingEngine.SetInterfaceFilter(func(iface string) bool {
+			_, ok := allowedInterfaces[iface]
+			return ok
+		})
+	}
+	settingEngine.SetTrickle(true)
+	api := webrtc.NewAPI(
+		webrtc.WithMediaEngine(webrtc.MediaEngine{}),
+		webrtc.WithSettingEngine(settingEngine),
+	)
+
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		webrtcICEServers := []webrtc.ICEServer{}
@@ -106,26 +126,6 @@ func NewSFUHandler(
 		webrtcConfig := webrtc.Configuration{
 			ICEServers: webrtcICEServers,
 		}
-
-		allowedInterfaces := map[string]struct{}{}
-		for _, iface := range sfuConfig.Interfaces {
-			allowedInterfaces[iface] = struct{}{}
-		}
-
-		settingEngine := webrtc.SettingEngine{
-			LoggerFactory: NewPionLoggerFactory(loggerFactory),
-		}
-		if len(allowedInterfaces) > 0 {
-			settingEngine.SetInterfaceFilter(func(iface string) bool {
-				_, ok := allowedInterfaces[iface]
-				return ok
-			})
-		}
-		settingEngine.SetTrickle(true)
-		api := webrtc.NewAPI(
-			webrtc.WithMediaEngine(webrtc.MediaEngine{}),
-			webrtc.WithSettingEngine(settingEngine),
-		)
 
 		// Hack to be able to update dynamic codec payload IDs with every new sdp
 		// renegotiation of passive (non-server initiated) peer connections.
@@ -190,19 +190,8 @@ func NewSFUHandler(
 				}
 			case "ready":
 				start := time.Now()
-				prometheusWebRTCConnTotal.Inc()
-				prometheusWebRTCConnActive.Inc()
 
 				log.Printf("[%s] Initiator: %s", clientID, initiator)
-
-				peerConnection, pcErr := api.NewPeerConnection(webrtcConfig)
-				if pcErr != nil {
-					err = fmt.Errorf("[%s] Error creating peer connection: %s", clientID, pcErr)
-					break
-				}
-				peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
-					log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
-				})
 
 				// FIXME check for errors
 				payload, _ := msg.Payload.(map[string]interface{})
@@ -225,6 +214,15 @@ func NewSFUHandler(
 					break
 				}
 
+				peerConnection, pcErr := api.NewPeerConnection(webrtcConfig)
+				if pcErr != nil {
+					err = fmt.Errorf("[%s] Error creating peer connection: %s", clientID, pcErr)
+					break
+				}
+				peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+					log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
+				})
+
 				var dataChannel *webrtc.DataChannel
 				if initiator == localPeerID {
 					// need to do this to connect with simple peer
@@ -232,7 +230,11 @@ func NewSFUHandler(
 					dataChannel, err = peerConnection.CreateDataChannel("data", nil)
 					if err != nil {
 						log.Printf("[%s] Error creating data channel: %s", clientID, err)
-						// TODO abort connection
+						err = peerConnection.Close()
+						if err != nil {
+							log.Printf("[%s] Error closing peer connection: %s", err)
+						}
+						break
 					}
 				}
 
@@ -249,8 +251,16 @@ func NewSFUHandler(
 					)
 					if err != nil {
 						err = fmt.Errorf("[%s] Error initializing signaller: %s", clientID, err)
+						err = peerConnection.Close()
+						if err != nil {
+							log.Printf("[%s] Error closing peer connection: %s", err)
+						}
 						break
 					}
+
+					prometheusWebRTCConnTotal.Inc()
+					prometheusWebRTCConnActive.Inc()
+
 					signalChannel := signaller.SignalChannel()
 					tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
 					go func() {
