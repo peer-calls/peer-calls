@@ -47,6 +47,7 @@ type trackListener struct {
 	mu               sync.RWMutex
 	pliInterval      time.Duration
 	ssrcMaxBitrates  map[uint32]uint64
+	jitterHandler    JitterHandler
 }
 
 func newTrackListener(
@@ -54,6 +55,7 @@ func newTrackListener(
 	clientID string,
 	peerConnection *webrtc.PeerConnection,
 	onTrackEvent func(TrackEvent),
+	nackHandler JitterHandler,
 ) *trackListener {
 	p := &trackListener{
 		log:              loggerFactory.GetLogger("tracklistener"),
@@ -62,6 +64,7 @@ func newTrackListener(
 		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
 		onTrackEvent:     onTrackEvent,
 		ssrcMaxBitrates:  map[uint32]uint64{},
+		jitterHandler:    nackHandler,
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -94,17 +97,18 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 	defer p.mu.Unlock()
 
 	switch pkt := anyPacket.(type) {
-	case *rtcp.PictureLossIndication:
+	case *rtcp.PictureLossIndication, *rtcp.TransportLayerNack, *rtcp.ReceiverEstimatedMaximumBitrate:
 		prometheusRTCPPacketsSent.Inc()
 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
+	// case *rtcp.ReceiverEstimatedMaximumBitrate:
+	// 	p.log.Printf("[%s] REMB %s", p.clientID, pkt)
+	// 	bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
+	// 	if !ok || pkt.Bitrate < bitrate {
+	// 		p.ssrcMaxBitrates[pkt.SenderSSRC] = pkt.Bitrate
+	// 		prometheusRTCPPacketsSent.Inc()
+	// 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
+	// 	}
 	case *rtcp.SourceDescription:
-	case *rtcp.ReceiverEstimatedMaximumBitrate:
-		bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
-		if !ok || pkt.Bitrate < bitrate {
-			p.ssrcMaxBitrates[pkt.SenderSSRC] = bitrate
-			prometheusRTCPPacketsSent.Inc()
-			return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-		}
 	case *rtcp.ReceiverReport:
 	case *rtcp.SenderReport:
 	default:
@@ -150,7 +154,15 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 			}
 			for _, pkt := range rtcps {
 				prometheusRTCPPacketsReceived.Inc()
-				rtcpCh <- pkt
+				switch rtcpPkt := pkt.(type) {
+				case *rtcp.TransportLayerNack:
+					nack := p.jitterHandler.HandleNack(p.clientID, rtpSender, rtcpPkt)
+					if nack != nil {
+						rtcpCh <- nack
+					}
+				default:
+					rtcpCh <- pkt
+				}
 			}
 		}
 	}()
@@ -280,6 +292,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 			}
 
 			prometheusRTPPacketsReceived.Inc()
+			p.jitterHandler.HandleRTP(p.clientID, p.peerConnection, pkt)
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			err = localTrack.WriteRTP(pkt)
@@ -290,6 +303,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 					localTrack.SSRC(),
 					err,
 				)
+				p.jitterHandler.RemoveBuffer(remoteTrack.SSRC())
 				return
 			}
 		}

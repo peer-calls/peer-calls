@@ -46,7 +46,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type TracksManager interface {
 	Add(room string, clientID string, pc *webrtc.PeerConnection, dc *webrtc.DataChannel, s *Signaller)
-	GetTracksMetadata(clientID string) ([]TrackMetadata, bool)
+	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
 }
 
 func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc {

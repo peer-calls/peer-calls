@@ -52,7 +52,8 @@ type NetworkConfig struct {
 }
 
 type NetworkConfigSFU struct {
-	Interfaces []string `yaml:"interfaces"`
+	Interfaces   []string `yaml:"interfaces"`
+	JitterBuffer bool     `yaml:"jitter_buffer"`
 }
 
 type PrometheusConfig struct {

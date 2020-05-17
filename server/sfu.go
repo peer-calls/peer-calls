@@ -46,7 +46,7 @@ func NewSFUHandler(
 	settingEngine.SetTrickle(true)
 	log.Printf("Registering media engine codecs")
 	var mediaEngine webrtc.MediaEngine
-	RegisterCodecs(&mediaEngine)
+	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
@@ -55,24 +55,33 @@ func NewSFUHandler(
 	return &SFU{loggerFactory, log, wss, iceServers, tracksManager, api}
 }
 
-func RegisterCodecs(mediaEngine *webrtc.MediaEngine) {
+func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 
 	rtcpfb := []webrtc.RTCPFeedback{
-		// webrtc.RTCPFeedback{
-		// 	Type: webrtc.TypeRTCPFBGoogREMB,
-		// },
+		webrtc.RTCPFeedback{
+			Type: webrtc.TypeRTCPFBGoogREMB,
+		},
 		// webrtc.RTCPFeedback{
 		// 	Type:      webrtc.TypeRTCPFBCCM,
 		// 	Parameter: "fir",
 		// },
-		// webrtc.RTCPFeedback{
-		// 	Type: webrtc.TypeRTCPFBNACK,
-		// },
+
+		// https://tools.ietf.org/html/rfc4585#section-4.2
+		// "pli" indicates the use of Picture Loss Indication feedback as defined
+		// in Section 6.3.1.
 		webrtc.RTCPFeedback{
 			Type:      webrtc.TypeRTCPFBNACK,
 			Parameter: "pli",
 		},
+	}
+
+	if jitterBufferEnabled {
+		// The feedback type "nack", without parameters, indicates use of the
+		// Generic NACK feedback format as defined in Section 6.2.1.
+		rtcpfb = append(rtcpfb, webrtc.RTCPFeedback{
+			Type: webrtc.TypeRTCPFBNACK,
+		})
 	}
 
 	mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
@@ -331,7 +340,7 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 
 	for signal := range signals {
 		if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
-			if metadata, ok := sh.tracksManager.GetTracksMetadata(clientID); ok {
+			if metadata, ok := sh.tracksManager.GetTracksMetadata(room, clientID); ok {
 				err := adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
 					UserID:   localPeerID,
 					Metadata: metadata,

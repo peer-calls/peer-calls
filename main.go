@@ -34,7 +34,7 @@ func configure(loggerFactory *logger.Factory, args []string) (net.Listener, *ser
 	log.Printf("Using config: %+v", c)
 	newAdapter := server.NewAdapterFactory(loggerFactory, c.Store)
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	tracks := server.NewMemoryTracksManager(loggerFactory)
+	tracks := server.NewMemoryTracksManager(loggerFactory, c.Network.SFU.JitterBuffer)
 	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	if err != nil {
@@ -52,6 +52,7 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 	loggerFactory.SetDefaultEnabled([]string{
 		"-sdp",
 		"-ws",
+		"-nack",
 		"-pion:*:trace",
 		"-pion:*:debug",
 		"-pion:*:info",
