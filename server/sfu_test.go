@@ -112,7 +112,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	require.Nil(t, wsClient.Err())
 
 	var mediaEngine webrtc.MediaEngine
-	server.RegisterCodecs(&mediaEngine)
+	server.RegisterCodecs(&mediaEngine, false)
 
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
