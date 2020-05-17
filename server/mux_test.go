@@ -39,7 +39,7 @@ func (m *mockTracksManager) Add(room string, clientID string, peerConnection *we
 	}
 }
 
-func (m *mockTracksManager) GetTracksMetadata(clientID string) ([]server.TrackMetadata, bool) {
+func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]server.TrackMetadata, bool) {
 	return nil, true
 }
 

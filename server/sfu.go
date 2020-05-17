@@ -331,7 +331,7 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 
 	for signal := range signals {
 		if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
-			if metadata, ok := sh.tracksManager.GetTracksMetadata(clientID); ok {
+			if metadata, ok := sh.tracksManager.GetTracksMetadata(room, clientID); ok {
 				err := adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
 					UserID:   localPeerID,
 					Metadata: metadata,
