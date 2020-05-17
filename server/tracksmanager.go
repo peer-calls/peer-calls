@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v2"
 )
 
@@ -77,20 +78,23 @@ type RoomPeersManager struct {
 	log           Logger
 	mu            sync.RWMutex
 	// key is clientID
-	peers         map[string]peer
-	jitterHandler JitterHandler
+	peers                  map[string]peer
+	jitterHandler          JitterHandler
+	trackBitrateEstimators *TrackBitrateEstimators
 }
 
 func NewRoomPeersManager(loggerFactory LoggerFactory, jitterHandler JitterHandler) *RoomPeersManager {
 	return &RoomPeersManager{
-		loggerFactory: loggerFactory,
-		log:           loggerFactory.GetLogger("roompeersmanager"),
-		peers:         map[string]peer{},
-		jitterHandler: jitterHandler,
+		loggerFactory:          loggerFactory,
+		log:                    loggerFactory.GetLogger("roompeersmanager"),
+		peers:                  map[string]peer{},
+		jitterHandler:          jitterHandler,
+		trackBitrateEstimators: NewTrackBitrateEstimators(),
 	}
 }
 
 type peer struct {
+	clientID        string
 	trackListener   *trackListener
 	dataTransceiver *DataTransceiver
 	signaller       *Signaller
@@ -146,6 +150,9 @@ func (t *RoomPeersManager) addTrackToPeer(p peer, sourceClientID string, track *
 				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. Peer not found", p.trackListener.clientID, sourceClientID)
 				// do not return early since the rtcp channel needs to be emptied
 			} else {
+				if remb, ok := pkt.(*rtcp.ReceiverEstimatedMaximumBitrate); ok {
+					pkt = t.trackBitrateEstimators.Estimate(p.clientID, remb)
+				}
 				err := sourcePeer.trackListener.WriteRTCP(pkt)
 				if err != nil {
 					t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s. %s", p.trackListener.clientID, sourceClientID, err)
@@ -195,7 +202,7 @@ func (t *RoomPeersManager) Add(
 	defer t.mu.Unlock()
 
 	dataTransceiver := newDataTransceiver(t.loggerFactory, clientID, dataChannel, peerConnection)
-	peerJoiningRoom := peer{trackListener, dataTransceiver, signaller}
+	peerJoiningRoom := peer{clientID, trackListener, dataTransceiver, signaller}
 
 	for existingPeerClientID, existingPeerInRoom := range t.peers {
 		for _, track := range existingPeerInRoom.trackListener.Tracks() {
@@ -239,12 +246,13 @@ func (t *RoomPeersManager) Remove(clientID string) {
 	t.log.Printf("removePeer: %s", clientID)
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
 	peerLeavingRoom, ok := t.peers[clientID]
 	if !ok {
 		t.log.Printf("Cannot remove peer clientID: %s (not found)", clientID)
 		return
 	}
-
 	peerLeavingRoom.dataTransceiver.Close()
 
 	delete(t.peers, clientID)
@@ -255,6 +263,8 @@ func (t *RoomPeersManager) removeTrack(clientID string, track *webrtc.Track) {
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	t.trackBitrateEstimators.Remove(track.SSRC())
 
 	for otherClientID, otherPeerInRoom := range t.peers {
 		if otherClientID != clientID {

@@ -59,17 +59,15 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 
 	rtcpfb := []webrtc.RTCPFeedback{
-		// webrtc.RTCPFeedback{
-		// 	Type: webrtc.TypeRTCPFBGoogREMB,
-		// },
+		webrtc.RTCPFeedback{
+			Type: webrtc.TypeRTCPFBGoogREMB,
+		},
 		// webrtc.RTCPFeedback{
 		// 	Type:      webrtc.TypeRTCPFBCCM,
 		// 	Parameter: "fir",
 		// },
 
 		// https://tools.ietf.org/html/rfc4585#section-4.2
-		// The feedback type "nack", without parameters, indicates use of the
-		// Generic NACK feedback format as defined in Section 6.2.1.
 		// "pli" indicates the use of Picture Loss Indication feedback as defined
 		// in Section 6.3.1.
 		webrtc.RTCPFeedback{
@@ -79,6 +77,8 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	}
 
 	if jitterBufferEnabled {
+		// The feedback type "nack", without parameters, indicates use of the
+		// Generic NACK feedback format as defined in Section 6.2.1.
 		rtcpfb = append(rtcpfb, webrtc.RTCPFeedback{
 			Type: webrtc.TypeRTCPFBNACK,
 		})

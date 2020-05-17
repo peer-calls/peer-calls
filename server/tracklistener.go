@@ -97,19 +97,17 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 	defer p.mu.Unlock()
 
 	switch pkt := anyPacket.(type) {
-	case *rtcp.PictureLossIndication:
+	case *rtcp.PictureLossIndication, *rtcp.TransportLayerNack, *rtcp.ReceiverEstimatedMaximumBitrate:
 		prometheusRTCPPacketsSent.Inc()
 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-	case *rtcp.TransportLayerNack:
-		prometheusRTCPPacketsSent.Inc()
-		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-	case *rtcp.ReceiverEstimatedMaximumBitrate:
-		bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
-		if !ok || pkt.Bitrate < bitrate {
-			p.ssrcMaxBitrates[pkt.SenderSSRC] = bitrate
-			prometheusRTCPPacketsSent.Inc()
-			return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-		}
+	// case *rtcp.ReceiverEstimatedMaximumBitrate:
+	// 	p.log.Printf("[%s] REMB %s", p.clientID, pkt)
+	// 	bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
+	// 	if !ok || pkt.Bitrate < bitrate {
+	// 		p.ssrcMaxBitrates[pkt.SenderSSRC] = pkt.Bitrate
+	// 		prometheusRTCPPacketsSent.Inc()
+	// 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
+	// 	}
 	case *rtcp.SourceDescription:
 	case *rtcp.ReceiverReport:
 	case *rtcp.SenderReport:
