@@ -2,15 +2,14 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/pion/webrtc/v2"
 )
+
+const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
 
 const localPeerID = "__SERVER__"
 
@@ -28,6 +27,7 @@ func NewSFUHandler(
 	sfuConfig NetworkConfigSFU,
 	tracksManager TracksManager,
 ) *SFU {
+	log := loggerFactory.GetLogger("sfu")
 
 	allowedInterfaces := map[string]struct{}{}
 	for _, iface := range sfuConfig.Interfaces {
@@ -44,16 +44,45 @@ func NewSFUHandler(
 		})
 	}
 	settingEngine.SetTrickle(true)
+	log.Printf("Registering media engine codecs")
+	var mediaEngine webrtc.MediaEngine
+	RegisterCodecs(&mediaEngine)
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(webrtc.MediaEngine{}),
+		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
 	)
 
-	return &SFU{loggerFactory, wss, iceServers, tracksManager, api}
+	return &SFU{loggerFactory, log, wss, iceServers, tracksManager, api}
+}
+
+func RegisterCodecs(mediaEngine *webrtc.MediaEngine) {
+	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+
+	rtcpfb := []webrtc.RTCPFeedback{
+		// webrtc.RTCPFeedback{
+		// 	Type: webrtc.TypeRTCPFBGoogREMB,
+		// },
+		// webrtc.RTCPFeedback{
+		// 	Type:      webrtc.TypeRTCPFBCCM,
+		// 	Parameter: "fir",
+		// },
+		// webrtc.RTCPFeedback{
+		// 	Type: webrtc.TypeRTCPFBNACK,
+		// },
+		webrtc.RTCPFeedback{
+			Type:      webrtc.TypeRTCPFBNACK,
+			Parameter: "pli",
+		},
+	}
+
+	mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
+	// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
+	// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
 }
 
 type SFU struct {
 	loggerFactory LoggerFactory
+	log           Logger
 	wss           *WSS
 	iceServers    []ICEServer
 	tracksManager TracksManager
@@ -77,7 +106,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sub, err := sfu.wss.Subscribe(w, r)
 	if err != nil {
-		log.Printf("Error accepting websocket connection: %s", err)
+		sfu.log.Printf("Error accepting websocket connection: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -95,7 +124,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for message := range sub.Messages {
 		err := socketHandler.HandleMessage(message)
 		if err != nil {
-			log.Printf("[%s] Error handling websocket message: %s", sub.ClientID, err)
+			sfu.log.Printf("[%s] Error handling websocket message: %s", sub.ClientID, err)
 		}
 	}
 	socketHandler.Cleanup()
@@ -157,7 +186,7 @@ func (sh *SocketHandler) HandleMessage(message Message) error {
 func (sh *SocketHandler) Cleanup() {
 	if sh.signaller != nil {
 		if err := sh.signaller.Close(); err != nil {
-			log.Printf("[%s] cleanup: error in signaller.Close: %s", sh.clientID, err)
+			sh.log.Printf("[%s] cleanup: error in signaller.Close: %s", sh.clientID, err)
 		}
 	}
 
@@ -167,14 +196,14 @@ func (sh *SocketHandler) Cleanup() {
 		}),
 	)
 	if err != nil {
-		log.Printf("[%s] cleanup: error broadcasting hangUp: %s", sh.clientID, err)
+		sh.log.Printf("[%s] cleanup: error broadcasting hangUp: %s", sh.clientID, err)
 	}
 }
 
 func (sh *SocketHandler) handleHangUp(event Message) error {
 	clientID := sh.clientID
 
-	log.Printf("[%s] hangUp event", clientID)
+	sh.log.Printf("[%s] hangUp event", clientID)
 
 	if sh.signaller != nil {
 		closeErr := sh.signaller.Close()
@@ -198,7 +227,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 
 	start := time.Now()
 
-	log.Printf("[%s] Initiator: %s", clientID, initiator)
+	sh.log.Printf("[%s] Initiator: %s", clientID, initiator)
 
 	if sh.signaller != nil {
 		return fmt.Errorf("Unexpected ready event in room %s - already have a signaller", room)
@@ -232,22 +261,12 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		ICEServers: sh.iceServers,
 	}
 
-	// Hack to be able to update dynamic codec payload IDs with every new sdp
-	// renegotiation of passive (non-server initiated) peer connections.
-	field := reflect.ValueOf(sh.webrtcAPI).Elem().FieldByName("mediaEngine")
-	unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-
-	mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
-	if !ok {
-		return fmt.Errorf("Error in hack to obtain mediaEngine")
-	}
-
 	peerConnection, err := sh.webrtcAPI.NewPeerConnection(webrtcConfig)
 	if err != nil {
 		return fmt.Errorf("Error creating peer connection: %w", err)
 	}
 	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
-		log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
+		sh.log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
 	})
 
 	closePeer := func(reason error) error {
@@ -275,7 +294,6 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		sh.loggerFactory,
 		initiator == localPeerID,
 		peerConnection,
-		mediaEngine,
 		localPeerID,
 		clientID,
 	)
@@ -319,13 +337,13 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 					Metadata: metadata,
 				}))
 				if err != nil {
-					log.Printf("[%s] Error sending metadata: %s", clientID, err)
+					sh.log.Printf("[%s] Error sending metadata: %s", clientID, err)
 				}
 			}
 		}
 		err := adapter.Emit(clientID, NewMessage("signal", room, signal))
 		if err != nil {
-			log.Printf("[%s] Error sending local signal: %s", clientID, err)
+			sh.log.Printf("[%s] Error sending local signal: %s", clientID, err)
 			// TODO abort connection
 		}
 	}
@@ -336,7 +354,7 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	sh.signaller = nil
-	log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
+	sh.log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
 	adapter.SetMetadata(clientID, "")
 
 	err := sh.adapter.Broadcast(
@@ -345,6 +363,6 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 		}),
 	)
 	if err != nil {
-		log.Printf("[%s] Error broadcasting hangUp: %s", sh.clientID, err)
+		sh.log.Printf("[%s] Error broadcasting hangUp: %s", sh.clientID, err)
 	}
 }

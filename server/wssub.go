@@ -34,26 +34,13 @@ type Subscription struct {
 }
 
 func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription, error) {
-	var err error
-
-	start := time.Now()
-	prometheusWSConnTotal.Inc()
-	prometheusWSConnActive.Inc()
-	defer func() {
-		prometheusWSConnActive.Dec()
-		if err != nil {
-			prometheusWSConnErrTotal.Inc()
-		}
-		duration := time.Now().Sub(start)
-		prometheusWSConnDuration.Observe(duration.Seconds())
-	}()
-
 	var c *websocket.Conn
-	c, err = websocket.Accept(w, r, &websocket.AcceptOptions{
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		CompressionMode: websocket.CompressionDisabled,
 	})
 
 	if err != nil {
+		prometheusWSConnErrTotal.Inc()
 		return nil, fmt.Errorf("Error accepting websocket connection: %w", err)
 	}
 
@@ -67,10 +54,18 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 	client := NewClientWithID(c, clientID)
 	wss.log.Printf("[%s] New websocket connection - room: %s", clientID, room)
 
+	prometheusWSConnTotal.Inc()
+	prometheusWSConnActive.Inc()
+	start := time.Now()
+
 	go func() {
 		defer func() {
+			prometheusWSConnActive.Dec()
+			duration := time.Now().Sub(start)
+			prometheusWSConnDuration.Observe(duration.Seconds())
+
 			wss.log.Printf("[%s] Closing websocket connection - room: %s", clientID, room)
-			err := c.Close(websocket.StatusInternalError, "")
+			err := c.Close(websocket.StatusNormalClosure, "")
 			if err != nil {
 				wss.log.Printf("[%s] Error closing websocket connection: %w", clientID, err)
 			}
