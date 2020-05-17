@@ -13,11 +13,14 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 	log := loggerFactory.GetLogger("mesh")
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		wss.HandleRoom(w, r, func(event RoomEvent) {
-			msg := event.Message
-			adapter := event.Adapter
-			room := event.Room
-			clientID := event.ClientID
+		sub, err := wss.Subscribe(w, r)
+		if err != nil {
+			log.Printf("Error subscribing to websocket messages: %s", err)
+		}
+		for msg := range sub.Messages {
+			adapter := sub.Adapter
+			room := sub.Room
+			clientID := sub.ClientID
 
 			var responseEventName string
 			var err error
@@ -60,7 +63,7 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			if err != nil {
 				log.Printf("Error sending event (event: %s, room: %s, source: %s)", responseEventName, room, clientID)
 			}
-		})
+		}
 	}
 	return http.HandlerFunc(fn)
 }
