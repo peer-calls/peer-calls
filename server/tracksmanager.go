@@ -17,14 +17,19 @@ type MemoryTracksManager struct {
 	peers map[string]peer
 	// key is room, value is clientID
 	peerIDsByRoom map[string]map[string]struct{}
+	// jitterBuffers
+	jitterBufferEnabled       bool
+	jitterBufferHandlerByRoom map[string]JitterHandler
 }
 
-func NewMemoryTracksManager(loggerFactory LoggerFactory) *MemoryTracksManager {
+func NewMemoryTracksManager(loggerFactory LoggerFactory, jitterBufferEnabled bool) *MemoryTracksManager {
 	return &MemoryTracksManager{
-		loggerFactory: loggerFactory,
-		log:           loggerFactory.GetLogger("tracksmanager"),
-		peers:         map[string]peer{},
-		peerIDsByRoom: map[string]map[string]struct{}{},
+		loggerFactory:             loggerFactory,
+		log:                       loggerFactory.GetLogger("tracksmanager"),
+		peers:                     map[string]peer{},
+		peerIDsByRoom:             map[string]map[string]struct{}{},
+		jitterBufferEnabled:       jitterBufferEnabled,
+		jitterBufferHandlerByRoom: map[string]JitterHandler{},
 	}
 }
 
@@ -117,6 +122,19 @@ func (t *MemoryTracksManager) addTrackToPeer(p peer, sourceClientID string, trac
 	return nil
 }
 
+func (t *MemoryTracksManager) getJitterHandler(room string) JitterHandler {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	jitterHandler, ok := t.jitterBufferHandlerByRoom[room]
+	if !ok {
+		jitterHandler = NewJitterHandler(t.loggerFactory.GetLogger("nack"), t.jitterBufferEnabled)
+		t.jitterBufferHandlerByRoom[room] = jitterHandler
+	}
+
+	return jitterHandler
+}
+
 func (t *MemoryTracksManager) Add(
 	room string,
 	clientID string,
@@ -140,6 +158,7 @@ func (t *MemoryTracksManager) Add(
 		clientID,
 		peerConnection,
 		onTrackEvent,
+		t.getJitterHandler(room),
 	)
 
 	t.mu.Lock()

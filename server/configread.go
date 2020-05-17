@@ -70,6 +70,7 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 
 	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
+	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
 
 	var ice ICEServer
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
@@ -104,6 +105,10 @@ func setEnvInt(dest *int, name string) {
 	if err == nil {
 		*dest = value
 	}
+}
+
+func setEnvBool(dest *bool, name string) {
+	*dest = os.Getenv(name) == "true"
 }
 
 func setEnvAuthType(authType *AuthType, name string) {

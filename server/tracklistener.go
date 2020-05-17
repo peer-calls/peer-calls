@@ -47,7 +47,7 @@ type trackListener struct {
 	mu               sync.RWMutex
 	pliInterval      time.Duration
 	ssrcMaxBitrates  map[uint32]uint64
-	jitterBuffer     *JitterBuffer
+	jitterHandler    JitterHandler
 }
 
 func newTrackListener(
@@ -55,6 +55,7 @@ func newTrackListener(
 	clientID string,
 	peerConnection *webrtc.PeerConnection,
 	onTrackEvent func(TrackEvent),
+	nackHandler JitterHandler,
 ) *trackListener {
 	p := &trackListener{
 		log:              loggerFactory.GetLogger("tracklistener"),
@@ -63,7 +64,7 @@ func newTrackListener(
 		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
 		onTrackEvent:     onTrackEvent,
 		ssrcMaxBitrates:  map[uint32]uint64{},
-		jitterBuffer:     NewJitterBuffer(),
+		jitterHandler:    nackHandler,
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
@@ -99,7 +100,9 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 	case *rtcp.PictureLossIndication:
 		prometheusRTCPPacketsSent.Inc()
 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-	case *rtcp.SourceDescription:
+	case *rtcp.TransportLayerNack:
+		prometheusRTCPPacketsSent.Inc()
+		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
 	case *rtcp.ReceiverEstimatedMaximumBitrate:
 		bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
 		if !ok || pkt.Bitrate < bitrate {
@@ -107,9 +110,9 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 			prometheusRTCPPacketsSent.Inc()
 			return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
 		}
+	case *rtcp.SourceDescription:
 	case *rtcp.ReceiverReport:
 	case *rtcp.SenderReport:
-	case *rtcp.TransportLayerNack:
 	default:
 		p.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", p.clientID, pkt.DestinationSSRC(), pkt)
 	}
@@ -155,7 +158,7 @@ func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (ch
 				prometheusRTCPPacketsReceived.Inc()
 				switch rtcpPkt := pkt.(type) {
 				case *rtcp.TransportLayerNack:
-					nack := p.processNack(rtpSender, rtcpPkt)
+					nack := p.jitterHandler.HandleNack(p.clientID, rtpSender, rtcpPkt)
 					if nack != nil {
 						rtcpCh <- nack
 					}
@@ -291,14 +294,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 			}
 
 			prometheusRTPPacketsReceived.Inc()
-			rtcpPkt := p.jitterBuffer.PushRTP(pkt)
-			if rtcpPkt != nil {
-				err := p.peerConnection.WriteRTCP([]rtcp.Packet{rtcpPkt})
-				if err != nil {
-					p.log.Printf("[%s] Error writing rtcp packet from jitter buffer for track: %d: %s", p.clientID, remoteTrack.SSRC(), err)
-					// TODO maybe return here
-				}
-			}
+			p.jitterHandler.HandleRTP(p.clientID, p.peerConnection, pkt)
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			err = localTrack.WriteRTP(pkt)
@@ -309,46 +305,11 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 					localTrack.SSRC(),
 					err,
 				)
+				p.jitterHandler.RemoveBuffer(remoteTrack.SSRC())
 				return
 			}
 		}
 	}()
 
 	return localTrack, nil
-}
-
-func (p *trackListener) processNack(rtpSender *webrtc.RTPSender, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
-	actualNacks := make([]rtcp.NackPair, 0, len(nack.Nacks))
-
-	for _, nackPair := range nack.Nacks {
-		nackPackets := nackPair.PacketList()
-		notFound := make([]uint16, 0, len(nackPackets))
-		for _, sn := range nackPackets {
-			rtpPacket := p.jitterBuffer.GetPacket(nack.MediaSSRC, sn)
-			if rtpPacket == nil {
-				// missing packet not found in jitter buffer
-				notFound = append(notFound, sn)
-				continue
-			}
-
-			// JitterBuffer had the missing packet, send it
-			_, err := rtpSender.SendRTP(&rtpPacket.Header, rtpPacket.Payload)
-			if err != nil {
-				p.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", p.clientID, nack.MediaSSRC, err)
-			}
-		}
-		if len(notFound) > 0 {
-			actualNacks = append(actualNacks, CreateNackPair(notFound))
-		}
-	}
-
-	if len(actualNacks) == 0 {
-		return nil
-	}
-
-	return &rtcp.TransportLayerNack{
-		MediaSSRC:  nack.MediaSSRC,
-		SenderSSRC: nack.SenderSSRC,
-		Nacks:      actualNacks,
-	}
 }

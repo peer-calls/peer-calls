@@ -18,13 +18,13 @@ import (
 	"nhooyr.io/websocket"
 )
 
-func setupSFUServer(rooms server.RoomManager) (s *httptest.Server, url string) {
+func setupSFUServer(rooms server.RoomManager, jitterBufferEnabled bool) (s *httptest.Server, url string) {
 	handler := server.NewSFUHandler(
 		loggerFactory,
 		server.NewWSS(loggerFactory, rooms),
 		[]server.ICEServer{},
 		server.NetworkConfigSFU{},
-		server.NewMemoryTracksManager(loggerFactory),
+		server.NewMemoryTracksManager(loggerFactory, jitterBufferEnabled),
 	)
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/"
@@ -36,7 +36,7 @@ func TestSFU_ConnectDisconnect(t *testing.T) {
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	server, url := setupSFUServer(rooms)
+	server, url := setupSFUServer(rooms, false)
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -84,7 +84,6 @@ func startSignalling(t *testing.T, wsClient *server.Client, wsRecvCh <-chan serv
 
 	go func() {
 		for signal := range signalChan {
-			// t.Log("signal", signal)
 			err := wsClient.Write(server.NewMessage("signal", roomName, signal))
 			require.NoError(t, err, "error sending signal to ws: %w", err)
 		}
@@ -121,10 +120,6 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 			LoggerFactory: server.NewPionLoggerFactory(loggerFactory),
 		}),
 	)
-	// field := reflect.ValueOf(api).Elem().FieldByName("mediaEngine")
-	// unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-	// mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
-	// require.True(t, ok, "error getting media engine (hack)")
 
 	pc, err = api.NewPeerConnection(webrtc.Configuration{})
 	require.Nil(t, err, "error creating peer connection")
@@ -186,7 +181,7 @@ func TestSFU_PeerConnection(t *testing.T) {
 	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	srv, wsBaseURL := setupSFUServer(rooms)
+	srv, wsBaseURL := setupSFUServer(rooms, false)
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -201,7 +196,7 @@ func TestSFU_OnTrack(t *testing.T) {
 	log := loggerFactory.GetLogger("test")
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	srv, wsBaseURL := setupSFUServer(rooms)
+	srv, wsBaseURL := setupSFUServer(rooms, false)
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -264,6 +259,4 @@ func TestSFU_OnTrack(t *testing.T) {
 	// server will want to negotiate after track is removed so we wait for negotiation to complete
 	wait(t, ctx, signaller2.NegotiationDone())
 	log.Println("Negotiation (3) done ======================================================")
-
-	log.Println("-- test end --")
 }
