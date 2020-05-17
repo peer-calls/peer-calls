@@ -4,11 +4,9 @@ import (
 	"context"
 	"io"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
@@ -97,7 +95,6 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	t.Helper()
 	var closer test.TestCloser
 	cleanup = closer.Close
-	// TODO fix mediaEngine should not be touched
 
 	wsc := mustDialWS(t, ctx, url)
 	closer.AddFuncErr(func() error {
@@ -115,16 +112,19 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	waitForUsersEvent(t, ctx, msgChan)
 	require.Nil(t, wsClient.Err())
 
+	var mediaEngine webrtc.MediaEngine
+	server.RegisterCodecs(&mediaEngine)
+
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(webrtc.MediaEngine{}),
+		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(webrtc.SettingEngine{
 			LoggerFactory: server.NewPionLoggerFactory(loggerFactory),
 		}),
 	)
-	field := reflect.ValueOf(api).Elem().FieldByName("mediaEngine")
-	unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-	mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
-	require.True(t, ok, "error getting media engine (hack)")
+	// field := reflect.ValueOf(api).Elem().FieldByName("mediaEngine")
+	// unsafeField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+	// mediaEngine, ok := unsafeField.Interface().(*webrtc.MediaEngine)
+	// require.True(t, ok, "error getting media engine (hack)")
 
 	pc, err = api.NewPeerConnection(webrtc.Configuration{})
 	require.Nil(t, err, "error creating peer connection")
@@ -133,7 +133,6 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 		loggerFactory,
 		false,
 		pc,
-		mediaEngine,
 		clientID,
 		"__SERVER__",
 	)

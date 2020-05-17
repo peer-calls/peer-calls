@@ -7,14 +7,11 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
-
 type Signaller struct {
 	log    Logger
 	sdpLog Logger
 
 	peerConnection *webrtc.PeerConnection
-	mediaEngine    *webrtc.MediaEngine
 	initiator      bool
 	localPeerID    string
 	remotePeerID   string
@@ -35,7 +32,6 @@ func NewSignaller(
 	loggerFactory LoggerFactory,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
-	mediaEngine *webrtc.MediaEngine,
 	localPeerID string,
 	remotePeerID string,
 ) (*Signaller, error) {
@@ -44,7 +40,6 @@ func NewSignaller(
 		sdpLog:          loggerFactory.GetLogger("sdp"),
 		initiator:       initiator,
 		peerConnection:  peerConnection,
-		mediaEngine:     mediaEngine,
 		localPeerID:     localPeerID,
 		remotePeerID:    remotePeerID,
 		signalChannel:   make(chan Payload),
@@ -81,30 +76,6 @@ func (s *Signaller) SignalChannel() <-chan Payload {
 
 func (s *Signaller) initialize() error {
 	if s.initiator {
-		s.log.Printf("[%s] NewSignaller: Initiator registering default codecs", s.remotePeerID)
-		s.mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
-
-		rtcpfb := []webrtc.RTCPFeedback{
-			// webrtc.RTCPFeedback{
-			// 	Type: webrtc.TypeRTCPFBGoogREMB,
-			// },
-			// webrtc.RTCPFeedback{
-			// 	Type:      webrtc.TypeRTCPFBCCM,
-			// 	Parameter: "fir",
-			// },
-			// webrtc.RTCPFeedback{
-			// 	Type: webrtc.TypeRTCPFBNACK,
-			// },
-			webrtc.RTCPFeedback{
-				Type:      webrtc.TypeRTCPFBNACK,
-				Parameter: "pli",
-			},
-		}
-
-		s.mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
-		// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
-		// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
-
 		s.log.Printf("[%s] NewSignaller: Initiator pre-add video transceiver", s.remotePeerID)
 		_, err := s.peerConnection.AddTransceiverFromKind(
 			webrtc.RTPCodecTypeVideo,
@@ -265,10 +236,6 @@ func (s *Signaller) handleRemoteSDP(sessionDescription webrtc.SessionDescription
 }
 
 func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescription) (err error) {
-	if err = s.mediaEngine.PopulateFromSDP(sessionDescription); err != nil {
-		return fmt.Errorf("[%s] Error populating codec info from SDP: %s", s.remotePeerID, err)
-	}
-
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
 		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
 	}
