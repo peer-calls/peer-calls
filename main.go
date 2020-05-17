@@ -52,6 +52,7 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 	loggerFactory.SetDefaultEnabled([]string{
 		"-sdp",
 		"-ws",
+		"-nack",
 		"-pion:*:trace",
 		"-pion:*:debug",
 		"-pion:*:info",

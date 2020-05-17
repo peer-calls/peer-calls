@@ -39,7 +39,11 @@ func (m *MemoryTracksManager) Add(
 
 	roomPeersManager, ok := m.roomPeersManager[room]
 	if !ok {
-		jitterHandler := NewJitterHandler(m.loggerFactory.GetLogger("jitter"), m.jitterBufferEnabled)
+		jitterHandler := NewJitterHandler(
+			m.loggerFactory.GetLogger("jitter"),
+			m.loggerFactory.GetLogger("nack"),
+			m.jitterBufferEnabled,
+		)
 		roomPeersManager = NewRoomPeersManager(m.loggerFactory, jitterHandler)
 		m.roomPeersManager[room] = roomPeersManager
 	}

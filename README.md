@@ -43,8 +43,8 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Support dynamic adding and removing of streams
 - [x] Support RTCP packet Picture Loss Indicator (PLI)
 - [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
-- [ ] Add handling of other RTCP packets besides PLI and REMB
-- [x] Add JitterBuffer (experimental)
+- [ ] Add handling of other RTCP packets besides NACK, PLI and REMB
+- [x] Add JitterBuffer (experimental, currently without congestion control)
 - [ ] Support multiple Peer Calls nodes when using SFU
 
 # Requirements
@@ -133,7 +133,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
-| `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
+| `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
 | `PEERCALLS_BASE_URL`                 | string | Base URL of the application                                                  |           |
 | `PEERCALLS_BIND_HOST`                | string | IP to listen to                                                              | `0.0.0.0` |
 | `PEERCALLS_BIND_PORT`                | int    | Port to listen to                                                            | `3000`    |
