@@ -3,8 +3,6 @@ package server
 import (
 	"math"
 	"sync"
-
-	"github.com/pion/rtcp"
 )
 
 type BitrateEstimator struct {
@@ -19,19 +17,15 @@ func NewBitrateEstimator() *BitrateEstimator {
 	}
 }
 
-func (r *BitrateEstimator) Estimate(
-	receiverClientID string,
-	remb *rtcp.ReceiverEstimatedMaximumBitrate,
-) *rtcp.ReceiverEstimatedMaximumBitrate {
+func (r *BitrateEstimator) Estimate(receiverClientID string, bitrate uint64) uint64 {
+	r.estimates[receiverClientID] = bitrate
 
-	r.estimates[receiverClientID] = remb.Bitrate
-
-	if remb.Bitrate <= r.bitrate {
-		r.bitrate = remb.Bitrate
-		return remb
+	if bitrate <= r.bitrate {
+		r.bitrate = bitrate
+		return bitrate
 	}
 
-	minBitrate := remb.Bitrate
+	minBitrate := bitrate
 	for clientID, bitrate := range r.estimates {
 		if clientID != receiverClientID && bitrate < minBitrate {
 			minBitrate = bitrate
@@ -39,11 +33,7 @@ func (r *BitrateEstimator) Estimate(
 	}
 	r.bitrate = minBitrate
 
-	return &rtcp.ReceiverEstimatedMaximumBitrate{
-		SenderSSRC: remb.SenderSSRC,
-		Bitrate:    minBitrate,
-		SSRCs:      remb.SSRCs,
-	}
+	return minBitrate
 }
 
 func (r *BitrateEstimator) RemoveEstimation(receiverClientID string) {
@@ -61,20 +51,32 @@ func NewTrackBitrateEstimators() *TrackBitrateEstimators {
 	}
 }
 
+func min(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func (r *TrackBitrateEstimators) Estimate(
 	receiverClientID string,
-	remb *rtcp.ReceiverEstimatedMaximumBitrate,
-) *rtcp.ReceiverEstimatedMaximumBitrate {
+	ssrcs []uint32,
+	bitrate uint64,
+) uint64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	estimator, ok := r.estimators[remb.SenderSSRC]
-	if !ok {
-		estimator = NewBitrateEstimator()
-		r.estimators[remb.SenderSSRC] = estimator
+	var minBitrate uint64 = math.MaxUint64
+	for _, ssrc := range ssrcs {
+		estimator, ok := r.estimators[ssrc]
+		if !ok {
+			estimator = NewBitrateEstimator()
+			r.estimators[ssrc] = estimator
+		}
+		minBitrate = min(minBitrate, estimator.Estimate(receiverClientID, bitrate))
 	}
 
-	return estimator.Estimate(receiverClientID, remb)
+	return minBitrate
 }
 
 func (r *TrackBitrateEstimators) RemoveReceiverEstimations(

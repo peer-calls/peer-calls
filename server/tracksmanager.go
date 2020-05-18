@@ -188,12 +188,22 @@ func (t *RoomPeersManager) Add(transport *WebRTCTransport) {
 			var err error
 			switch packet := pkt.(type) {
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				sourceTransport, ok := t.getTransportBySSRC(packet.SenderSSRC)
-				if ok {
-					packet = t.trackBitrateEstimators.Estimate(sourceTransport.ClientID(), packet)
-					err = sourceTransport.WriteRTCP([]rtcp.Packet{pkt})
-				} else {
-					err = fmt.Errorf("Cannot find source transport for ReceiverEstimatedMaximumBitrate for track: %d", packet.SenderSSRC)
+				bitrate := t.trackBitrateEstimators.Estimate(transport.ClientID(), packet.SSRCs, packet.Bitrate)
+				packet.Bitrate = bitrate
+
+				transportsSet := map[Transport]struct{}{}
+				for _, ssrc := range packet.SSRCs {
+					sourceTransport, ok := t.getTransportBySSRC(ssrc)
+					if ok {
+						transportsSet[sourceTransport] = struct{}{}
+					}
+				}
+
+				for sourceTransport := range transportsSet {
+					rtcpErr := sourceTransport.WriteRTCP([]rtcp.Packet{pkt})
+					if err == nil && rtcpErr != nil {
+						err = rtcpErr
+					}
 				}
 			case *rtcp.PictureLossIndication:
 				sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
@@ -277,7 +287,7 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 			StreamID: track.Label,
 			UserID:   t.clientIDBySSRC[track.SSRC],
 		}
-		t.log.Printf("[%s] GetTracksMetadata: %#v", clientID, trackMetadata)
+		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC, trackMetadata)
 		m = append(m, trackMetadata)
 	}
 
