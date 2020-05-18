@@ -29,90 +29,21 @@ func NewSFUHandler(
 ) *SFU {
 	log := loggerFactory.GetLogger("sfu")
 
-	allowedInterfaces := map[string]struct{}{}
-	for _, iface := range sfuConfig.Interfaces {
-		allowedInterfaces[iface] = struct{}{}
-	}
+	webRTCTransportFactory := NewWebRTCTransportFactory(loggerFactory, iceServers, sfuConfig)
 
-	settingEngine := webrtc.SettingEngine{
-		LoggerFactory: NewPionLoggerFactory(loggerFactory),
-	}
-	if len(allowedInterfaces) > 0 {
-		settingEngine.SetInterfaceFilter(func(iface string) bool {
-			_, ok := allowedInterfaces[iface]
-			return ok
-		})
-	}
-	settingEngine.SetTrickle(true)
-	log.Printf("Registering media engine codecs")
-	var mediaEngine webrtc.MediaEngine
-	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
-	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(mediaEngine),
-		webrtc.WithSettingEngine(settingEngine),
-	)
-
-	return &SFU{loggerFactory, log, wss, iceServers, tracksManager, api}
-}
-
-func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
-	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
-
-	rtcpfb := []webrtc.RTCPFeedback{
-		webrtc.RTCPFeedback{
-			Type: webrtc.TypeRTCPFBGoogREMB,
-		},
-		// webrtc.RTCPFeedback{
-		// 	Type:      webrtc.TypeRTCPFBCCM,
-		// 	Parameter: "fir",
-		// },
-
-		// https://tools.ietf.org/html/rfc4585#section-4.2
-		// "pli" indicates the use of Picture Loss Indication feedback as defined
-		// in Section 6.3.1.
-		webrtc.RTCPFeedback{
-			Type:      webrtc.TypeRTCPFBNACK,
-			Parameter: "pli",
-		},
-	}
-
-	if jitterBufferEnabled {
-		// The feedback type "nack", without parameters, indicates use of the
-		// Generic NACK feedback format as defined in Section 6.2.1.
-		rtcpfb = append(rtcpfb, webrtc.RTCPFeedback{
-			Type: webrtc.TypeRTCPFBNACK,
-		})
-	}
-
-	mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
-	// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
-	// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
+	return &SFU{loggerFactory, log, wss, tracksManager, webRTCTransportFactory}
 }
 
 type SFU struct {
 	loggerFactory LoggerFactory
 	log           Logger
 	wss           *WSS
-	iceServers    []ICEServer
 	tracksManager TracksManager
-	api           *webrtc.API
+
+	webRTCTransportFactory *WebRTCTransportFactory
 }
 
 func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	webrtcICEServers := []webrtc.ICEServer{}
-	for _, iceServer := range GetICEAuthServers(sfu.iceServers) {
-		var c webrtc.ICECredentialType
-		if iceServer.Username != "" && iceServer.Credential != "" {
-			c = webrtc.ICECredentialTypePassword
-		}
-		webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
-			URLs:           iceServer.URLs,
-			CredentialType: c,
-			Username:       iceServer.Username,
-			Credential:     iceServer.Credential,
-		})
-	}
-
 	sub, err := sfu.wss.Subscribe(w, r)
 	if err != nil {
 		sfu.log.Printf("Error accepting websocket connection: %s", err)
@@ -123,8 +54,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	socketHandler := NewSocketHandler(
 		sfu.loggerFactory,
 		sfu.tracksManager,
-		webrtcICEServers,
-		sfu.api,
+		sfu.webRTCTransportFactory,
 		sub.ClientID,
 		sub.Room,
 		sub.Adapter,
@@ -140,37 +70,34 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type SocketHandler struct {
-	loggerFactory LoggerFactory
-	log           Logger
-	tracksManager TracksManager
-	iceServers    []webrtc.ICEServer
-	webrtcAPI     *webrtc.API
-	adapter       Adapter
-	clientID      string
-	room          string
+	loggerFactory          LoggerFactory
+	log                    Logger
+	tracksManager          TracksManager
+	webRTCTransportFactory *WebRTCTransportFactory
+	webRTCTransport        *WebRTCTransport
+	adapter                Adapter
+	clientID               string
+	room                   string
 
-	mu        sync.Mutex
-	signaller *Signaller
+	mu sync.Mutex
 }
 
 func NewSocketHandler(
 	loggerFactory LoggerFactory,
 	tracksManager TracksManager,
-	iceServers []webrtc.ICEServer,
-	webrtcAPI *webrtc.API,
+	webRTCTransportFactory *WebRTCTransportFactory,
 	clientID string,
 	room string,
 	adapter Adapter,
 ) *SocketHandler {
 	return &SocketHandler{
-		loggerFactory: loggerFactory,
-		log:           loggerFactory.GetLogger("sfu"),
-		tracksManager: tracksManager,
-		iceServers:    iceServers,
-		webrtcAPI:     webrtcAPI,
-		clientID:      clientID,
-		room:          room,
-		adapter:       adapter,
+		loggerFactory:          loggerFactory,
+		log:                    loggerFactory.GetLogger("sfu"),
+		tracksManager:          tracksManager,
+		webRTCTransportFactory: webRTCTransportFactory,
+		clientID:               clientID,
+		room:                   room,
+		adapter:                adapter,
 	}
 }
 
@@ -193,9 +120,9 @@ func (sh *SocketHandler) HandleMessage(message Message) error {
 }
 
 func (sh *SocketHandler) Cleanup() {
-	if sh.signaller != nil {
-		if err := sh.signaller.Close(); err != nil {
-			sh.log.Printf("[%s] cleanup: error in signaller.Close: %s", sh.clientID, err)
+	if sh.webRTCTransport != nil {
+		if err := sh.webRTCTransport.Close(); err != nil {
+			sh.log.Printf("[%s] cleanup: error in webRTCTransport.Close: %s", sh.clientID, err)
 		}
 	}
 
@@ -214,8 +141,8 @@ func (sh *SocketHandler) handleHangUp(event Message) error {
 
 	sh.log.Printf("[%s] hangUp event", clientID)
 
-	if sh.signaller != nil {
-		closeErr := sh.signaller.Close()
+	if sh.webRTCTransport != nil {
+		closeErr := sh.webRTCTransport.Close()
 		if closeErr != nil {
 			return fmt.Errorf("[%s] hangUp: Error closing peer connection: %s", clientID, closeErr)
 		}
@@ -238,8 +165,8 @@ func (sh *SocketHandler) handleReady(message Message) error {
 
 	sh.log.Printf("[%s] Initiator: %s", clientID, initiator)
 
-	if sh.signaller != nil {
-		return fmt.Errorf("Unexpected ready event in room %s - already have a signaller", room)
+	if sh.webRTCTransport != nil {
+		return fmt.Errorf("Unexpected ready event in room %s - already have a webrtc transport", room)
 	}
 
 	// FIXME check for errors
@@ -266,57 +193,17 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		return fmt.Errorf("Error broadcasting users message: %s", err)
 	}
 
-	webrtcConfig := webrtc.Configuration{
-		ICEServers: sh.iceServers,
-	}
-
-	peerConnection, err := sh.webrtcAPI.NewPeerConnection(webrtcConfig)
+	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(clientID)
 	if err != nil {
-		return fmt.Errorf("Error creating peer connection: %w", err)
+		return fmt.Errorf("Error creating new WebRTCTransport: %w", err)
 	}
-	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
-		sh.log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
-	})
-
-	closePeer := func(reason error) error {
-		err = peerConnection.Close()
-		if err != nil {
-			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
-		} else {
-			return reason
-		}
-	}
-
-	var dataChannel *webrtc.DataChannel
-	if initiator == localPeerID {
-		// need to do this to connect with simple peer
-		// only when we are the initiator
-		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
-		if err != nil {
-			return closePeer(fmt.Errorf("Error creating data channel: %w", err))
-		}
-	}
-
-	// TODO use this to get all client IDs and request all tracks of all users
-	// adapter.Clients()
-	signaller, err := NewSignaller(
-		sh.loggerFactory,
-		initiator == localPeerID,
-		peerConnection,
-		localPeerID,
-		clientID,
-	)
-	if err != nil {
-		return closePeer(fmt.Errorf("Error initializing signaller: %w", err))
-	}
-
-	sh.signaller = signaller
+	sh.webRTCTransport = webRTCTransport
 
 	prometheusWebRTCConnTotal.Inc()
 	prometheusWebRTCConnActive.Inc()
 
-	sh.tracksManager.Add(room, clientID, peerConnection, dataChannel, signaller)
-	go sh.processLocalSignals(message, signaller.SignalChannel(), start)
+	sh.tracksManager.Add(room, webRTCTransport)
+	go sh.processLocalSignals(message, webRTCTransport.SignalChannel(), start)
 	return nil
 }
 
@@ -326,11 +213,11 @@ func (sh *SocketHandler) handleSignal(message Message) error {
 		return fmt.Errorf("[%s] Ignoring signal because it is of unexpected type: %T", sh.clientID, payload)
 	}
 
-	if sh.signaller == nil {
-		return fmt.Errorf("[%s] Ignoring signal '%v' because signaller is not initialized", sh.clientID, payload)
+	if sh.webRTCTransport == nil {
+		return fmt.Errorf("[%s] Ignoring signal '%v' because webRTCTransport is not initialized", sh.clientID, payload)
 	}
 
-	return sh.signaller.Signal(payload)
+	return sh.webRTCTransport.Signal(payload)
 }
 
 func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Payload, startTime time.Time) {
@@ -362,7 +249,7 @@ func (sh *SocketHandler) processLocalSignals(message Message, signals <-chan Pay
 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
-	sh.signaller = nil
+	sh.webRTCTransport = nil
 	sh.log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
 	adapter.SetMetadata(clientID, "")
 

@@ -21,7 +21,7 @@ type DataTransceiver struct {
 	closeChannel   chan struct{}
 }
 
-func newDataTransceiver(
+func NewDataTransceiver(
 	loggerFactory LoggerFactory,
 	clientID string,
 	dataChannel *webrtc.DataChannel,

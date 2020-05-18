@@ -133,7 +133,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
-| `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
+| `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-rtp,-rtcp,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
 | `PEERCALLS_BASE_URL`                 | string | Base URL of the application                                                  |           |
 | `PEERCALLS_BIND_HOST`                | string | IP to listen to                                                              | `0.0.0.0` |
 | `PEERCALLS_BIND_PORT`                | int    | Port to listen to                                                            | `3000`    |

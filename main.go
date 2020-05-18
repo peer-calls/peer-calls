@@ -53,6 +53,8 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 		"-sdp",
 		"-ws",
 		"-nack",
+		"-rtp",
+		"-rtcp",
 		"-pion:*:trace",
 		"-pion:*:debug",
 		"-pion:*:info",

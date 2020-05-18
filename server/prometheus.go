@@ -83,12 +83,37 @@ var prometheusRTCPPacketsReceived = promauto.NewGauge(prometheus.GaugeOpts{
 	Help: "Total number of received RTCP packets",
 })
 
+// var prometheusRTCPPacketsReceivedBytes = promauto.NewGauge(prometheus.GaugeOpts{
+// 	Name: "rtcp_packets_received_bytes_total",
+// 	Help: "Total number of received RTCP bytes",
+// })
+
 var prometheusRTCPPacketsSent = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "rtcp_packets_sent_total",
-	Help: "Total number of sent RTP packets",
+	Help: "Total number of sent RTCP packets",
 })
+
+// var prometheusRTCPPacketsSentBytes = promauto.NewGauge(prometheus.GaugeOpts{
+// 	Name: "rtcp_packets_sent_bytes_total",
+// 	Help: "Total number of sent RTCP bytes",
+// })
 
 var prometheusRTPPacketsReceived = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "rtp_packets_received_total",
 	Help: "Total number of received RTP packets",
+})
+
+var prometheusRTPPacketsReceivedBytes = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "rtp_packets_received_bytes_total",
+	Help: "Total number of received RTP bytes",
+})
+
+var prometheusRTPPacketsSent = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "rtp_packets_sent_total",
+	Help: "Total number of sent RTP packets",
+})
+
+var prometheusRTPPacketsSentBytes = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "rtp_packets_sent_bytes_total",
+	Help: "Total number of sent RTP bytes",
 })

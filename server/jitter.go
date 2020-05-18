@@ -6,8 +6,8 @@ import (
 )
 
 type JitterHandler interface {
-	HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack
-	HandleRTP(clientID string, transport Transport, pkt *rtp.Packet)
+	HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, *rtcp.TransportLayerNack)
+	HandleRTP(pkt *rtp.Packet) rtcp.Packet
 	RemoveBuffer(ssrc uint32)
 }
 
@@ -34,11 +34,13 @@ func NewJitterNackHandler(
 
 // ProcessNack tries to find the missing packet in JitterBuffer and send it,
 // otherwise it will send the nack packet to the original sender of the track.
-func (n *NackHandler) HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
+func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, *rtcp.TransportLayerNack) {
 	actualNacks := make([]rtcp.NackPair, 0, len(nack.Nacks))
 
+	var rtpPackets []*rtp.Packet
+
 	for _, nackPair := range nack.Nacks {
-		n.nackLog.Printf("[%s] NACK for track: %d (fsn: %d, blp: %#b)", clientID, nack.MediaSSRC, nackPair.PacketID, nackPair.LostPackets)
+		n.nackLog.Printf("NACK for track: %d (fsn: %d, blp: %#b)", nack.MediaSSRC, nackPair.PacketID, nackPair.LostPackets)
 
 		nackPackets := nackPair.PacketList()
 		notFound := make([]uint16, 0, len(nackPackets))
@@ -46,17 +48,15 @@ func (n *NackHandler) HandleNack(clientID string, transport Transport, nack *rtc
 			rtpPacket := n.jitterBuffer.GetPacket(nack.MediaSSRC, sn)
 			if rtpPacket == nil {
 				// missing packet not found in jitter buffer
-				n.nackLog.Printf("[%s] Packet (ssrc: %d, sn: %d) missing", clientID, nack.MediaSSRC, sn)
+				n.nackLog.Printf("RTP packet (ssrc: %d, sn: %d) missing", nack.MediaSSRC, sn)
 				notFound = append(notFound, sn)
 				continue
 			}
 
-			n.nackLog.Printf("[%s] Packet (ssrc: %d, sn: %d) found in JitterBuffer", clientID, nack.MediaSSRC, sn)
-			// JitterBuffer had the missing packet, send it
-			_, err := transport.WriteRTP(rtpPacket)
-			if err != nil {
-				n.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", clientID, nack.MediaSSRC, err)
-			}
+			n.nackLog.Printf("RTP packet (ssrc: %d, sn: %d) found in JitterBuffer", nack.MediaSSRC, sn)
+
+			// JitterBuffer had the missing packet, add it to the list
+			rtpPackets = append(rtpPackets, rtpPacket)
 		}
 		if len(notFound) > 0 {
 			actualNacks = append(actualNacks, CreateNackPair(notFound))
@@ -64,27 +64,18 @@ func (n *NackHandler) HandleNack(clientID string, transport Transport, nack *rtc
 	}
 
 	if len(actualNacks) == 0 {
-		return nil
+		return rtpPackets, nil
 	}
 
-	return &rtcp.TransportLayerNack{
+	return rtpPackets, &rtcp.TransportLayerNack{
 		MediaSSRC:  nack.MediaSSRC,
 		SenderSSRC: nack.SenderSSRC,
 		Nacks:      actualNacks,
 	}
 }
 
-func (n *NackHandler) HandleRTP(clientID string, transport Transport, pkt *rtp.Packet) {
-	prometheusRTPPacketsReceived.Inc()
-	rtcpPkt := n.jitterBuffer.PushRTP(pkt)
-	if rtcpPkt == nil {
-		return
-	}
-
-	err := transport.WriteRTCP([]rtcp.Packet{rtcpPkt})
-	if err != nil {
-		n.log.Printf("[%s] Error writing rtcp packet from jitter buffer for track: %d: %s", clientID, pkt.SSRC, err)
-	}
+func (n *NackHandler) HandleRTP(pkt *rtp.Packet) rtcp.Packet {
+	return n.jitterBuffer.PushRTP(pkt)
 }
 
 func (n *NackHandler) RemoveBuffer(ssrc uint32) {
@@ -93,13 +84,13 @@ func (n *NackHandler) RemoveBuffer(ssrc uint32) {
 
 type NoopNackHandler struct{}
 
-func (n *NoopNackHandler) HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
+func (n *NoopNackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, *rtcp.TransportLayerNack) {
 	// do nothing
-	return nil
+	return nil, nil
 }
 
-func (n *NoopNackHandler) HandleRTP(clientID string, transport Transport, pkt *rtp.Packet) {
-	// do nothing
+func (n *NoopNackHandler) HandleRTP(pkt *rtp.Packet) rtcp.Packet {
+	return nil
 }
 
 func (n *NoopNackHandler) RemoveBuffer(ssrc uint32) {}

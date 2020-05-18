@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
-	"github.com/pion/webrtc/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,14 +15,16 @@ import (
 var iceServers = []server.ICEServer{}
 
 type addedPeer struct {
-	room           string
-	clientID       string
-	peerConnection *webrtc.PeerConnection
+	room      string
+	clientID  string
+	transport *server.WebRTCTransport
 }
 
 type mockTracksManager struct {
 	added chan addedPeer
 }
+
+var _ server.TracksManager = &mockTracksManager{}
 
 func newMockTracksManager() *mockTracksManager {
 	return &mockTracksManager{
@@ -31,11 +32,11 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, clientID string, peerConnection *webrtc.PeerConnection, dataChannel *webrtc.DataChannel, signaller *server.Signaller) {
+func (m *mockTracksManager) Add(room string, transport *server.WebRTCTransport) {
 	m.added <- addedPeer{
-		room:           room,
-		clientID:       clientID,
-		peerConnection: peerConnection,
+		room:      room,
+		clientID:  clientID,
+		transport: transport,
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
-	"github.com/pion/webrtc/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -45,7 +44,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, clientID string, pc *webrtc.PeerConnection, dc *webrtc.DataChannel, s *Signaller)
+	Add(room string, transport *WebRTCTransport)
 	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
 }
 
