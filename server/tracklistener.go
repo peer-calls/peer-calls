@@ -28,47 +28,40 @@ type TrackMetadata struct {
 	UserID   string `json:"userId"`
 	StreamID string `json:"streamId"`
 	Kind     string `json:"kind"`
-}
-
-type TrackInfo struct {
-	RTPTransceiver *webrtc.RTPTransceiver
-	RTPSender      *webrtc.RTPSender
-	TrackMetadata  TrackMetadata
+	SSRC     uint32
 }
 
 type trackListener struct {
-	log              Logger
-	clientID         string
-	peerConnection   *webrtc.PeerConnection
-	localTracks      []*webrtc.Track
-	localTracksMu    sync.RWMutex
-	trackInfoByTrack map[*webrtc.Track]TrackInfo
-	onTrackEvent     func(TrackEvent)
-	mu               sync.RWMutex
-	pliInterval      time.Duration
-	ssrcMaxBitrates  map[uint32]uint64
-	jitterHandler    JitterHandler
+	log           Logger
+	clientID      string
+	transport     Transport
+	localTracks   []*webrtc.Track
+	localTracksMu sync.RWMutex
+	trackMetadata map[*webrtc.Track]TrackMetadata
+	onTrackEvent  func(TrackEvent)
+	mu            sync.RWMutex
+	pliInterval   time.Duration
+	jitterHandler JitterHandler
 }
 
 func newTrackListener(
 	loggerFactory LoggerFactory,
 	clientID string,
-	peerConnection *webrtc.PeerConnection,
+	transport Transport,
 	onTrackEvent func(TrackEvent),
 	nackHandler JitterHandler,
 ) *trackListener {
 	p := &trackListener{
-		log:              loggerFactory.GetLogger("tracklistener"),
-		clientID:         clientID,
-		peerConnection:   peerConnection,
-		trackInfoByTrack: map[*webrtc.Track]TrackInfo{},
-		onTrackEvent:     onTrackEvent,
-		ssrcMaxBitrates:  map[uint32]uint64{},
-		jitterHandler:    nackHandler,
+		log:           loggerFactory.GetLogger("tracklistener"),
+		clientID:      clientID,
+		transport:     transport,
+		trackMetadata: map[*webrtc.Track]TrackMetadata{},
+		onTrackEvent:  onTrackEvent,
+		jitterHandler: nackHandler,
 	}
 
 	p.log.Printf("[%s] Setting PeerConnection.OnTrack listener", clientID)
-	peerConnection.OnTrack(p.handleTrack)
+	transport.OnTrack(p.handleTrack)
 
 	return p
 }
@@ -84,10 +77,9 @@ func (p *trackListener) GetTracksMetadata() (metadata []TrackMetadata) {
 
 	metadata = make([]TrackMetadata, 0)
 
-	for _, trackInfo := range p.trackInfoByTrack {
-		m := trackInfo.TrackMetadata
-		m.Mid = trackInfo.RTPTransceiver.Mid()
-		metadata = append(metadata, m)
+	for _, d := range p.trackMetadata {
+		d.Mid = p.transport.Mid(d.SSRC)
+		metadata = append(metadata, d)
 	}
 	return
 }
@@ -99,15 +91,7 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 	switch pkt := anyPacket.(type) {
 	case *rtcp.PictureLossIndication, *rtcp.TransportLayerNack, *rtcp.ReceiverEstimatedMaximumBitrate:
 		prometheusRTCPPacketsSent.Inc()
-		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-	// case *rtcp.ReceiverEstimatedMaximumBitrate:
-	// 	p.log.Printf("[%s] REMB %s", p.clientID, pkt)
-	// 	bitrate, ok := p.ssrcMaxBitrates[pkt.SenderSSRC]
-	// 	if !ok || pkt.Bitrate < bitrate {
-	// 		p.ssrcMaxBitrates[pkt.SenderSSRC] = pkt.Bitrate
-	// 		prometheusRTCPPacketsSent.Inc()
-	// 		return p.peerConnection.WriteRTCP([]rtcp.Packet{pkt})
-	// 	}
+		return p.transport.WriteRTCP([]rtcp.Packet{pkt})
 	case *rtcp.SourceDescription:
 	case *rtcp.ReceiverReport:
 	case *rtcp.SenderReport:
@@ -118,64 +102,41 @@ func (p *trackListener) WriteRTCP(anyPacket rtcp.Packet) error {
 	return nil
 }
 
-func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (chan rtcp.Packet, error) {
+func (p *trackListener) AddTrack(sourceClientID string, track *webrtc.Track) (<-chan rtcp.Packet, error) {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 
 	p.log.Printf("[%s] peer.AddTrack: %d", p.clientID, track.SSRC())
-	rtpSender, err := p.peerConnection.AddTrack(track)
+	rtcpChSource, err := p.transport.AddTrack(track)
 
-	var transceiver *webrtc.RTPTransceiver
-	for _, tr := range p.peerConnection.GetTransceivers() {
-		if tr.Sender() == rtpSender {
-			transceiver = tr
-			break
-		}
+	if err != nil {
+		return rtcpChSource, fmt.Errorf("[%s] peer.AddTrack: error adding track: %d: %s", p.clientID, track.SSRC(), err)
 	}
 
 	rtcpCh := make(chan rtcp.Packet)
 
-	if err != nil {
-		close(rtcpCh)
-		return rtcpCh, fmt.Errorf("[%s] peer.AddTrack: error adding track: %d: %s", p.clientID, track.SSRC(), err)
-	}
-
 	go func() {
-		for {
-			rtcps, err := rtpSender.ReadRTCP()
-			if err != nil {
-				p.log.Printf("[%s] RTCP stream for sender track: %d has ended: %s",
-					p.clientID,
-					track.SSRC(),
-					err,
-				)
-				close(rtcpCh)
-				break
-			}
-			for _, pkt := range rtcps {
-				prometheusRTCPPacketsReceived.Inc()
-				switch rtcpPkt := pkt.(type) {
-				case *rtcp.TransportLayerNack:
-					nack := p.jitterHandler.HandleNack(p.clientID, rtpSender, rtcpPkt)
-					if nack != nil {
-						rtcpCh <- nack
-					}
-				default:
-					rtcpCh <- pkt
+		defer close(rtcpCh)
+		for pkt := range rtcpChSource {
+			prometheusRTCPPacketsReceived.Inc()
+			switch rtcpPkt := pkt.(type) {
+			case *rtcp.TransportLayerNack:
+				nack := p.jitterHandler.HandleNack(p.clientID, p.transport, rtcpPkt)
+				if nack != nil {
+					rtcpCh <- nack
 				}
+			default:
+				rtcpCh <- pkt
 			}
 		}
 	}()
 
-	p.trackInfoByTrack[track] = TrackInfo{
-		RTPSender:      rtpSender,
-		RTPTransceiver: transceiver,
-		TrackMetadata: TrackMetadata{
-			Mid:      "",
-			Kind:     track.Kind().String(),
-			UserID:   sourceClientID,
-			StreamID: track.Label(),
-		},
+	p.trackMetadata[track] = TrackMetadata{
+		Mid:      "",
+		Kind:     track.Kind().String(),
+		UserID:   sourceClientID,
+		StreamID: track.Label(),
+		SSRC:     track.SSRC(),
 	}
 	return rtcpCh, nil
 }
@@ -184,19 +145,14 @@ func (p *trackListener) RemoveTrack(track *webrtc.Track) error {
 	p.localTracksMu.Lock()
 	defer p.localTracksMu.Unlock()
 	p.log.Printf("[%s] peer.RemoveTrack: %d", p.clientID, track.SSRC())
-	trackInfo, ok := p.trackInfoByTrack[track]
-	if !ok {
-		return fmt.Errorf("[%s] peer.RemoveTrack: cannot find sender for track: %d", p.clientID, track.SSRC())
-	}
-	delete(p.trackInfoByTrack, track)
-	delete(p.ssrcMaxBitrates, track.SSRC())
-	return p.peerConnection.RemoveTrack(trackInfo.RTPSender)
+	delete(p.trackMetadata, track)
+	return p.transport.RemoveTrack(track)
 }
 
-func (p *trackListener) handleTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+func (p *trackListener) handleTrack(remoteTrack *webrtc.Track) {
 	p.log.Printf("[%s] peer.handleTrack (id: %s, label: %s, type: %s, ssrc: %d)",
 		p.clientID, remoteTrack.ID(), remoteTrack.Label(), remoteTrack.Kind(), remoteTrack.SSRC())
-	localTrack, err := p.startCopyingTrack(remoteTrack, receiver)
+	localTrack, err := p.startCopyingTrack(remoteTrack)
 	if err != nil {
 		p.log.Printf("Error copying remote track: %s", err)
 		return
@@ -218,7 +174,7 @@ func (p *trackListener) Tracks() []*webrtc.Track {
 	return p.localTracks
 }
 
-func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) (*webrtc.Track, error) {
+func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track) (*webrtc.Track, error) {
 	remoteTrackID := remoteTrack.ID()
 	if remoteTrackID == "" {
 		remoteTrackID = NewUUIDBase62()
@@ -237,7 +193,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 
 	ssrc := remoteTrack.SSRC()
 	// Create a local track, all our SFU clients will be fed via this track
-	localTrack, err := p.peerConnection.NewTrack(remoteTrack.PayloadType(), ssrc, localTrackID, localTrackLabel)
+	localTrack, err := p.transport.NewTrack(remoteTrack.PayloadType(), ssrc, localTrackID, localTrackLabel)
 	if err != nil {
 		err = fmt.Errorf("[%s] peer.startCopyingTrack: error creating new track: %d, error: %s", p.clientID, remoteTrack.SSRC(), err)
 		return nil, err
@@ -251,7 +207,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 		ticker = time.NewTicker(p.pliInterval)
 		go func() {
 			writeRTCP := func() {
-				err := p.peerConnection.WriteRTCP(
+				err := p.transport.WriteRTCP(
 					[]rtcp.Packet{
 						&rtcp.PictureLossIndication{
 							MediaSSRC: ssrc,
@@ -292,7 +248,7 @@ func (p *trackListener) startCopyingTrack(remoteTrack *webrtc.Track, receiver *w
 			}
 
 			prometheusRTPPacketsReceived.Inc()
-			p.jitterHandler.HandleRTP(p.clientID, p.peerConnection, pkt)
+			p.jitterHandler.HandleRTP(p.clientID, p.transport, pkt)
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			err = localTrack.WriteRTP(pkt)

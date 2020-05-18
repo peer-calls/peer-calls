@@ -190,10 +190,12 @@ func (t *RoomPeersManager) Add(
 		}
 	}
 
+	transport := NewPeerTransport(peerConnection)
+
 	trackListener := newTrackListener(
 		t.loggerFactory,
 		clientID,
-		peerConnection,
+		transport,
 		onTrackEvent,
 		t.jitterHandler,
 	)

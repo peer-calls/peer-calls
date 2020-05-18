@@ -3,12 +3,11 @@ package server
 import (
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
 )
 
 type JitterHandler interface {
-	HandleNack(clientID string, rtpSender *webrtc.RTPSender, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack
-	HandleRTP(clientID string, peerConnection *webrtc.PeerConnection, pkt *rtp.Packet)
+	HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack
+	HandleRTP(clientID string, transport Transport, pkt *rtp.Packet)
 	RemoveBuffer(ssrc uint32)
 }
 
@@ -35,7 +34,7 @@ func NewJitterNackHandler(
 
 // ProcessNack tries to find the missing packet in JitterBuffer and send it,
 // otherwise it will send the nack packet to the original sender of the track.
-func (n *NackHandler) HandleNack(clientID string, rtpSender *webrtc.RTPSender, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
+func (n *NackHandler) HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
 	actualNacks := make([]rtcp.NackPair, 0, len(nack.Nacks))
 
 	for _, nackPair := range nack.Nacks {
@@ -54,7 +53,7 @@ func (n *NackHandler) HandleNack(clientID string, rtpSender *webrtc.RTPSender, n
 
 			n.nackLog.Printf("[%s] Packet (ssrc: %d, sn: %d) found in JitterBuffer", clientID, nack.MediaSSRC, sn)
 			// JitterBuffer had the missing packet, send it
-			_, err := rtpSender.SendRTP(&rtpPacket.Header, rtpPacket.Payload)
+			_, err := transport.WriteRTP(rtpPacket)
 			if err != nil {
 				n.log.Printf("[%s] Error sending RTP packet from jitter buffer for track: %d: %s", clientID, nack.MediaSSRC, err)
 			}
@@ -75,14 +74,14 @@ func (n *NackHandler) HandleNack(clientID string, rtpSender *webrtc.RTPSender, n
 	}
 }
 
-func (n *NackHandler) HandleRTP(clientID string, peerConnection *webrtc.PeerConnection, pkt *rtp.Packet) {
+func (n *NackHandler) HandleRTP(clientID string, transport Transport, pkt *rtp.Packet) {
 	prometheusRTPPacketsReceived.Inc()
 	rtcpPkt := n.jitterBuffer.PushRTP(pkt)
 	if rtcpPkt == nil {
 		return
 	}
 
-	err := peerConnection.WriteRTCP([]rtcp.Packet{rtcpPkt})
+	err := transport.WriteRTCP([]rtcp.Packet{rtcpPkt})
 	if err != nil {
 		n.log.Printf("[%s] Error writing rtcp packet from jitter buffer for track: %d: %s", clientID, pkt.SSRC, err)
 	}
@@ -94,12 +93,12 @@ func (n *NackHandler) RemoveBuffer(ssrc uint32) {
 
 type NoopNackHandler struct{}
 
-func (n *NoopNackHandler) HandleNack(clientID string, rtpSender *webrtc.RTPSender, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
+func (n *NoopNackHandler) HandleNack(clientID string, transport Transport, nack *rtcp.TransportLayerNack) *rtcp.TransportLayerNack {
 	// do nothing
 	return nil
 }
 
-func (n *NoopNackHandler) HandleRTP(clientID string, peerConnection *webrtc.PeerConnection, pkt *rtp.Packet) {
+func (n *NoopNackHandler) HandleRTP(clientID string, transport Transport, pkt *rtp.Packet) {
 	// do nothing
 }
 
