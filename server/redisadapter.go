@@ -132,13 +132,13 @@ func (a *RedisAdapter) remove(clientID string) (err error) {
 
 func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
 	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
-	return metadata, err != nil
+	return metadata, err == nil
 }
 
 func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
-	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
+	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID).Result()
 	a.log.Printf("SetMetadata for clientID: %s, metadata: %s (err: %s)", clientID, metadata, err)
-	return err != nil
+	return err == nil
 }
 
 // Returns IDs of all known clients connected to this room
