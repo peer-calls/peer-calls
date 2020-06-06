@@ -12,4 +12,5 @@ type Transport interface {
 	RTPChannel() <-chan *rtp.Packet
 	RTCPChannel() <-chan rtcp.Packet
 	// MessagesChannel() <-chan webrtc.DataChannelMessage
+	Close() error
 }
