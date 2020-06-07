@@ -3,12 +3,14 @@ package server
 import (
 	"net"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
+	"github.com/pion/sctp"
 	"github.com/pion/webrtc/v2/pkg/media"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,17 +33,17 @@ func newUDPServer() *net.UDPConn {
 	return conn
 }
 
-func newUDPClient(addr net.Addr) *net.UDPConn {
+func newUDPClient(raddr net.Addr) *net.UDPConn {
+	// raddr := &net.UDPAddr{
+	// 	Port: 1234,
+	// 	IP:   net.ParseIP("127.0.0.1"),
+	// }
 	laddr := &net.UDPAddr{
-		Port: 1234,
-		IP:   net.ParseIP("127.0.0.1"),
-	}
-	raddr := &net.UDPAddr{
 		Port: 5678,
 		IP:   net.ParseIP("127.0.0.1"),
 	}
 
-	conn, err := net.DialUDP("udp", raddr, laddr)
+	conn, err := net.DialUDP("udp", laddr, raddr.(*net.UDPAddr))
 	if err != nil {
 		panic(err)
 	}
@@ -162,4 +164,70 @@ func TestRTPTransport_RTCP(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, sentBytes, recvBytes)
+}
+
+func TestRTPTransport_SCTP(t *testing.T) {
+	conn1 := newUDPServer()
+	conn2 := newUDPClient(conn1.LocalAddr())
+
+	defer conn1.Close()
+	defer conn2.Close()
+
+	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
+
+	plf := NewPionLoggerFactory(loggerFactory)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// SCTP needs to be started in separate goroutines because creating a new
+	// client will block until the handshake is complete, and there will be no
+	// handshake until both clients are created
+
+	var c1 *sctp.Association
+	go func() {
+		var err error
+		c1, err = sctp.Client(sctp.Config{
+			NetConn:              conn1,
+			MaxReceiveBufferSize: uint32(receiveMTU),
+			LoggerFactory:        plf,
+		})
+		require.NoError(t, err)
+
+		wg.Done()
+	}()
+
+	var c2 *sctp.Association
+	go func() {
+		var err error
+		c2, err = sctp.Client(sctp.Config{
+			NetConn:              conn2,
+			MaxReceiveBufferSize: uint32(receiveMTU),
+			LoggerFactory:        plf,
+		})
+		require.NoError(t, err)
+
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	t.Log("open stream")
+	s1, err := c1.OpenStream(1, sctp.PayloadTypeWebRTCString)
+	require.NoError(t, err)
+
+	// need to call write before accepting stream
+	t.Log("write")
+	i, err := s1.Write([]byte("ping"))
+	require.Equal(t, 4, i)
+
+	t.Log("accept stream")
+	s2, err := c2.AcceptStream()
+	require.NoError(t, err)
+
+	t.Log("recv")
+	buf := make([]byte, 4)
+	i, err = s2.Read(buf)
+	assert.Equal(t, 4, i)
+	assert.Equal(t, "ping", string(buf))
 }
