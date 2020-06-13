@@ -96,15 +96,15 @@ func NewRoomPeersManager(loggerFactory LoggerFactory, jitterHandler JitterHandle
 	}
 }
 
-func (t *RoomPeersManager) addTrack(clientID string, track TrackInfo) {
+func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.clientIDBySSRC[track.SSRC] = clientID
+	t.clientIDBySSRC[track.SSRC()] = clientID
 
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
-			if err := otherTransport.AddTrack(track.PayloadType, track.SSRC, track.ID, track.Label); err != nil {
+			if err := otherTransport.AddTrack(track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
 			}
@@ -150,9 +150,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 		for trackEvent := range transport.TrackEventsChannel() {
 			switch trackEvent.Type {
 			case TrackEventTypeAdd:
-				t.addTrack(transport.ClientID(), trackEvent.TrackInfo)
+				t.addTrack(transport.ClientID(), trackEvent.Track)
 			case TrackEventTypeRemove:
-				t.removeTrack(transport.ClientID(), trackEvent.TrackInfo)
+				t.removeTrack(transport.ClientID(), trackEvent.Track)
 			}
 		}
 	}()
@@ -251,7 +251,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 
 	for existingClientID, existingTransport := range t.transports {
 		for _, track := range existingTransport.RemoteTracks() {
-			err := transport.AddTrack(track.PayloadType, track.SSRC, track.ID, track.Label)
+			err := transport.AddTrack(track.Track)
 			if err != nil {
 				t.log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
@@ -284,14 +284,15 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 
 	tracks := transport.LocalTracks()
 	m = make([]TrackMetadata, 0, len(tracks))
-	for _, track := range tracks {
+	for _, webrtcTrack := range tracks {
+		track := webrtcTrack.Track
 		trackMetadata := TrackMetadata{
-			Kind:     track.Kind.String(),
-			Mid:      track.Mid,
-			StreamID: track.Label,
-			UserID:   t.clientIDBySSRC[track.SSRC],
+			Kind:     webrtcTrack.Kind.String(),
+			Mid:      webrtcTrack.Mid,
+			StreamID: track.Label(),
+			UserID:   t.clientIDBySSRC[track.SSRC()],
 		}
-		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC, trackMetadata)
+		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC(), trackMetadata)
 		m = append(m, trackMetadata)
 	}
 
@@ -307,18 +308,18 @@ func (t *RoomPeersManager) Remove(clientID string) {
 	delete(t.transports, clientID)
 }
 
-func (t *RoomPeersManager) removeTrack(clientID string, track TrackInfo) {
-	t.log.Printf("[%s] removeTrack ssrc: %d from other peers", clientID, track.SSRC)
+func (t *RoomPeersManager) removeTrack(clientID string, track Track) {
+	t.log.Printf("[%s] removeTrack ssrc: %d from other peers", clientID, track.SSRC())
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.trackBitrateEstimators.Remove(track.SSRC)
-	delete(t.clientIDBySSRC, track.SSRC)
+	t.trackBitrateEstimators.Remove(track.SSRC())
+	delete(t.clientIDBySSRC, track.SSRC())
 
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
-			err := otherTransport.RemoveTrack(track.SSRC)
+			err := otherTransport.RemoveTrack(track.SSRC())
 			if err != nil {
 				t.log.Printf("[%s] removeTrack error removing track: %s", clientID, err)
 			}

@@ -18,7 +18,7 @@ type MetadataTransport interface {
 	TrackEventsChannel() <-chan TrackEvent
 	LocalTracks() []TrackInfo
 	RemoteTracks() []TrackInfo
-	AddTrack(payloadType uint8, ssrc uint32, id string, label string) error
+	AddTrack(track Track) error
 	RemoveTrack(ssrc uint32) error
 }
 

@@ -12,12 +12,9 @@ import (
 )
 
 type TrackInfo struct {
-	PayloadType uint8
-	SSRC        uint32
-	ID          string
-	Label       string
-	Kind        webrtc.RTPCodecType
-	Mid         string
+	Track Track
+	Kind  webrtc.RTPCodecType
+	Mid   string
 }
 
 type TrackEventType uint8
@@ -120,8 +117,8 @@ type WebRTCTransport struct {
 	rtpCh         chan *rtp.Packet
 	rtcpCh        chan rtcp.Packet
 
-	localTracks  map[uint32]localTrackInfo
-	remoteTracks map[uint32]remoteTrackInfo
+	localTracks  map[uint32]localTrack
+	remoteTracks map[uint32]remoteTrack
 }
 
 var _ Transport = &WebRTCTransport{}
@@ -209,8 +206,8 @@ func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator 
 		rtpCh:         make(chan *rtp.Packet),
 		rtcpCh:        make(chan rtcp.Packet),
 
-		localTracks:  map[uint32]localTrackInfo{},
-		remoteTracks: map[uint32]remoteTrackInfo{},
+		localTracks:  map[uint32]localTrack{},
+		remoteTracks: map[uint32]remoteTrack{},
 	}
 	peerConnection.OnTrack(transport.handleTrack)
 
@@ -227,14 +224,14 @@ func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator 
 	return transport, nil
 }
 
-type localTrackInfo struct {
+type localTrack struct {
 	trackInfo   TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	sender      *webrtc.RTPSender
 	track       *webrtc.Track
 }
 
-type remoteTrackInfo struct {
+type remoteTrack struct {
 	trackInfo   TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	receiver    *webrtc.RTPReceiver
@@ -309,8 +306,8 @@ func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 	return nil
 }
 
-func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, label string) error {
-	track, err := p.peerConnection.NewTrack(payloadType, ssrc, id, label)
+func (p *WebRTCTransport) AddTrack(t Track) error {
+	track, err := p.peerConnection.NewTrack(t.PayloadType(), t.SSRC(), t.ID(), t.Label())
 	if err != nil {
 		return err
 	}
@@ -351,24 +348,21 @@ func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, la
 	}
 
 	trackInfo := TrackInfo{
-		SSRC:        track.SSRC(),
-		PayloadType: track.PayloadType(),
-		ID:          track.ID(),
-		Label:       track.Label(),
-		Kind:        track.Kind(),
+		Track: NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
+		Kind:  track.Kind(),
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.localTracks[ssrc] = localTrackInfo{trackInfo, transceiver, sender, track}
+	p.localTracks[t.SSRC()] = localTrack{trackInfo, transceiver, sender, track}
 	return nil
 }
 
-func (p *WebRTCTransport) addRemoteTrack(rti remoteTrackInfo) {
+func (p *WebRTCTransport) addRemoteTrack(rti remoteTrack) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.remoteTracks[rti.trackInfo.SSRC] = rti
+	p.remoteTracks[rti.trackInfo.Track.SSRC()] = rti
 }
 
 func (p *WebRTCTransport) removeRemoteTrack(ssrc uint32) {
@@ -408,14 +402,11 @@ func (p *WebRTCTransport) LocalTracks() []TrackInfo {
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
 	trackInfo := TrackInfo{
-		SSRC:        track.SSRC(),
-		PayloadType: track.PayloadType(),
-		ID:          track.ID(),
-		Label:       track.Label(),
-		Kind:        track.Kind(),
+		Track: NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
+		Kind:  track.Kind(),
 	}
 
-	p.log.Printf("[%s] Remote track: %d", p.clientID, trackInfo.SSRC)
+	p.log.Printf("[%s] Remote track: %d", p.clientID, trackInfo.Track.SSRC())
 
 	start := time.Now()
 	prometheusWebRTCTracksTotal.Inc()
@@ -429,7 +420,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 		}
 	}
 
-	rti := remoteTrackInfo{trackInfo, transceiver, receiver, track}
+	rti := remoteTrack{trackInfo, transceiver, receiver, track}
 
 	p.addRemoteTrack(rti)
 	p.trackEventsCh <- TrackEvent{
@@ -440,7 +431,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	p.wg.Add(1)
 	go func() {
 		defer func() {
-			p.removeRemoteTrack(trackInfo.SSRC)
+			p.removeRemoteTrack(trackInfo.Track.SSRC())
 			p.trackEventsCh <- TrackEvent{
 				TrackInfo: trackInfo,
 				Type:      TrackEventTypeRemove,
@@ -455,7 +446,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 		for {
 			pkt, err := track.ReadRTP()
 			if err != nil {
-				p.log.Printf("[%s] Remote track has ended: %d: %s", p.clientID, trackInfo.SSRC, err)
+				p.log.Printf("[%s] Remote track has ended: %d: %s", p.clientID, trackInfo.Track.SSRC(), err)
 				return
 			}
 			prometheusRTPPacketsReceived.Inc()

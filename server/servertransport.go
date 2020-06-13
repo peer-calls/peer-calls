@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -238,20 +239,49 @@ func (t *ServerDataTransport) Close() error {
 }
 
 type ServerMetadataTransport struct {
-	conn   io.ReadWriteCloser
-	logger Logger
+	conn          io.ReadWriteCloser
+	logger        Logger
+	trackEventsCh chan TrackEvent
 }
 
 var _ MetadataTransport = &ServerMetadataTransport{}
 
 func NewServerMetadataTransport(logger Logger, conn io.ReadWriteCloser) *ServerMetadataTransport {
-	return &ServerMetadataTransport{
+	transport := &ServerMetadataTransport{
 		logger: logger,
 		conn:   conn,
+	}
+
+	go transport.start()
+
+	return transport
+}
+
+func (t *ServerMetadataTransport) start() {
+	t.trackEventsCh = make(chan TrackEvent)
+	defer close(t.trackEventsCh)
+
+	for {
+		buf := make([]byte, receiveMTU)
+		i, err := t.conn.Read(buf)
+		if err != nil {
+			t.logger.Printf("Error reading remote data: %s", err)
+			return
+		}
+
+		// var t TrackEvent
+		err = json.Unmarshal(buf[:i], struct{}{})
+		if err != nil {
+			t.logger.Printf("Error unmarshalling remote data: %s", err)
+			return
+		}
+
+		// t.trackEventsCh <- TODO
 	}
 }
 
 func (t *ServerMetadataTransport) TrackEventsChannel() <-chan TrackEvent {
+
 	// TODO implement this
 	ch := make(chan TrackEvent)
 	close(ch)
@@ -266,7 +296,7 @@ func (t *ServerMetadataTransport) RemoteTracks() []TrackInfo {
 	return nil
 }
 
-func (t *ServerMetadataTransport) AddTrack(payloadType uint8, ssrc uint32, id string, label string) error {
+func (t *ServerMetadataTransport) AddTrack(track Track) error {
 	return nil
 }
 
