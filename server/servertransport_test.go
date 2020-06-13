@@ -77,14 +77,15 @@ func TestUDP(t *testing.T) {
 	assert.Equal(t, "pong", string(buf))
 }
 
-func TestRTPTransport_RTP(t *testing.T) {
+func TestServerMediaTransport_RTP(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 
 	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
+	logger := loggerFactory.GetLogger("test")
 
-	t1 := NewRTPTransport(loggerFactory, conn1)
-	t2 := NewRTPTransport(loggerFactory, conn2)
+	t1 := NewServerMediaTransport(logger, conn1)
+	t2 := NewServerMediaTransport(logger, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -100,7 +101,7 @@ func TestRTPTransport_RTP(t *testing.T) {
 		96000,
 	)
 
-	writeSample := func(transport Transport, s media.Sample) []*rtp.Packet {
+	writeSample := func(transport MediaTransport, s media.Sample) []*rtp.Packet {
 		pkts := packetizer.Packetize(s.Data, s.Samples)
 
 		for _, pkt := range pkts {
@@ -132,14 +133,15 @@ func TestRTPTransport_RTP(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestRTPTransport_RTCP(t *testing.T) {
+func TestServerMediaTransport_RTCP(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 
 	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
+	logger := loggerFactory.GetLogger("test")
 
-	t1 := NewRTPTransport(loggerFactory, conn1)
-	t2 := NewRTPTransport(loggerFactory, conn2)
+	t1 := NewServerMediaTransport(logger, conn1)
+	t2 := NewServerMediaTransport(logger, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -148,7 +150,7 @@ func TestRTPTransport_RTCP(t *testing.T) {
 		SSRC: uint32(123),
 	}
 
-	writeRTCP := func(transport Transport, pkts []rtcp.Packet) {
+	writeRTCP := func(transport MediaTransport, pkts []rtcp.Packet) {
 		err := transport.WriteRTCP(pkts)
 		require.NoError(t, err)
 	}
@@ -166,7 +168,7 @@ func TestRTPTransport_RTCP(t *testing.T) {
 	assert.Equal(t, sentBytes, recvBytes)
 }
 
-func TestRTPTransport_SCTP(t *testing.T) {
+func TestServerMediaTransport_SCTP(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 

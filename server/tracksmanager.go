@@ -34,7 +34,7 @@ func NewMemoryTracksManager(loggerFactory LoggerFactory, jitterBufferEnabled boo
 	}
 }
 
-func (m *MemoryTracksManager) Add(room string, transport *WebRTCTransport) {
+func (m *MemoryTracksManager) Add(room string, transport Transport) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -79,7 +79,7 @@ type RoomPeersManager struct {
 	log           Logger
 	mu            sync.RWMutex
 	// key is clientID
-	transports             map[string]*WebRTCTransport
+	transports             map[string]Transport
 	jitterHandler          JitterHandler
 	trackBitrateEstimators *TrackBitrateEstimators
 	clientIDBySSRC         map[uint32]string
@@ -89,7 +89,7 @@ func NewRoomPeersManager(loggerFactory LoggerFactory, jitterHandler JitterHandle
 	return &RoomPeersManager{
 		loggerFactory:          loggerFactory,
 		log:                    loggerFactory.GetLogger("roompeers"),
-		transports:             map[string]*WebRTCTransport{},
+		transports:             map[string]Transport{},
 		jitterHandler:          jitterHandler,
 		trackBitrateEstimators: NewTrackBitrateEstimators(),
 		clientIDBySSRC:         map[uint32]string{},
@@ -119,12 +119,11 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 	for otherClientID, otherPeerInRoom := range t.transports {
 		if otherClientID != clientID {
 			t.log.Printf("[%s] broadcast from %s", otherClientID, clientID)
-			tr := otherPeerInRoom.dataTransceiver
 			var err error
 			if msg.IsString {
-				err = tr.SendText(string(msg.Data))
+				err = otherPeerInRoom.SendText(string(msg.Data))
 			} else {
-				err = tr.Send(msg.Data)
+				err = otherPeerInRoom.Send(msg.Data)
 			}
 			if err != nil {
 				t.log.Printf("[%s] broadcast error: %s", otherClientID, err)
@@ -133,7 +132,7 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 	}
 }
 
-func (t *RoomPeersManager) getTransportBySSRC(ssrc uint32) (transport *WebRTCTransport, ok bool) {
+func (t *RoomPeersManager) getTransportBySSRC(ssrc uint32) (transport Transport, ok bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -146,7 +145,7 @@ func (t *RoomPeersManager) getTransportBySSRC(ssrc uint32) (transport *WebRTCTra
 	return transport, ok
 }
 
-func (t *RoomPeersManager) Add(transport *WebRTCTransport) {
+func (t *RoomPeersManager) Add(transport Transport) {
 	go func() {
 		for trackEvent := range transport.TrackEventsChannel() {
 			switch trackEvent.Type {
@@ -268,7 +267,12 @@ func (t *RoomPeersManager) Add(transport *WebRTCTransport) {
 
 }
 
-// GetTracksMetadata retrieves remote track metadata for a specific peer
+// GetTracksMetadata retrieves remote track metadata for a specific peer.
+//
+// TODO In the future, this method will need to be implemented differently for
+// WebRTCTransport and RTPTransport, since RTPTransport might contain tracks
+// for multiple users in a peer. Therefor the RTPTransport should be able to
+// provide metadata on its own.
 func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

@@ -489,3 +489,11 @@ func (p *WebRTCTransport) RTCPChannel() <-chan rtcp.Packet {
 func (p *WebRTCTransport) MessagesChannel() <-chan webrtc.DataChannelMessage {
 	return p.dataTransceiver.MessagesChannel()
 }
+
+func (p *WebRTCTransport) Send(message []byte) error {
+	return p.dataTransceiver.Send(message)
+}
+
+func (p *WebRTCTransport) SendText(message string) error {
+	return p.dataTransceiver.SendText(message)
+}

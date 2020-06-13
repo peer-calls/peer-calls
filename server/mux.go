@@ -44,7 +44,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, transport *WebRTCTransport)
+	Add(room string, transport Transport)
 	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
 }
 

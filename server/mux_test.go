@@ -17,7 +17,7 @@ var iceServers = []server.ICEServer{}
 type addedPeer struct {
 	room      string
 	clientID  string
-	transport *server.WebRTCTransport
+	transport server.Transport
 }
 
 type mockTracksManager struct {
@@ -32,7 +32,7 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, transport *server.WebRTCTransport) {
+func (m *mockTracksManager) Add(room string, transport server.Transport) {
 	m.added <- addedPeer{
 		room:      room,
 		clientID:  clientID,
