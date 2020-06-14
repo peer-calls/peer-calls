@@ -46,7 +46,7 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 			m.loggerFactory.GetLogger("nack"),
 			m.jitterBufferEnabled,
 		)
-		roomPeersManager = NewRoomPeersManager(m.loggerFactory, jitterHandler)
+		roomPeersManager = NewRoomPeersManager(room, m.loggerFactory, jitterHandler)
 		m.roomPeersManager[room] = roomPeersManager
 	}
 
@@ -83,9 +83,10 @@ type RoomPeersManager struct {
 	jitterHandler          JitterHandler
 	trackBitrateEstimators *TrackBitrateEstimators
 	clientIDBySSRC         map[uint32]string
+	room                   string
 }
 
-func NewRoomPeersManager(loggerFactory LoggerFactory, jitterHandler JitterHandler) *RoomPeersManager {
+func NewRoomPeersManager(room string, loggerFactory LoggerFactory, jitterHandler JitterHandler) *RoomPeersManager {
 	return &RoomPeersManager{
 		loggerFactory:          loggerFactory,
 		log:                    loggerFactory.GetLogger("roompeers"),
@@ -93,6 +94,7 @@ func NewRoomPeersManager(loggerFactory LoggerFactory, jitterHandler JitterHandle
 		jitterHandler:          jitterHandler,
 		trackBitrateEstimators: NewTrackBitrateEstimators(),
 		clientIDBySSRC:         map[uint32]string{},
+		room:                   room,
 	}
 }
 
@@ -104,6 +106,7 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
+			track := t.asUserTrack(track, otherClientID)
 			if err := otherTransport.AddTrack(track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
@@ -250,8 +253,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	defer t.mu.Unlock()
 
 	for existingClientID, existingTransport := range t.transports {
-		for _, track := range existingTransport.RemoteTracks() {
-			err := transport.AddTrack(track.Track)
+		for _, trackInfo := range existingTransport.RemoteTracks() {
+			track := t.asUserTrack(trackInfo.Track, existingClientID)
+			err := transport.AddTrack(track)
 			if err != nil {
 				t.log.Printf(
 					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
@@ -265,6 +269,29 @@ func (t *RoomPeersManager) Add(transport Transport) {
 
 	t.transports[transport.ClientID()] = transport
 
+}
+
+// getUserID tries to obtain to userID from a track, but otherwise falls back
+// to the clientID.
+func (t *RoomPeersManager) getUserID(track Track) string {
+	var userID string
+	if userIdentifiable, ok := track.(UserIdentifiable); ok {
+		userID = userIdentifiable.UserID()
+	}
+	if userID == "" {
+		userID = t.clientIDBySSRC[track.SSRC()]
+	}
+	return userID
+}
+
+// asUserTrack adds business level metadata to track such as userID and roomID
+// if such data does not already exist.
+func (t *RoomPeersManager) asUserTrack(track Track, clientID string) Track {
+	if _, ok := track.(UserIdentifiable); ok {
+		return track
+	}
+
+	return NewUserTrack(track, clientID, t.room)
 }
 
 // GetTracksMetadata retrieves remote track metadata for a specific peer.
@@ -284,13 +311,13 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 
 	tracks := transport.LocalTracks()
 	m = make([]TrackMetadata, 0, len(tracks))
-	for _, webrtcTrack := range tracks {
-		track := webrtcTrack.Track
+	for _, trackInfo := range tracks {
+		track := trackInfo.Track
 		trackMetadata := TrackMetadata{
-			Kind:     webrtcTrack.Kind.String(),
-			Mid:      webrtcTrack.Mid,
+			Kind:     trackInfo.Kind.String(),
+			Mid:      trackInfo.Mid,
 			StreamID: track.Label(),
-			UserID:   t.clientIDBySSRC[track.SSRC()],
+			UserID:   t.getUserID(track),
 		}
 		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC(), trackMetadata)
 		m = append(m, trackMetadata)
