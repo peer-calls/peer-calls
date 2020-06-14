@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
@@ -15,6 +16,28 @@ var receiveMTU = 8192
 var ErrNoData = fmt.Errorf("cannot handle empty buffer")
 var ErrUnknownPacket = fmt.Errorf("unknown packet")
 
+// ServerTransport is used for server to server communication. The underlying
+// transport protocol is SCTP, and the following data is transferred:
+//
+// 1. Ordered Metadata stream on ID 0. This stream will contain track, as well
+//    as application level metadata.
+// 2. Unordered Media (RTP and RTCP) streams will use odd numbered stream IDs,
+//    starting from 1.
+// 3. Ordered DataChannel messages on even stream IDs, starting from 2.
+//
+// A single Media stream transports all RTP and RTCP packets for a single
+// room, and a single DataChannel stream will transport all datachannel
+// messages for a single room.
+//
+// A single SCTP connection can be used to transport packets from multiple
+// rooms. Each room will take exactly one Media stream and one DataChannel
+// stream. Following the rules above, the stream IDs for a specific room
+// will always be N and N+1, but the metadata for all rooms will be sent on
+// stream 0.
+//
+// Track metadata is JSON encoded.
+//
+// TODO subject to change
 type ServerTransport struct {
 	*ServerMetadataTransport
 	*ServerMediaTransport
@@ -71,26 +94,6 @@ func (t *ServerTransport) Close() (err error) {
 	return err
 }
 
-// ServerMediaTransport is used for server to server communication. The underlying
-// transport protocol is SCTP, and the following data is transferred:
-//
-// 1. Ordered Metadata stream on ID 0. This stream will contain Track,
-//    DataChannel and application-level metadata.
-// 2. Unordered Media (RTP and RTCP) streams will use odd numbered stream IDs,
-//    starting from 1.
-// 3. Ordered DataChannel messages on even stream IDs, starting from 2.
-//
-// A single Media stream transports all RTP and RTCP packets for a single
-// room, and a single DataChannel stream will transport all datachannel
-// messages for a single room.
-//
-// A single SCTP connection can be used to transport packets from multiple
-// rooms. Each room will take exactly one Media stream and one DataChannel
-// stream. Following the rules above, the stream IDs for a specific room
-// will always be N and N+1, but the metadata for all rooms will be sent on
-// stream 0.
-//
-// Track metadata is JSON encoded.
 type ServerMediaTransport struct {
 	clientID string
 	conn     io.ReadWriteCloser
@@ -204,34 +207,77 @@ func (t *ServerMediaTransport) Close() error {
 }
 
 type ServerDataTransport struct {
-	conn   io.ReadWriteCloser
-	logger Logger
+	conn         io.ReadWriteCloser
+	logger       Logger
+	messagesChan chan webrtc.DataChannelMessage
 }
 
 var _ DataTransport = &ServerDataTransport{}
 
 func NewServerDataTransport(logger Logger, conn io.ReadWriteCloser) *ServerDataTransport {
-	return &ServerDataTransport{
-		logger: logger,
-		conn:   conn,
+	transport := &ServerDataTransport{
+		logger:       logger,
+		conn:         conn,
+		messagesChan: make(chan webrtc.DataChannelMessage),
+	}
+
+	go transport.start()
+
+	return transport
+}
+
+func (t *ServerDataTransport) start() {
+	defer close(t.messagesChan)
+
+	buf := make([]byte, receiveMTU)
+	for {
+		i, err := t.conn.Read(buf)
+		if err != nil {
+			t.logger.Printf("Error reading remote data: %s", err)
+			return
+		}
+
+		if i < 1 {
+			t.logger.Printf("Message too short: %d", i)
+			return
+		}
+
+		// This is a little wasteful as a whole byte is being used as a boolean,
+		// but works for now.
+		isString := !(buf[0] == 0)
+
+		// TODO figure out which user a message belongs to.
+		message := webrtc.DataChannelMessage{
+			IsString: isString,
+			Data:     buf[1:],
+		}
+
+		t.messagesChan <- message
 	}
 }
 
 func (t *ServerDataTransport) MessagesChannel() <-chan webrtc.DataChannelMessage {
-	// TODO implement this
-	ch := make(chan webrtc.DataChannelMessage)
-	close(ch)
-	return ch
+	return t.messagesChan
 }
 
 func (t *ServerDataTransport) Send(message []byte) error {
-	// TODO implement this
-	return fmt.Errorf("Not implemented")
+	b := make([]byte, 0, len(message)+1)
+	// mark as binary
+	b = append(b, 0)
+	b = append(b, message...)
+
+	_, err := t.conn.Write(b)
+	return err
 }
 
 func (t *ServerDataTransport) SendText(message string) error {
-	// TODO implement this
-	return fmt.Errorf("Not implemented")
+	b := make([]byte, 0, len(message)+1)
+	// mark as string
+	b = append(b, 1)
+	b = append(b, message...)
+
+	_, err := t.conn.Write(b)
+	return err
 }
 
 func (t *ServerDataTransport) Close() error {
@@ -242,14 +288,21 @@ type ServerMetadataTransport struct {
 	conn          io.ReadWriteCloser
 	logger        Logger
 	trackEventsCh chan TrackEvent
+	localTracks   map[uint32]TrackInfo
+	remoteTracks  map[uint32]TrackInfo
+	mu            *sync.Mutex
 }
 
 var _ MetadataTransport = &ServerMetadataTransport{}
 
 func NewServerMetadataTransport(logger Logger, conn io.ReadWriteCloser) *ServerMetadataTransport {
 	transport := &ServerMetadataTransport{
-		logger: logger,
-		conn:   conn,
+		logger:        logger,
+		conn:          conn,
+		localTracks:   map[uint32]TrackInfo{},
+		remoteTracks:  map[uint32]TrackInfo{},
+		trackEventsCh: make(chan TrackEvent),
+		mu:            &sync.Mutex{},
 	}
 
 	go transport.start()
@@ -258,25 +311,25 @@ func NewServerMetadataTransport(logger Logger, conn io.ReadWriteCloser) *ServerM
 }
 
 func (t *ServerMetadataTransport) start() {
-	t.trackEventsCh = make(chan TrackEvent)
 	defer close(t.trackEventsCh)
 
+	buf := make([]byte, receiveMTU)
 	for {
-		buf := make([]byte, receiveMTU)
 		i, err := t.conn.Read(buf)
 		if err != nil {
 			t.logger.Printf("Error reading remote data: %s", err)
 			return
 		}
 
-		// var t TrackEvent
-		err = json.Unmarshal(buf[:i], struct{}{})
+		var trackEvent TrackEvent
+
+		err = json.Unmarshal(buf[:i], &trackEvent)
 		if err != nil {
 			t.logger.Printf("Error unmarshalling remote data: %s", err)
 			return
 		}
 
-		// t.trackEventsCh <- TODO
+		t.trackEventsCh <- trackEvent
 	}
 }
 
@@ -289,19 +342,90 @@ func (t *ServerMetadataTransport) TrackEventsChannel() <-chan TrackEvent {
 }
 
 func (t *ServerMetadataTransport) LocalTracks() []TrackInfo {
-	return nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	localTracks := make([]TrackInfo, len(t.localTracks))
+
+	for _, trackInfo := range t.localTracks {
+		localTracks = append(localTracks, trackInfo)
+	}
+
+	return localTracks
 }
 
 func (t *ServerMetadataTransport) RemoteTracks() []TrackInfo {
-	return nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	remoteTracks := make([]TrackInfo, len(t.remoteTracks))
+
+	for _, trackInfo := range t.remoteTracks {
+		remoteTracks = append(remoteTracks, trackInfo)
+	}
+
+	return remoteTracks
 }
 
 func (t *ServerMetadataTransport) AddTrack(track Track) error {
-	return nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	trackInfo := TrackInfo{
+		Track: track,
+		Kind:  t.getCodecType(track.PayloadType()),
+		Mid:   "",
+	}
+
+	t.localTracks[track.SSRC()] = trackInfo
+
+	trackEvent := TrackEvent{
+		TrackInfo: trackInfo,
+		Type:      TrackEventTypeAdd,
+	}
+
+	return t.sendTrackEvent(trackEvent)
+}
+
+func (t *ServerMetadataTransport) sendTrackEvent(trackEvent TrackEvent) error {
+	b, err := json.Marshal(trackEvent)
+
+	if err != nil {
+		return fmt.Errorf("sendTrackEvent: error marshaling trackEvent to JSON: %w", err)
+	}
+
+	_, err = t.conn.Write(b)
+
+	return err
+}
+
+func (t *ServerMetadataTransport) getCodecType(payloadType uint8) webrtc.RTPCodecType {
+	// TODO These values are dynamic and are only valid when they are set in
+	// media engine _and_ when we initiate peer connections.
+	if payloadType == webrtc.DefaultPayloadTypeVP8 {
+		return webrtc.RTPCodecTypeVideo
+	}
+	return webrtc.RTPCodecTypeAudio
 }
 
 func (t *ServerMetadataTransport) RemoveTrack(ssrc uint32) error {
-	return nil
+	t.mu.Lock()
+
+	trackInfo, ok := t.localTracks[ssrc]
+	delete(t.localTracks, ssrc)
+
+	t.mu.Unlock()
+
+	if !ok {
+		return fmt.Errorf("RemoveTrack: Track not found: %d", ssrc)
+	}
+
+	trackEvent := TrackEvent{
+		TrackInfo: trackInfo,
+		Type:      TrackEventTypeRemove,
+	}
+
+	return t.sendTrackEvent(trackEvent)
 }
 
 func (t *ServerMetadataTransport) Close() error {
