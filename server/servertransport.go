@@ -11,7 +11,7 @@ import (
 	"github.com/pion/webrtc/v2"
 )
 
-var receiveMTU = 8192
+var receiveMTU int = 8192
 
 var ErrNoData = fmt.Errorf("cannot handle empty buffer")
 var ErrUnknownPacket = fmt.Errorf("unknown packet")

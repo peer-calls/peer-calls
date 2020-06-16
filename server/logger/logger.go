@@ -72,6 +72,10 @@ type Factory struct {
 	loggersMu      sync.Mutex
 }
 
+type LoggerFactory interface {
+	GetLogger(name string) Logger
+}
+
 // NewFactory creates a new logger factory. The enabled slice can be used
 // to set the default enabled loggers. Enabled string can contain strings
 // delimited with colon character, and can use wildcards. For example, if a

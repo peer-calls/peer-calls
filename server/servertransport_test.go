@@ -16,6 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type A = net.Conn
+type B = net.PacketConn
+
 func newUDPServer() *net.UDPConn {
 	laddr := &net.UDPAddr{
 		Port: 1234,
@@ -168,7 +171,7 @@ func TestServerMediaTransport_RTCP(t *testing.T) {
 	assert.Equal(t, sentBytes, recvBytes)
 }
 
-func TestServerMediaTransport_SCTP(t *testing.T) {
+func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 
