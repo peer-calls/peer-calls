@@ -63,10 +63,14 @@ func (s *SCTPManager) AcceptAssociation() (*Association, error) {
 }
 
 func (s *SCTPManager) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var err error
 
 	s.closeOnce.Do(func() {
 		close(s.closedChan)
+		// TODO verify this is enough
 		err = s.udpMux.Close()
 	})
 

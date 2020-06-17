@@ -12,11 +12,12 @@ import (
 var DefaultMTU uint32 = 8192
 
 type UDPMux struct {
-	params   *Params
-	conns    map[net.Addr]*muxedConn
-	mu       sync.RWMutex
-	logger   logger.Logger
-	connChan chan Conn
+	params    *Params
+	conns     map[net.Addr]*muxedConn
+	mu        sync.RWMutex
+	logger    logger.Logger
+	connChan  chan Conn
+	closeOnce sync.Once
 }
 
 type Params struct {
@@ -93,6 +94,11 @@ func (u *UDPMux) close() {
 		})
 		delete(u.conns, conn.RemoteAddr())
 	}
+
+	u.closeOnce.Do(func() {
+		close(u.connChan)
+		_ = u.params.Conn.Close()
+	})
 }
 
 func (u *UDPMux) handleClose(conn *muxedConn) {
