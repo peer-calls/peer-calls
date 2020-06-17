@@ -16,8 +16,8 @@ type SCTPManager struct {
 	udpMux            *udpmux.UDPMux
 	pionLoggerFactory logging.LoggerFactory
 
-	associations     map[net.Addr]*sctp.Association
-	associationsChan chan *sctp.Association
+	associations     map[net.Addr]*asyncAssociation
+	associationsChan chan *Association
 	mu               sync.Mutex
 	closedChan       chan struct{}
 	closeOnce        sync.Once
@@ -26,6 +26,12 @@ type SCTPManager struct {
 type SCTPManagerParams struct {
 	LoggerFactory LoggerFactory
 	Conn          net.PacketConn
+}
+
+type asyncAssociation struct {
+	done        chan struct{}
+	err         error
+	association *Association
 }
 
 func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
@@ -38,7 +44,7 @@ func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
 			MTU:           uint32(receiveMTU),
 			ReadChanSize:  100,
 		}),
-		associations:      map[net.Addr]*sctp.Association{},
+		associations:      map[net.Addr]*asyncAssociation{},
 		pionLoggerFactory: NewPionLoggerFactory(params.LoggerFactory),
 		closedChan:        make(chan struct{}),
 	}
@@ -48,12 +54,12 @@ func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
 	return serverManager
 }
 
-func (s *SCTPManager) AcceptAssociation() (*sctp.Association, error) {
-	assoc, ok := <-s.associationsChan
+func (s *SCTPManager) AcceptAssociation() (*Association, error) {
+	association, ok := <-s.associationsChan
 	if !ok {
 		return nil, fmt.Errorf("SCTPManager closed")
 	}
-	return assoc, nil
+	return association, nil
 }
 
 func (s *SCTPManager) Close() error {
@@ -67,6 +73,28 @@ func (s *SCTPManager) Close() error {
 	return err
 }
 
+func (s *SCTPManager) GetAssociation(raddr net.Addr) (*Association, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	aa, ok := s.associations[raddr]
+
+	if ok {
+		<-aa.done
+		return aa.association, aa.err
+	}
+
+	conn, err := s.udpMux.GetConn(raddr)
+	if err != nil {
+		return nil, err
+	}
+
+	aa = s.createAssociation(conn)
+
+	<-aa.done
+	return aa.association, aa.err
+}
+
 func (s *SCTPManager) start() {
 	for {
 		conn, err := s.udpMux.AcceptConn()
@@ -76,91 +104,93 @@ func (s *SCTPManager) start() {
 			return
 		}
 
-		go s.createAssocGracefully(conn)
+		s.handleConn(conn)
 	}
 }
 
-func (s *SCTPManager) createAssocGracefully(conn udpmux.Conn) {
-	assoc, err := s.createAssociation(conn)
-
-	if err != nil {
-		s.logger.Printf("createAssocGracefully: Error creating new sctp client for remote addr: %s: %s", conn.RemoteAddr(), err)
-		return
-	}
-
+func (s *SCTPManager) handleConn(conn udpmux.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ch := s.associationsChan
-
-	select {
-	case <-s.closedChan:
-		ch = nil
-	default:
-	}
-
-	select {
-	case ch <- assoc:
-		// OK
-	case <-s.closedChan:
-		s.logger.Printf("createAssocGracefully new association while closing")
-		assoc.Close()
-	}
-}
-
-// createAssociation creates a new sctp association. This method blocks until
-// connection is established.
-func (s *SCTPManager) createAssociation(conn udpmux.Conn) (*sctp.Association, error) {
-	association, err := sctp.Client(sctp.Config{
-		NetConn:              conn,
-		LoggerFactory:        s.pionLoggerFactory,
-		MaxReceiveBufferSize: uint32(receiveMTU),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.associations[conn.RemoteAddr()] = association
+	aa := s.createAssociation(conn)
 
 	go func() {
-		// wait for the connection to be closed and then clean up. it is safe to
-		// block here because this func will always be run in a goroutine.
-		<-conn.CloseChannel()
+		<-aa.done
+		if aa.err != nil {
+			s.logger.Printf("Error creating association: %s: %s", conn.RemoteAddr(), aa.err)
+			return
+		}
 
-		s.mu.Lock()
-		defer s.mu.Unlock()
+		association := aa.association
+		associationsChan := s.associationsChan
 
-		assoc, ok := s.associations[conn.RemoteAddr()]
-		if ok {
-			_ = assoc.Close()
-			delete(s.associations, conn.RemoteAddr())
+		select {
+		case <-s.closedChan:
+			associationsChan = nil
+		default:
+		}
+
+		select {
+		case associationsChan <- association:
+			// OK
+		case <-s.closedChan:
+			s.logger.Printf("Got association in process of tearing down: %s", conn.RemoteAddr())
+			_ = association.Close()
 		}
 	}()
-
-	// TODO handle connection close and remove from s.associations
-
-	return association, nil
 }
 
-func (s *SCTPManager) GetAssociation(raddr net.Addr) (*sctp.Association, error) {
-	// FIXME multiple simulatneous calls might overwrite associations with same
-	// raddr since mutex is locked & unlocked twice.
+// createAssociation creates a new sctp association. Since the sctp.Client
+// blocks until an association is created, we return early and return the
+// asyncAssociation. It has a done channel which will be closed after an
+// association was created or an error occurred.
+func (s *SCTPManager) createAssociation(conn udpmux.Conn) *asyncAssociation {
+	aa := &asyncAssociation{make(chan struct{}), nil, nil}
+
+	go func() {
+		association, err := sctp.Client(sctp.Config{
+			NetConn:              conn,
+			LoggerFactory:        s.pionLoggerFactory,
+			MaxReceiveBufferSize: uint32(receiveMTU),
+		})
+
+		if err == nil {
+			aa.association = NewAssociation(association, conn)
+		}
+		aa.err = err
+		close(aa.done)
+
+		if err != nil {
+			// error should be handled by the user of asyncAssociation
+			return
+		}
+
+		// cleanup after connection is closed
+		<-conn.CloseChannel()
+		association.Close()
+		s.removeAssociation(conn.RemoteAddr())
+	}()
+
+	s.associations[conn.RemoteAddr()] = aa
+	return aa
+}
+
+func (s *SCTPManager) removeAssociation(raddr net.Addr) {
 	s.mu.Lock()
-	association, ok := s.associations[raddr]
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 
-	if ok {
-		return association, nil
-	}
+	delete(s.associations, raddr)
+}
 
-	conn, err := s.udpMux.GetConn(raddr)
-	if err != nil {
-		return nil, err
-	}
+type Association struct {
+	*sctp.Association
+	conn udpmux.Conn
+}
 
-	return s.createAssociation(conn)
+func NewAssociation(association *sctp.Association, conn udpmux.Conn) *Association {
+	return &Association{association, conn}
+}
+
+func (a *Association) CloseChannel() <-chan struct{} {
+	return a.conn.CloseChannel()
 }
