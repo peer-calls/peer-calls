@@ -13,9 +13,10 @@ var DefaultMTU uint32 = 8192
 
 type UDPMux struct {
 	params    *Params
-	conns     map[net.Addr]*muxedConn
+	conns     map[string]*muxedConn
 	mu        sync.RWMutex
 	logger    logger.Logger
+	pktLogger logger.Logger
 	connChan  chan Conn
 	closeOnce sync.Once
 }
@@ -29,10 +30,11 @@ type Params struct {
 
 func New(params Params) *UDPMux {
 	mux := &UDPMux{
-		params:   &params,
-		conns:    map[net.Addr]*muxedConn{},
-		logger:   params.LoggerFactory.GetLogger("udpmux"),
-		connChan: make(chan Conn),
+		params:    &params,
+		conns:     map[string]*muxedConn{},
+		logger:    params.LoggerFactory.GetLogger("udpmux"),
+		pktLogger: params.LoggerFactory.GetLogger("udpmux:packets"),
+		connChan:  make(chan Conn),
 	}
 
 	if mux.params.MTU == 0 {
@@ -44,11 +46,16 @@ func New(params Params) *UDPMux {
 	return mux
 }
 
+func (u *UDPMux) LocalAddr() net.Addr {
+	return u.params.Conn.LocalAddr()
+}
+
 func (u *UDPMux) AcceptConn() (Conn, error) {
 	conn, ok := <-u.connChan
 	if !ok {
 		return nil, fmt.Errorf("Conn closed")
 	}
+	u.pktLogger.Printf("[%s <- %s] AcceptConn", u.params.Conn.LocalAddr(), conn.RemoteAddr())
 	return conn, nil
 }
 
@@ -56,6 +63,7 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	u.pktLogger.Printf("[%s -> %s] GetConn", u.params.Conn.LocalAddr(), raddr)
 	// TODO return err when not connected
 	return u.getOrCreateConn(raddr, false), nil
 }
@@ -91,8 +99,9 @@ func (u *UDPMux) close() {
 	for _, conn := range u.conns {
 		conn.onceClose.Do(func() {
 			close(conn.readChan)
+			close(conn.closeChan)
 		})
-		delete(u.conns, conn.RemoteAddr())
+		delete(u.conns, conn.RemoteAddr().String())
 	}
 
 	u.closeOnce.Do(func() {
@@ -109,7 +118,7 @@ func (u *UDPMux) handleClose(conn *muxedConn) {
 		close(conn.readChan)
 		close(conn.closeChan)
 	})
-	delete(u.conns, conn.RemoteAddr())
+	delete(u.conns, conn.RemoteAddr().String())
 }
 
 func (u *UDPMux) handleRemoteBytes(raddr net.Addr, buf []byte) Conn {
@@ -120,7 +129,7 @@ func (u *UDPMux) handleRemoteBytes(raddr net.Addr, buf []byte) Conn {
 }
 
 func (u *UDPMux) getOrCreateConn(raddr net.Addr, accept bool) *muxedConn {
-	c, ok := u.conns[raddr]
+	c, ok := u.conns[raddr.String()]
 	if !ok {
 		c = u.createConn(raddr, accept)
 	}
@@ -129,6 +138,7 @@ func (u *UDPMux) getOrCreateConn(raddr net.Addr, accept bool) *muxedConn {
 
 func (u *UDPMux) createConn(raddr net.Addr, accept bool) *muxedConn {
 	c := &muxedConn{
+		pktLogger: u.pktLogger,
 		conn:      u.params.Conn,
 		laddr:     u.params.Conn.LocalAddr(),
 		raddr:     raddr,
@@ -136,7 +146,7 @@ func (u *UDPMux) createConn(raddr net.Addr, accept bool) *muxedConn {
 		closeChan: make(chan struct{}),
 		onClose:   u.handleClose,
 	}
-	u.conns[raddr] = c
+	u.conns[raddr.String()] = c
 	if accept {
 		u.connChan <- c
 	}
@@ -156,6 +166,7 @@ type muxedConn struct {
 	closeChan chan struct{}
 	onClose   func(m *muxedConn)
 	onceClose sync.Once
+	pktLogger logger.Logger
 }
 
 var _ Conn = &muxedConn{}
@@ -181,6 +192,7 @@ func (m *muxedConn) Read(b []byte) (int, error) {
 		return 0, fmt.Errorf("Conn closed")
 	}
 	copy(b, buf)
+	m.pktLogger.Printf("[%s <- %s] %v", m.laddr, m.raddr, buf)
 	return len(buf), nil
 }
 
@@ -189,6 +201,7 @@ func (m *muxedConn) Write(b []byte) (int, error) {
 	case <-m.closeChan:
 		return 0, fmt.Errorf("Conn is closed")
 	default:
+		m.pktLogger.Printf("[%s -> %s] %v", m.laddr, m.raddr, b)
 		return m.conn.WriteTo(b, m.raddr)
 	}
 }

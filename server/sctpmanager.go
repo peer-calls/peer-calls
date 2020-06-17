@@ -47,11 +47,16 @@ func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
 		associations:      map[net.Addr]*asyncAssociation{},
 		pionLoggerFactory: NewPionLoggerFactory(params.LoggerFactory),
 		closedChan:        make(chan struct{}),
+		associationsChan:  make(chan *Association),
 	}
 
 	go serverManager.start()
 
 	return serverManager
+}
+
+func (s *SCTPManager) LocalAddr() net.Addr {
+	return s.udpMux.LocalAddr()
 }
 
 func (s *SCTPManager) AcceptAssociation() (*Association, error) {
@@ -70,6 +75,7 @@ func (s *SCTPManager) Close() error {
 
 	s.closeOnce.Do(func() {
 		close(s.closedChan)
+		close(s.associationsChan)
 		// TODO verify this is enough
 		err = s.udpMux.Close()
 	})
@@ -79,21 +85,23 @@ func (s *SCTPManager) Close() error {
 
 func (s *SCTPManager) GetAssociation(raddr net.Addr) (*Association, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	aa, ok := s.associations[raddr]
 
 	if ok {
+		s.mu.Unlock()
 		<-aa.done
 		return aa.association, aa.err
 	}
 
 	conn, err := s.udpMux.GetConn(raddr)
 	if err != nil {
+		s.mu.Unlock()
 		return nil, err
 	}
 
 	aa = s.createAssociation(conn)
+	s.mu.Unlock()
 
 	<-aa.done
 	return aa.association, aa.err
