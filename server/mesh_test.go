@@ -37,13 +37,16 @@ func NewMockRoomManager() *MockRoomManager {
 	}
 }
 
-func (r *MockRoomManager) Enter(room string) server.Adapter {
+var _ server.RoomManager = &MockRoomManager{}
+
+func (r *MockRoomManager) Enter(room string) (server.Adapter, bool) {
 	r.enter <- room
-	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}
+	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}, true
 }
 
-func (r *MockRoomManager) Exit(room string) {
+func (r *MockRoomManager) Exit(room string) bool {
 	r.exit <- room
+	return false
 }
 
 func (r *MockRoomManager) close() {

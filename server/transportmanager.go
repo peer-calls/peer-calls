@@ -63,7 +63,7 @@ func (t *ServerTransportFactory) NewTransport() (*RoomTransport, error) {
 
 	if !found {
 		t.lastStreamID++
-		// TODO error out on overflow, but there will probably be bigger problems when hat happens.
+		// TODO error out on overflow, but there will probably be bigger problems when that happens.
 		streamID = t.lastStreamID
 	}
 
@@ -108,11 +108,6 @@ func (t *ServerTransportFactory) NewTransport() (*RoomTransport, error) {
 	return roomTransport, nil
 }
 
-type RoomEvent struct {
-	RoomName string
-	Type     RoomEventType
-}
-
 type TransportEvent struct {
 	Transport Transport
 	Type      TransportEventType
@@ -123,13 +118,6 @@ type TransportEventType int
 const (
 	TransportEventTypeAdd TransportEventType = iota + 1
 	TransportEventTypeRemove
-)
-
-type RoomEventType int
-
-const (
-	RoomEventTypeAdd RoomEventType = iota + 1
-	RoomEventTypeRemove
 )
 
 type TransportManagerParams struct {

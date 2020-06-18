@@ -48,7 +48,7 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 
 	clientID := path.Base(r.URL.Path)
 	room := path.Base(path.Dir(r.URL.Path))
-	adapter := wss.rooms.Enter(room)
+	adapter, _ := wss.rooms.Enter(room)
 	ch := make(chan Message)
 
 	client := NewClientWithID(c, clientID)

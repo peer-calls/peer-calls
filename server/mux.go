@@ -56,8 +56,8 @@ func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc 
 }
 
 type RoomManager interface {
-	Enter(room string) Adapter
-	Exit(room string)
+	Enter(room string) (adapter Adapter, isNew bool)
+	Exit(room string) (isRemoved bool)
 }
 
 func NewMux(
