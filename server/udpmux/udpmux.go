@@ -31,7 +31,7 @@ type Params struct {
 }
 
 func New(params Params) *UDPMux {
-	mux := &UDPMux{
+	u := &UDPMux{
 		params:    &params,
 		conns:     map[string]*muxedConn{},
 		logger:    params.LoggerFactory.GetLogger("udpmux"),
@@ -40,17 +40,17 @@ func New(params Params) *UDPMux {
 		closeChan: make(chan struct{}),
 	}
 
-	if mux.params.MTU == 0 {
-		mux.params.MTU = DefaultMTU
+	if u.params.MTU == 0 {
+		u.params.MTU = DefaultMTU
 	}
 
-	mux.wg.Add(1)
+	u.wg.Add(1)
 	go func() {
-		mux.start()
-		mux.wg.Done()
+		u.start()
+		u.wg.Done()
 	}()
 
-	return mux
+	return u
 }
 
 func (u *UDPMux) LocalAddr() net.Addr {

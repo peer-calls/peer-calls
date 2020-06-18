@@ -37,7 +37,7 @@ type asyncAssociation struct {
 }
 
 func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
-	serverManager := &SCTPManager{
+	s := &SCTPManager{
 		params: params,
 		logger: params.LoggerFactory.GetLogger("servermanager"),
 		udpMux: udpmux.New(udpmux.Params{
@@ -52,13 +52,13 @@ func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
 		associationsChan:  make(chan *Association),
 	}
 
-	serverManager.wg.Add(1)
+	s.wg.Add(1)
 	go func() {
-		defer serverManager.wg.Done()
-		serverManager.start()
+		defer s.wg.Done()
+		s.start()
 	}()
 
-	return serverManager
+	return s
 }
 
 func (s *SCTPManager) LocalAddr() net.Addr {
