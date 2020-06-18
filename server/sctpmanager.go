@@ -90,7 +90,6 @@ func (s *SCTPManager) close() error {
 	s.closeOnce.Do(func() {
 		close(s.closedChan)
 		close(s.associationsChan)
-		// TODO verify this is enough
 		err = s.udpMux.Close()
 	})
 
