@@ -18,7 +18,9 @@ type UDPMux struct {
 	logger    logger.Logger
 	pktLogger logger.Logger
 	connChan  chan Conn
+	closeChan chan struct{}
 	closeOnce sync.Once
+	wg        sync.WaitGroup
 }
 
 type Params struct {
@@ -35,13 +37,18 @@ func New(params Params) *UDPMux {
 		logger:    params.LoggerFactory.GetLogger("udpmux"),
 		pktLogger: params.LoggerFactory.GetLogger("udpmux:packets"),
 		connChan:  make(chan Conn),
+		closeChan: make(chan struct{}),
 	}
 
 	if mux.params.MTU == 0 {
 		mux.params.MTU = DefaultMTU
 	}
 
-	go mux.start()
+	mux.wg.Add(1)
+	go func() {
+		mux.start()
+		mux.wg.Done()
+	}()
 
 	return mux
 }
@@ -80,22 +87,26 @@ func (u *UDPMux) start() {
 			return
 		}
 
-		u.mu.Lock()
 		u.handleRemoteBytes(raddr, buf[:i])
-		u.mu.Unlock()
 	}
 }
 
-func (u *UDPMux) Close() error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+func (u *UDPMux) CloseChannel() <-chan struct{} {
+	return u.closeChan
+}
 
+func (u *UDPMux) Close() error {
 	u.close()
+
+	u.wg.Wait()
 
 	return nil
 }
 
 func (u *UDPMux) close() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
 	for _, conn := range u.conns {
 		conn.onceClose.Do(func() {
 			close(conn.readChan)
@@ -105,6 +116,7 @@ func (u *UDPMux) close() {
 	}
 
 	u.closeOnce.Do(func() {
+		close(u.closeChan)
 		close(u.connChan)
 		_ = u.params.Conn.Close()
 	})
@@ -121,11 +133,19 @@ func (u *UDPMux) handleClose(conn *muxedConn) {
 	delete(u.conns, conn.RemoteAddr().String())
 }
 
-func (u *UDPMux) handleRemoteBytes(raddr net.Addr, buf []byte) Conn {
+func (u *UDPMux) handleRemoteBytes(raddr net.Addr, buf []byte) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	select {
+	case <-u.closeChan:
+		u.logger.Println("Ignoring remote data because connection has been closed")
+		return
+	default:
+	}
+
 	c := u.getOrCreateConn(raddr, true)
 	c.handleRemoteBytes(buf)
-
-	return c
 }
 
 func (u *UDPMux) getOrCreateConn(raddr net.Addr, accept bool) *muxedConn {
