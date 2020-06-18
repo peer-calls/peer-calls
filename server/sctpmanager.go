@@ -21,6 +21,8 @@ type SCTPManager struct {
 	mu               sync.Mutex
 	closedChan       chan struct{}
 	closeOnce        sync.Once
+
+	wg sync.WaitGroup
 }
 
 type SCTPManagerParams struct {
@@ -50,7 +52,11 @@ func NewSCTPManager(params SCTPManagerParams) *SCTPManager {
 		associationsChan:  make(chan *Association),
 	}
 
-	go serverManager.start()
+	serverManager.wg.Add(1)
+	go func() {
+		defer serverManager.wg.Done()
+		serverManager.start()
+	}()
 
 	return serverManager
 }
@@ -68,6 +74,14 @@ func (s *SCTPManager) AcceptAssociation() (*Association, error) {
 }
 
 func (s *SCTPManager) Close() error {
+	err := s.close()
+
+	s.wg.Wait()
+
+	return err
+}
+
+func (s *SCTPManager) close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -126,7 +140,10 @@ func (s *SCTPManager) handleConn(conn udpmux.Conn) {
 
 	aa := s.createAssociation(conn)
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
+
 		<-aa.done
 		if aa.err != nil {
 			s.logger.Printf("Error creating association: %s: %s", conn.RemoteAddr(), aa.err)
