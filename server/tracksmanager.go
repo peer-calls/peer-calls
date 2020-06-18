@@ -48,6 +48,8 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 		)
 		roomPeersManager = NewRoomPeersManager(room, m.loggerFactory, jitterHandler)
 		m.roomPeersManager[room] = roomPeersManager
+
+		// TODO Write to RoomEventsChan
 	}
 
 	m.log.Printf("[%s] MemoryTrackManager.Add peer to room: %s", transport.ClientID(), room)
@@ -60,7 +62,10 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 
 		roomPeersManager.Remove(transport.ClientID())
 
+		// TODO tell the difference between server and webrtc transports since
+		// server transports should not be counted, and they should be removed.
 		if len(roomPeersManager.transports) == 0 {
+			// TODO write to RoomEventsChan
 			delete(m.roomPeersManager, room)
 		}
 	}()
