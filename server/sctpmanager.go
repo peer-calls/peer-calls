@@ -97,27 +97,31 @@ func (s *SCTPManager) close() error {
 }
 
 func (s *SCTPManager) GetAssociation(raddr net.Addr) (*Association, error) {
+	aa := s.getAssociation(raddr)
+
+	<-aa.done
+	return aa.association, aa.err
+}
+
+func (s *SCTPManager) getAssociation(raddr net.Addr) *asyncAssociation {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	aa, ok := s.associations[raddr]
 
 	if ok {
-		s.mu.Unlock()
 		<-aa.done
-		return aa.association, aa.err
+		return aa
 	}
 
 	conn, err := s.udpMux.GetConn(raddr)
 	if err != nil {
-		s.mu.Unlock()
-		return nil, err
+		aa = &asyncAssociation{make(chan struct{}), err, nil}
+		close(aa.done)
+		return aa
 	}
 
-	aa = s.createAssociation(conn)
-	s.mu.Unlock()
-
-	<-aa.done
-	return aa.association, aa.err
+	return s.createAssociation(conn)
 }
 
 func (s *SCTPManager) start() {
