@@ -80,6 +80,10 @@ func (t *TransportManager) createServerTransportFactory(association *Association
 	go func() {
 		defer t.wg.Done()
 		<-association.CloseChannel()
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+
 		delete(t.associations, association)
 	}()
 
