@@ -54,6 +54,10 @@ func NewServerTransport(
 	metadataConn io.ReadWriteCloser,
 ) *ServerTransport {
 
+	clientID := fmt.Sprintf("node:" + NewUUIDBase62())
+	logger := loggerFactory.GetLogger("servertransport")
+	logger.Printf("NewServerTransport: %s", clientID)
+
 	mediaLogger := loggerFactory.GetLogger("servermediatransport")
 	metadataLogger := loggerFactory.GetLogger("metadatatransport")
 	dataLogger := loggerFactory.GetLogger("datatransport")
@@ -62,6 +66,7 @@ func NewServerTransport(
 		ServerMetadataTransport: NewServerMetadataTransport(metadataLogger, metadataConn),
 		ServerMediaTransport:    NewServerMediaTransport(mediaLogger, mediaConn),
 		ServerDataTransport:     NewServerDataTransport(dataLogger, dataConn),
+		clientID:                clientID,
 	}
 }
 

@@ -3,13 +3,12 @@ package server_test
 import (
 	"context"
 	"net"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/sctp"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -24,7 +23,7 @@ func listenUDP(laddr *net.UDPAddr) *net.UDPConn {
 }
 
 func createSCTPManager() *server.SCTPManager {
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stdout)
+	loggerFactory := test.NewLoggerFactory()
 	udpConn := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
