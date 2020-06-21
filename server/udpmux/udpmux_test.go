@@ -38,9 +38,8 @@ func TestUDPMux_AcceptConn(t *testing.T) {
 		conn, err := mux.AcceptConn()
 		require.NoError(t, err)
 
-		sameConn, err := mux.GetConn(conn.RemoteAddr())
-		assert.NoError(t, err)
-		assert.Equal(t, conn, sameConn)
+		_, err = mux.GetConn(conn.RemoteAddr())
+		assert.EqualError(t, err, "Connection already exists")
 
 		conns <- conn
 	}()

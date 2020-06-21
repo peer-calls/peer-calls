@@ -70,9 +70,13 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	if _, ok := u.conns[raddr.String()]; ok {
+		return nil, fmt.Errorf("Connection already exists")
+	}
+
 	u.pktLogger.Printf("[%s -> %s] GetConn", u.params.Conn.LocalAddr(), raddr)
 	// TODO return err when not connected
-	return u.getOrCreateConn(raddr, false), nil
+	return u.createConn(raddr, false), nil
 }
 
 func (u *UDPMux) start() {

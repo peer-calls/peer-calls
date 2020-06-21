@@ -12,7 +12,7 @@ import (
 var DefaultMTU uint32 = 8192
 
 type StringMux struct {
-	params    *StringMuxParams
+	params    *Params
 	logger    logger.Logger
 	conns     map[string]*conn
 	connChan  chan Conn
@@ -22,14 +22,14 @@ type StringMux struct {
 	wg        sync.WaitGroup
 }
 
-type StringMuxParams struct {
+type Params struct {
 	LoggerFactory logger.LoggerFactory
 	Conn          net.Conn
 	MTU           uint32
 	ReadChanSize  int
 }
 
-func NewStringMux(params StringMuxParams) *StringMux {
+func New(params Params) *StringMux {
 	sm := &StringMux{
 		params:    &params,
 		logger:    params.LoggerFactory.GetLogger("stringmux"),
@@ -71,6 +71,25 @@ func (sm *StringMux) start() {
 
 		sm.handleRemoteBytes(streamID, data)
 	}
+}
+
+func (sm *StringMux) AcceptConn() (Conn, error) {
+	conn, ok := <-sm.connChan
+	if !ok {
+		return nil, fmt.Errorf("StringMux closed")
+	}
+	return conn, nil
+}
+
+func (sm *StringMux) GetConn(streamID string) (Conn, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if _, ok := sm.conns[streamID]; ok {
+		return nil, fmt.Errorf("Connection already exists")
+	}
+
+	return sm.createConn(streamID, false), nil
 }
 
 func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
@@ -203,7 +222,11 @@ func (c *conn) Write(b []byte) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("Error marshalling data during write: %w", err)
 		}
-		return c.conn.Write(data)
+		_, err = c.conn.Write(data)
+		if err != nil {
+			return 0, fmt.Errorf("Error writing data: %w", err)
+		}
+		return len(b), nil
 	}
 }
 
