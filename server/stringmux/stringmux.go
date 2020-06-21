@@ -199,7 +199,10 @@ func (c *conn) Write(b []byte) (int, error) {
 	case <-c.closeChan:
 		return 0, fmt.Errorf("Conn is closed")
 	default:
-		data := Marshal(c.streamID, b)
+		data, err := Marshal(c.streamID, b)
+		if err != nil {
+			return 0, fmt.Errorf("Error marshalling data during write: %w", err)
+		}
 		return c.conn.Write(data)
 	}
 }

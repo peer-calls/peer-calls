@@ -3,14 +3,15 @@ package stringmux
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
-func Marshal(streamID string, data []byte) []byte {
+func Marshal(streamID string, data []byte) ([]byte, error) {
 	/*
 	 *         0                   1                   2                   3
 	 *         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 	 *        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * header |P E E R C A L L| StreamID len  |        Stream ID ....         |
+	 * header |        P      |       C       |         Stream ID len         |
 	 *        +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 	 *        |                           StreamID                            |
 	 *        |                              ...                              |
@@ -21,36 +22,54 @@ func Marshal(streamID string, data []byte) []byte {
 	 */
 
 	lenStreamID := len(streamID)
-	result := make([]byte, 0, 16+lenStreamID+len(data))
+	if lenStreamID > math.MaxUint16 {
+		return nil, fmt.Errorf("StreamID too large")
+	}
 
-	result = append(result, []byte("PEERCALL")...)
+	result := make([]byte, 4+lenStreamID+len(data))
 
-	binary.BigEndian.PutUint32(result[8:16], uint32(lenStreamID))
+	offset := 0
 
-	copy(result[16:], data)
+	result[offset] = 'P'
+	offset++
 
-	return result
+	result[offset] = 'C'
+	offset++
+
+	binary.BigEndian.PutUint16(result[offset:offset+2], uint16(lenStreamID))
+	offset += 2
+
+	copy(result[offset:offset+lenStreamID], streamID)
+	offset += lenStreamID
+
+	copy(result[offset:], data)
+
+	return result, nil
 }
 
 func Unmarshal(data []byte) (string, []byte, error) {
-	if len(data) < 16 {
-		return "", nil, fmt.Errorf("Header of data to unmarshal is too short")
+	if len(data) < 4 {
+		return "", nil, fmt.Errorf("Header is too short")
 	}
 
-	if string(data[0:8]) != "PEERCALL" {
-		return "", nil, fmt.Errorf("First header should be PEERCALL")
+	offset := 0
+
+	if string(data[0:2]) != "PC" {
+		return "", nil, fmt.Errorf("First two bytes should be 'PC'")
+	}
+	offset += 2
+
+	lenStreamID := binary.BigEndian.Uint16(data[offset : offset+2])
+	offset += 2
+
+	if len(data) < offset+int(lenStreamID) {
+		return "", nil, fmt.Errorf("StreamID length mismatch")
 	}
 
-	lenStreamID := binary.BigEndian.Uint32(data[8:16])
+	streamID := string(data[offset : offset+int(lenStreamID)])
+	offset += int(lenStreamID)
 
-	if len(data) < int(16+lenStreamID) {
-		return "", nil, fmt.Errorf("Canont extract streamID from data")
-	}
-
-	startStreamID := uint32(16)
-	endStreamID := startStreamID + lenStreamID
-	streamID := string(data[startStreamID:endStreamID])
-	result := data[endStreamID:]
+	result := data[offset:]
 
 	return streamID, result, nil
 }
