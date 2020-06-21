@@ -339,11 +339,7 @@ func (t *ServerMetadataTransport) start() {
 }
 
 func (t *ServerMetadataTransport) TrackEventsChannel() <-chan TrackEvent {
-
-	// TODO implement this
-	ch := make(chan TrackEvent)
-	close(ch)
-	return ch
+	return t.trackEventsCh
 }
 
 func (t *ServerMetadataTransport) LocalTracks() []TrackInfo {
