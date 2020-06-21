@@ -14,7 +14,7 @@ var DefaultMTU uint32 = 8192
 type UDPMux struct {
 	params    *Params
 	conns     map[string]*muxedConn
-	mu        sync.RWMutex
+	mu        sync.Mutex
 	logger    logger.Logger
 	pktLogger logger.Logger
 	connChan  chan Conn
