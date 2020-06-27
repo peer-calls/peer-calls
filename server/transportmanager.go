@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/peer-calls/peer-calls/server/promise"
 	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
@@ -255,4 +256,55 @@ func (t *ServerTransportFactory) NewTransport(streamID string) (*StreamTransport
 	}
 
 	return t.createTransport(conn)
+}
+
+type TransportPromise struct {
+	promise    promise.Promise
+	transport  Transport
+	once       sync.Once
+	onceCancel sync.Once
+}
+
+func NewTransportPromise() *TransportPromise {
+	return &TransportPromise{
+		promise:   promise.New(),
+		transport: nil,
+	}
+}
+
+func (t *TransportPromise) done(transport Transport, err error) {
+	t.once.Do(func() {
+		if err != nil {
+			t.promise.Reject(err)
+		} else {
+			t.transport = transport
+			t.promise.Resolve()
+		}
+	})
+}
+
+func (t *TransportPromise) resolve(transport Transport) {
+	t.done(transport, nil)
+}
+
+func (t *TransportPromise) reject(err error) {
+	t.done(nil, err)
+}
+
+var ErrCanceled = fmt.Errorf("Canceled")
+
+func (t *TransportPromise) Cancel() {
+	go func() {
+		t.onceCancel.Do(func() {
+			t.promise.Wait()
+			if t.transport != nil {
+				t.transport.Close()
+			}
+		})
+	}()
+}
+
+func (t *TransportPromise) Wait() (Transport, error) {
+	err := t.promise.Wait()
+	return t.transport, err
 }
