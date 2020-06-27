@@ -104,6 +104,13 @@ func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
 	}
 
 	c := sm.getOrCreateConn(streamID, true)
+	select {
+	case <-c.closeChan:
+		sm.logger.Println("Ignoring remote data because connection has been closed")
+		return
+	default:
+	}
+
 	c.handleRemoteBytes(buf)
 }
 

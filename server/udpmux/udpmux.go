@@ -150,6 +150,13 @@ func (u *UDPMux) handleRemoteBytes(raddr net.Addr, buf []byte) {
 	}
 
 	c := u.getOrCreateConn(raddr, true)
+	select {
+	case <-c.closeChan:
+		u.logger.Println("Ignoring remote data because connection has been closed")
+		return
+	default:
+	}
+
 	c.handleRemoteBytes(buf)
 }
 
