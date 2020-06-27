@@ -46,8 +46,8 @@ func New(params Params) *UDPMux {
 
 	u.wg.Add(1)
 	go func() {
+		defer u.wg.Done()
 		u.start()
-		u.wg.Done()
 	}()
 
 	return u
@@ -100,11 +100,13 @@ func (u *UDPMux) CloseChannel() <-chan struct{} {
 }
 
 func (u *UDPMux) Close() error {
+	err := u.params.Conn.Close()
+
 	u.close()
 
 	u.wg.Wait()
 
-	return nil
+	return err
 }
 
 func (u *UDPMux) close() {
@@ -120,9 +122,8 @@ func (u *UDPMux) close() {
 	}
 
 	u.closeOnce.Do(func() {
-		close(u.closeChan)
 		close(u.connChan)
-		_ = u.params.Conn.Close()
+		close(u.closeChan)
 	})
 }
 

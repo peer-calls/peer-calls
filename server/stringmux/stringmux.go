@@ -116,11 +116,13 @@ func (sm *StringMux) getOrCreateConn(streamID string, accept bool) *conn {
 }
 
 func (sm *StringMux) Close() error {
+	err := sm.params.Conn.Close()
+
 	sm.close()
 
 	sm.wg.Wait()
 
-	return nil
+	return err
 }
 
 func (sm *StringMux) CloseChannel() <-chan struct{} {
@@ -140,9 +142,8 @@ func (sm *StringMux) close() {
 	}
 
 	sm.closeOnce.Do(func() {
-		close(sm.closeChan)
 		close(sm.connChan)
-		_ = sm.params.Conn.Close()
+		close(sm.closeChan)
 	})
 }
 
