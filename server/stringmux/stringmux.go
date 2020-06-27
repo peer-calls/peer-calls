@@ -123,6 +123,10 @@ func (sm *StringMux) Close() error {
 	return nil
 }
 
+func (sm *StringMux) CloseChannel() <-chan struct{} {
+	return sm.closeChan
+}
+
 func (sm *StringMux) close() {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()

@@ -15,7 +15,7 @@ type ControlEvent struct {
 
 type StreamEvent struct {
 	StreamID uint16
-	Type     int
+	Type     StreamEventType
 }
 
 type ControlEventType int
@@ -25,11 +25,12 @@ const (
 	ControlEventTypeTrack
 )
 
-type StreamControlEventType int
+type StreamEventType int
 
 const (
-	StreamControlEventTypeReq StreamControlEventType = iota + 1
-	StreamControlEventTypeRes
+	StreamEventTypeAsk StreamEventType = iota + 1
+	StreamEventTypeAllow
+	StreamStreamTypeDeny
 )
 
 // ControlTransport is used for transporting metadata and handshake events for
@@ -41,9 +42,10 @@ type ControlTransport struct {
 	closedCh  chan struct{}
 	closeOnce sync.Once
 
-	subscribers map[string]*ServerMetadataAdapter
+	subscriberChans map[string]chan TrackEvent
+	subscribers     map[string]*ServerMetadataAdapter
 
-	streamControlCh chan StreamEvent
+	streamEventsCh chan StreamEvent
 }
 
 type ControlTransportParams struct {
@@ -55,7 +57,8 @@ func NewControlTransport(params ControlTransportParams) *ControlTransport {
 	ct := &ControlTransport{
 		params:          &params,
 		subscribers:     map[string]*ServerMetadataAdapter{},
-		streamControlCh: make(chan StreamEvent),
+		subscriberChans: map[string]chan TrackEvent{},
+		streamEventsCh:  make(chan StreamEvent),
 	}
 
 	ct.wg.Add(1)
@@ -73,12 +76,14 @@ func (c *ControlTransport) CloseChannel() <-chan struct{} {
 
 func (c *ControlTransport) Close() error {
 	c.closeOnce.Do(func() {
-		close(c.closedCh)
+		c.params.Conn.Close()
 
 		c.wg.Wait()
 
 		c.mu.Lock()
 		defer c.mu.Unlock()
+
+		close(c.closedCh)
 
 		for _, subscription := range c.subscribers {
 			subscription.Close()
@@ -106,7 +111,7 @@ func (c *ControlTransport) start() {
 		}
 
 		if controlEvent.Type == ControlEventTypeStream {
-			c.streamControlCh <- *controlEvent.StreamEvent
+			c.streamEventsCh <- *controlEvent.StreamEvent
 			continue
 		}
 
@@ -118,8 +123,8 @@ func (c *ControlTransport) start() {
 			}
 
 			room := roomIdentifiable.RoomID()
-			if adapter, ok := c.subscribers[room]; ok {
-				adapter.params.ReadChan <- *controlEvent.TrackEvent
+			if subChan, ok := c.subscriberChans[room]; ok {
+				subChan <- *controlEvent.TrackEvent
 			}
 		}
 	}
@@ -133,6 +138,10 @@ func (c *ControlTransport) sendEvent(controlEvent ControlEvent) error {
 
 	_, err = c.params.Conn.Write(buf)
 	return err
+}
+
+func (c *ControlTransport) StreamEventsChannel() <-chan StreamEvent {
+	return c.streamEventsCh
 }
 
 func (c *ControlTransport) SendStreamEvent(streamEvent StreamEvent) error {
@@ -165,26 +174,28 @@ func (c *ControlTransport) Subscribe(room string) (io.ReadWriteCloser, error) {
 		return nil, fmt.Errorf("Already subscribed to room: %s", room)
 	}
 
-	readChan := make(chan TrackEvent)
+	subscriberChan := make(chan TrackEvent)
 	var closeOnce sync.Once
 
 	adapter := NewServerMetadataAdapter(ServerMetadataAdapterParams{
 		Write:    c.sendTrackEvent,
-		ReadChan: readChan,
+		ReadChan: subscriberChan,
 		Close: func() error {
 			closeOnce.Do(func() {
-				close(readChan)
+				close(subscriberChan)
 
 				c.mu.Lock()
 				defer c.mu.Unlock()
 
 				delete(c.subscribers, room)
+				delete(c.subscriberChans, room)
 			})
 			return nil
 		},
 	})
 
 	c.subscribers[room] = adapter
+	c.subscriberChans[room] = subscriberChan
 
 	return adapter, nil
 }
@@ -198,7 +209,7 @@ type ServerMetadataAdapter struct {
 type ServerMetadataAdapterParams struct {
 	Write    func(TrackEvent) error
 	Close    func() error
-	ReadChan chan TrackEvent
+	ReadChan <-chan TrackEvent
 }
 
 func NewServerMetadataAdapter(params ServerMetadataAdapterParams) *ServerMetadataAdapter {

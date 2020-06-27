@@ -5,34 +5,27 @@ import (
 	"net"
 	"sync"
 
+	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
 )
 
 // TransportManager is in charge of managing server-to-server transports.
 type TransportManager struct {
-	params      *TransportManagerParams
-	sctpManager *SCTPManager
-	closeOnce   sync.Once
-	mu          sync.Mutex
-	wg          sync.WaitGroup
+	params    *TransportManagerParams
+	udpMux    *udpmux.UDPMux
+	connCh    chan *ServerTransportFactory
+	closeOnce sync.Once
+	mu        sync.Mutex
+	wg        sync.WaitGroup
+	logger    Logger
 
-	rooms        map[string][]*StreamTransport
-	associations map[*Association]*ServerTransportFactory
+	factories map[*stringmux.StringMux]*ServerTransportFactory
 }
 
 type StreamTransport struct {
 	Transport
-	StreamID uint16
-}
-
-type ServerTransportFactory struct {
-	loggerFactory LoggerFactory
-	association   *Association
-	streamCount   uint16
-	Transports    map[*StreamTransport]struct{}
-	freeBuckets   map[uint16]struct{}
-	mu            sync.Mutex
-	wg            *sync.WaitGroup
+	StreamID string
 }
 
 type TransportManagerParams struct {
@@ -41,62 +34,77 @@ type TransportManagerParams struct {
 }
 
 func NewTransportManager(params TransportManagerParams) *TransportManager {
-	sctpManager := NewSCTPManager(SCTPManagerParams{
-		LoggerFactory: params.LoggerFactory,
+	udpMux := udpmux.New(udpmux.Params{
 		Conn:          params.Conn,
+		MTU:           uint32(receiveMTU),
+		LoggerFactory: params.LoggerFactory,
+		ReadChanSize:  100,
 	})
 
 	t := &TransportManager{
-		params:       &params,
-		sctpManager:  sctpManager,
-		associations: make(map[*Association]*ServerTransportFactory),
+		params:    &params,
+		udpMux:    udpMux,
+		factories: make(map[*stringmux.StringMux]*ServerTransportFactory),
 	}
+
+	go t.start()
 
 	return t
 }
 
-// AcceptTransportFactory returns a tranpsort factory after a new Association
-// is created. The factory can be used to create new ServerTransports as
-// needed.
-func (t *TransportManager) AcceptTransportFactory() (*ServerTransportFactory, error) {
-	association, err := t.sctpManager.AcceptAssociation()
-	if err != nil {
-		return nil, fmt.Errorf("Error accepting transport factory: %w", err)
-	}
+func (t *TransportManager) start() {
+	for {
+		conn, err := t.udpMux.AcceptConn()
+		if err != nil {
+			t.logger.Printf("Error accepting udpMux conn: %s", err)
+			return
+		}
 
-	return t.createServerTransportFactory(association), nil
+		t.createServerTransportFactory(conn)
+	}
+}
+
+func (t *TransportManager) create(conn udpmux.Conn) {
+	t.createServerTransportFactory(conn)
 }
 
 // createServerTransportFactory creates a new ServerTransportFactory for the
 // provided association.
-func (t *TransportManager) createServerTransportFactory(association *Association) *ServerTransportFactory {
+func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*ServerTransportFactory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	factory := NewServerTransportFactory(t.params.LoggerFactory, &t.wg, association)
-	t.associations[association] = factory
+	stringMux := stringmux.New(stringmux.Params{
+		LoggerFactory: t.params.LoggerFactory,
+		Conn:          conn,
+		MTU:           uint32(receiveMTU), // TODO not sure if this is ok
+		ReadChanSize:  100,
+	})
+
+	factory := NewServerTransportFactory(t.params.LoggerFactory, &t.wg, stringMux)
+	t.factories[stringMux] = factory
 
 	t.wg.Add(1)
 	go func() {
 		defer t.wg.Done()
-		<-association.CloseChannel()
+		<-stringMux.CloseChannel()
 
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		delete(t.associations, association)
+		delete(t.factories, stringMux)
 	}()
 
-	return factory
+	return factory, nil
 }
 
 func (t *TransportManager) GetTransportFactory(raddr net.Addr) (*ServerTransportFactory, error) {
-	association, err := t.sctpManager.GetAssociation(raddr)
+	conn, err := t.udpMux.GetConn(raddr)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting association for raddr %s: %w", raddr, err)
+		return nil, fmt.Errorf("Error getting conn for raddr %s: %w", raddr, err)
 	}
 
-	return t.createServerTransportFactory(association), nil
+	return t.createServerTransportFactory(conn)
 }
 
 func (t *TransportManager) Close() error {
@@ -111,89 +119,112 @@ func (t *TransportManager) close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	err := t.sctpManager.Close()
+	err := t.udpMux.Close()
 
 	t.closeOnce.Do(func() {
-		for association := range t.associations {
-			_ = association.Close()
-			delete(t.associations, association)
+		for stringMux := range t.factories {
+			_ = stringMux.Close()
+			delete(t.factories, stringMux)
 		}
 	})
 
 	return err
 }
 
-func NewServerTransportFactory(loggerFactory LoggerFactory, wg *sync.WaitGroup, association *Association) *ServerTransportFactory {
-	return &ServerTransportFactory{
-		loggerFactory: loggerFactory,
-		association:   association,
-		streamCount:   0,
-		Transports:    make(map[*StreamTransport]struct{}),
-		freeBuckets:   make(map[uint16]struct{}),
-		wg:            wg,
-	}
+type ServerTransportFactory struct {
+	loggerFactory  LoggerFactory
+	stringMux      *stringmux.StringMux
+	transportsChan chan *StreamTransport
+	Transports     map[string]*StreamTransport
+	mu             sync.Mutex
+	wg             *sync.WaitGroup
 }
 
-// FIXME TODO
-//
-// How to keep StreamIDs in sync from two nodes??
-//
-// Two problems:
-//
-// 1. node1 and node2 might pick the same StreamIDs. Perhaps the
-// initiator could only be allowed to request streams from [0,
-// maxuint16/2>, and the other one from [maxuint16/2, maxuint16].
-//
-// 2. What if node1 and node2 both decide to create 3 streams and a a
-// transport for the same room?
-//
+func NewServerTransportFactory(
+	loggerFactory LoggerFactory,
+	wg *sync.WaitGroup,
+	stringMux *stringmux.StringMux,
+) *ServerTransportFactory {
+	return &ServerTransportFactory{
+		loggerFactory:  loggerFactory,
+		stringMux:      stringMux,
+		transportsChan: make(chan *StreamTransport),
+		Transports:     map[string]*StreamTransport{},
+		wg:             wg,
+	}
+}
 
 func (t *ServerTransportFactory) AcceptTransport() (*StreamTransport, error) {
-	// TODO wait for 3 consecutive streams to be created.
-	return nil, fmt.Errorf("Not implemented")
+	conn, err := t.stringMux.AcceptConn()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error AcceptTransport: %w", err)
+	}
+
+	return t.createTransport(conn)
 }
 
-func (t *ServerTransportFactory) NewTransport() (*StreamTransport, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *ServerTransportFactory) createTransport(conn stringmux.Conn) (*StreamTransport, error) {
+	streamID := conn.StreamID()
 
-	var streamID uint16
-	found := false
-	for streamIDForReuse := range t.freeBuckets {
-		streamID = streamIDForReuse
-		found = true
-		delete(t.freeBuckets, streamIDForReuse)
-		break
-	}
+	stringmux2 := stringmux.New(stringmux.Params{
+		Conn:          conn,
+		LoggerFactory: t.loggerFactory,
+		MTU:           uint32(receiveMTU),
+		ReadChanSize:  100,
+	})
 
-	if !found {
-		streamID = (t.streamCount*3 + 1)
-		// TODO error out on overflow, but there will probably be bigger problems when that happens.
-		t.streamCount++
-	}
+	// TODO handle stringmux2.Accept
 
-	// TODO make handling of these errors nicer
-	mediaStream, err := t.association.OpenStream(streamID, sctp.PayloadTypeWebRTCBinary)
+	sctpConn, err := stringmux2.GetConn("s")
 	if err != nil {
-		return nil, fmt.Errorf("Error opening media stream: %w", err)
+		return nil, fmt.Errorf("Error creating 's' conn for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
 	}
 
-	dataStream, err := t.association.OpenStream(streamID+1, sctp.PayloadTypeWebRTCBinary)
+	mediaConn, err := stringmux2.GetConn("m")
 	if err != nil {
-		_ = mediaStream.Close()
-		return nil, fmt.Errorf("Error opening data stream: %w", err)
-	}
-	metadataStream, err := t.association.OpenStream(streamID+2, sctp.PayloadTypeWebRTCBinary)
-	if err != nil {
-		_ = dataStream.Close()
-		_ = mediaStream.Close()
-		return nil, fmt.Errorf("Error opening metadata stream: %w", err)
+		sctpConn.Close()
+		return nil, fmt.Errorf("Error creating 'm' conn for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
 	}
 
-	transport := NewServerTransport(t.loggerFactory, mediaStream, dataStream, metadataStream)
+	// TODO this is a blocking method. figure out how to deal with this IRL
+
+	association, err := sctp.Client(sctp.Config{
+		NetConn:              sctpConn,
+		LoggerFactory:        NewPionLoggerFactory(t.loggerFactory),
+		MaxReceiveBufferSize: 100,
+	})
+
+	if err != nil {
+		sctpConn.Close()
+		mediaConn.Close()
+		return nil, fmt.Errorf("Error creating sctp association for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+	}
+
+	// TODO handle association.Accept
+
+	// TODO figure out what to do when we get an error that a stream already exists. wait for Accept?
+	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
+	if err != nil {
+		sctpConn.Close()
+		mediaConn.Close()
+		association.Close()
+		return nil, fmt.Errorf("Error creating metadata sctp stream for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+	}
+
+	dataStream, err := association.OpenStream(1, sctp.PayloadTypeWebRTCBinary)
+	if err != nil {
+		sctpConn.Close()
+		mediaConn.Close()
+		association.Close()
+		metadataStream.Close()
+		return nil, fmt.Errorf("Error creating data sctp stream for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+	}
+
+	transport := NewServerTransport(t.loggerFactory, mediaConn, dataStream, metadataStream)
 
 	streamTransport := &StreamTransport{transport, streamID}
-	t.Transports[streamTransport] = struct{}{}
+	t.Transports[streamID] = streamTransport
 
 	t.wg.Add(1)
 	go func() {
@@ -203,10 +234,25 @@ func (t *ServerTransportFactory) NewTransport() (*StreamTransport, error) {
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		t.freeBuckets[streamTransport.StreamID] = struct{}{}
-
-		delete(t.Transports, streamTransport)
+		delete(t.Transports, streamID)
 	}()
 
 	return streamTransport, nil
+}
+
+func (t *ServerTransportFactory) NewTransport(streamID string) (*StreamTransport, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if _, ok := t.Transports[streamID]; ok {
+		return nil, fmt.Errorf("Transport already exists: %s", streamID)
+	}
+
+	conn, err := t.stringMux.GetConn(streamID)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving stringmux conn: %w", err)
+	}
+
+	return t.createTransport(conn)
 }
