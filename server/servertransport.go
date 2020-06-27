@@ -45,6 +45,7 @@ type ServerTransport struct {
 
 	clientID  string
 	closeChan chan struct{}
+	closeOnce sync.Once
 }
 
 func NewServerTransport(
@@ -67,6 +68,7 @@ func NewServerTransport(
 		ServerMediaTransport:    NewServerMediaTransport(mediaLogger, mediaConn),
 		ServerDataTransport:     NewServerDataTransport(dataLogger, dataConn),
 		clientID:                clientID,
+		closeChan:               make(chan struct{}),
 	}
 }
 
@@ -87,7 +89,9 @@ func (t *ServerTransport) Close() (err error) {
 	errors[1] = t.ServerMediaTransport.Close()
 	errors[2] = t.ServerMetadataTransport.Close()
 
-	close(t.closeChan)
+	t.closeOnce.Do(func() {
+		close(t.closeChan)
+	})
 
 	for _, oneError := range errors {
 		if oneError != nil {
