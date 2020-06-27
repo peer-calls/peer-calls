@@ -20,6 +20,7 @@ type Deferred interface {
 
 type Waitable interface {
 	Wait() error
+	WaitChannel() <-chan struct{}
 }
 
 func New() Promise {
@@ -46,4 +47,8 @@ func (p *promise) Reject(err error) {
 func (p *promise) Wait() error {
 	<-p.doneCh
 	return p.err
+}
+
+func (p *promise) WaitChannel() <-chan struct{} {
+	return p.doneCh
 }
