@@ -350,7 +350,7 @@ func (t *ServerMetadataTransport) LocalTracks() []TrackInfo {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	localTracks := make([]TrackInfo, len(t.localTracks))
+	localTracks := make([]TrackInfo, 0, len(t.localTracks))
 
 	for _, trackInfo := range t.localTracks {
 		localTracks = append(localTracks, trackInfo)
@@ -363,7 +363,7 @@ func (t *ServerMetadataTransport) RemoteTracks() []TrackInfo {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	remoteTracks := make([]TrackInfo, len(t.remoteTracks))
+	remoteTracks := make([]TrackInfo, 0, len(t.remoteTracks))
 
 	for _, trackInfo := range t.remoteTracks {
 		remoteTracks = append(remoteTracks, trackInfo)
