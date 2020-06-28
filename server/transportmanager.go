@@ -233,6 +233,8 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 		ReadChanSize:  100,
 	})
 
+	// TODO maybe we'll need to handle localMux Accept as well
+
 	sctpConn, err := localMux.GetConn("s")
 	if err != nil {
 		localMux.Close()
@@ -274,10 +276,6 @@ func (t *ServerTransportFactory) createTransport(
 	mediaConn net.Conn,
 	sctpConn net.Conn,
 ) (*StreamTransport, error) {
-	// TODO handle stringmux2.Accept
-
-	// TODO this is a blocking method. figure out how to deal with this IRL
-
 	association, err := sctp.Client(sctp.Config{
 		NetConn:       sctpConn,
 		LoggerFactory: NewPionLoggerFactory(t.loggerFactory),
@@ -289,9 +287,9 @@ func (t *ServerTransportFactory) createTransport(
 	}
 
 	// TODO check if handling association.Accept is necessary since OpenStream
-	// can return an error
+	// can return an error. Perhaps we need to wait for Accept as well, check the
+	// StreamIdentifier and log stream IDs we are not expecting.
 
-	// TODO figure out what to do when we get an error that a stream already exists. wait for Accept?
 	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		association.Close()
