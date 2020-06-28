@@ -187,6 +187,7 @@ type ServerTransportFactory struct {
 	stringMux      *stringmux.StringMux
 	transportsChan chan *StreamTransport
 	transports     map[string]*StreamTransport
+	promises       map[string]*TransportPromise
 	mu             sync.Mutex
 	wg             *sync.WaitGroup
 }
@@ -202,8 +203,41 @@ func NewServerTransportFactory(
 		stringMux:      stringMux,
 		transportsChan: make(chan *StreamTransport),
 		transports:     map[string]*StreamTransport{},
+		promises:       map[string]*TransportPromise{},
 		wg:             wg,
 	}
+}
+
+func (t *ServerTransportFactory) addPendingPromise(tp *TransportPromise) (ok bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	streamID := tp.StreamID()
+
+	if _, ok := t.transports[streamID]; ok {
+		return false
+	}
+
+	if _, ok := t.promises[streamID]; ok {
+		return false
+	}
+
+	t.promises[streamID] = tp
+	return true
+}
+
+func (t *ServerTransportFactory) removePendingPromiseWhenDone(tp *TransportPromise) {
+	t.wg.Add(1)
+	go func() {
+		defer t.wg.Done()
+
+		_, _ = tp.Wait()
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+
+		delete(t.promises, tp.StreamID())
+	}()
 }
 
 // AcceptTransport returns a TransportPromise. This promise can be either
@@ -213,12 +247,19 @@ func NewServerTransportFactory(
 func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 	conn, err := t.stringMux.AcceptConn()
 
-	tp := NewTransportPromise(t.wg)
+	tp := NewTransportPromise(conn.StreamID(), t.wg)
 
 	if err != nil {
 		tp.reject(fmt.Errorf("Error AcceptTransport: %w", err))
 		return tp
 	}
+
+	if !t.addPendingPromise(tp) {
+		tp.reject(fmt.Errorf("Promise or tranport already exists: %w", err))
+		return tp
+	}
+
+	t.removePendingPromiseWhenDone(tp)
 
 	t.createTransportAsync(tp, conn, true)
 
@@ -390,7 +431,10 @@ func (t *ServerTransportFactory) createTransport(
 	transport := NewServerTransport(t.loggerFactory, mediaConn, dataStream, metadataStream)
 
 	streamTransport := &StreamTransport{transport, streamID, association, localMux}
+
+	t.mu.Lock()
 	t.transports[streamID] = streamTransport
+	t.mu.Unlock()
 
 	t.wg.Add(1)
 	go func() {
@@ -411,15 +455,14 @@ func (t *ServerTransportFactory) createTransport(
 // method. The Wait() method must be called and the error must be checked and
 // handled.
 func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	tp := NewTransportPromise(streamID, t.wg)
 
-	tp := NewTransportPromise(t.wg)
-
-	if _, ok := t.transports[streamID]; ok {
-		tp.reject(fmt.Errorf("Transport already exists: %s", streamID))
+	if !t.addPendingPromise(tp) {
+		tp.reject(fmt.Errorf("Promise or transport already exists: %s", streamID))
 		return tp
 	}
+
+	t.removePendingPromiseWhenDone(tp)
 
 	conn, err := t.stringMux.GetConn(streamID)
 
@@ -446,6 +489,7 @@ func (t *ServerTransportFactory) Close() error {
 }
 
 type TransportPromise struct {
+	streamID     string
 	promise      promise.Promise
 	cancelChan   chan struct{}
 	transport    *StreamTransport
@@ -456,13 +500,17 @@ type TransportPromise struct {
 	wg           *sync.WaitGroup
 }
 
-func NewTransportPromise(wg *sync.WaitGroup) *TransportPromise {
+func NewTransportPromise(streamID string, wg *sync.WaitGroup) *TransportPromise {
 	return &TransportPromise{
 		promise:    promise.New(),
 		cancelChan: make(chan struct{}),
 		transport:  nil,
 		wg:         wg,
 	}
+}
+
+func (t *TransportPromise) StreamID() string {
+	return t.streamID
 }
 
 func (t *TransportPromise) done(transport *StreamTransport, err error) {
