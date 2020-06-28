@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/peer-calls/peer-calls/server/promise"
 	"github.com/peer-calls/peer-calls/server/stringmux"
@@ -287,9 +288,13 @@ func (t *ServerTransportFactory) createTransport(
 	var err error
 
 	if server {
+		fmt.Println("sctp.Server")
 		association, err = sctp.Server(sctpConfig)
+		fmt.Println("sctp.Server done")
 	} else {
+		fmt.Println("sctp.Client")
 		association, err = sctp.Client(sctpConfig)
+		fmt.Println("sctp.Client done")
 	}
 
 	if err != nil {
@@ -447,4 +452,15 @@ func (t *TransportPromise) Cancel() {
 func (t *TransportPromise) Wait() (*StreamTransport, error) {
 	err := t.promise.Wait()
 	return t.transport, err
+}
+
+// WaitTimeout behaes similar to Wait, except it will automatically cancel the
+// promise after a timeout.
+func (t *TransportPromise) WaitTimeout(d time.Duration) (*StreamTransport, error) {
+	select {
+	case <-t.promise.WaitChannel():
+	case <-time.After(d):
+		t.Cancel()
+	}
+	return t.Wait()
 }

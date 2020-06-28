@@ -102,7 +102,7 @@ func TestTransportManager_RTP(t *testing.T) {
 		f2, err = tm2.GetTransportFactory(udpConn1.LocalAddr())
 		require.NoError(t, err)
 
-		transport, err := f2.NewTransport("test-stream").Wait()
+		transport, err := f2.NewTransport("test-stream").WaitTimeout(2 * time.Second)
 		require.NoError(t, err)
 
 		select {
@@ -147,7 +147,7 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		transport, err := transportPromise.Wait()
+		transport, err := transportPromise.WaitTimeout(2 * time.Second)
 		require.Equal(t, server.ErrCanceled, err)
 		require.Nil(t, transport)
 	}()
