@@ -63,7 +63,7 @@ func (u *UDPMux) AcceptConn() (Conn, error) {
 		return nil, fmt.Errorf("Conn closed")
 	}
 
-	u.logger.Printf("%s AcceptConn", conn, conn.RemoteAddr())
+	u.logger.Printf("%s AcceptConn", conn)
 
 	return conn, nil
 }
