@@ -252,6 +252,7 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 
 	// Ensure we don't get stuck at sctp.Client() forever.
 	tp.onCancel(func() {
+		tp.reject(ErrCanceled)
 		_ = localMux.Close()
 	})
 
@@ -426,11 +427,12 @@ func (t *TransportPromise) Cancel() {
 		defer t.wg.Done()
 
 		t.cancelOnce.Do(func() {
+			close(t.cancelChan)
+
 			if t.onCancelHdlr != nil {
 				t.onCancelHdlr()
 			}
 
-			close(t.cancelChan)
 			_ = t.promise.Wait()
 			if t.transport != nil {
 				t.transport.Close()
@@ -443,11 +445,6 @@ func (t *TransportPromise) Cancel() {
 // rejected. Promise can be rejected if an error occurs or if a promise is
 // canceled using the Cancel function.
 func (t *TransportPromise) Wait() (*StreamTransport, error) {
-	select {
-	case <-t.promise.WaitChannel():
-		err := t.promise.Wait()
-		return t.transport, err
-	case <-t.cancelChan:
-		return nil, ErrCanceled
-	}
+	err := t.promise.Wait()
+	return t.transport, err
 }

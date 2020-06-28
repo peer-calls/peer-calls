@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -78,7 +77,6 @@ func TestTransportManager_RTP(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		defer fmt.Println("done 1")
 		defer wg.Done()
 		var err error
 
