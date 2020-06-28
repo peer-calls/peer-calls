@@ -100,7 +100,7 @@ func (t *TransportManager) create(conn udpmux.Conn) {
 }
 
 // createServerTransportFactory creates a new ServerTransportFactory for the
-// provided association.
+// provided connection.
 func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*ServerTransportFactory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
