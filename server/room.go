@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -62,36 +63,69 @@ func (r *AdapterRoomManager) Exit(room string) (isRemoved bool) {
 }
 
 type ChannelRoomManager struct {
-	roomManager    RoomManager
-	roomEventsChan chan RoomEvent
+	roomManager         RoomManager
+	roomEventsChan      chan RoomEvent
+	closedChan          chan struct{}
+	closedChanCloseOnce sync.Once
+	mu                  sync.Mutex
 }
 
 func NewChannelRoomManager(roomManager RoomManager) *ChannelRoomManager {
 	return &ChannelRoomManager{
 		roomManager:    roomManager,
 		roomEventsChan: make(chan RoomEvent),
+		closedChan:     make(chan struct{}),
 	}
 }
 
 // Close exists for tests. This channel should always stay open IRL.
 func (r *ChannelRoomManager) Close() {
-	close(r.roomEventsChan)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.closedChanCloseOnce.Do(func() {
+		close(r.roomEventsChan)
+	})
+}
+
+func (r *ChannelRoomManager) isClosed() bool {
+	select {
+	case <-r.closedChan:
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *ChannelRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	adapter, isNew = r.roomManager.Enter(room)
-	if isNew {
+	if isNew && !r.isClosed() {
 		r.roomEventsChan <- RoomEvent{room, RoomEventTypeAdd}
 	}
 	return adapter, isNew
 }
 
 func (r *ChannelRoomManager) Exit(room string) (isRemoved bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	isRemoved = r.roomManager.Exit(room)
-	if isRemoved {
+	if isRemoved && !r.isClosed() {
 		r.roomEventsChan <- RoomEvent{room, RoomEventTypeRemove}
 	}
 	return isRemoved
+}
+
+func (r *ChannelRoomManager) AcceptEvent() (RoomEvent, error) {
+	event, ok := <-r.roomEventsChan
+	if !ok {
+		return event, fmt.Errorf("ChannelRoomManager closed")
+	}
+
+	return event, nil
 }
 
 func (r *ChannelRoomManager) RoomEventsChannel() <-chan RoomEvent {
