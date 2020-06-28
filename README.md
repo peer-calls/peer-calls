@@ -131,26 +131,28 @@ docker run --rm -it -p 3000:3000 peer-calls
 ## Environment variables
 
 
-| Variable                             | Type   | Description                                                                  | Default   |
-|--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
-| `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-rtp,-rtcp,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
-| `PEERCALLS_BASE_URL`                 | string | Base URL of the application                                                  |           |
-| `PEERCALLS_BIND_HOST`                | string | IP to listen to                                                              | `0.0.0.0` |
-| `PEERCALLS_BIND_PORT`                | int    | Port to listen to                                                            | `3000`    |
-| `PEERCALLS_TLS_CERT`                 | string | Path to TLS PEM certificate. If set will enable TLS                          |           |
-| `PEERCALLS_TLS_KEY`                  | string | Path to TLS PEM cert key. If set will enable TLS                             |           |
-| `PEERCALLS_STORE_TYPE`               | string | Can be `memory` or `redis`                                                   | `memory`  |
-| `PEERCALLS_STORE_REDIS_HOST`         | string | Hostname of Redis server                                                     |           |
-| `PEERCALLS_STORE_REDIS_PORT`         | int    | Port of Redis server                                                         |           |
-| `PEERCALLS_STORE_REDIS_PREFIX`       | string | Prefix for Redis keys. Suggestion: `peercalls`                               |           |
-| `PEERCALLS_NETWORK_TYPE`             | string | Can be `mesh` or `sfu`. Setting to SFU will make the server the main peer    | `mesh`    |
-| `PEERCALLS_NETWORK_SFU_INTERFACES`   | csv    | List of interfaces to use for ICE candidates, uses all available when empty  |           |
-| `PEERCALLS_NETWORK_SFU_JITTER_BUFFER`| bool   | Set to `true` to enable the use of Jitter Buffer                             | `false`   |
-| `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |
-| `PEERCALLS_ICE_SERVER_AUTH_TYPE`     | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
-| `PEERCALLS_ICE_SERVER_SECRET`        | string | Secret for coturn                                                            |           |
-| `PEERCALLS_ICE_SERVER_USERNAME`      | string | Username for coturn                                                          |           |
-| `PEERCALLS_PROMETHEUS_ACCESS_TOKEN`  | string | Access token for prometheus `/metrics` URL                                   |           |
+| Variable                                      | Type   | Description                                                                  | Default   |
+|-----------------------------------------------|--------|------------------------------------------------------------------------------|-----------|
+| `PEERCALLS_LOG`                               | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-rtp,-rtcp,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
+| `PEERCALLS_BASE_URL`                          | string | Base URL of the application                                                  |           |
+| `PEERCALLS_BIND_HOST`                         | string | IP to listen to                                                              | `0.0.0.0` |
+| `PEERCALLS_BIND_PORT`                         | int    | Port to listen to                                                            | `3000`    |
+| `PEERCALLS_TLS_CERT`                          | string | Path to TLS PEM certificate. If set will enable TLS                          |           |
+| `PEERCALLS_TLS_KEY`                           | string | Path to TLS PEM cert key. If set will enable TLS                             |           |
+| `PEERCALLS_STORE_TYPE`                        | string | Can be `memory` or `redis`                                                   | `memory`  |
+| `PEERCALLS_STORE_REDIS_HOST`                  | string | Hostname of Redis server                                                     |           |
+| `PEERCALLS_STORE_REDIS_PORT`                  | int    | Port of Redis server                                                         |           |
+| `PEERCALLS_STORE_REDIS_PREFIX`                | string | Prefix for Redis keys. Suggestion: `peercalls`                               |           |
+| `PEERCALLS_NETWORK_TYPE`                      | string | Can be `mesh` or `sfu`. Setting to SFU will make the server the main peer    | `mesh`    |
+| `PEERCALLS_NETWORK_SFU_INTERFACES`            | csv    | List of interfaces to use for ICE candidates, uses all available when empty  |           |
+| `PEERCALLS_NETWORK_SFU_JITTER_BUFFER`         | bool   | Set to `true` to enable the use of Jitter Buffer                             | `false`   |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_ADDR` | string | When set, will listen for external RTP, Data and Metadata UDP streams        |           |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).         |           |
+| `PEERCALLS_ICE_SERVER_URLS`                   | csv    | List of ICE Server URLs                                                      |           |
+| `PEERCALLS_ICE_SERVER_AUTH_TYPE`              | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
+| `PEERCALLS_ICE_SERVER_SECRET`                 | string | Secret for coturn                                                            |           |
+| `PEERCALLS_ICE_SERVER_USERNAME`               | string | Username for coturn                                                          |           |
+| `PEERCALLS_PROMETHEUS_ACCESS_TOKEN`           | string | Access token for prometheus `/metrics` URL                                   |           |
 
 The default ICE servers in use are:
 

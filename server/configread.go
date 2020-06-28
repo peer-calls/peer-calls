@@ -71,6 +71,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
+	setEnvStringArray(&c.Network.SFU.Transport.Nodes, prefix+"NETWORK_SFU_TRANSPORT_NODES")
+	setEnvString(&c.Network.SFU.Transport.ListenAddr, prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR")
 
 	var ice ICEServer
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
