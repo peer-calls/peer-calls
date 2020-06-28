@@ -58,14 +58,14 @@ func (sm *StringMux) start() {
 		i, err := sm.params.Conn.Read(buf)
 
 		if err != nil {
-			sm.logger.Println("Error reading remote data: %w", err)
+			sm.logger.Printf("Error reading remote data: %s", err)
 			_ = sm.params.Conn.Close()
 			return
 		}
 
 		streamID, data, err := Unmarshal(buf[:i])
 		if err != nil {
-			sm.logger.Println("Error unmarshaling remote data: %w", err)
+			sm.logger.Printf("Error unmarshaling remote data: %s", err)
 			return
 		}
 
@@ -85,6 +85,12 @@ func (sm *StringMux) GetConn(streamID string) (Conn, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
+	select {
+	case <-sm.closeChan:
+		return nil, fmt.Errorf("StringMux closed")
+	default:
+	}
+
 	if _, ok := sm.conns[streamID]; ok {
 		return nil, fmt.Errorf("Connection already exists")
 	}
@@ -98,6 +104,7 @@ func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
 
 	select {
 	case <-sm.closeChan:
+		// Check if StringMux was closed.
 		sm.logger.Println("Ignoring remote data because connection has been closed")
 		return
 	default:
@@ -106,6 +113,7 @@ func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
 	c := sm.getOrCreateConn(streamID, true)
 	select {
 	case <-c.closeChan:
+		// Check if only the muxed connection was closed.
 		sm.logger.Println("Ignoring remote data because connection has been closed")
 		return
 	default:

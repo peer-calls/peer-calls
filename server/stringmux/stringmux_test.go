@@ -69,3 +69,22 @@ func TestStringMuxNew(t *testing.T) {
 	assert.Equal(t, 4, i)
 	assert.Equal(t, []byte("ping"), b[:i])
 }
+
+func TestStringMux_Close_GetConn(t *testing.T) {
+	goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t)
+
+	conn1, err := net.DialUDP("udp", addr1, addr2)
+	require.NoError(t, err)
+
+	sm1 := stringmux.New(stringmux.Params{
+		Conn:          conn1,
+		LoggerFactory: loggerFactory,
+	})
+
+	sm1.Close()
+
+	createdConn, err := sm1.GetConn("test")
+	require.EqualError(t, err, "StringMux closed")
+	require.Nil(t, createdConn)
+}

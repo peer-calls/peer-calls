@@ -6,11 +6,14 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/goleak"
 )
+
+var loggerFactory = test.NewLoggerFactory()
 
 func TestUDPMux_AcceptConn(t *testing.T) {
 	goleak.VerifyNone(t)
@@ -22,8 +25,6 @@ func TestUDPMux_AcceptConn(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer udpConn1.Close()
-
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS", os.Stdout)
 
 	mux := New(Params{
 		Conn:          udpConn1,
@@ -115,4 +116,32 @@ func TestUDPMux_GetConn(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", string(recv[:i]))
+}
+
+func TestUDPMux_Close_GetConn(t *testing.T) {
+	goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t)
+
+	udpConn1, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.IP{127, 0, 0, 1},
+		Port: 0,
+	})
+	require.NoError(t, err)
+	defer udpConn1.Close()
+
+	mux1 := New(Params{
+		Conn:          udpConn1,
+		MTU:           8192,
+		LoggerFactory: loggerFactory,
+		ReadChanSize:  20,
+	})
+
+	mux1.Close()
+
+	createdConn, err := mux1.GetConn(&net.UDPAddr{
+		IP:   net.IP{127, 0, 0, 1},
+		Port: 1234,
+	})
+	require.EqualError(t, err, "UDPMux closed")
+	require.Nil(t, createdConn)
 }

@@ -70,6 +70,12 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	select {
+	case <-u.closeChan:
+		return nil, fmt.Errorf("UDPMux closed")
+	default:
+	}
+
 	if _, ok := u.conns[raddr.String()]; ok {
 		return nil, fmt.Errorf("Connection already exists")
 	}
