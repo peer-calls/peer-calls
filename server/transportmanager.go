@@ -233,6 +233,12 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 		ReadChanSize:  100,
 	})
 
+	// Ensure we don't get stuck at sctp.Client() forever.
+	tp.onCancel(func() {
+		tp.reject(ErrCanceled)
+		_ = localMux.Close()
+	})
+
 	// TODO maybe we'll need to handle localMux Accept as well
 
 	sctpConn, err := localMux.GetConn("s")
@@ -249,12 +255,6 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 		tp.done(nil, fmt.Errorf("Error creating 'm' conn for raddr: %s %s: %w", raddr, streamID, err))
 		return
 	}
-
-	// Ensure we don't get stuck at sctp.Client() forever.
-	tp.onCancel(func() {
-		tp.reject(ErrCanceled)
-		_ = localMux.Close()
-	})
 
 	t.wg.Add(1)
 	go func() {
