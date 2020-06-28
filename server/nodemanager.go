@@ -140,7 +140,6 @@ func (nm *NodeManager) startRoomEventLoop() {
 				factory.CloseTransport(roomEvent.RoomName)
 			}
 		}
-
 	}
 }
 
