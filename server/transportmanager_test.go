@@ -70,8 +70,13 @@ func TestTransportManager_RTP(t *testing.T) {
 	rtpPackets := vp8Packetizer.Packetize(sample.Data, sample.Samples)
 	require.Equal(t, 1, len(rtpPackets), "expected only a single RTP packet")
 
-	// Make the equality assertions pass below since this is nil.
-	rtpPackets[0].CSRC = make([]uint32, 0)
+	rtpPacketBytes, err := rtpPackets[0].Marshal()
+	require.NoError(t, err)
+
+	// prevent race condition between transport.WriteRTP in goroutine 1 and
+	// assert.Equal on recv.
+	rtpPacketBytesCopy := make([]byte, len(rtpPacketBytes))
+	copy(rtpPacketBytesCopy, rtpPacketBytes)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -96,7 +101,6 @@ func TestTransportManager_RTP(t *testing.T) {
 		}
 
 		transport1 = transport
-		// defer transport.Close()
 	}()
 
 	go func() {
@@ -110,7 +114,7 @@ func TestTransportManager_RTP(t *testing.T) {
 
 		select {
 		case pkt := <-transport.RTPChannel():
-			assert.Equal(t, rtpPackets[0], pkt)
+			assert.Equal(t, rtpPacketBytesCopy, pkt.Raw)
 		case <-time.After(time.Second):
 			assert.Fail(t, "Timed out waiting for rtp.Packet")
 		}

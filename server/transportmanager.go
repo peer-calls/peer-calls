@@ -361,13 +361,9 @@ func (t *ServerTransportFactory) createTransport(
 	var err error
 
 	if server {
-		fmt.Println("sctp.Server")
 		association, err = sctp.Server(sctpConfig)
-		fmt.Println("sctp.Server done")
 	} else {
-		fmt.Println("sctp.Client")
 		association, err = sctp.Client(sctpConfig)
-		fmt.Println("sctp.Client done")
 	}
 
 	if err != nil {
