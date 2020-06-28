@@ -18,12 +18,12 @@ type NodeManagerParams struct {
 	LoggerFactory LoggerFactory
 	RoomManager   *ChannelRoomManager
 	TracksManager TracksManager
-	LocalAddr     *net.UDPAddr
+	ListenAddr    *net.UDPAddr
 	Nodes         []*net.UDPAddr
 }
 
 func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
-	conn, err := net.ListenUDP("udp", params.LocalAddr)
+	conn, err := net.ListenUDP("udp", params.ListenAddr)
 
 	if err != nil {
 		return nil, err

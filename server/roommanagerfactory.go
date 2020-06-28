@@ -54,7 +54,7 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 
 	nodeManager, err := NewNodeManager(NodeManagerParams{
 		LoggerFactory: rmf.params.LoggerFactory,
-		LocalAddr:     listenAddr,
+		ListenAddr:     listenAddr,
 		Nodes:         nodes,
 		RoomManager:   channelRoomManager,
 		TracksManager: rmf.params.TracksManager,
