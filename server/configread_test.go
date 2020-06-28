@@ -76,7 +76,7 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"NETWORK_SFU_JITTER_BUFFER", "true")
 	os.Setenv(prefix+"PROMETHEUS_ACCESS_TOKEN", "at1234")
 	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_NODES", "127.0.0.1:3005,127.0.0.1:3006")
-	os.Setenv(prefix+"NETWORK_SFU_LISTEN_ADDR", "127.0.0.1:3004")
+	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR", "127.0.0.1:3004")
 	var c server.Config
 	server.ReadConfigFromEnv(prefix, &c)
 	assert.Equal(t, "/test", c.BaseURL)

@@ -19,11 +19,7 @@ type NodeManagerParams struct {
 	RoomManager   *ChannelRoomManager
 	TracksManager TracksManager
 	LocalAddr     *net.UDPAddr
-	Nodes         []Node
-}
-
-type Node struct {
-	Addr net.Addr
+	Nodes         []*net.UDPAddr
 }
 
 func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
@@ -45,18 +41,12 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 		rooms:            map[string]struct{}{},
 	}
 
-	for _, node := range params.Nodes {
-		_, err := transportManager.GetTransportFactory(node.Addr)
+	for _, addr := range params.Nodes {
+		_, err := transportManager.GetTransportFactory(addr)
 		if err != nil {
-			nm.logger.Println("Error creating transport factory for remote addr: %s", node.Addr)
+			nm.logger.Println("Error creating transport factory for remote addr: %s", addr)
 		}
 	}
-
-	// nm.wg.Add(1)
-	// go func() {
-	// 	defer nm.wg.Done()
-	// 	nm.start()
-	// }()
 
 	return nm, nil
 }
