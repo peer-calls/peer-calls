@@ -12,14 +12,15 @@ import (
 var DefaultMTU uint32 = 8192
 
 type StringMux struct {
-	params    *Params
-	logger    logger.Logger
-	conns     map[string]*conn
-	connChan  chan Conn
-	closeChan chan struct{}
-	closeOnce sync.Once
-	mu        sync.Mutex
-	wg        sync.WaitGroup
+	params      *Params
+	logger      logger.Logger
+	debugLogger logger.Logger
+	conns       map[string]*conn
+	connChan    chan Conn
+	closeChan   chan struct{}
+	closeOnce   sync.Once
+	mu          sync.Mutex
+	wg          sync.WaitGroup
 }
 
 type Params struct {
@@ -31,11 +32,12 @@ type Params struct {
 
 func New(params Params) *StringMux {
 	sm := &StringMux{
-		params:    &params,
-		logger:    params.LoggerFactory.GetLogger("stringmux"),
-		closeChan: make(chan struct{}),
-		connChan:  make(chan Conn),
-		conns:     make(map[string]*conn),
+		params:      &params,
+		logger:      params.LoggerFactory.GetLogger("stringmux:info"),
+		debugLogger: params.LoggerFactory.GetLogger("stringmux:debug"),
+		closeChan:   make(chan struct{}),
+		connChan:    make(chan Conn),
+		conns:       make(map[string]*conn),
 	}
 
 	if sm.params.MTU == 0 {
@@ -78,6 +80,9 @@ func (sm *StringMux) AcceptConn() (Conn, error) {
 	if !ok {
 		return nil, fmt.Errorf("StringMux closed")
 	}
+
+	sm.logger.Printf("%s AcceptConn", conn)
+
 	return conn, nil
 }
 
@@ -95,7 +100,11 @@ func (sm *StringMux) GetConn(streamID string) (Conn, error) {
 		return nil, fmt.Errorf("Connection already exists")
 	}
 
-	return sm.createConn(streamID, false), nil
+	c := sm.createConn(streamID, false)
+
+	sm.logger.Printf("%s GetConn", c)
+
+	return c, nil
 }
 
 func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
@@ -131,6 +140,8 @@ func (sm *StringMux) getOrCreateConn(streamID string, accept bool) *conn {
 }
 
 func (sm *StringMux) Close() error {
+	sm.logger.Println("StringMux Close")
+
 	err := sm.params.Conn.Close()
 
 	sm.close()
@@ -149,11 +160,7 @@ func (sm *StringMux) close() {
 	defer sm.mu.Unlock()
 
 	for _, conn := range sm.conns {
-		conn.onceClose.Do(func() {
-			close(conn.readChan)
-			close(conn.closeChan)
-		})
-		delete(sm.conns, conn.RemoteAddr().String())
+		sm.closeConn(conn)
 	}
 
 	sm.closeOnce.Do(func() {
@@ -162,24 +169,33 @@ func (sm *StringMux) close() {
 	})
 }
 
-func (u *StringMux) handleClose(conn *conn) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+// handleClose calls closeConn ,but holds the lock.
+func (sm *StringMux) handleClose(conn *conn) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	sm.closeConn(conn)
+}
+
+// closeConn caller must hold the lock.
+func (sm *StringMux) closeConn(conn *conn) {
+	sm.logger.Printf("%s closeConn", conn)
 
 	conn.onceClose.Do(func() {
 		close(conn.readChan)
 		close(conn.closeChan)
 	})
-	delete(u.conns, conn.RemoteAddr().String())
+	delete(sm.conns, conn.RemoteAddr().String())
 }
 
 func (sm *StringMux) createConn(streamID string, accept bool) *conn {
 	c := &conn{
-		streamID:  streamID,
-		conn:      sm.params.Conn,
-		readChan:  make(chan []byte, sm.params.ReadChanSize),
-		closeChan: make(chan struct{}),
-		onClose:   sm.handleClose,
+		streamID:    streamID,
+		conn:        sm.params.Conn,
+		readChan:    make(chan []byte, sm.params.ReadChanSize),
+		closeChan:   make(chan struct{}),
+		onClose:     sm.handleClose,
+		debugLogger: sm.debugLogger,
 	}
 	sm.conns[streamID] = c
 	if accept {
@@ -195,12 +211,13 @@ type Conn interface {
 }
 
 type conn struct {
-	conn      net.Conn
-	streamID  string
-	readChan  chan []byte
-	closeChan chan struct{}
-	onClose   func(*conn)
-	onceClose sync.Once
+	conn        net.Conn
+	streamID    string
+	readChan    chan []byte
+	closeChan   chan struct{}
+	onClose     func(*conn)
+	onceClose   sync.Once
+	debugLogger logger.Logger
 }
 
 var _ Conn = &conn{}
@@ -230,6 +247,7 @@ func (c *conn) Read(b []byte) (int, error) {
 		return 0, fmt.Errorf("Conn closed")
 	}
 	copy(b, buf)
+	c.debugLogger.Printf("%s recv %v", c, buf)
 	return len(buf), nil
 }
 
@@ -242,6 +260,7 @@ func (c *conn) Write(b []byte) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("Error marshalling data during write: %w", err)
 		}
+		c.debugLogger.Printf("%s send %v", c, b)
 		_, err = c.conn.Write(data)
 		if err != nil {
 			return 0, fmt.Errorf("Error writing data: %w", err)
@@ -268,4 +287,16 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 
 func (c *conn) SetWriteDeadline(t time.Time) error {
 	return nil
+}
+
+func (c *conn) String() string {
+	if s, ok := c.conn.(stringer); ok {
+		return fmt.Sprintf("%s [%s]", s.String(), c.streamID)
+	}
+
+	return fmt.Sprintf("[%s]", c.streamID)
+}
+
+type stringer interface {
+	String() string
 }
