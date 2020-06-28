@@ -13,6 +13,14 @@ import (
 	"go.uber.org/goleak"
 )
 
+func listenUDP(laddr *net.UDPAddr) *net.UDPConn {
+	conn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		panic(err)
+	}
+	return conn
+}
+
 func TestTransportManager(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
