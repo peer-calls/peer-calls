@@ -215,12 +215,12 @@ func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 		return tp
 	}
 
-	t.createTransportAsync(tp, conn)
+	t.createTransportAsync(tp, conn, true)
 
 	return tp
 }
 
-func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn) {
+func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn, server bool) {
 	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
@@ -259,7 +259,7 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 	go func() {
 		defer t.wg.Done()
 
-		transport, err := t.createTransport(conn.RemoteAddr(), conn.StreamID(), localMux, mediaConn, sctpConn)
+		transport, err := t.createTransport(conn.RemoteAddr(), conn.StreamID(), localMux, mediaConn, sctpConn, server)
 		if err != nil {
 			mediaConn.Close()
 			sctpConn.Close()
@@ -275,12 +275,21 @@ func (t *ServerTransportFactory) createTransport(
 	localMux *stringmux.StringMux,
 	mediaConn net.Conn,
 	sctpConn net.Conn,
+	server bool,
 ) (*StreamTransport, error) {
-	association, err := sctp.Client(sctp.Config{
+	sctpConfig := sctp.Config{
 		NetConn:       sctpConn,
 		LoggerFactory: NewPionLoggerFactory(t.loggerFactory),
-		// MaxReceiveBufferSize: uint32(receiveMTU),
-	})
+	}
+
+	var association *sctp.Association
+	var err error
+
+	if server {
+		association, err = sctp.Server(sctpConfig)
+	} else {
+		association, err = sctp.Client(sctpConfig)
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("Error creating sctp association for raddr: %s %s: %w", raddr, streamID, err)
@@ -344,7 +353,7 @@ func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise
 		return tp
 	}
 
-	t.createTransportAsync(tp, conn)
+	t.createTransportAsync(tp, conn, false)
 
 	return tp
 }
