@@ -208,7 +208,7 @@ func NewServerTransportFactory(
 func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 	conn, err := t.stringMux.AcceptConn()
 
-	tp := NewTransportPromise()
+	tp := NewTransportPromise(t.wg)
 
 	if err != nil {
 		tp.reject(fmt.Errorf("Error AcceptTransport: %w", err))
@@ -221,34 +221,60 @@ func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 }
 
 func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn) {
-	go func() {
-		transport, err := t.createTransport(conn)
-		tp.done(transport, err)
-	}()
-}
-
-func (t *ServerTransportFactory) createTransport(conn stringmux.Conn) (*StreamTransport, error) {
+	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
-	stringMux2 := stringmux.New(stringmux.Params{
+	// This can be optimized in the future since a StringMux has a minimal
+	// overhead of 3 bytes, and only a single bit is needed.
+	localMux := stringmux.New(stringmux.Params{
 		Conn:          conn,
 		LoggerFactory: t.loggerFactory,
 		MTU:           uint32(receiveMTU),
 		ReadChanSize:  100,
 	})
 
-	// TODO handle stringmux2.Accept
-
-	sctpConn, err := stringMux2.GetConn("s")
+	sctpConn, err := localMux.GetConn("s")
 	if err != nil {
-		return nil, fmt.Errorf("Error creating 's' conn for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+		localMux.Close()
+		tp.done(nil, fmt.Errorf("Error creating 's' conn for raddr: %s %s: %w", raddr, streamID, err))
+		return
 	}
 
-	mediaConn, err := stringMux2.GetConn("m")
+	mediaConn, err := localMux.GetConn("m")
 	if err != nil {
 		sctpConn.Close()
-		return nil, fmt.Errorf("Error creating 'm' conn for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+		localMux.Close()
+		tp.done(nil, fmt.Errorf("Error creating 'm' conn for raddr: %s %s: %w", raddr, streamID, err))
+		return
 	}
+
+	// Ensure we don't get stuck at sctp.Client() forever.
+	tp.onCancel(func() {
+		_ = localMux.Close()
+	})
+
+	t.wg.Add(1)
+	go func() {
+		defer t.wg.Done()
+
+		transport, err := t.createTransport(conn.RemoteAddr(), conn.StreamID(), localMux, mediaConn, sctpConn)
+		if err != nil {
+			mediaConn.Close()
+			sctpConn.Close()
+			localMux.Close()
+		}
+
+		tp.done(transport, err)
+	}()
+}
+
+func (t *ServerTransportFactory) createTransport(
+	raddr net.Addr, streamID string,
+	localMux *stringmux.StringMux,
+	mediaConn net.Conn,
+	sctpConn net.Conn,
+) (*StreamTransport, error) {
+	// TODO handle stringmux2.Accept
 
 	// TODO this is a blocking method. figure out how to deal with this IRL
 
@@ -259,9 +285,7 @@ func (t *ServerTransportFactory) createTransport(conn stringmux.Conn) (*StreamTr
 	})
 
 	if err != nil {
-		sctpConn.Close()
-		mediaConn.Close()
-		return nil, fmt.Errorf("Error creating sctp association for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+		return nil, fmt.Errorf("Error creating sctp association for raddr: %s %s: %w", raddr, streamID, err)
 	}
 
 	// TODO check if handling association.Accept is necessary since OpenStream
@@ -270,24 +294,20 @@ func (t *ServerTransportFactory) createTransport(conn stringmux.Conn) (*StreamTr
 	// TODO figure out what to do when we get an error that a stream already exists. wait for Accept?
 	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
-		sctpConn.Close()
-		mediaConn.Close()
 		association.Close()
-		return nil, fmt.Errorf("Error creating metadata sctp stream for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+		return nil, fmt.Errorf("Error creating metadata sctp stream for raddr: %s %s: %w", raddr, streamID, err)
 	}
 
 	dataStream, err := association.OpenStream(1, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
-		sctpConn.Close()
-		mediaConn.Close()
-		association.Close()
 		metadataStream.Close()
-		return nil, fmt.Errorf("Error creating data sctp stream for raddr: %s %s: %w", conn.RemoteAddr(), conn.StreamID(), err)
+		association.Close()
+		return nil, fmt.Errorf("Error creating data sctp stream for raddr: %s %s: %w", raddr, streamID, err)
 	}
 
 	transport := NewServerTransport(t.loggerFactory, mediaConn, dataStream, metadataStream)
 
-	streamTransport := &StreamTransport{transport, streamID, association, stringMux2}
+	streamTransport := &StreamTransport{transport, streamID, association, localMux}
 	t.transports[streamID] = streamTransport
 
 	t.wg.Add(1)
@@ -312,7 +332,7 @@ func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	tp := NewTransportPromise()
+	tp := NewTransportPromise(t.wg)
 
 	if _, ok := t.transports[streamID]; ok {
 		tp.reject(fmt.Errorf("Transport already exists: %s", streamID))
@@ -344,22 +364,27 @@ func (t *ServerTransportFactory) Close() error {
 }
 
 type TransportPromise struct {
-	promise    promise.Promise
-	cancelChan chan struct{}
-	transport  *StreamTransport
-	once       sync.Once
-	onceCancel sync.Once
+	promise      promise.Promise
+	cancelChan   chan struct{}
+	transport    *StreamTransport
+	resolveOnce  sync.Once
+	cancelOnce   sync.Once
+	onCancelOnce sync.Once
+	onCancelHdlr func()
+	wg           *sync.WaitGroup
 }
 
-func NewTransportPromise() *TransportPromise {
+func NewTransportPromise(wg *sync.WaitGroup) *TransportPromise {
 	return &TransportPromise{
-		promise:   promise.New(),
-		transport: nil,
+		promise:    promise.New(),
+		cancelChan: make(chan struct{}),
+		transport:  nil,
+		wg:         wg,
 	}
 }
 
 func (t *TransportPromise) done(transport *StreamTransport, err error) {
-	t.once.Do(func() {
+	t.resolveOnce.Do(func() {
 		if err != nil {
 			t.promise.Reject(err)
 		} else {
@@ -377,15 +402,28 @@ func (t *TransportPromise) reject(err error) {
 	t.done(nil, err)
 }
 
+func (t *TransportPromise) onCancel(handleClose func()) {
+	t.onCancelOnce.Do(func() {
+		t.onCancelHdlr = handleClose
+	})
+}
+
 var ErrCanceled = fmt.Errorf("Canceled")
 
 // Cancel waits for the transport in another goroutine and closes it as soon as
 // the promise resolves.
 func (t *TransportPromise) Cancel() {
-	go func() {
-		t.onceCancel.Do(func() {
-			close(t.cancelChan)
+	t.wg.Add(1)
 
+	go func() {
+		defer t.wg.Done()
+
+		t.cancelOnce.Do(func() {
+			if t.onCancelHdlr != nil {
+				t.onCancelHdlr()
+			}
+
+			close(t.cancelChan)
 			_ = t.promise.Wait()
 			if t.transport != nil {
 				t.transport.Close()

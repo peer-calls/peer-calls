@@ -25,7 +25,7 @@ func listenUDP(laddr *net.UDPAddr) *net.UDPConn {
 	return conn
 }
 
-func TestTransportManager(t *testing.T) {
+func TestTransportManager_RTP(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
@@ -35,11 +35,13 @@ func TestTransportManager(t *testing.T) {
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
 	})
+	defer udpConn1.Close()
 
 	udpConn2 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
 	})
+	defer udpConn2.Close()
 
 	var f1, f2 *server.ServerTransportFactory
 
@@ -47,11 +49,13 @@ func TestTransportManager(t *testing.T) {
 		Conn:          udpConn1,
 		LoggerFactory: loggerFactory,
 	})
+	defer tm1.Close()
 
 	tm2 := server.NewTransportManager(server.TransportManagerParams{
 		Conn:          udpConn2,
 		LoggerFactory: loggerFactory,
 	})
+	defer tm2.Close()
 
 	sample := media.Sample{Data: []byte{0x00, 0x01, 0x02}, Samples: 1}
 
@@ -114,7 +118,43 @@ func TestTransportManager(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
 
-	tm1.Close()
-	tm2.Close()
+func TestTransportManager_NewTransport_Cancel(t *testing.T) {
+	goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t)
+
+	loggerFactory := test.NewLoggerFactory()
+
+	udpConn1 := listenUDP(&net.UDPAddr{
+		IP:   net.IP{127, 0, 0, 1},
+		Port: 0,
+	})
+	defer udpConn1.Close()
+
+	tm1 := server.NewTransportManager(server.TransportManagerParams{
+		Conn:          udpConn1,
+		LoggerFactory: loggerFactory,
+	})
+	defer tm1.Close()
+
+	var err error
+	f2, err := tm1.GetTransportFactory(udpConn1.LocalAddr())
+	require.NoError(t, err)
+
+	transportPromise := f2.NewTransport("test-stream")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		transport, err := transportPromise.Wait()
+		require.Equal(t, server.ErrCanceled, err)
+		require.Nil(t, transport)
+	}()
+
+	transportPromise.Cancel()
+
+	wg.Wait()
 }
