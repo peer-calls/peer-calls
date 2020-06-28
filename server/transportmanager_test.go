@@ -5,9 +5,13 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
+	"github.com/pion/webrtc/v2/pkg/media"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -49,6 +53,23 @@ func TestTransportManager(t *testing.T) {
 		LoggerFactory: loggerFactory,
 	})
 
+	sample := media.Sample{Data: []byte{0x00, 0x01, 0x02}, Samples: 1}
+
+	var vp8Packetizer = rtp.NewPacketizer(
+		1200,
+		96,
+		12345678,
+		&codecs.VP8Payloader{},
+		rtp.NewRandomSequencer(),
+		96000,
+	)
+
+	rtpPackets := vp8Packetizer.Packetize(sample.Data, sample.Samples)
+	require.Equal(t, 1, len(rtpPackets), "expected only a single RTP packet")
+
+	// Make the equality assertions pass below since this is nil.
+	rtpPackets[0].CSRC = make([]uint32, 0)
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -63,6 +84,13 @@ func TestTransportManager(t *testing.T) {
 		transport, err := f1.AcceptTransport().Wait()
 		require.NoError(t, err)
 		assert.Equal(t, "test-stream", transport.StreamID)
+
+		for _, rtpPacket := range rtpPackets {
+			i, err := transport.WriteRTP(rtpPacket)
+			assert.NoError(t, err)
+			assert.Equal(t, rtpPacket.MarshalSize(), i, "expected to send RTP bytes")
+		}
+
 		defer transport.Close()
 	}()
 
@@ -74,6 +102,14 @@ func TestTransportManager(t *testing.T) {
 
 		transport, err := f2.NewTransport("test-stream").Wait()
 		require.NoError(t, err)
+
+		select {
+		case pkt := <-transport.RTPChannel():
+			assert.Equal(t, rtpPackets[0], pkt)
+		case <-time.After(time.Second):
+			assert.Fail(t, "Timed out waiting for rtp.Packet")
+		}
+
 		defer transport.Close()
 	}()
 
