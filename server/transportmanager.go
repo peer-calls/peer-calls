@@ -182,6 +182,7 @@ func (t *TransportManager) close() error {
 }
 
 type ServerTransportFactory struct {
+	logger         Logger
 	loggerFactory  LoggerFactory
 	stringMux      *stringmux.StringMux
 	transportsChan chan *StreamTransport
@@ -196,6 +197,7 @@ func NewServerTransportFactory(
 	stringMux *stringmux.StringMux,
 ) *ServerTransportFactory {
 	return &ServerTransportFactory{
+		logger:         loggerFactory.GetLogger("stfactory"),
 		loggerFactory:  loggerFactory,
 		stringMux:      stringMux,
 		transportsChan: make(chan *StreamTransport),
@@ -236,7 +238,7 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 		ReadChanSize:  100,
 	})
 
-	// Ensure we don't get stuck at sctp.Client() forever.
+	// Ensure we don't get stuck at sctp.Client() or sctp.Server() forever.
 	tp.onCancel(func() {
 		tp.reject(ErrCanceled)
 		_ = localMux.Close()
@@ -244,20 +246,19 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 
 	// TODO maybe we'll need to handle localMux Accept as well
 
-	sctpConn, err := localMux.GetConn("s")
+	result, err := t.getOrAcceptStringMux(localMux, map[string]struct{}{
+		"s": {},
+		"m": {},
+	})
+
 	if err != nil {
 		localMux.Close()
-		tp.done(nil, fmt.Errorf("Error creating 's' conn for raddr: %s %s: %w", raddr, streamID, err))
+		tp.done(nil, fmt.Errorf("Error creating 's' and 'r' conns for raddr: %s %s: %w", raddr, streamID, err))
 		return
 	}
 
-	mediaConn, err := localMux.GetConn("m")
-	if err != nil {
-		sctpConn.Close()
-		localMux.Close()
-		tp.done(nil, fmt.Errorf("Error creating 'm' conn for raddr: %s %s: %w", raddr, streamID, err))
-		return
-	}
+	sctpConn := result["s"]
+	mediaConn := result["m"]
 
 	t.wg.Add(1)
 	go func() {
@@ -272,6 +273,76 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 
 		tp.done(transport, err)
 	}()
+}
+
+func (t *ServerTransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, reqStreamIDs map[string]struct{}) (conns map[string]stringmux.Conn, errConn error) {
+	var localMu sync.Mutex
+	localWaitCh := make(chan struct{})
+	localWaitChOnceClose := sync.Once{}
+
+	conns = make(map[string]stringmux.Conn, len(reqStreamIDs))
+
+	handleConn := func(conn stringmux.Conn) {
+		localMu.Lock()
+		defer localMu.Unlock()
+
+		if _, ok := reqStreamIDs[conn.StreamID()]; ok {
+			conns[conn.StreamID()] = conn
+		} else {
+			t.logger.Printf("%s Unexpected connection", conn)
+
+			// // drain data from blocking the event loop
+
+			// t.wg.Add(1)
+			// go func() {
+			// 	defer t.wg.Done()
+
+			// 	buf := make([]byte, 1500)
+			// 	for {
+			// 		_, err := conn.Read(buf)
+			// 		if err != nil {
+			// 			return
+			// 		}
+			// 	}
+			// }()
+		}
+
+		if len(reqStreamIDs) == len(conns) {
+			localWaitChOnceClose.Do(func() {
+				close(localWaitCh)
+			})
+		}
+	}
+
+	t.wg.Add(1)
+	go func() {
+		defer t.wg.Done()
+
+		for {
+			conn, err := localMux.AcceptConn()
+			if err != nil {
+				localWaitChOnceClose.Do(func() {
+					// existing connections should be closed here so no need to close.
+					errConn = err
+					close(localWaitCh)
+				})
+				return
+			}
+
+			handleConn(conn)
+		}
+	}()
+
+	for reqStreamID := range reqStreamIDs {
+		if conn, err := localMux.GetConn(reqStreamID); err == nil {
+			handleConn(conn)
+		}
+	}
+
+	if len(reqStreamIDs) > 0 {
+		<-localWaitCh
+	}
+	return
 }
 
 func (t *ServerTransportFactory) createTransport(
