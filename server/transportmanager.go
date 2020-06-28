@@ -75,6 +75,19 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 	return t
 }
 
+func (t *TransportManager) Factories() []*ServerTransportFactory {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	factories := make([]*ServerTransportFactory, 0, len(t.factories))
+
+	for _, factory := range t.factories {
+		factories = append(factories, factory)
+	}
+
+	return factories
+}
+
 func (t *TransportManager) start() {
 	for {
 		conn, err := t.udpMux.AcceptConn()
@@ -387,7 +400,8 @@ func (t *ServerTransportFactory) getOrAcceptStringMux(localMux *stringmux.String
 }
 
 func (t *ServerTransportFactory) createTransport(
-	raddr net.Addr, streamID string,
+	raddr net.Addr,
+	streamID string,
 	localMux *stringmux.StringMux,
 	mediaConn net.Conn,
 	sctpConn net.Conn,
@@ -448,6 +462,26 @@ func (t *ServerTransportFactory) createTransport(
 	}()
 
 	return streamTransport, nil
+}
+
+func (t *ServerTransportFactory) CloseTransport(streamID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if tp, ok := t.promises[streamID]; ok {
+		// TODO check what happens when Cancel() is called later than resolve(). I
+		// think this might still cause the transport to be created and added to
+		// the transports map but not sure how to tackle this at this point.
+		//
+		// The good thing is that the promise will still be set by the time the
+		// transport is added to transports map, but I'm still not 100% sure that
+		// it will cover all edge cases.
+		tp.Cancel()
+	}
+
+	if transport, ok := t.transports[streamID]; ok {
+		transport.Close()
+	}
 }
 
 // NewTransport returns a TransportPromise. This promise can be either canceled
