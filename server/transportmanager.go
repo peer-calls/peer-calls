@@ -83,6 +83,8 @@ func (t *TransportManager) start() {
 			return
 		}
 
+		t.logger.Printf("Accept UDP connection: %s", conn.RemoteAddr())
+
 		factory, err := t.createServerTransportFactory(conn)
 		if err != nil {
 			t.logger.Printf("Error creating transport factory: %s", err)

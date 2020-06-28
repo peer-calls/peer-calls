@@ -76,6 +76,8 @@ func TestTransportManager_RTP(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
+	var transport1, transport2 server.Transport
+
 	go func() {
 		defer wg.Done()
 		var err error
@@ -83,7 +85,7 @@ func TestTransportManager_RTP(t *testing.T) {
 		f1, err = tm1.AcceptTransportFactory()
 		require.NoError(t, err)
 
-		transport, err := f1.AcceptTransport().Wait()
+		transport, err := f1.AcceptTransport().WaitTimeout(20 * time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "test-stream", transport.StreamID)
 
@@ -93,7 +95,8 @@ func TestTransportManager_RTP(t *testing.T) {
 			assert.Equal(t, rtpPacket.MarshalSize(), i, "expected to send RTP bytes")
 		}
 
-		defer transport.Close()
+		transport1 = transport
+		// defer transport.Close()
 	}()
 
 	go func() {
@@ -102,7 +105,7 @@ func TestTransportManager_RTP(t *testing.T) {
 		f2, err = tm2.GetTransportFactory(udpConn1.LocalAddr())
 		require.NoError(t, err)
 
-		transport, err := f2.NewTransport("test-stream").WaitTimeout(2 * time.Second)
+		transport, err := f2.NewTransport("test-stream").WaitTimeout(20 * time.Second)
 		require.NoError(t, err)
 
 		select {
@@ -112,10 +115,13 @@ func TestTransportManager_RTP(t *testing.T) {
 			assert.Fail(t, "Timed out waiting for rtp.Packet")
 		}
 
-		defer transport.Close()
+		transport2 = transport
 	}()
 
 	wg.Wait()
+
+	assert.NoError(t, transport1.Close())
+	assert.NoError(t, transport2.Close())
 }
 
 func TestTransportManager_NewTransport_Cancel(t *testing.T) {
@@ -147,7 +153,7 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		transport, err := transportPromise.WaitTimeout(2 * time.Second)
+		transport, err := transportPromise.WaitTimeout(20 * time.Second)
 		require.Equal(t, server.ErrCanceled, err)
 		require.Nil(t, transport)
 	}()
