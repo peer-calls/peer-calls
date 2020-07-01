@@ -25,8 +25,8 @@ const (
 )
 
 type TrackEvent struct {
-	TrackInfo
-	Type TrackEventType
+	TrackInfo TrackInfo
+	Type      TrackEventType
 }
 
 type WebRTCTransportFactory struct {
