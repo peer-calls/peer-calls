@@ -23,11 +23,15 @@ type NodeManagerParams struct {
 }
 
 func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
+	logger := params.LoggerFactory.GetLogger("nodemanager")
+
 	conn, err := net.ListenUDP("udp", params.ListenAddr)
 
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Printf("Listening on UDP port: %s", conn.LocalAddr().String())
 
 	transportManager := NewTransportManager(TransportManagerParams{
 		Conn:          conn,
@@ -37,11 +41,13 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 	nm := &NodeManager{
 		params:           &params,
 		transportManager: transportManager,
-		logger:           params.LoggerFactory.GetLogger("nodemanager"),
+		logger:           logger,
 		rooms:            map[string]struct{}{},
 	}
 
 	for _, addr := range params.Nodes {
+		logger.Printf("Configuring remote node: %s", addr.String())
+
 		factory, err := transportManager.GetTransportFactory(addr)
 		if err != nil {
 			nm.logger.Println("Error creating transport factory for remote addr: %s", addr)
