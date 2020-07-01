@@ -137,3 +137,26 @@ func TestGetLogger_Wildcard_Disabled(t *testing.T) {
 	require.Equal(t, 1, len(result))
 	assert.Regexp(t, " \\[     b:one:warn] b one warn", result[0])
 }
+
+func TestGetLogger_MaxLen(t *testing.T) {
+	defer test.UnsetEnvPrefix("TESTLOG_")
+	os.Setenv("TESTLOG_LOG", "*")
+	var out strings.Builder
+	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
+	logger1 := loggerFactory.GetLogger("12345678901234")
+	logger2 := loggerFactory.GetLogger("123456789012345")
+	logger3 := loggerFactory.GetLogger("1234567890123456")
+
+	logger1.Println("a")
+	logger2.Println("b")
+	logger3.Println("c")
+
+	str := out.String()
+	require.Greater(t, len(str), 0)
+
+	result := strings.Split(strings.Trim(str, "\n"), "\n")
+	require.Equal(t, 3, len(result))
+	assert.Regexp(t, " \\[ 12345678901234] a", result[0])
+	assert.Regexp(t, " \\[123456789012345] b", result[1])
+	assert.Regexp(t, " \\[234567890123456] c", result[2])
+}

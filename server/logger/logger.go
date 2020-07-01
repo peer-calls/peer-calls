@@ -53,14 +53,24 @@ func (l *WriterLogger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
 	date := time.Now().Format(LoggerTimeFormat)
-	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
+	if len(l.name) > 15 {
+	}
+	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", getName(l.name, 15)) + fmt.Sprintf(message+"\n", values...)))
+}
+
+func getName(name string, maxlen int) string {
+	if len(name) > maxlen {
+		return name[len(name)-maxlen : len(name)]
+	}
+
+	return name
 }
 
 func (l *WriterLogger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
 	date := time.Now().Format(LoggerTimeFormat)
-	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
+	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", getName(l.name, 15)) + fmt.Sprintln(values...)))
 }
 
 // Factory creates new loggers. Only one logger with a specific name
