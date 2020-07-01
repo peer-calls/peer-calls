@@ -260,12 +260,13 @@ func (t *ServerTransportFactory) removePendingPromiseWhenDone(tp *TransportPromi
 func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 	conn, err := t.stringMux.AcceptConn()
 
-	tp := NewTransportPromise(conn.StreamID(), t.wg)
-
 	if err != nil {
+		tp := NewTransportPromise("", t.wg)
 		tp.reject(fmt.Errorf("Error AcceptTransport: %w", err))
 		return tp
 	}
+
+	tp := NewTransportPromise(conn.StreamID(), t.wg)
 
 	if !t.addPendingPromise(tp) {
 		tp.reject(fmt.Errorf("Promise or tranport already exists: %w", err))

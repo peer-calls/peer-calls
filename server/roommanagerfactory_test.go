@@ -114,4 +114,20 @@ func TestRoomManagerFactory(t *testing.T) {
 		assert.True(t, ok, "should fall back to default")
 		assert.Nil(t, nm, "should fall back to default")
 	})
+
+	t.Run("sfu transport listen ok, invalid addrs 2", func(t *testing.T) {
+		networkConfig := server.NetworkConfig{}
+		networkConfig.Type = server.NetworkTypeSFU
+		networkConfig.SFU.Transport.ListenAddr = "127.0.0.1:0"
+		networkConfig.SFU.Transport.Nodes = []string{
+			"127.0.0.1:1234",
+			"invalid-addr",
+		}
+
+		rm, nm := factory.NewRoomManager(networkConfig)
+		defer cleanup(rm, nm)
+		_, ok := rm.(*server.AdapterRoomManager)
+		assert.True(t, ok, "should fall back to default")
+		assert.Nil(t, nm, "should fall back to default")
+	})
 }

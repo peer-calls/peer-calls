@@ -42,11 +42,16 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 	}
 
 	for _, addr := range params.Nodes {
-		_, err := transportManager.GetTransportFactory(addr)
+		factory, err := transportManager.GetTransportFactory(addr)
 		if err != nil {
 			nm.logger.Println("Error creating transport factory for remote addr: %s", addr)
 		}
+
+		nm.handleServerTransportFactory(factory)
 	}
+
+	go nm.startTransportEventLoop()
+	go nm.startRoomEventLoop()
 
 	return nm, nil
 }
