@@ -351,6 +351,19 @@ func (t *ServerMetadataTransport) start() {
 			Type:      eventJSON.Type,
 		}
 
+		switch trackEvent.Type {
+		case TrackEventTypeAdd:
+			t.mu.Lock()
+			t.remoteTracks[trackEvent.TrackInfo.Track.SSRC()] = trackEvent.TrackInfo
+			t.mu.Unlock()
+		case TrackEventTypeRemove:
+			t.mu.Lock()
+			delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
+			t.mu.Unlock()
+		}
+
+		t.logger.Printf("Got track event: %+v", trackEvent)
+
 		t.trackEventsCh <- trackEvent
 	}
 }
