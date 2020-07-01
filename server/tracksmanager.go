@@ -158,9 +158,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 		for trackEvent := range transport.TrackEventsChannel() {
 			switch trackEvent.Type {
 			case TrackEventTypeAdd:
-				t.addTrack(transport.ClientID(), trackEvent.Track)
+				t.addTrack(transport.ClientID(), trackEvent.TrackInfo.Track)
 			case TrackEventTypeRemove:
-				t.removeTrack(transport.ClientID(), trackEvent.Track)
+				t.removeTrack(transport.ClientID(), trackEvent.TrackInfo.Track)
 			}
 		}
 	}()

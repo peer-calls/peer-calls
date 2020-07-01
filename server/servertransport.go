@@ -330,12 +330,25 @@ func (t *ServerMetadataTransport) start() {
 			return
 		}
 
-		var trackEvent TrackEvent
+		// hack because JSON does not know how to unmarshal to Track interface
+		var eventJSON struct {
+			TrackInfo struct {
+				Track UserTrack
+				Kind  webrtc.RTPCodecType
+				Mid   string
+			}
+			Type TrackEventType
+		}
 
-		err = json.Unmarshal(buf[:i], &trackEvent)
+		err = json.Unmarshal(buf[:i], &eventJSON)
 		if err != nil {
-			t.logger.Printf("Error unmarshalling remote data: %s", err)
+			t.logger.Printf("Error unmarshalling remote data: %s: %s", err, string(buf[:i]))
 			return
+		}
+
+		trackEvent := TrackEvent{
+			TrackInfo: TrackInfo{eventJSON.TrackInfo.Track, eventJSON.TrackInfo.Kind, eventJSON.TrackInfo.Mid},
+			Type:      eventJSON.Type,
 		}
 
 		t.trackEventsCh <- trackEvent
