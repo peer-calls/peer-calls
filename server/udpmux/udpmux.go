@@ -84,7 +84,7 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 
 	c := u.createConn(raddr, false)
 
-	u.logger.Printf("%s GetConn", c, raddr)
+	u.logger.Printf("%s GetConn", c)
 
 	return c, nil
 }
