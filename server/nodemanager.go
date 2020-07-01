@@ -128,6 +128,7 @@ func (nm *NodeManager) handleTransportPromise(transportPromise *TransportPromise
 		nm.mu.Lock()
 		defer nm.mu.Unlock()
 
+		nm.logger.Printf("Add transport: %s %s %s", transportPromise.StreamID(), streamTransport.StreamID, streamTransport.ClientID())
 		nm.params.TracksManager.Add(transportPromise.StreamID(), streamTransport)
 	}()
 }
@@ -143,11 +144,13 @@ func (nm *NodeManager) startRoomEventLoop() {
 		switch roomEvent.Type {
 		case RoomEventTypeAdd:
 			for _, factory := range nm.transportManager.Factories() {
+				nm.logger.Printf("Creating new transport for room: %s", roomEvent.RoomName)
 				transportPromise := factory.NewTransport(roomEvent.RoomName)
 				nm.handleTransportPromise(transportPromise)
 			}
 		case RoomEventTypeRemove:
 			for _, factory := range nm.transportManager.Factories() {
+				nm.logger.Printf("Closing transport for room: %s", roomEvent.RoomName)
 				factory.CloseTransport(roomEvent.RoomName)
 			}
 		}
