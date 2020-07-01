@@ -541,6 +541,7 @@ func NewTransportPromise(streamID string, wg *sync.WaitGroup) *TransportPromise 
 		cancelChan: make(chan struct{}),
 		transport:  nil,
 		wg:         wg,
+		streamID:   streamID,
 	}
 }
 
