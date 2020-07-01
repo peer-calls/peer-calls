@@ -36,12 +36,11 @@ func configure(loggerFactory *logger.Factory, args []string) (net.Listener, *ser
 	tracks := server.NewMemoryTracksManager(loggerFactory, c.Network.SFU.JitterBuffer)
 
 	roomManagerFactory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{
-		Config:         c.Network,
 		AdapterFactory: server.NewAdapterFactory(loggerFactory, c.Store),
 		LoggerFactory:  loggerFactory,
 		TracksManager:  tracks,
 	})
-	rooms, _ := roomManagerFactory.NewRoomManager()
+	rooms, _ := roomManagerFactory.NewRoomManager(c.Network)
 
 	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
@@ -66,6 +65,8 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 		"-pion:*:trace",
 		"-pion:*:debug",
 		"-pion:*:info",
+		"-udpmux:debug",
+		"-stringmux:debug",
 		"*",
 	})
 	log := loggerFactory.GetLogger("main")

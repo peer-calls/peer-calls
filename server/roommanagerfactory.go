@@ -6,7 +6,6 @@ type RoomManagerFactory struct {
 }
 
 type RoomManagerFactoryParams struct {
-	Config         NetworkConfig
 	AdapterFactory *AdapterFactory
 	TracksManager  TracksManager
 	LoggerFactory  LoggerFactory
@@ -19,13 +18,11 @@ func NewRoomManagerFactory(params RoomManagerFactoryParams) *RoomManagerFactory 
 	}
 }
 
-func (rmf *RoomManagerFactory) NewRoomManager() (RoomManager, *NodeManager) {
-	c := rmf.params.Config
-
+func (rmf *RoomManagerFactory) NewRoomManager(c NetworkConfig) (RoomManager, *NodeManager) {
 	rooms := NewAdapterRoomManager(rmf.params.AdapterFactory.NewAdapter)
 
 	if c.Type == NetworkTypeSFU && c.SFU.Transport.ListenAddr != "" {
-		roomManager, nodeManager, err := rmf.createChannelRoomManager(rooms)
+		roomManager, nodeManager, err := rmf.createChannelRoomManager(c, rooms)
 		if err == nil {
 			return roomManager, nodeManager
 		}
@@ -36,10 +33,9 @@ func (rmf *RoomManagerFactory) NewRoomManager() (RoomManager, *NodeManager) {
 }
 
 func (rmf *RoomManagerFactory) createChannelRoomManager(
+	c NetworkConfig,
 	rooms RoomManager,
 ) (*ChannelRoomManager, *NodeManager, error) {
-	c := rmf.params.Config
-
 	listenAddr, err := ParseUDPAddr(c.SFU.Transport.ListenAddr)
 	if err != nil {
 		return nil, nil, err
@@ -54,7 +50,7 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 
 	nodeManager, err := NewNodeManager(NodeManagerParams{
 		LoggerFactory: rmf.params.LoggerFactory,
-		ListenAddr:     listenAddr,
+		ListenAddr:    listenAddr,
 		Nodes:         nodes,
 		RoomManager:   channelRoomManager,
 		TracksManager: rmf.params.TracksManager,
