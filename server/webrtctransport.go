@@ -348,7 +348,7 @@ func (p *WebRTCTransport) AddTrack(t Track) error {
 	}
 
 	trackInfo := TrackInfo{
-		Track: NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
+		Track: t,
 		Kind:  track.Kind(),
 	}
 

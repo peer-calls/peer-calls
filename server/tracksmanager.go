@@ -111,7 +111,9 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
-			track := t.asUserTrack(track, otherClientID)
+			t.log.Printf("[%s] BEFORE Add track %+v from %s", otherClientID, track, clientID)
+			track := t.asUserTrack(track, clientID)
+			t.log.Printf("[%s] AFTER  Add track %+v from %s", otherClientID, track, clientID)
 			if err := otherTransport.AddTrack(track); err != nil {
 				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
 				continue
@@ -259,7 +261,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 
 	for existingClientID, existingTransport := range t.transports {
 		for _, trackInfo := range existingTransport.RemoteTracks() {
+			t.log.Printf("[%s] BEFORE Add track %+v to %s", transport.ClientID(), trackInfo.Track, existingClientID)
 			track := t.asUserTrack(trackInfo.Track, existingClientID)
+			t.log.Printf("[%s] AFTER  Add track %+v to %s", transport.ClientID(), track, existingClientID)
 			err := transport.AddTrack(track)
 			if err != nil {
 				t.log.Printf(
