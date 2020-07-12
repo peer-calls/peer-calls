@@ -92,6 +92,16 @@ systems are built automatically:
  - darwin (macOS) amd64
  - windows amd64
 
+## Deploying onto Kubernetes
+
+The root of this repository contains a `kustomization.yaml`, allowing anyone to
+patch the manifests found within the `deploy/` directory. To deploy the manifests
+without applying any patches, pass the URL to `kubectl`:
+
+```bash
+kubectl apply -k github.com/peercalls/peercalls
+```
+
 ## Using Docker
 
 Use the [`peercalls/peercalls`][hub] image from Docker Hub:
