@@ -18,14 +18,15 @@ spec:
         app.kubernetes.io/name: peercalls
     spec:
       volumes:
-      - name: peercalls-config
-        configMapRef:
-        - name: peercalls-config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: peercalls-config
       containers:
       - name: peercalls
         image: peercalls/peercalls
         imagePullPolicy: IfNotPresent
-        command: ["-c", "/etc/peercalls/config.yaml"]
+        command: ["/bin/bash", -c", "peercalls", "--config", "/etc/peercalls/config.yaml"]
         ports:
         - name: http
           containerPort: 3000
@@ -51,8 +52,8 @@ spec:
             cpu: 100m
             memory: 128Mi
         volumeMounts:
-        - name: peercalls-config
-          mountPath: /etc/peercalls/config.yaml
+        - name: config-volume
+          mountPath: /etc/peercalls
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
