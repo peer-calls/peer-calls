@@ -33,17 +33,17 @@ spec:
           protocol: TCP
         livenessProbe:
           httpGet:
-            path: /probes/live
+            path: /probes/liveness
             port: http
-          timeoutSeconds: 5
           initialDelaySeconds: 5
+          periodSeconds: 15
+          timeoutSeconds: 5
         readinessProbe:
           httpGet:
-            path: /probe/ready
+            path: /probe/health
             port: http
-          timeoutSeconds: 5
           initialDelaySeconds: 5
-          periodSeconds: 5
+          timeoutSeconds: 1  
         resources:
           limits:
             cpu: 1000m
