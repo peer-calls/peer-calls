@@ -99,7 +99,7 @@ patch the manifests found within the `deploy/` directory. To deploy the manifest
 without applying any patches, pass the URL to `kubectl`:
 
 ```bash
-kubectl apply -k github.com/peercalls/peercalls
+kubectl apply -k github.com/peer-calls/peer-calls
 ```
 
 ## Using Docker
