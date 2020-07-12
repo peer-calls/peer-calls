@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: peercalls
+  labels:
+    app.kubernetes.io/name: peercalls
+spec:
+  rules:
+    - http:
+        paths:
+          - host: peercalls.alec.cx
+            path: /*
+            backend:
+              serviceName: peercalls
+              servicePort: 80
