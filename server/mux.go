@@ -105,6 +105,14 @@ func NewMux(
 		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
 		router.Post("/call", withGauge(prometheusCallJoinTotal, mux.routeNewCall))
 		router.Get("/call/{callID}", withGauge(prometheusCallViewsTotal, renderer.Render(mux.routeCall)))
+		router.Get("/probes/liveness", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		})
+		router.Get("/probes/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		})
 		router.Get("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(manifest)
