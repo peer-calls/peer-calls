@@ -8,7 +8,7 @@ import (
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type TrackInfo struct {
@@ -58,7 +58,6 @@ func NewWebRTCTransportFactory(
 			return ok
 		})
 	}
-	settingEngine.SetTrickle(true)
 	var mediaEngine webrtc.MediaEngine
 	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
 	api := webrtc.NewAPI(

@@ -3,7 +3,7 @@ package server
 import (
 	"sync"
 
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type TransceiverRequest struct {
