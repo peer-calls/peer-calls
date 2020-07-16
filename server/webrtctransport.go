@@ -43,7 +43,6 @@ func NewWebRTCTransportFactory(
 	iceServers []ICEServer,
 	sfuConfig NetworkConfigSFU,
 ) *WebRTCTransportFactory {
-
 	allowedInterfaces := map[string]struct{}{}
 	for _, iface := range sfuConfig.Interfaces {
 		allowedInterfaces[iface] = struct{}{}
@@ -52,6 +51,12 @@ func NewWebRTCTransportFactory(
 	settingEngine := webrtc.SettingEngine{
 		LoggerFactory: NewPionLoggerFactory(loggerFactory),
 	}
+
+	settingEngine.SetNetworkTypes(
+		NewNetworkTypes(loggerFactory.GetLogger("networktype"), sfuConfig.Protocols),
+	)
+	settingEngine.SetICETCPPort(sfuConfig.TCPListenPort)
+
 	if len(allowedInterfaces) > 0 {
 		settingEngine.SetInterfaceFilter(func(iface string) bool {
 			_, ok := allowedInterfaces[iface]

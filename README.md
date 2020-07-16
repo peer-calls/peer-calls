@@ -156,6 +156,8 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_TYPE`             | string | Can be `mesh` or `sfu`. Setting to SFU will make the server the main peer    | `mesh`    |
 | `PEERCALLS_NETWORK_SFU_INTERFACES`   | csv    | List of interfaces to use for ICE candidates, uses all available when empty  |           |
 | `PEERCALLS_NETWORK_SFU_JITTER_BUFFER`| bool   | Set to `true` to enable the use of Jitter Buffer                             | `false`   |
+| `PEERCALLS_NETWORK_SFU_PROTOCOLS`       | csv    | Can be `udp4`, `udp6`, `tcp4` or `tcp6`                                      | `udp4,udp6` |
+| `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT` | int    | ICE TCP port. At least one tcp network type needs to be set for this to work | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |
 | `PEERCALLS_ICE_SERVER_AUTH_TYPE`     | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
 | `PEERCALLS_ICE_SERVER_SECRET`        | string | Secret for coturn                                                            |           |

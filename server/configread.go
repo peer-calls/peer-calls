@@ -69,6 +69,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvString(&c.Store.Redis.Prefix, prefix+"STORE_REDIS_PREFIX")
 
 	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
+	setEnvInt(&c.Network.SFU.TCPListenPort, prefix+"NETWORK_SFU_TCP_LISTEN_PORT")
+	setEnvStringArray(&c.Network.SFU.Protocols, prefix+"NETWORK_SFU_PROTOCOLS")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
 
