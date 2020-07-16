@@ -10,8 +10,8 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/pion/logging v0.2.2
-	github.com/pion/rtcp v1.2.1
-	github.com/pion/rtp v1.5.0
+	github.com/pion/rtcp v1.2.3
+	github.com/pion/rtp v1.6.0
 	github.com/pion/webrtc/v2 v2.2.11
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.5.1
