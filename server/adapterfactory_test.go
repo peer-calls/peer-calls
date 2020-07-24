@@ -34,7 +34,7 @@ func TestNewAdapterFactory_sentinel(t *testing.T) {
     Sentinel: server.SentinelConfig{
       Name:   "cache-master",
       Prefix: "peercalls",
-      Addrs:   []string{"redis-headless.redis.svc.cluster.local:26379"},
+      Addrs:   []string{"localhost:26379"},
     },
   })
   defer f.Close()
