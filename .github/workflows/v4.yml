@@ -46,6 +46,12 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+      redis-sentinel:
+        image: bitnami/redis-sentinel
+        ports:
+          - 26379:26379
+        env:
+          REDIS_MASTER_HOST: redis
     steps:
     - uses: actions/checkout@v2
     - name: Use Go ${{ matrix.go-version }}
