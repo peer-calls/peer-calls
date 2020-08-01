@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -48,14 +49,35 @@ func NewWebRTCTransportFactory(
 		allowedInterfaces[iface] = struct{}{}
 	}
 
+	log := loggerFactory.GetLogger("webrtctransport")
+
 	settingEngine := webrtc.SettingEngine{
 		LoggerFactory: NewPionLoggerFactory(loggerFactory),
 	}
 
-	settingEngine.SetNetworkTypes(
-		NewNetworkTypes(loggerFactory.GetLogger("networktype"), sfuConfig.Protocols),
-	)
-	settingEngine.SetICETCPPort(sfuConfig.TCPListenPort)
+	networkTypes := NewNetworkTypes(loggerFactory.GetLogger("networktype"), sfuConfig.Protocols)
+	settingEngine.SetNetworkTypes(networkTypes)
+
+	tcpEnabled := false
+	for _, networkType := range networkTypes {
+		if networkType == webrtc.NetworkTypeTCP4 || networkType == webrtc.NetworkTypeTCP6 {
+			tcpEnabled = true
+			break
+		}
+	}
+
+	if tcpEnabled {
+		tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{
+			IP:   net.ParseIP(sfuConfig.TCPBindAddr),
+			Port: sfuConfig.TCPListenPort,
+		})
+		if err != nil {
+			log.Printf("Error starting TCP listener: %s", err)
+		} else {
+			log.Printf("ICE TCP listener started on %s", tcpListener.Addr())
+			settingEngine.SetICETCPMux(webrtc.NewICETCPMux(tcpListener, 32))
+		}
+	}
 
 	if len(allowedInterfaces) > 0 {
 		settingEngine.SetInterfaceFilter(func(iface string) bool {
