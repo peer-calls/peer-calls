@@ -3,12 +3,13 @@ package server
 import (
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type TrackInfo struct {
@@ -43,22 +44,48 @@ func NewWebRTCTransportFactory(
 	iceServers []ICEServer,
 	sfuConfig NetworkConfigSFU,
 ) *WebRTCTransportFactory {
-
 	allowedInterfaces := map[string]struct{}{}
 	for _, iface := range sfuConfig.Interfaces {
 		allowedInterfaces[iface] = struct{}{}
 	}
 
+	log := loggerFactory.GetLogger("webrtctransport")
+
 	settingEngine := webrtc.SettingEngine{
 		LoggerFactory: NewPionLoggerFactory(loggerFactory),
 	}
+
+	networkTypes := NewNetworkTypes(loggerFactory.GetLogger("networktype"), sfuConfig.Protocols)
+	settingEngine.SetNetworkTypes(networkTypes)
+
+	tcpEnabled := false
+	for _, networkType := range networkTypes {
+		if networkType == webrtc.NetworkTypeTCP4 || networkType == webrtc.NetworkTypeTCP6 {
+			tcpEnabled = true
+			break
+		}
+	}
+
+	if tcpEnabled {
+		tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{
+			IP:   net.ParseIP(sfuConfig.TCPBindAddr),
+			Port: sfuConfig.TCPListenPort,
+		})
+		if err != nil {
+			log.Printf("Error starting TCP listener: %s", err)
+		} else {
+			logger := settingEngine.LoggerFactory.NewLogger("ice-tcp")
+			log.Printf("ICE TCP listener started on %s", tcpListener.Addr())
+			settingEngine.SetICETCPMux(webrtc.NewICETCPMux(logger, tcpListener, 32))
+		}
+	}
+
 	if len(allowedInterfaces) > 0 {
 		settingEngine.SetInterfaceFilter(func(iface string) bool {
 			_, ok := allowedInterfaces[iface]
 			return ok
 		})
 	}
-	settingEngine.SetTrickle(true)
 	var mediaEngine webrtc.MediaEngine
 	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
 	api := webrtc.NewAPI(
@@ -154,6 +181,28 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 }
 
 func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator bool, peerConnection *webrtc.PeerConnection) (*WebRTCTransport, error) {
+	closePeer := func(reason error) error {
+		err := peerConnection.Close()
+		if err != nil {
+			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
+		} else {
+			return reason
+		}
+	}
+
+	var dataChannel *webrtc.DataChannel
+	var err error
+	if initiator {
+		fmt.Println("CREATE DATA CHANNEL")
+		// need to do this to connect with simple peer
+		// only when we are the initiator
+		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
+		if err != nil {
+			return nil, closePeer(fmt.Errorf("Error creating data channel: %w", err))
+		}
+	}
+	dataTransceiver := NewDataTransceiver(loggerFactory, clientID, dataChannel, peerConnection)
+
 	signaller, err := NewSignaller(
 		loggerFactory,
 		initiator,
@@ -167,26 +216,6 @@ func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator 
 	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 		log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
 	})
-
-	closePeer := func(reason error) error {
-		err = peerConnection.Close()
-		if err != nil {
-			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
-		} else {
-			return reason
-		}
-	}
-
-	var dataChannel *webrtc.DataChannel
-	if initiator {
-		// need to do this to connect with simple peer
-		// only when we are the initiator
-		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
-		if err != nil {
-			return nil, closePeer(fmt.Errorf("Error creating data channel: %w", err))
-		}
-	}
-	dataTransceiver := NewDataTransceiver(loggerFactory, clientID, dataChannel, peerConnection)
 
 	if err != nil {
 		return nil, closePeer(fmt.Errorf("Error initializing signaller: %w", err))

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/pion/rtcp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 const DataChannelName = "data"

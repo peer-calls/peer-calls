@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type DataTransceiver struct {
