@@ -305,9 +305,9 @@ peers to use the same browser.
 
 Peer Calls supports ICE over TCP as described in RFC6544. Currently only
 passive ICE candidates are supported. This means that users whose ISPs or
-corporate firewalls block UDP packets can use TCP to connect to the SFU behind
-a firewall. In most scenarios, this removes the need to use a TURN server, but
-this functionality is currently experimental and is not enabled by default.
+corporate firewalls block UDP packets can use TCP to connect to the SFU. In
+most scenarios, this removes the need to use a TURN server, but this
+functionality is currently experimental and is not enabled by default.
 
 Add the `tcp4` and `tcp6` to your `PEERCALLS_NETWORK_SFU_PROTOCOLS` to enable
 support for ICE TCP:
@@ -321,6 +321,9 @@ To test this functionality, `udp4` and `udp6` network types should be omitted:
 ```
 PEERCALLS_NETWORK_TYPE=sfu PEERCALLS_NETWORK_SFU_PROTOCOLS=`tcp4,tcp6` peer-calls
 ```
+
+Please note that in production the `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT` should
+be specified and external TCP access allowed through the server firewall.
 
 # TURN Server
 
