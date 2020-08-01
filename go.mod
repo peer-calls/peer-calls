@@ -12,13 +12,10 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.3
 	github.com/pion/rtp v1.6.0
-	github.com/pion/webrtc/v3 v3.0.0-20200716074551-070a7ea22eb9
+	github.com/pion/webrtc/v3 v3.0.0-beta.1
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/goleak v1.0.0
 	gopkg.in/yaml.v2 v2.2.8
 	nhooyr.io/websocket v1.8.4
 )
-
-// replace github.com/pion/webrtc/v2 => github.com/jeremija/webrtc/v2 v2.2.6-0.20200420091005-4cc16a2df9e0
-// replace github.com/pion/webrtc/v2 => ../../pion/webrtc

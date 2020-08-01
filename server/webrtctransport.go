@@ -74,8 +74,9 @@ func NewWebRTCTransportFactory(
 		if err != nil {
 			log.Printf("Error starting TCP listener: %s", err)
 		} else {
+			logger := settingEngine.LoggerFactory.NewLogger("ice-tcp")
 			log.Printf("ICE TCP listener started on %s", tcpListener.Addr())
-			settingEngine.SetICETCPMux(webrtc.NewICETCPMux(tcpListener, 32))
+			settingEngine.SetICETCPMux(webrtc.NewICETCPMux(logger, tcpListener, 32))
 		}
 	}
 
