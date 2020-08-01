@@ -180,6 +180,28 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 }
 
 func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator bool, peerConnection *webrtc.PeerConnection) (*WebRTCTransport, error) {
+	closePeer := func(reason error) error {
+		err := peerConnection.Close()
+		if err != nil {
+			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
+		} else {
+			return reason
+		}
+	}
+
+	var dataChannel *webrtc.DataChannel
+	var err error
+	if initiator {
+		fmt.Println("CREATE DATA CHANNEL")
+		// need to do this to connect with simple peer
+		// only when we are the initiator
+		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
+		if err != nil {
+			return nil, closePeer(fmt.Errorf("Error creating data channel: %w", err))
+		}
+	}
+	dataTransceiver := NewDataTransceiver(loggerFactory, clientID, dataChannel, peerConnection)
+
 	signaller, err := NewSignaller(
 		loggerFactory,
 		initiator,
@@ -193,26 +215,6 @@ func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator 
 	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 		log.Printf("[%s] ICE gathering state changed: %s", clientID, state)
 	})
-
-	closePeer := func(reason error) error {
-		err = peerConnection.Close()
-		if err != nil {
-			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
-		} else {
-			return reason
-		}
-	}
-
-	var dataChannel *webrtc.DataChannel
-	if initiator {
-		// need to do this to connect with simple peer
-		// only when we are the initiator
-		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
-		if err != nil {
-			return nil, closePeer(fmt.Errorf("Error creating data channel: %w", err))
-		}
-	}
-	dataTransceiver := NewDataTransceiver(loggerFactory, clientID, dataChannel, peerConnection)
 
 	if err != nil {
 		return nil, closePeer(fmt.Errorf("Error initializing signaller: %w", err))
