@@ -46,6 +46,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [ ] Add handling of other RTCP packets besides NACK, PLI and REMB
 - [x] Add JitterBuffer (experimental, currently without congestion control)
 - [ ] Support multiple Peer Calls nodes when using SFU
+- [x] Add support for passive ICE TCP candidates
 
 # Requirements
 
@@ -157,8 +158,8 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_SFU_INTERFACES`   | csv    | List of interfaces to use for ICE candidates, uses all available when empty  |           |
 | `PEERCALLS_NETWORK_SFU_JITTER_BUFFER`| bool   | Set to `true` to enable the use of Jitter Buffer                             | `false`   |
 | `PEERCALLS_NETWORK_SFU_PROTOCOLS`    | csv    | Can be `udp4`, `udp6`, `tcp4` or `tcp6`                                      | `udp4,udp6` |
-| `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address.                                                        | `0`       |
-| `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port.                                                         | `0`       |
+| `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address. By default listens on all interfaces.                  |           |
+| `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port. By default uses a random port.                          | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |
 | `PEERCALLS_ICE_SERVER_AUTH_TYPE`     | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
 | `PEERCALLS_ICE_SERVER_SECRET`        | string | Secret for coturn                                                            |           |
@@ -299,6 +300,27 @@ issues. In Chrome, use `about:webrtc-internals`.
 
 When experiencing connection issues, the first thing to try is to have all
 peers to use the same browser.
+
+# ICE TCP
+
+Peer Calls supports ICE over TCP as described in RFC6544. Currently only
+passive ICE candidates are supported. This means that users whose ISPs or
+corporate firewalls block UDP packets can use TCP to connect to the SFU behind
+a firewall. In most scenarios, this removes the need to use a TURN server, but
+this functionality is currently experimental and is not enabled by default.
+
+Add the `tcp4` and `tcp6` to your `PEERCALLS_NETWORK_SFU_PROTOCOLS` to enable
+support for ICE TCP:
+
+```
+PEERCALLS_NETWORK_TYPE=sfu PEERCALLS_NETWORK_SFU_PROTOCOLS=`udp4,udp6,tcp4,tcp6` peer-calls
+```
+
+To test this functionality, `udp4` and `udp6` network types should be omitted:
+
+```
+PEERCALLS_NETWORK_TYPE=sfu PEERCALLS_NETWORK_SFU_PROTOCOLS=`tcp4,tcp6` peer-calls
+```
 
 # TURN Server
 
