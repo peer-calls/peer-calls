@@ -144,13 +144,17 @@ describe('SocketActions', () => {
       })
     })
 
+    function tr(mid: string): RTCRtpTransceiver {
+      return { mid } as RTCRtpTransceiver
+    }
+
     describe('track unmute event', () => {
       it('adds a stream to streamStore', () => {
         const stream = new MediaStream()
         const track = new MediaStreamTrack()
         ;(track as any).muted = true
         stream.addTrack(track)
-        peer.emit(constants.PEER_EVENT_TRACK, track, stream, '0')
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream, tr('0'))
 
         expect(track.onunmute).toBeDefined()
         // browsers should call onunmute after 'track' event, when track is
@@ -194,7 +198,7 @@ describe('SocketActions', () => {
         const stream = new MediaStream()
         const track = new MediaStreamTrack()
         stream.addTrack(track)
-        peer.emit(constants.PEER_EVENT_TRACK, track, stream, '0')
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream, tr('0'))
         expect(track.onunmute).toBeDefined()
         track.onunmute!(new Event('unmute'))
         expect(track.onmute).toBeDefined()
@@ -237,7 +241,7 @@ describe('SocketActions', () => {
         const stream = new MediaStream()
         const track = new MediaStreamTrack()
         const mid = '0'
-        peer.emit(constants.PEER_EVENT_TRACK, track, stream, mid)
+        peer.emit(constants.PEER_EVENT_TRACK, track, stream, tr(mid))
         const streams = store.getState().streams.streamsByUserId
         expect(Object.keys(streams)).toEqual([ peerB ])
         const userStreams = streams[peerB].streams

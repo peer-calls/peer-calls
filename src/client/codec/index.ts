@@ -1,6 +1,7 @@
 import { SimpleEmitter } from '../emitter'
 import { TextDecoder, TextEncoder } from '../textcodec'
 import { decodeHeader, encodeHeader, Header, headerSizeBytes } from './header'
+import { WebWorker } from '../webworker'
 
 const maxMessageId = 2**16
 
@@ -39,21 +40,12 @@ export interface EncoderEvents {
 
 type Values<T, K extends keyof T = keyof T> = T[K]
 
-export interface WebWorker<RecvType, SendType> {
-  onmessage: ((e: WorkerMessageEvent<RecvType>) => void) | null
-  postMessage: (data: SendType, transfer: Transferable[]) => void
-}
-
 export interface WorkerPayload {
   messageId: number
   maxMessageSizeBytes: number
   data: Uint8Array
   senderId: string
   senderIdBytes: Uint8Array
-}
-
-export interface WorkerMessageEvent<T> {
-  data: T
 }
 
 export type EncoderWorker = WebWorker<WorkerPayload, Values<EncoderEvents>>
