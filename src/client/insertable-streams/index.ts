@@ -152,7 +152,7 @@ export class InsertableStreamsCodec {
     }
   }
 
-  setEncryptionKey(encryptionKey: string) {
+  setEncryptionKey(encryptionKey: string): boolean{
     const message: EncryptionKeyEvent = {
       type: 'encryption-key',
       encryptionKey: encryptionKey,
@@ -160,7 +160,10 @@ export class InsertableStreamsCodec {
 
     if (this.worker) {
       this.worker.postMessage(message)
+      return true
     }
+
+    return false
   }
 
   encrypt(sender: RTCRtpSender): boolean {

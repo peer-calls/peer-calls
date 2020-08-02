@@ -169,6 +169,9 @@ export function createPeer (options: CreatePeerOptions) {
       config: {
         iceServers,
         enableInsertableStreams: true,
+        // legacy flags for insertable streams
+        forceEncodedVideoInsertableStreams: true,
+        forceEncodedAudioInsertableStreams: true,
       },
       channelName: constants.PEER_DATA_CHANNEL_NAME,
       // trickle: false,
