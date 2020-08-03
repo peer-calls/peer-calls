@@ -1,9 +1,7 @@
-import _debug from 'debug'
 import React from 'react'
 import { MdError } from 'react-icons/md'
 import { Message } from './Message'
-
-const debug = _debug('peercalls')
+import { getBrowserFeatures } from '../features'
 
 export class Unsupported extends React.PureComponent {
   supported = isBrowserSupported()
@@ -35,34 +33,12 @@ export class Unsupported extends React.PureComponent {
 }
 
 export function isBrowserSupported() {
-  const media =
-    'mediaDevices' in navigator &&
-    typeof navigator.mediaDevices === 'object' &&
-    typeof navigator.mediaDevices.getUserMedia === 'function' &&
-    typeof navigator.mediaDevices.enumerateDevices === 'function'
-  const mediaStream =
-    typeof MediaStream === 'function' && typeof MediaStreamTrack === 'function'
-  const buffers =
-    typeof TextEncoder === 'function' && typeof TextDecoder === 'function' &&
-    typeof ArrayBuffer === 'function' && typeof Uint8Array === 'function'
-  const webrtc =
-    typeof RTCPeerConnection === 'function' &&
-    typeof RTCPeerConnection.prototype == 'object' &&
-    typeof RTCPeerConnection.prototype.createDataChannel === 'function'
-  const websockets =
-    typeof WebSocket === 'function'
-  const webworkers =
-    typeof Worker === 'function'
+  const features = getBrowserFeatures()
 
-  debug(
-    'browser features supported: %o',
-    { media, mediaStream, buffers, webrtc, websockets, webworkers },
-  )
-
-  return media &&
-    mediaStream &&
-    buffers &&
-    webrtc &&
-    websockets &&
-    webworkers
+  return features.media &&
+    features.mediaStream &&
+    features.buffers &&
+    features.webrtc &&
+    features.websockets &&
+    features.webworkers
 }

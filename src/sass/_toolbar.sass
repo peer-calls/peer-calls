@@ -8,22 +8,32 @@
     visibility: hidden
     transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms
 
+  .encryption-wrapper
+    position: relative
+
   .encryption-dialog
     opacity: 0
     visibility: hidden
     transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms
     position: absolute
-    white-space: nowrap
+
+    &.encryption-dialog-visible
+      visibility: visible
+      opacity: 1
+      transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms
+
+    .encryption-form
+      white-space: nowrap
 
     // TODO fix this
     width: 300px
     left: 100%
-    left: calc(100% - 0.5rem)
-    bottom: 1rem
+    top: 0.5rem
 
     input
       padding: 15px 10px
       border-radius: 4px
+      border-color: transparent
       border-bottom: 2px solid darken(#fff, 10%)
       color: black
       background-color: white
@@ -35,10 +45,11 @@
     input[type=submit]
       @include button($color-primary, $color-warning)
 
-    &.encryption-dialog-visible
-      visibility: visible
-      opacity: 1
-      transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 0ms
+    .note
+      color: $color-warning
+      font-size: 0.8rem
+      text-shadow: 0 0 2px black
+
 
   position: absolute
   display: flex

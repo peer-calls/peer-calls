@@ -21,6 +21,29 @@ export type EncryptionWorker = WebWorker<PostMessageEvent, void>
 const workerFunc = () => (self: EncryptionWorker) => {
   let encryptionKey = ''
 
+  const frameTypeToCryptoOffset = {
+    key: 10,
+    delta: 3,
+    empty: 1,
+    undefined: 1,
+  }
+
+  function isVideoFrame(frame: unknown): frame is RTCEncodedVideoFrame {
+    // cannot use typeof here because TypeScript converts it into a function
+    // and this function call fails.
+
+    // eslint-disable-next-line
+    return frame && !!(frame as any).type
+  }
+
+  function getCryptoOffset<T extends RTCEncodedFrame>(frame: T): number {
+    if (isVideoFrame(frame)) {
+      return frameTypeToCryptoOffset[frame.type]
+    }
+
+    return frameTypeToCryptoOffset.undefined
+  }
+
   function encrypt<T extends RTCEncodedFrame>(
     frame: T,
     controller: TransformStreamDefaultController<T>,
@@ -28,13 +51,11 @@ const workerFunc = () => (self: EncryptionWorker) => {
     if (encryptionKey) {
       const view = new DataView(frame.data)
       // Any length that is needed can be used for the new buffer.
-      const newData = new ArrayBuffer(frame.data.byteLength + 5)
+      const newData = new ArrayBuffer(frame.data.byteLength + 4)
       const newView = new DataView(newData)
 
-      // const cryptoOffset = useCryptoOffset
-      // ? frameTypeToCryptoOffset[encodedFrame.type]
-      // : 0
-      const cryptoOffset = 0
+      // const cryptoOffset = 0
+      const cryptoOffset = getCryptoOffset(frame)
 
       for (let i = 0; i < cryptoOffset && i < frame.data.byteLength; i++) {
         newView.setInt8(i, view.getInt8(i))
@@ -64,32 +85,33 @@ const workerFunc = () => (self: EncryptionWorker) => {
       ? view.getUint32(frame.data.byteLength - 4)
       : false
 
-    if (encryptionKey) {
-      if (checksum !== 0xDEADBEEF) {
-        console.log('Corrupted frame received checksum',  checksum.toString(16))
-        // This can happen when the key is set and there is an unencrypted
-        // frame in-flight.
-        return
-      }
+    if (checksum !== 0xDEADBEEF) {
+      controller.enqueue(frame)
+      return
+    }
 
+    if (encryptionKey) {
       const newData = new ArrayBuffer(frame.data.byteLength - 4)
       const newView = new DataView(newData)
 
-      // const cryptoOffset = useCryptoOffset
-      // ? frameTypeToCryptoOffset[encodedFrame.type]
-      // : 0
-      const cryptoOffset = 0
+      // const cryptoOffset = 0
+      const cryptoOffset = getCryptoOffset(frame)
 
       for (let i = 0; i < cryptoOffset; ++i) {
         newView.setInt8(i, view.getInt8(i))
       }
 
-      for (let i = cryptoOffset; i < frame.data.byteLength - 5; ++i) {
+      for (let i = cryptoOffset; i < frame.data.byteLength - 4; ++i) {
         const keyByte = encryptionKey.charCodeAt(i % encryptionKey.length)
         newView.setInt8(i, view.getInt8(i) ^ keyByte)
       }
       frame.data = newData
+
+      controller.enqueue(frame)
+      return
     }
+
+    frame.data = view.buffer.slice(0, view.buffer.byteLength - 4)
     controller.enqueue(frame)
   }
 
@@ -166,12 +188,30 @@ export class InsertableStreamsCodec {
     return false
   }
 
+  getEncodedStreams(
+    senderOrReceiver: RTCRtpSender | RTCRtpReceiver,
+  ): RTCInsertableStreams | null {
+    if (typeof senderOrReceiver.createEncodedStreams !== 'function') {
+      return null
+    }
+
+    try {
+      return senderOrReceiver.createEncodedStreams!()
+    } catch (err) {
+      debug('Could not get encoded streams: %s', err)
+      return null
+    }
+  }
+
   encrypt(sender: RTCRtpSender): boolean {
     if (!this.worker) {
       return false
     }
 
-    const streams = sender.createEncodedStreams!()
+    const streams = this.getEncodedStreams(sender)
+    if (!streams) {
+      return false
+    }
 
     const message: StreamEvent = {
       type: 'encrypt',
@@ -192,7 +232,10 @@ export class InsertableStreamsCodec {
       return false
     }
 
-    const streams = receiver.createEncodedStreams!()
+    const streams = this.getEncodedStreams(receiver)
+    if (!streams) {
+      return false
+    }
 
     const message: StreamEvent = {
       type: 'decrypt',

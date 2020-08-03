@@ -1,6 +1,6 @@
 import classnames from 'classnames'
 import React from 'react'
-import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare, MdLock, MdLockOpen } from 'react-icons/md'
+import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare, MdLock, MdLockOpen, MdWarning } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
@@ -10,6 +10,7 @@ import { callId } from '../window'
 import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
 import { ToolbarButton } from './ToolbarButton'
 import { insertableStreamsCodec } from '../insertable-streams'
+import { getBrowserFeatures } from '../features'
 
 export interface ToolbarProps {
   dialState: DialState
@@ -51,8 +52,8 @@ export default class Toolbar extends React.PureComponent<
   ToolbarProps,
   ToolbarState
 > {
-
   encryptionKeyInputRef: React.RefObject<HTMLInputElement>
+  supportsInsertableStreams: boolean
 
   constructor(props: ToolbarProps) {
     super(props)
@@ -67,6 +68,7 @@ export default class Toolbar extends React.PureComponent<
     }
 
     this.encryptionKeyInputRef = React.createRef<HTMLInputElement>()
+    this.supportsInsertableStreams = getBrowserFeatures().insertableStreams
   }
   componentDidMount() {
     document.body.addEventListener('click', this.toggleHidden)
@@ -103,8 +105,12 @@ export default class Toolbar extends React.PureComponent<
       encryptionDialogVisible,
     })
 
+    const inputElement = this.encryptionKeyInputRef.current!
+
     if (encryptionDialogVisible) {
-      this.encryptionKeyInputRef.current!.focus()
+      setTimeout(() => {
+        inputElement.focus()
+      })
     }
   }
   setEncryptionKey = (event: React.FormEvent<HTMLFormElement>) => {
@@ -190,32 +196,48 @@ export default class Toolbar extends React.PureComponent<
               />
             </React.Fragment>
           )}
-          <ToolbarButton
-            onClick={this.toggleEncryptionDialog}
-            key='encryption'
-            className={classnames('encryption', {
-              'encryption-enabled': this.state.encrypted,
-            })}
-            on={this.state.encryptionDialogVisible}
-            icon={encryptionIcon}
-            title='Setup Encryption'
-          />
-          <form
-            className={classnames('encryption-dialog', {
-              'encryption-dialog-visible': this.state.encryptionDialogVisible,
-            })}
-            onSubmit={this.setEncryptionKey}
-          >
-            <input
-              autoComplete='off'
-              name='encryption-key'
-              className='encryption-key'
-              placeholder='Enter Passphrase'
-              ref={this.encryptionKeyInputRef}
-              type='password'
+
+          <div className='encryption-wrapper'>
+            <ToolbarButton
+              onClick={this.toggleEncryptionDialog}
+              key='encryption'
+              className={classnames('encryption', {
+                'encryption-enabled': this.state.encrypted,
+              })}
+              on={this.state.encryptionDialogVisible}
+              icon={encryptionIcon}
+              title='Setup Encryption'
             />
-            <input type='submit' value='Save' />
-          </form>
+            <form
+              autoComplete='new-password'
+              className={classnames('encryption-dialog', {
+                'encryption-dialog-visible': this.state.encryptionDialogVisible,
+              })}
+              onSubmit={this.setEncryptionKey}
+            >
+              <div className='encryption-form'>
+                <input
+                  autoComplete='new-password'
+                  name='encryption-key'
+                  className='encryption-key'
+                  placeholder='Enter Passphrase'
+                  ref={this.encryptionKeyInputRef}
+                  type='password'
+                />
+                <input type='submit' value='Save' />
+              </div>
+              <div className='note'>
+                <p><MdWarning /> This functionality is experimental.</p>
+                {!this.supportsInsertableStreams && (
+                  <p>
+                    Your browser does not support Insertable Streams;
+                    currently only Chrome has support. If you are using Chrome,
+                    please make sure Experimental Web Platform Features are
+                    enabled in chrome://flags.
+                  </p>
+                )} </div>
+            </form>
+          </div>
 
         </div>
 
