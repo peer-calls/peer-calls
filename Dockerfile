@@ -36,6 +36,5 @@ COPY --from=server /src/peer-calls /usr/local/bin/
 
 EXPOSE 3000/tcp
 STOPSIGNAL SIGINT
-USER nobody
 
 ENTRYPOINT ["/usr/local/bin/peer-calls"]
