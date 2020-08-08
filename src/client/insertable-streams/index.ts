@@ -20,8 +20,10 @@ interface DecryptStreamEvent {
   // the start, but when SFU is used, mid will have to be used to resolve the
   // username after the metadata event is received.
   userId: string
-  readableStream: ReadableStream<RTCEncodedFrame>
-  writableStream: WritableStream<RTCEncodedFrame>
+  // The streams property will be undefined if this is a transceiver reuse,
+  // but a message still needs to be sent to the worker so that it updates
+  // the userId/mid asssociation.
+  streams?: RTCInsertableStreams
 }
 
 interface PasswordEvent {
@@ -171,15 +173,11 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
     return createKey(password, url, userId)
     .then(key => {
-      // Ensure password hasn't changed in the meantime.
-      if (context.decryptContextByMid[mid].password === password) {
+      // Ensure there was no context update in the meantime. This can happen
+      // if metadata has changed, or a user has left and another one who just
+      // joined got assigned the same mid.
+      if (context.decryptContextByMid[mid] === c) {
         context.decryptContextByMid[mid].key = key
-      }
-
-      context.decryptContextByMid[mid] = {
-        key,
-        password,
-        userId,
       }
     })
   }
@@ -350,7 +348,6 @@ const workerFunc = () => (self: EncryptionWorker) => {
     }, {} as Record<string, TrackMetadata>)
 
     const promises = Object.keys(context.decryptContextByMid).map(mid => {
-      const c = context.decryptContextByMid[mid]
       const m = metadataByMid[mid]
 
       if (!m) {
@@ -359,9 +356,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
         return
       }
 
-      if (c.userId != m.userId) {
-        return updateDecryptContext(mid, m.userId)
-      }
+      return updateDecryptContext(mid, m.userId)
     })
 
     return Promise.all(promises)
@@ -390,12 +385,14 @@ const workerFunc = () => (self: EncryptionWorker) => {
   }
 
   function handleDecrypt(msg: DecryptStreamEvent) {
-    msg.readableStream
-    .pipeThrough(new TransformStream({
-      transform: (frame, ctrl) =>
-        decrypt(msg.mid, frame, ctrl),
-    }))
-    .pipeTo(msg.writableStream)
+    if (msg.streams) {
+      msg.streams.readableStream
+      .pipeThrough(new TransformStream({
+        transform: (frame, ctrl) =>
+          decrypt(msg.mid, frame, ctrl),
+      }))
+      .pipeTo(msg.streams.writableStream)
+    }
 
     return updateDecryptContext(msg.mid, msg.userId)
   }
@@ -406,7 +403,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
       case 'init':
         params.url = msg.url
         params.userId = msg.userId
-        console.log('InsertableStreams worker initialized')
+        console.log('InsertableStreams worker initialized', params.url)
         break
       case 'password':
         return handlePassword(msg)
@@ -524,6 +521,8 @@ export class InsertableStreamsCodec {
       return true
     }
 
+    this.sendersReceivers.add(sender)
+
     const streams = this.getEncodedStreams(sender)
     if (!streams) {
       return false
@@ -548,28 +547,38 @@ export class InsertableStreamsCodec {
       return false
     }
 
-    if (this.sendersReceivers.has(params.receiver)) {
-      // This receiver has already been seen (transceiver reuse).
-      return true
-    }
+    let streams: RTCInsertableStreams | undefined
+    const transferables: Transferable[] = []
 
-    const streams = this.getEncodedStreams(params.receiver)
-    if (!streams) {
-      return false
+    // Encoded streams can only be requested once so the following prevents
+    // an error during transceiver reuse in the case of the same sender being
+    // assigned a different track.
+    if (!this.sendersReceivers.has(params.receiver)) {
+
+      const encodedStreams = this.getEncodedStreams(params.receiver)
+      if (!encodedStreams) {
+        return false
+      }
+
+      streams = {
+        readableStream: encodedStreams.readableStream,
+        writableStream: encodedStreams.writableStream,
+      }
+
+      transferables.push(streams.readableStream as unknown as Transferable)
+      transferables.push(streams.writableStream as unknown as Transferable)
+
+      this.sendersReceivers.add(params.receiver)
     }
 
     const message: DecryptStreamEvent = {
       type: 'decrypt',
       mid: params.mid,
       userId: params.userId,
-      readableStream: streams.readableStream,
-      writableStream: streams.writableStream,
+      streams,
     }
 
-    this.worker.postMessage(message, [
-      streams.readableStream,
-      streams.writableStream,
-    ] as unknown as Transferable[])
+    this.worker.postMessage(message, transferables)
 
     return true
   }
