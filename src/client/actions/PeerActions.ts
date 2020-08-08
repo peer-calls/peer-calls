@@ -78,12 +78,19 @@ class PeerHandler {
     stream: MediaStream,
     transceiver: RTCRtpTransceiver,
   ) => {
-    insertableStreamsCodec.decrypt(transceiver.receiver)
-
     const { user, dispatch } = this
     const userId = user.id
+    const mid = transceiver.mid!
+
     debug('peer: %s, track: %s, stream: %s, mid: %s',
-          userId, track.id, stream.id, transceiver.mid)
+          userId, track.id, stream.id, mid)
+
+    insertableStreamsCodec.decrypt({
+      receiver: transceiver.receiver,
+      mid,
+      userId,
+    })
+
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {
@@ -99,7 +106,7 @@ class PeerHandler {
         userId, track.id, stream.id)
       dispatch(StreamActions.addTrack({
         streamId: stream.id,
-        mid: transceiver.mid!,
+        mid,
         userId,
         track,
       }))

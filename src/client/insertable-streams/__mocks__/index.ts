@@ -5,7 +5,7 @@ export const insertableStreamsCodec = {
     success = ok
   },
 
-  setEncryptionKey: jest.fn().mockImplementation(() => {
+  setPassword: jest.fn().mockImplementation(() => {
     return success
   }),
 

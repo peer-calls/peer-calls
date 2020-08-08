@@ -418,7 +418,7 @@ describe('components/Toolbar track dropdowns', () => {
 
   describe('encryption-dialog', () => {
     beforeEach(() => {
-      (insertableStreamsCodec.setEncryptionKey as jest.Mock).mockClear()
+      (insertableStreamsCodec.setPassword as jest.Mock).mockClear()
     })
 
     it('should toggle dialog', () => {
@@ -448,14 +448,14 @@ describe('components/Toolbar track dropdowns', () => {
       input.value = password
       TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
       expect(
-        (insertableStreamsCodec.setEncryptionKey as jest.Mock).mock.calls,
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ]])
       expect(button.classList.contains('encryption-enabled')).toBe(true)
 
       input.value = ''
       TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
       expect(
-        (insertableStreamsCodec.setEncryptionKey as jest.Mock).mock.calls,
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ], [ '' ]])
       expect(button.classList.contains('encryption-enabled')).toBe(false)
     })
@@ -472,7 +472,7 @@ describe('components/Toolbar track dropdowns', () => {
       input.value = password
       TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
       expect(
-        (insertableStreamsCodec.setEncryptionKey as jest.Mock).mock.calls,
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ]])
 
       expect(button.classList.contains('encryption-enabled')).toBe(false)

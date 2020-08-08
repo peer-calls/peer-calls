@@ -113,7 +113,7 @@ export default class Toolbar extends React.PureComponent<
       })
     }
   }
-  setEncryptionKey = (event: React.FormEvent<HTMLFormElement>) => {
+  setPassword = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const inputElement = this.encryptionKeyInputRef.current!
@@ -121,7 +121,7 @@ export default class Toolbar extends React.PureComponent<
     inputElement.value = ''
 
     const encrypted =
-      insertableStreamsCodec.setEncryptionKey(key) &&
+      insertableStreamsCodec.setPassword(key) &&
       key.length > 0
 
     this.setState({
@@ -213,7 +213,7 @@ export default class Toolbar extends React.PureComponent<
               className={classnames('encryption-dialog', {
                 'encryption-dialog-visible': this.state.encryptionDialogVisible,
               })}
-              onSubmit={this.setEncryptionKey}
+              onSubmit={this.setPassword}
             >
               <div className='encryption-form'>
                 <input
