@@ -1,12 +1,18 @@
 FROM node:12-alpine as frontend
 
-COPY ./ /src/
+# Add dependency instructions and fetch node_modules
+COPY package.json package-lock.json /src/
 wORKDIR /src
 
 RUN set -ex \
  && apk add --no-cache \
       git \
- && npm ci \
+ && npm ci
+
+# Add the application itself
+COPY ./ /src/
+
+RUN set -ex \
  && npm run build
 
 
@@ -19,9 +25,16 @@ RUN set -ex \
       git \
  && GOPATH=/usr/local go get -u github.com/gobuffalo/packr/packr
 
+# Add dependencies into mod cache
+COPY go.mod go.sum /src/
+wORKDIR /src
+
+RUN set -ex \
+ && go mod download
+
+# Add the application itself and build it
 COPY                  ./          /src/
 COPY --from=frontend  /src/build/ /src/build/
-wORKDIR /src
 
 RUN set -ex \
  && packr build \
