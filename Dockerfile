@@ -2,7 +2,7 @@ FROM node:12-alpine as frontend
 
 # Add dependency instructions and fetch node_modules
 COPY package.json package-lock.json /src/
-wORKDIR /src
+WORKDIR /src
 
 RUN set -ex \
  && apk add --no-cache \
@@ -27,7 +27,7 @@ RUN set -ex \
 
 # Add dependencies into mod cache
 COPY go.mod go.sum /src/
-wORKDIR /src
+WORKDIR /src
 
 RUN set -ex \
  && go mod download
