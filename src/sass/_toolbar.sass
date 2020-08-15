@@ -12,6 +12,10 @@
     position: relative
 
   .encryption-dialog
+    background: rgba(darken($color-bg, 5%), 0.8)
+    border: 1px solid darken($color-bg, 10%)
+    padding: 0.5rem;
+    border-radius: 4px
     opacity: 0
     visibility: hidden
     transition: opacity 200ms ease-in 0ms, visibility 0ms ease-in 200ms
@@ -25,16 +29,16 @@
     .encryption-form
       white-space: nowrap
 
-    width: 300px
+    // width: 300px
     left: 100%
-    top: 0.5rem
-    top: calc(0.5rem + 2px)
+    top: 2px
 
     input, button
       padding: 15px 10px
       border-radius: 4px
 
     input
+      min-width: 200px
       border: none
       border-color: transparent
       border-bottom: 2px solid darken(#fff, 10%)
@@ -53,6 +57,8 @@
       font-size: 0.8rem
       text-shadow: 0 0 2px black
 
+      p:last-child
+        margin-bottom: 0
 
   position: absolute
   display: flex

@@ -229,7 +229,7 @@ export default class Toolbar extends React.PureComponent<
                 <button onClick={this.setPassword}>Save</button>
               </div>
               <div className='note'>
-                <p><MdWarning /> This functionality is experimental.</p>
+                <p><MdWarning /> Experimental functionality for A/V only.</p>
                 {!this.supportsInsertableStreams && (
                   <p>
                     Your browser does not support Insertable Streams;

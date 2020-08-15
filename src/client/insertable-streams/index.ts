@@ -331,7 +331,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
       })
     })
     .catch(err => {
-      // decryption will throw errors
+      // Decryption with invalid key will throw errors.
     })
     .finally(() => {
       // TODO perhaps it would be wiser not to show unencrypted streams when
