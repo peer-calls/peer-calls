@@ -12,7 +12,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.3
 	github.com/pion/rtp v1.6.0
-	github.com/pion/webrtc/v3 v3.0.0-beta.1
+	github.com/pion/webrtc/v3 v3.0.0-beta.2
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/goleak v1.0.0
