@@ -136,7 +136,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
       {
         name: 'PBKDF2',
         salt,
-        iterations: 1000, // FIXME
+        iterations: 150000,
         hash: 'SHA-1',
       },
       passwordKey,
