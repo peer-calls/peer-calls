@@ -1,6 +1,6 @@
 import classnames from 'classnames'
 import React from 'react'
-import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare } from 'react-icons/md'
+import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare, MdLock, MdLockOpen, MdWarning } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
@@ -9,6 +9,8 @@ import { LocalStream } from '../reducers/streams'
 import { callId } from '../window'
 import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
 import { ToolbarButton } from './ToolbarButton'
+import { insertableStreamsCodec } from '../insertable-streams'
+import { getBrowserFeatures } from '../features'
 
 export interface ToolbarProps {
   dialState: DialState
@@ -28,6 +30,8 @@ export interface ToolbarState {
   camDisabled: boolean
   micMuted: boolean
   fullScreenEnabled: boolean
+  encryptionDialogVisible: boolean
+  encrypted: boolean
 }
 
 interface ShareData {
@@ -48,6 +52,8 @@ export default class Toolbar extends React.PureComponent<
   ToolbarProps,
   ToolbarState
 > {
+  encryptionKeyInputRef: React.RefObject<HTMLInputElement>
+  supportsInsertableStreams: boolean
 
   constructor(props: ToolbarProps) {
     super(props)
@@ -57,7 +63,12 @@ export default class Toolbar extends React.PureComponent<
       camDisabled: false,
       micMuted: false,
       fullScreenEnabled: false,
+      encryptionDialogVisible: false,
+      encrypted: false,
     }
+
+    this.encryptionKeyInputRef = React.createRef<HTMLInputElement>()
+    this.supportsInsertableStreams = getBrowserFeatures().insertableStreams
   }
   componentDidMount() {
     document.body.addEventListener('click', this.toggleHidden)
@@ -86,6 +97,40 @@ export default class Toolbar extends React.PureComponent<
   }
   handleHangoutClick = () => {
     window.location.href = '/'
+  }
+  toggleEncryptionDialog = () => {
+    const encryptionDialogVisible = !this.state.encryptionDialogVisible
+
+    this.setState({
+      encryptionDialogVisible,
+    })
+
+    const inputElement = this.encryptionKeyInputRef.current!
+
+    if (encryptionDialogVisible) {
+      setTimeout(() => {
+        inputElement.focus()
+      })
+    }
+  }
+  setPasswordOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key == 'Enter') {
+      this.setPassword()
+    }
+  }
+  setPassword = () => {
+    const inputElement = this.encryptionKeyInputRef.current!
+    const key = inputElement.value
+    inputElement.value = ''
+
+    const encrypted =
+      insertableStreamsCodec.setPassword(key) &&
+      key.length > 0
+
+    this.setState({
+      encryptionDialogVisible: false,
+      encrypted,
+    })
   }
   copyInvitationURL = async () => {
     const { nickname } = this.props
@@ -126,6 +171,10 @@ export default class Toolbar extends React.PureComponent<
       'toolbar-hidden': this.props.chatVisible || this.state.hidden,
     })
 
+    const encryptionIcon = this.state.encrypted
+      ? MdLock
+      : MdLockOpen
+
     return (
       <React.Fragment>
         <div className={'toolbar-other ' + className}>
@@ -137,17 +186,61 @@ export default class Toolbar extends React.PureComponent<
             title={canShare(navigator) ? 'Share' : 'Copy Invitation URL'}
           />
           {isInCall && (
-            <ToolbarButton
-              badge={unreadCount}
-              className='chat'
-              key='chat'
-              icon={MdQuestionAnswer}
-              blink={!this.props.chatVisible && hasUnread}
-              onClick={this.handleToggleChat}
-              on={this.props.chatVisible}
-              title='Toggle Chat'
-            />
+            <React.Fragment>
+              <ToolbarButton
+                badge={unreadCount}
+                className='chat'
+                key='chat'
+                icon={MdQuestionAnswer}
+                blink={!this.props.chatVisible && hasUnread}
+                onClick={this.handleToggleChat}
+                on={this.props.chatVisible}
+                title='Toggle Chat'
+              />
+            </React.Fragment>
           )}
+
+          <div className='encryption-wrapper'>
+            <ToolbarButton
+              onClick={this.toggleEncryptionDialog}
+              key='encryption'
+              className={classnames('encryption', {
+                'encryption-enabled': this.state.encrypted,
+              })}
+              on={this.state.encryptionDialogVisible || this.state.encrypted}
+              icon={encryptionIcon}
+              title='Setup Encryption'
+            />
+            <div
+              className={classnames('encryption-dialog', {
+                'encryption-dialog-visible': this.state.encryptionDialogVisible,
+              })}
+            >
+              <div className='encryption-form'>
+                <input
+                  autoComplete='off'
+                  name='encryption-key'
+                  className='encryption-key'
+                  placeholder='Enter Passphrase'
+                  ref={this.encryptionKeyInputRef}
+                  type='password'
+                  onKeyUp={this.setPasswordOnEnter}
+                />
+                <button onClick={this.setPassword}>Save</button>
+              </div>
+              <div className='note'>
+                <p><MdWarning /> Experimental functionality for A/V only.</p>
+                {!this.supportsInsertableStreams && (
+                  <p>
+                    Your browser does not support Insertable Streams;
+                    currently only Chrome has support. If you are using Chrome,
+                    please make sure Experimental Web Platform Features are
+                    enabled in chrome://flags.
+                  </p>
+                )} </div>
+            </div>
+          </div>
+
         </div>
 
         {isInCall && (

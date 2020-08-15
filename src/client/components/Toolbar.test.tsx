@@ -1,3 +1,4 @@
+jest.mock('../insertable-streams')
 jest.mock('simple-peer')
 jest.mock('../window')
 import React from 'react'
@@ -15,6 +16,7 @@ import { middlewares, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
 import { deferred } from '../deferred'
+import { insertableStreamsCodec } from '../insertable-streams'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -412,6 +414,70 @@ describe('components/Toolbar track dropdowns', () => {
 
     })
 
+  })
+
+  describe('encryption-dialog', () => {
+    beforeEach(() => {
+      (insertableStreamsCodec.setPassword as jest.Mock).mockClear()
+    })
+
+    it('should toggle dialog', () => {
+      let dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).toBeNull()
+
+      const button = node.querySelector('.encryption')!
+      TestUtils.Simulate.click(button)
+
+      dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).not.toBeNull()
+
+      TestUtils.Simulate.click(button)
+
+      dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).toBeNull()
+    })
+
+    it('should set and disable encryption', () => {
+      (insertableStreamsCodec as any).mockSuccess(true)
+
+      const button = node.querySelector('.encryption')!
+      const input = node
+      .querySelector('.encryption-dialog .encryption-key') as HTMLInputElement
+
+      const password = 'p455w0rd'
+      input.value = password
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ]])
+      expect(button.classList.contains('encryption-enabled')).toBe(true)
+
+      input.value = ''
+      TestUtils.Simulate.keyUp(input, { key: 'a' } as any) // does nothing
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ], [ '' ]])
+      expect(button.classList.contains('encryption-enabled')).toBe(false)
+    })
+
+    it('should not succeed when worker is not started', () => {
+      (insertableStreamsCodec as any).mockSuccess(false)
+
+      const button = node.querySelector('.encryption')!
+
+      const input = node
+      .querySelector('.encryption-dialog .encryption-key') as HTMLInputElement
+
+      const password = 'p455w0rd'
+      input.value = password
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ]])
+
+      expect(button.classList.contains('encryption-enabled')).toBe(false)
+    })
   })
 
 })

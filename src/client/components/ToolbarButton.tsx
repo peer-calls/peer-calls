@@ -21,7 +21,6 @@ export function ToolbarButton(props: ToolbarButtonProps) {
     <a
       className={classnames('button', props.className, { blink, on })}
       onClick={props.onClick}
-      href='#'
     >
       <span className='icon'>
         <Icon />
