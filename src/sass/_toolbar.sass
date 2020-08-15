@@ -25,14 +25,17 @@
     .encryption-form
       white-space: nowrap
 
-    // TODO fix this
     width: 300px
     left: 100%
     top: 0.5rem
+    top: calc(0.5rem + 2px)
 
-    input
+    input, button
       padding: 15px 10px
       border-radius: 4px
+
+    input
+      border: none
       border-color: transparent
       border-bottom: 2px solid darken(#fff, 10%)
       color: black
@@ -42,7 +45,7 @@
     input[type=password]
       margin-right: 0.5rem
 
-    input[type=submit]
+    input[type=submit], button
       @include button($color-primary, $color-warning)
 
     .note

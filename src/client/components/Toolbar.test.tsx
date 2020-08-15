@@ -446,14 +446,15 @@ describe('components/Toolbar track dropdowns', () => {
 
       const password = 'p455w0rd'
       input.value = password
-      TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
       expect(
         (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ]])
       expect(button.classList.contains('encryption-enabled')).toBe(true)
 
       input.value = ''
-      TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
+      TestUtils.Simulate.keyUp(input, { key: 'a' } as any) // does nothing
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
       expect(
         (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ], [ '' ]])
@@ -470,7 +471,7 @@ describe('components/Toolbar track dropdowns', () => {
 
       const password = 'p455w0rd'
       input.value = password
-      TestUtils.Simulate.submit(node.querySelector('.encryption-dialog')!)
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
       expect(
         (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
       ).toEqual([[ password ]])

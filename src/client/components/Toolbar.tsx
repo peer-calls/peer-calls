@@ -113,9 +113,12 @@ export default class Toolbar extends React.PureComponent<
       })
     }
   }
-  setPassword = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
+  setPasswordOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key == 'Enter') {
+      this.setPassword()
+    }
+  }
+  setPassword = () => {
     const inputElement = this.encryptionKeyInputRef.current!
     const key = inputElement.value
     inputElement.value = ''
@@ -204,27 +207,26 @@ export default class Toolbar extends React.PureComponent<
               className={classnames('encryption', {
                 'encryption-enabled': this.state.encrypted,
               })}
-              on={this.state.encryptionDialogVisible}
+              on={this.state.encryptionDialogVisible || this.state.encrypted}
               icon={encryptionIcon}
               title='Setup Encryption'
             />
-            <form
-              autoComplete='new-password'
+            <div
               className={classnames('encryption-dialog', {
                 'encryption-dialog-visible': this.state.encryptionDialogVisible,
               })}
-              onSubmit={this.setPassword}
             >
               <div className='encryption-form'>
                 <input
-                  autoComplete='new-password'
+                  autoComplete='off'
                   name='encryption-key'
                   className='encryption-key'
                   placeholder='Enter Passphrase'
                   ref={this.encryptionKeyInputRef}
                   type='password'
+                  onKeyUp={this.setPasswordOnEnter}
                 />
-                <input type='submit' value='Save' />
+                <button onClick={this.setPassword}>Save</button>
               </div>
               <div className='note'>
                 <p><MdWarning /> This functionality is experimental.</p>
@@ -236,7 +238,7 @@ export default class Toolbar extends React.PureComponent<
                     enabled in chrome://flags.
                   </p>
                 )} </div>
-            </form>
+            </div>
           </div>
 
         </div>
