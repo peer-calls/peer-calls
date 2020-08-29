@@ -96,7 +96,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
           className={this.props.className}
           icon={this.props.icon}
           offIcon={this.props.offIcon}
-          on={shareConfig === undefined}
+          on={shareConfig !== false}
           onClick={this.toggleOpen}
           title={this.props.title}
         />

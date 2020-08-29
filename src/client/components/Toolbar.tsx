@@ -240,8 +240,8 @@ export default class Toolbar extends React.PureComponent<
           <div className={'toolbar-call ' + className}>
             <ShareDesktopDropdown
               className='stream-desktop'
-              icon={MdStopScreenShare}
-              offIcon={MdScreenShare}
+              icon={MdScreenShare}
+              offIcon={MdStopScreenShare}
               key='stream-desktop'
               title='Share Desktop'
               desktopStream={this.props.desktopStream}
