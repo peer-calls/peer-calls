@@ -58,6 +58,14 @@ func NewWebRTCTransportFactory(
 	networkTypes := NewNetworkTypes(loggerFactory.GetLogger("networktype"), sfuConfig.Protocols)
 	settingEngine.SetNetworkTypes(networkTypes)
 
+	if udp := sfuConfig.UDP; udp.PortMin > 0 && udp.PortMax > 0 {
+		if err := settingEngine.SetEphemeralUDPPortRange(udp.PortMin, udp.PortMax); err != nil {
+			log.Printf("Error setting epheremal UDP port range (%d-%d): %s", udp.PortMin, udp.PortMin, err)
+		} else {
+			log.Printf("Set epheremal UDP port range to %d-%d", udp.PortMin, udp.PortMax)
+		}
+	}
+
 	tcpEnabled := false
 	for _, networkType := range networkTypes {
 		if networkType == webrtc.NetworkTypeTCP4 || networkType == webrtc.NetworkTypeTCP6 {

@@ -57,6 +57,10 @@ type NetworkConfigSFU struct {
 	Protocols     []string `yaml:"protocols"`
 	TCPBindAddr   string   `yaml:"tcp_bind_addr"`
 	TCPListenPort int      `yaml:"tcp_listen_port"`
+	UDP           struct {
+		PortMin uint16 `yaml:"port_min"`
+		PortMax uint16 `yaml:"port_max"`
+	} `yaml:"udp"`
 }
 
 type PrometheusConfig struct {

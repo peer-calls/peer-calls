@@ -39,6 +39,9 @@ func TestReadConfigFiles(t *testing.T) {
 	assert.Equal(t, "test_user", ice.AuthSecret.Username)
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
 	assert.Equal(t, []string(nil), c.Network.SFU.Interfaces)
+	assert.Equal(t, server.NetworkTypeSFU, c.Network.Type)
+	assert.Equal(t, uint16(9000), c.Network.SFU.UDP.PortMin)
+	assert.Equal(t, uint16(9010), c.Network.SFU.UDP.PortMax)
 }
 
 func TestReadConfigFiles_Error(t *testing.T) {
@@ -76,6 +79,8 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"NETWORK_SFU_TCP_LISTEN_PORT", "8443")
 	os.Setenv(prefix+"NETWORK_SFU_INTERFACES", "a,b")
 	os.Setenv(prefix+"NETWORK_SFU_JITTER_BUFFER", "true")
+	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MIN", "9000")
+	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MAX", "9010")
 	os.Setenv(prefix+"PROMETHEUS_ACCESS_TOKEN", "at1234")
 	var c server.Config
 	server.ReadConfigFromEnv(prefix, &c)
@@ -100,5 +105,7 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, server.NetworkType("sfu"), c.Network.Type)
 	assert.Equal(t, []string{"a", "b"}, c.Network.SFU.Interfaces)
 	assert.Equal(t, true, c.Network.SFU.JitterBuffer)
+	assert.Equal(t, uint16(9000), c.Network.SFU.UDP.PortMin)
+	assert.Equal(t, uint16(9010), c.Network.SFU.UDP.PortMax)
 	assert.Equal(t, "at1234", c.Prometheus.AccessToken)
 }

@@ -161,6 +161,8 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_SFU_PROTOCOLS`    | csv    | Can be `udp4`, `udp6`, `tcp4` or `tcp6`                                      | `udp4,udp6` |
 | `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address. By default listens on all interfaces.                  |           |
 | `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port. By default uses a random port.                          | `0`       |
+| `PEERCALLS_NETWORK_SFU_UDP_PORT_MIN` | int    | Defines ICE UDP range start to use for UDP host candidates.                  | `0`       |
+| `PEERCALLS_NETWORK_SFU_UDP_PORT_MAX` | int    | Defines ICE UDP range end to use for UDP host candidates.                    | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |
 | `PEERCALLS_ICE_SERVER_AUTH_TYPE`     | string | Can be empty or `secret` for coturn `static-auth-secret` config option.      |           |
 | `PEERCALLS_ICE_SERVER_SECRET`        | string | Secret for coturn                                                            |           |
@@ -301,6 +303,14 @@ issues. In Chrome, use `about:webrtc-internals`.
 
 When experiencing connection issues, the first thing to try is to have all
 peers to use the same browser.
+
+# Epheremal UDP Ports for ICE
+
+The UDP port range can be defined for opening epheremal ports. These ports will
+be used for generating UDP host ICE candidates. It is recommended to enable
+these UDP ports when ICE TCP is enabled, because the priority of TCP host
+candidates will be higher than srflx/prflx candidates, as such TCP will be used
+even though UDP connectivity might be possible.
 
 # ICE TCP
 

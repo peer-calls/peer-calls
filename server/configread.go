@@ -74,9 +74,13 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvStringArray(&c.Network.SFU.Protocols, prefix+"NETWORK_SFU_PROTOCOLS")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
+	setEnvUint16(&c.Network.SFU.UDP.PortMin, prefix+"NETWORK_SFU_UDP_PORT_MIN")
+	setEnvUint16(&c.Network.SFU.UDP.PortMax, prefix+"NETWORK_SFU_UDP_PORT_MAX")
 
 	var ice ICEServer
+
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
+
 	if len(ice.URLs) > 0 {
 		setEnvAuthType(&ice.AuthType, prefix+"ICE_SERVER_AUTH_TYPE")
 		setEnvString(&ice.AuthSecret.Secret, prefix+"ICE_SERVER_SECRET")
@@ -107,6 +111,13 @@ func setEnvInt(dest *int, name string) {
 	value, err := strconv.Atoi(os.Getenv(name))
 	if err == nil {
 		*dest = value
+	}
+}
+
+func setEnvUint16(dest *uint16, name string) {
+	value, err := strconv.ParseUint(os.Getenv(name), 10, 32)
+	if err == nil {
+		*dest = uint16(value)
 	}
 }
 
