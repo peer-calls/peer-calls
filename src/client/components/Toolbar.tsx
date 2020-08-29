@@ -11,6 +11,7 @@ import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
 import { ToolbarButton } from './ToolbarButton'
 import { insertableStreamsCodec } from '../insertable-streams'
 import { getBrowserFeatures } from '../features'
+import { ShareDesktopDropdown } from './ShareDesktopDropdown'
 
 export interface ToolbarProps {
   dialState: DialState
@@ -153,14 +154,6 @@ export default class Toolbar extends React.PureComponent<
     })
     this.props.onToggleChat()
   }
-  handleToggleShareDesktop = () => {
-    if (this.props.desktopStream) {
-      const { stream, type } = this.props.desktopStream
-      this.props.onRemoveLocalStream(stream, type)
-    } else {
-      this.props.onGetDesktopStream().catch(() => {})
-    }
-  }
   render() {
     const { messagesCount } = this.props
     const unreadCount = messagesCount - this.state.readMessages
@@ -245,14 +238,15 @@ export default class Toolbar extends React.PureComponent<
 
         {isInCall && (
           <div className={'toolbar-call ' + className}>
-            <ToolbarButton
+            <ShareDesktopDropdown
               className='stream-desktop'
               icon={MdStopScreenShare}
               offIcon={MdScreenShare}
-              onClick={this.handleToggleShareDesktop}
-              on={!!this.props.desktopStream}
               key='stream-desktop'
               title='Share Desktop'
+              desktopStream={this.props.desktopStream}
+              onGetDesktopStream={this.props.onGetDesktopStream}
+              onRemoveLocalStream={this.props.onRemoveLocalStream}
             />
 
             <VideoDropdown />

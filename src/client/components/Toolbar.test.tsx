@@ -123,14 +123,39 @@ describe('components/Toolbar', () => {
     })
   })
 
-  describe('desktop sharing', () => {
-    it('starts desktop sharing', async () => {
-      const shareDesktop = node.querySelector('.stream-desktop')!
-      expect(shareDesktop).toBeDefined()
+  describe('desktop sharing menu', () => {
+    it('starts desktop sharing with audio', async () => {
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[1]
+      expect(shareDesktop).toBeTruthy()
       TestUtils.Simulate.click(shareDesktop)
-      await Promise.resolve()
-      expect(onGetDesktopStream.mock.calls.length).toBe(1)
+
+      expect(onRemoveLocalStream.mock.calls.length).toBe(0)
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: true,
+        video: true,
+      } ]])
     })
+
+    it('starts video-only desktop sharing', async () => {
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[2]
+      expect(shareDesktop).toBeTruthy()
+      TestUtils.Simulate.click(shareDesktop)
+
+      expect(onRemoveLocalStream.mock.calls.length).toBe(0)
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: false,
+        video: true,
+      } ]])
+    })
+
     it('stops desktop sharing', async () => {
       const stream = new MediaStream()
       desktopStream = {
@@ -140,11 +165,45 @@ describe('components/Toolbar', () => {
         mirror: false,
       }
       await render(store)
-      const shareDesktop = node.querySelector('.stream-desktop')!
-      expect(shareDesktop).toBeDefined()
+
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[0]
+      expect(shareDesktop).toBeTruthy()
       TestUtils.Simulate.click(shareDesktop)
-      await Promise.resolve()
-      expect(onRemoveLocalStream.mock.calls.length).toBe(1)
+
+      expect(onRemoveLocalStream.mock.calls)
+      .toEqual([[ desktopStream.stream, StreamTypeDesktop ]])
+      expect(onGetDesktopStream.mock.calls.length).toBe(0)
+    })
+
+    it('stops desktop sharing before switching streams', async () => {
+      const stream = new MediaStream()
+      desktopStream = {
+        stream,
+        streamId: stream.id,
+        type: StreamTypeDesktop,
+        mirror: false,
+      }
+      await render(store)
+
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[1]
+      expect(shareDesktop).toBeTruthy()
+      TestUtils.Simulate.click(shareDesktop)
+
+      expect(onRemoveLocalStream.mock.calls)
+      .toEqual([[ desktopStream.stream, StreamTypeDesktop ]])
+
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: true,
+        video: true,
+      } ]])
     })
   })
 

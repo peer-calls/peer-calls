@@ -93,9 +93,21 @@ async function getUserMedia(
   })
 }
 
-async function getDisplayMedia(): Promise<MediaStream> {
+export interface DisplayMediaConstraints {
+  audio: boolean
+  video: boolean
+}
+
+const defaultDisplayMediaConstraints: DisplayMediaConstraints = {
+  audio: true,
+  video: false,
+}
+
+async function getDisplayMedia(
+  constraints: DisplayMediaConstraints,
+): Promise<MediaStream> {
   const mediaDevices = navigator.mediaDevices as any // eslint-disable-line
-  return mediaDevices.getDisplayMedia({video: true, audio: false})
+  return mediaDevices.getDisplayMedia(constraints)
 }
 
 export interface MediaVideoConstraintAction {
@@ -218,10 +230,12 @@ export const getMediaStream = makeAction(
 
 export const getDesktopStream = makeAction(
   MEDIA_STREAM,
-  async () => {
+  async (
+    constraints: DisplayMediaConstraints = defaultDisplayMediaConstraints,
+  ) => {
     debug('getDesktopStream')
     const payload: AddLocalStreamPayload = {
-      stream: await getDisplayMedia(),
+      stream: await getDisplayMedia(constraints),
       type: StreamTypeDesktop,
     }
     return payload
