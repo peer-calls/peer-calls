@@ -122,7 +122,17 @@ func setEnvUint16(dest *uint16, name string) {
 }
 
 func setEnvBool(dest *bool, name string) {
-	*dest = os.Getenv(name) == "true"
+	val := os.Getenv(name)
+
+	// Only set the boolean value when the environment variable is explicitly set
+	// to either 'true' or 'false', to prevent resetting the pointer value to
+	// false when there is no environment variable defined.
+	switch val {
+	case "true":
+		*dest = true
+	case "false":
+		*dest = false
+	}
 }
 
 func setEnvAuthType(authType *AuthType, name string) {
