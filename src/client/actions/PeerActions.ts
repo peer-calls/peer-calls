@@ -173,6 +173,8 @@ export function createPeer (options: CreatePeerOptions) {
       dispatch(removePeer(userId))
     }
 
+    debug('Using ice servers: %o', iceServers)
+
     const peer = new Peer({
       initiator,
       config: {

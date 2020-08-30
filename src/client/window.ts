@@ -1,6 +1,3 @@
-import _debug from 'debug'
-const debug = _debug('peercalls')
-
 export const createObjectURL = (object: unknown) =>
   window.URL.createObjectURL(object)
 export const revokeObjectURL = (url: string) => window.URL.revokeObjectURL(url)
@@ -20,8 +17,6 @@ export interface ClientConfig {
 }
 
 export const config: ClientConfig  = JSON.parse(valueOf('config')!)
-
-debug('Using ice servers: %o', config.iceServers)
 
 export const MediaStream = window.MediaStream
 export const MediaStreamTrack = window.MediaStreamTrack

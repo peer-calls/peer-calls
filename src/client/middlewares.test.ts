@@ -1,3 +1,5 @@
+jest.mock('./window')
+
 import logger from 'redux-logger'
 import { create } from './middlewares'
 
