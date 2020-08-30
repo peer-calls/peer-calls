@@ -1,6 +1,8 @@
 import Peer from 'simple-peer'
-import { iceServers, userId, callId } from './window'
 import socket from './socket'
+import { config } from './window'
+
+const { iceServers, userId, callId } = config
 
 const $container = document.getElementById('container')!
 socket.reconnectTimeout = 0

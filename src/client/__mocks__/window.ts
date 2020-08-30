@@ -1,3 +1,5 @@
+import { ClientConfig } from '../window'
+
 export const createObjectURL = jest.fn()
 .mockImplementation(object => 'blob://' + String(object))
 export const revokeObjectURL = jest.fn()
@@ -66,16 +68,15 @@ window.navigator.mediaDevices.getUserMedia = async () => {
   return new MediaStream() as any
 }
 
-export const play = jest.fn()
+// export const play = jest.fn()
 
 export const valueOf = jest.fn()
 
-export const callId = 'call1234'
-
-export const userId = 'user1234'
-
-export const nickname = 'nick1234'
-
-export const network = 'mesh'
-
-export const iceServers = []
+export const config: ClientConfig = {
+  baseUrl: '',
+  callId: 'call1234',
+  userId: 'user1234',
+  iceServers: [],
+  network: 'mesh',
+  nickname: 'nick1234',
+}

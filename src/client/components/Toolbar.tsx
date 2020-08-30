@@ -1,17 +1,19 @@
 import classnames from 'classnames'
 import React from 'react'
-import { MdCallEnd, MdShare, MdContentCopy, MdFullscreen, MdFullscreenExit, MdQuestionAnswer, MdScreenShare, MdStopScreenShare, MdLock, MdLockOpen, MdWarning } from 'react-icons/md'
+import { MdCallEnd, MdContentCopy, MdFullscreen, MdFullscreenExit, MdLock, MdLockOpen, MdQuestionAnswer, MdScreenShare, MdShare, MdStopScreenShare, MdWarning } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
 import { removeLocalStream } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL } from '../constants'
-import { LocalStream } from '../reducers/streams'
-import { callId } from '../window'
-import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
-import { ToolbarButton } from './ToolbarButton'
-import { insertableStreamsCodec } from '../insertable-streams'
 import { getBrowserFeatures } from '../features'
+import { insertableStreamsCodec } from '../insertable-streams'
+import { LocalStream } from '../reducers/streams'
+import { config } from '../window'
+import { AudioDropdown, VideoDropdown } from './DeviceDropdown'
 import { ShareDesktopDropdown } from './ShareDesktopDropdown'
+import { ToolbarButton } from './ToolbarButton'
+
+const { callId } = config
 
 export interface ToolbarProps {
   dialState: DialState

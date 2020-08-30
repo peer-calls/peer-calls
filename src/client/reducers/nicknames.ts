@@ -1,9 +1,11 @@
 import { NICKNAMES_SET, PEER_REMOVE, ME, HANG_UP, NICKNAME_REMOVE } from '../constants'
 import { NicknameActions, NicknameRemoveAction } from '../actions/NicknameActions'
 import { RemovePeerAction } from '../actions/PeerActions'
-import { nickname, userId } from '../window'
+import { config } from '../window'
 import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
+
+const { nickname, userId } = config
 
 export type Nicknames = Record<string, string>
 

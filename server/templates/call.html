@@ -5,12 +5,7 @@
   {{template "header" .}}
 </head>
 <body class="call">
-  <input type="hidden" id="baseUrl" value="{{.BaseURL}}">
-  <input type="hidden" id="callId" value="{{.Data.CallID}}">
-  <input type="hidden" id="iceServers" value='{{.Data.ICEServers}}'>
-  <input type="hidden" id="userId" value="{{.Data.UserID}}">
-  <input type="hidden" id="nickname" value="{{.Data.Nickname}}">
-  <input type="hidden" id="network" value="{{.Data.Network}}">
+  <input type="hidden" id="config" value="{{.Data}}">
   <div id="container"></div>
   <noscript>JavaScript must be enabled for this application</noscript>
   <script src="{{.BaseURL}}/static/index.js?{{.Version}}"></script>

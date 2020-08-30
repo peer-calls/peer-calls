@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -171,23 +170,32 @@ func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
-	return "index.html", nil, nil
+	data := mux.getData()
+	return "index.html", data, nil
+}
+
+func (mux *Mux) getData() map[string]interface{} {
+	return map[string]interface{}{
+		"BaseURL": mux.BaseURL,
+		"Version": mux.version,
+	}
 }
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := NewUUIDBase62()
-
 	iceServers := GetICEAuthServers(mux.iceServers)
-	iceServersJSON, _ := json.Marshal(iceServers)
 
-	data := map[string]interface{}{
-		"Nickname":   r.Header.Get("X-Forwarded-User"),
-		"CallID":     callID,
-		"UserID":     userID,
-		"ICEServers": template.HTML(iceServersJSON),
-		"Network":    mux.network.Type,
-		"Version":    mux.version,
+	config := ClientConfig{
+		BaseURL:    mux.BaseURL,
+		Nickname:   r.Header.Get("X-Forwarded-User"),
+		CallID:     callID,
+		UserID:     userID,
+		ICEServers: iceServers,
+		Network:    mux.network.Type,
 	}
-	return "call.html", data, nil
+
+	configJSON, _ := json.Marshal(config)
+
+	return "call.html", string(configJSON), nil
 }

@@ -77,3 +77,18 @@ type Config struct {
 	Network    NetworkConfig    `yaml:"network"`
 	Prometheus PrometheusConfig `yaml:"prometheus"`
 }
+
+type ICEAuthServer struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
+}
+
+type ClientConfig struct {
+	BaseURL    string          `json:"baseUrl"`
+	Nickname   string          `json:"nickname"`
+	CallID     string          `json:"callId"`
+	UserID     string          `json:"userId"`
+	ICEServers []ICEAuthServer `json:"iceServers"`
+	Network    NetworkType     `json:"network"`
+}

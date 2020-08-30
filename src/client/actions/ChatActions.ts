@@ -1,7 +1,9 @@
 import * as NotifyActions from './NotifyActions'
 import { Dispatch, GetState } from '../store'
 import { MESSAGE_ADD, MESSAGE_SEND } from '../constants'
-import { userId } from '../window'
+import { config } from '../window'
+
+const { userId } = config
 
 export interface MessageAddAction {
   type: 'MESSAGE_ADD'

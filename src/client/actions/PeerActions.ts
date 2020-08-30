@@ -3,14 +3,16 @@ import forEach from 'lodash/forEach'
 import Peer, { SignalData } from 'simple-peer'
 import { Decoder } from '../codec'
 import * as constants from '../constants'
+import { insertableStreamsCodec } from '../insertable-streams'
 import { ClientSocket } from '../socket'
 import { Dispatch, GetState } from '../store'
 import { TextDecoder } from '../textcodec'
-import { iceServers } from '../window'
+import { config } from '../window'
 import { addMessage } from './ChatActions'
 import * as NotifyActions from './NotifyActions'
 import * as StreamActions from './StreamActions'
-import { insertableStreamsCodec } from '../insertable-streams'
+
+const { iceServers } = config
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')

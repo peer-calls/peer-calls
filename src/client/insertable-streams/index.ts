@@ -1,9 +1,10 @@
 import _debug from 'debug'
 import { TrackMetadata } from '../SocketEvent'
 import { WebWorker } from '../webworker'
-import { userId } from '../window'
+import { config } from '../window'
 
 const debug = _debug('peercalls')
+const { userId } = config
 
 interface EncryptStreamEvent {
   type: 'encrypt'
