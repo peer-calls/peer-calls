@@ -2,8 +2,10 @@ package server_test
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -128,10 +130,20 @@ func Test_routeCall(t *testing.T) {
 	r := httptest.NewRequest("GET", "/test/call/abc", nil)
 	mux.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Regexp(t, "id=\"baseUrl\" value=\"/test\"", w.Body.String())
-	assert.Regexp(t, "id=\"callId\" value=\"abc\"", w.Body.String())
-	assert.Regexp(t, "id=\"iceServers\" value='.*stun:", w.Body.String())
-	assert.Regexp(t, "id=\"userId\" value=\"[^\"]", w.Body.String())
+
+	re := regexp.MustCompile(`id="config".*value="(.*?)"`)
+	result := re.FindStringSubmatch(w.Body.String())
+
+	var config server.ClientConfig
+	err := json.Unmarshal([]byte(html.UnescapeString(result[1])), &config)
+	require.NoError(t, err)
+
+	assert.Equal(t, "/test", config.BaseURL)
+	assert.Equal(t, "", config.Nickname)
+	assert.Equal(t, "abc", config.CallID)
+	assert.NotEmpty(t, config.UserID)
+	assert.NotEmpty(t, config.ICEServers)
+	assert.Equal(t, server.NetworkTypeMesh, config.Network)
 }
 
 func Test_manifest(t *testing.T) {

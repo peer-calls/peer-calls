@@ -1,4 +1,5 @@
 jest.mock('simple-peer')
+jest.mock('./window')
 
 import { addPeer } from './actions/PeerActions'
 import { createMessagingMiddleware } from './messaging'
