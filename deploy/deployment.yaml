@@ -25,7 +25,7 @@ spec:
       - name: peercalls
         image: peercalls/peercalls
         imagePullPolicy: IfNotPresent
-        command: ["peercalls", "-c", "/etc/peercalls/config.yaml"]
+        command: ["peer-calls", "-c", "/etc/peercalls/config.yaml"]
         ports:
         - name: http
           containerPort: 3000
