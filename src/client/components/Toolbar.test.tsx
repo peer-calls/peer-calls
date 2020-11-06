@@ -7,8 +7,8 @@ import TestUtils from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { applyMiddleware, createStore } from 'redux'
 import SimplePeer from 'simple-peer'
-import { getDesktopStream, MediaKind, setAudioConstraint, setVideoConstraint } from '../actions/MediaActions'
-import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
+import { getDesktopStream, MediaKind, setAudioConstraint, setVideoConstraint, DisplayMediaConstraints } from '../actions/MediaActions'
+import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop, AddLocalStreamPayload } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, PEER_ADD } from '../constants'
 import reducers from '../reducers'
 import { LocalStream } from '../reducers/streams'
@@ -17,6 +17,7 @@ import { MediaStream, MediaStreamTrack } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
 import { deferred } from '../deferred'
 import { insertableStreamsCodec } from '../insertable-streams'
+import { makeAction } from '../async'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -124,6 +125,31 @@ describe('components/Toolbar', () => {
   })
 
   describe('desktop sharing menu', () => {
+    let track1: MediaStreamTrack
+    let track2: MediaStreamTrack
+
+    beforeEach(() => {
+      onGetDesktopStream.mockImplementation(makeAction(
+        MEDIA_STREAM,
+        async (
+          constraints: DisplayMediaConstraints = {audio: true, video: false},
+        ) => {
+          track1 = new MediaStreamTrack()
+          track2 = new MediaStreamTrack()
+
+          const stream = new MediaStream()
+          stream.addTrack(track1)
+          stream.addTrack(track2)
+
+          const payload: AddLocalStreamPayload = {
+            stream: stream,
+            type: StreamTypeDesktop,
+          }
+          return payload
+        },
+      ))
+    })
+
     it('starts desktop sharing with audio', async () => {
       const menu = node.querySelector('.stream-desktop')!
       expect(menu).toBeDefined()
