@@ -62,9 +62,14 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
 
     if (desktopStream) {
       const { stream, type } = desktopStream
+
+      // Remove onended handler from all tracks. See below for more info.
+      stream.getTracks().forEach(t => {
+        t.onended = null
+      })
+
       this.props.onRemoveLocalStream(stream, type)
     }
-
 
     this.setState({
       shareConfig,
@@ -74,7 +79,23 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
       return
     }
 
-    this.props.onGetDesktopStream(shareConfig).catch(() => {
+    this.props.onGetDesktopStream(shareConfig)
+    .then(payload => {
+      const tracks = payload.stream.getTracks()
+      let activeTracks = tracks.length
+
+      // Remove the stream after all tracks end. This ensures the "Stop
+      // sharing" desktop click in Chrome is handled correctly.
+      payload.stream.getTracks().forEach(t => {
+        t.onended = () => {
+          activeTracks--
+          if (activeTracks === 0) {
+            this.props.onRemoveLocalStream(payload.stream, payload.type)
+          }
+        }
+      })
+    })
+    .catch(() => {
       this.setState({
         shareConfig: false,
       })
