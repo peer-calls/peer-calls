@@ -32,6 +32,7 @@ func TestServerStarter_HTTP(t *testing.T) {
 	require.Nil(t, err, "error creating new request")
 	res, err := c.Do(r)
 	require.Nil(t, err, "error executing request")
+	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	require.Nil(t, err, "error reading body")
 	require.Equal(t, []byte("hello"), body)

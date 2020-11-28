@@ -11,6 +11,8 @@ import (
 )
 
 func TestBuffer_tsDelta(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	assert.EqualValues(2, tsDelta(4, 2))
 	assert.EqualValues(3, tsDelta(5, 2))
@@ -19,11 +21,14 @@ func TestBuffer_tsDelta(t *testing.T) {
 }
 
 func TestBuffer_Push_2N(t *testing.T) {
+	t.Parallel()
+
 	b := NewBuffer()
 
 	for n := 0; n < 2; n++ {
 		// do not start from 0 just because sn starts from a random number per RFC
 		var offset uint16 = 32000
+
 		for i := 0; i < int(maxSN)+1; i++ {
 			p := rtp.Packet{}
 			p.SSRC = 111
@@ -35,6 +40,8 @@ func TestBuffer_Push_2N(t *testing.T) {
 }
 
 func TestBuffer_Push_FirstPacket(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	b := NewBuffer()
 	p := rtp.Packet{}
@@ -52,6 +59,8 @@ func TestBuffer_Push_FirstPacket(t *testing.T) {
 }
 
 func TestBuffer_Push_Nack_None(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	b := NewBuffer()
 
@@ -73,9 +82,11 @@ func containsUint16(slice []uint16, value uint16) bool {
 }
 
 func TestBuffer_Push_NackPair_Single(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
-	for _, test := range []struct {
+	for _, tc := range []struct {
 		start        uint16
 		end          uint16
 		drop         []uint16
@@ -88,7 +99,11 @@ func TestBuffer_Push_NackPair_Single(t *testing.T) {
 		{maxSN - 1, maxNackPairSize - 2, []uint16{1, 2}, []uint16{1, 2}},
 		{maxSN - 2, maxNackPairSize - 3, []uint16{1, 2}, []uint16{1, 2}},
 	} {
+		test := tc
+
 		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
+			t.Parallel()
+
 			b := NewBuffer()
 
 			var ssrc uint32 = 111
@@ -128,6 +143,8 @@ func TestBuffer_Push_NackPair_Single(t *testing.T) {
 }
 
 func TestBuffer_Push_NackPair_IrregularNackWindowSize(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	b := NewBuffer()
 	b.nackWindowSize = maxNackPairSize + 1
@@ -166,6 +183,8 @@ func TestBuffer_Push_NackPair_IrregularNackWindowSize(t *testing.T) {
 }
 
 func TestBuffer_Push_ClearOldPackets(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	b := NewBuffer()
 
@@ -187,6 +206,8 @@ func TestBuffer_Push_ClearOldPackets(t *testing.T) {
 }
 
 func TestBuffer_AddBLP_SubBLP(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	fsn := uint16(65535)
@@ -204,6 +225,8 @@ func TestBuffer_AddBLP_SubBLP(t *testing.T) {
 }
 
 func TestBuffer_CreateNackPair(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	sequenceNumbers := []uint16{1, 3, 4}
 	nackPair := CreateNackPair(sequenceNumbers)

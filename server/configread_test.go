@@ -57,7 +57,7 @@ func TestReadYAML_error(t *testing.T) {
 	var c server.Config
 	err := server.ReadConfigYAML(reader, &c)
 	require.NotNil(t, err, "err should be defined")
-	assert.Regexp(t, "Error parsing YAML", err.Error())
+	assert.Regexp(t, "decode yaml", err.Error())
 }
 
 func TestReadFromEnv(t *testing.T) {

@@ -1,12 +1,12 @@
 package server
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -60,6 +60,7 @@ func NewWebRTCTransportFactory(
 
 	if udp := sfuConfig.UDP; udp.PortMin > 0 && udp.PortMax > 0 {
 		if err := settingEngine.SetEphemeralUDPPortRange(udp.PortMin, udp.PortMax); err != nil {
+			err = errors.Trace(err)
 			log.Printf("Error setting epheremal UDP port range (%d-%d): %s", udp.PortMin, udp.PortMin, err)
 		} else {
 			log.Printf("Set epheremal UDP port range to %d-%d", udp.PortMin, udp.PortMax)
@@ -67,9 +68,11 @@ func NewWebRTCTransportFactory(
 	}
 
 	tcpEnabled := false
+
 	for _, networkType := range networkTypes {
 		if networkType == webrtc.NetworkTypeTCP4 || networkType == webrtc.NetworkTypeTCP6 {
 			tcpEnabled = true
+
 			break
 		}
 	}
@@ -80,7 +83,7 @@ func NewWebRTCTransportFactory(
 			Port: sfuConfig.TCPListenPort,
 		})
 		if err != nil {
-			log.Printf("Error starting TCP listener: %s", err)
+			log.Printf("Error starting TCP listener: %+v", errors.Trace(err))
 		} else {
 			logger := settingEngine.LoggerFactory.NewLogger("ice-tcp")
 			log.Printf("ICE TCP listener started on %s", tcpListener.Addr())
@@ -91,11 +94,15 @@ func NewWebRTCTransportFactory(
 	if len(allowedInterfaces) > 0 {
 		settingEngine.SetInterfaceFilter(func(iface string) bool {
 			_, ok := allowedInterfaces[iface]
+
 			return ok
 		})
 	}
+
 	var mediaEngine webrtc.MediaEngine
+
 	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
@@ -108,7 +115,7 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 
 	rtcpfb := []webrtc.RTCPFeedback{
-		webrtc.RTCPFeedback{
+		{
 			Type: webrtc.TypeRTCPFBGoogREMB,
 		},
 		// webrtc.RTCPFeedback{
@@ -119,7 +126,7 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 		// https://tools.ietf.org/html/rfc4585#section-4.2
 		// "pli" indicates the use of Picture Loss Indication feedback as defined
 		// in Section 6.3.1.
-		webrtc.RTCPFeedback{
+		{
 			Type:      webrtc.TypeRTCPFBNACK,
 			Parameter: "pli",
 		},
@@ -163,11 +170,13 @@ var _ Transport = &WebRTCTransport{}
 
 func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}
+
 	for _, iceServer := range GetICEAuthServers(f.iceServers) {
 		var c webrtc.ICECredentialType
 		if iceServer.Username != "" && iceServer.Credential != "" {
 			c = webrtc.ICECredentialTypePassword
 		}
+
 		webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
 			URLs:           iceServer.URLs,
 			CredentialType: c,
@@ -182,7 +191,7 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 
 	peerConnection, err := f.webrtcAPI.NewPeerConnection(webrtcConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Annotate(err, "new peer connection")
 	}
 
 	return NewWebRTCTransport(f.loggerFactory, clientID, true, peerConnection)
@@ -190,25 +199,32 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 
 func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator bool, peerConnection *webrtc.PeerConnection) (*WebRTCTransport, error) {
 	closePeer := func(reason error) error {
+		var errs MultiErrorHandler
+
+		errs.Add(reason)
+
 		err := peerConnection.Close()
 		if err != nil {
-			return fmt.Errorf("Error closing peer connection: %s. Close was called because: %w", err, reason)
-		} else {
-			return reason
+			errs.Add(errors.Annotatef(err, "close peer connection"))
 		}
+
+		return errors.Trace(errs.Err())
 	}
 
-	var dataChannel *webrtc.DataChannel
-	var err error
+	var (
+		dataChannel *webrtc.DataChannel
+		err         error
+	)
+
 	if initiator {
-		fmt.Println("CREATE DATA CHANNEL")
 		// need to do this to connect with simple peer
 		// only when we are the initiator
 		dataChannel, err = peerConnection.CreateDataChannel("data", nil)
 		if err != nil {
-			return nil, closePeer(fmt.Errorf("Error creating data channel: %w", err))
+			return nil, closePeer(errors.Annotate(err, "create data channel"))
 		}
 	}
+
 	dataTransceiver := NewDataTransceiver(loggerFactory, clientID, dataChannel, peerConnection)
 
 	signaller, err := NewSignaller(
@@ -226,7 +242,7 @@ func NewWebRTCTransport(loggerFactory LoggerFactory, clientID string, initiator 
 	})
 
 	if err != nil {
-		return nil, closePeer(fmt.Errorf("Error initializing signaller: %w", err))
+		return nil, closePeer(errors.Annotate(err, "initialize signaller"))
 	}
 
 	rtpLog := loggerFactory.GetLogger("rtp")
@@ -288,11 +304,13 @@ func (p *WebRTCTransport) ClientID() string {
 
 func (p *WebRTCTransport) WriteRTCP(packets []rtcp.Packet) error {
 	p.rtcpLog.Printf("[%s] WriteRTCP: %s", p.clientID, packets)
+
 	err := p.peerConnection.WriteRTCP(packets)
 	if err == nil {
 		prometheusRTCPPacketsSent.Inc()
 	}
-	return err
+
+	return errors.Annotate(err, "write rtcp")
 }
 
 func (p *WebRTCTransport) CloseChannel() <-chan struct{} {
@@ -307,18 +325,17 @@ func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
 
 	pta, ok := p.localTracks[packet.SSRC]
 	if !ok {
-		return 0, fmt.Errorf("Track not found: %d", packet.SSRC)
+		return 0, errors.Errorf("track %d not found", packet.SSRC)
 	}
-	if err != nil {
-		return 0, err
-	}
+
 	err = pta.track.WriteRTP(packet)
-	if err == io.ErrClosedPipe {
+	if errIs(err, io.ErrClosedPipe) {
 		// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 		return 0, nil
 	}
+
 	if err != nil {
-		return 0, err
+		return 0, errors.Annotate(err, "write rtp")
 	}
 
 	prometheusRTPPacketsSent.Inc()
@@ -332,12 +349,12 @@ func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 
 	pta, ok := p.localTracks[ssrc]
 	if !ok {
-		return fmt.Errorf("Track not found: %d", ssrc)
+		return errors.Errorf("track %d not found", ssrc)
 	}
 
 	err := p.peerConnection.RemoveTrack(pta.sender)
 	if err != nil {
-		return err
+		return errors.Annotate(err, "remove track")
 	}
 
 	p.signaller.Negotiate()
@@ -349,11 +366,12 @@ func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, label string) error {
 	track, err := p.peerConnection.NewTrack(payloadType, ssrc, id, label)
 	if err != nil {
-		return err
+		return errors.Annotate(err, "new track")
 	}
+
 	sender, err := p.peerConnection.AddTrack(track)
 	if err != nil {
-		return err
+		return errors.Annotate(err, "add track")
 	}
 
 	if p.signaller.Initiator() {
@@ -363,6 +381,7 @@ func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, la
 	}
 
 	p.wg.Add(1)
+
 	go func() {
 		defer p.wg.Done()
 
@@ -371,6 +390,7 @@ func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, la
 			if err != nil {
 				return
 			}
+
 			for _, rtcpPacket := range rtcpPackets {
 				p.rtcpLog.Printf("[%s] ReadRTCP: %s", p.clientID, rtcpPacket)
 				prometheusRTCPPacketsReceived.Inc()
@@ -383,6 +403,7 @@ func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, la
 	for _, tr := range p.peerConnection.GetTransceivers() {
 		if tr.Sender() == sender {
 			transceiver = tr
+
 			break
 		}
 	}
@@ -393,6 +414,7 @@ func (p *WebRTCTransport) AddTrack(payloadType uint8, ssrc uint32, id string, la
 		ID:          track.ID(),
 		Label:       track.Label(),
 		Kind:        track.Kind(),
+		Mid:         "",
 	}
 
 	p.mu.Lock()
@@ -450,6 +472,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 		ID:          track.ID(),
 		Label:       track.Label(),
 		Kind:        track.Kind(),
+		Mid:         "",
 	}
 
 	p.log.Printf("[%s] Remote track: %d", p.clientID, trackInfo.SSRC)
@@ -462,6 +485,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	for _, tr := range p.peerConnection.GetTransceivers() {
 		if tr.Receiver() == receiver {
 			transceiver = tr
+
 			break
 		}
 	}
@@ -475,6 +499,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	}
 
 	p.wg.Add(1)
+
 	go func() {
 		defer func() {
 			p.removeRemoteTrack(trackInfo.SSRC)
@@ -486,17 +511,21 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 			p.wg.Done()
 
 			prometheusWebRTCTracksActive.Dec()
-			prometheusWebRTCTracksDuration.Observe(time.Now().Sub(start).Seconds())
+			prometheusWebRTCTracksDuration.Observe(time.Since(start).Seconds())
 		}()
 
 		for {
 			pkt, err := track.ReadRTP()
 			if err != nil {
-				p.log.Printf("[%s] Remote track has ended: %d: %s", p.clientID, trackInfo.SSRC, err)
+				err = errors.Annotate(err, "read rtp")
+				p.log.Printf("[%s] Remote track has ended: %d: %+v", p.clientID, trackInfo.SSRC, err)
+
 				return
 			}
+
 			prometheusRTPPacketsReceived.Inc()
 			prometheusRTPPacketsReceivedBytes.Add(float64(pkt.MarshalSize()))
+
 			p.rtpLog.Printf("[%s] ReadRTP: %s", p.clientID, pkt)
 			p.rtpCh <- pkt
 		}
@@ -504,7 +533,8 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 }
 
 func (p *WebRTCTransport) Signal(payload map[string]interface{}) error {
-	return p.signaller.Signal(payload)
+	err := p.signaller.Signal(payload)
+	return errors.Annotate(err, "signal")
 }
 
 func (p *WebRTCTransport) SignalChannel() <-chan Payload {

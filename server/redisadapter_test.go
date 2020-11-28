@@ -2,15 +2,20 @@ package server_test
 
 import (
 	"context"
-	"errors"
+	pkgErrors "errors"
 	"sync"
 	"testing"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
+
+func errIs(err error, target error) bool {
+	return pkgErrors.Is(err, target)
+}
 
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	subRedis := redis.NewClient(&redis.Options{
@@ -55,7 +60,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 			for range msgChan {
 			}
 			err := client.Err()
-			assert.True(t, errors.Is(err, context.Canceled), "expected error to be context.Canceled, but was: %s", err)
+			assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected error to be context.Canceled, but was: %s", err)
 			wg.Done()
 		}(client)
 	}

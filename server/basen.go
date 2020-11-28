@@ -1,29 +1,39 @@
 package server
 
 import (
-	"fmt"
 	"math/big"
+
+	"github.com/juju/errors"
 )
 
-const AlphabetBase16 = "1234567890abcdef"
-const AlphabetBase62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const AlphabetBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+const (
+	AlphabetBase16 = "1234567890abcdef"
+	AlphabetBase62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	AlphabetBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+)
 
-var zero big.Int
-
+// BaseNEncoder is a generic base-N encoder.
 type BaseNEncoder struct {
 	alphabet string
 }
 
+// NewBaseNEncoder creates a new instance of BaseNEncoder using the provided
+// alphabet.
 func NewBaseNEncoder(alphabet string) *BaseNEncoder {
 	return &BaseNEncoder{alphabet}
 }
 
+// Encode encodes the binary data into base-64 encoded strings.
 func (e *BaseNEncoder) Encode(data []byte) string {
-	var value big.Int
+	var (
+		value big.Int
+		zero  big.Int
+	)
+
 	value.SetBytes(data)
 
 	baseInt64 := int64(len(e.alphabet))
+
 	var base big.Int
 
 	result := []byte{}
@@ -38,11 +48,14 @@ func (e *BaseNEncoder) Encode(data []byte) string {
 	return string(result)
 }
 
+// BaseNDecoder is a generic base-N decoder.
 type BaseNDecoder struct {
 	alphabet    string
 	runeToValue map[rune]int
 }
 
+// NewBaseNDecoder creates a new instance of BaseNDecoder using the provided
+// alphabet.
 func NewBaseNDecoder(alphabet string) *BaseNDecoder {
 	runeToValue := make(map[rune]int, len(alphabet))
 
@@ -56,18 +69,24 @@ func NewBaseNDecoder(alphabet string) *BaseNDecoder {
 	}
 }
 
+// Decode decodes the string base-N data into bytes and returns any error that
+// might have occurred.
 func (d *BaseNDecoder) Decode(data string) ([]byte, error) {
 	var n big.Int
+
 	n.SetInt64(int64(len(d.alphabet)))
 
-	var factor big.Int
-	var currentValue big.Int
-	var value big.Int
+	var (
+		factor       big.Int
+		currentValue big.Int
+		value        big.Int
+		zero         big.Int
+	)
 
 	for i, r := range data {
 		val, ok := d.runeToValue[r]
 		if !ok {
-			return nil, fmt.Errorf("Character %s not found in alphabet: %s", string(r), d.alphabet)
+			return nil, errors.Errorf("Character %s not found in alphabet: %s", string(r), d.alphabet)
 		}
 
 		runeValue := int64(val)

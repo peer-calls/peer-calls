@@ -1,8 +1,9 @@
 package server
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/juju/errors"
 )
 
 type MemoryAdapter struct {
@@ -27,7 +28,7 @@ func (m *MemoryAdapter) Add(client ClientWriter) (err error) {
 	m.clients[clientID] = client
 	err = m.broadcast(NewMessageRoomJoin(m.room, clientID, client.Metadata()))
 	m.clientsMu.Unlock()
-	return
+	return errors.Annotatef(err, "add client: %s", clientID)
 }
 
 func (m *MemoryAdapter) Close() error {
@@ -40,16 +41,18 @@ func (m *MemoryAdapter) Remove(clientID string) (err error) {
 	delete(m.clients, clientID)
 	err = m.broadcast(NewMessageRoomLeave(m.room, clientID))
 	m.clientsMu.Unlock()
-	return
+	return errors.Annotatef(err, "remove client: %s", clientID)
 }
 
 func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
 	m.clientsMu.RLock()
 	defer m.clientsMu.RUnlock()
 	client, ok := m.clients[clientID]
+
 	if ok {
 		metadata = client.Metadata()
 	}
+
 	return
 }
 
@@ -66,11 +69,14 @@ func (m *MemoryAdapter) SetMetadata(clientID string, metadata string) (ok bool) 
 // Returns clients with metadata
 func (m *MemoryAdapter) Clients() (clientIDs map[string]string, err error) {
 	m.clientsMu.RLock()
-	clientIDs = map[string]string{}
+	clientIDs = make(map[string]string, len(m.clients))
+
 	for clientID, client := range m.clients {
 		clientIDs[clientID] = client.Metadata()
 	}
+
 	m.clientsMu.RUnlock()
+
 	return
 }
 
@@ -86,16 +92,19 @@ func (m *MemoryAdapter) Broadcast(msg Message) error {
 	m.clientsMu.RLock()
 	err := m.broadcast(msg)
 	m.clientsMu.RUnlock()
-	return err
+	return errors.Annotate(err, "Broadcast")
 }
 
-func (m *MemoryAdapter) broadcast(msg Message) (err error) {
+func (m *MemoryAdapter) broadcast(msg Message) error {
+	var errs MultiErrorHandler
+
 	for clientID := range m.clients {
-		if emitErr := m.emit(clientID, msg); emitErr != nil && err == nil {
-			err = emitErr
+		if err := m.emit(clientID, msg); err == nil {
+			errs.Add(errors.Annotatef(err, "broadcast"))
 		}
 	}
-	return
+
+	return errors.Trace(errs.Err())
 }
 
 // Sends a message to specific socket.
@@ -109,11 +118,10 @@ func (m *MemoryAdapter) Emit(clientID string, msg Message) error {
 func (m *MemoryAdapter) emit(clientID string, msg Message) error {
 	client, ok := m.clients[clientID]
 	if !ok {
-		return fmt.Errorf("Client not found, clientID: %s", clientID)
+		return errors.Errorf("Client not found, clientID: %s", clientID)
 	}
+
 	err := client.Write(msg)
-	if err != nil {
-		return fmt.Errorf("MemoryAdapter.emit error: %w", err)
-	}
-	return nil
+
+	return errors.Annotatef(err, "emit, clientID: %s", clientID)
 }

@@ -1,9 +1,9 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 
+	"github.com/juju/errors"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -34,15 +34,19 @@ func NewDataTransceiver(
 		messagesChan:   make(chan webrtc.DataChannelMessage),
 		closeChannel:   make(chan struct{}),
 	}
+
 	if dataChannel != nil {
 		d.handleDataChannel(dataChannel)
 	}
+
 	peerConnection.OnDataChannel(d.handleDataChannel)
+
 	return d
 }
 
 func (d *DataTransceiver) handleDataChannel(dataChannel *webrtc.DataChannel) {
 	d.log.Printf("[%s] DataTransceiver.handleDataChannel: %s", d.clientID, dataChannel.Label())
+
 	if dataChannel.Label() == DataChannelName {
 		// only want a single data channel for messages and sending files
 		d.mu.Lock()
@@ -89,9 +93,9 @@ func (d *DataTransceiver) SendText(message string) (err error) {
 	d.log.Printf("[%s] DataTransceiver.SendText", d.clientID)
 	d.mu.RLock()
 	if d.dataChannel != nil {
-		err = d.dataChannel.SendText(message)
+		err = errors.Trace(d.dataChannel.SendText(message))
 	} else {
-		err = fmt.Errorf("[%s] No data channel", d.clientID)
+		err = errors.Errorf("[%s] No data channel", d.clientID)
 	}
 	d.mu.RUnlock()
 	return
@@ -101,9 +105,9 @@ func (d *DataTransceiver) Send(message []byte) (err error) {
 	d.log.Printf("[%s] DataTransceiver.Send", d.clientID)
 	d.mu.RLock()
 	if d.dataChannel != nil {
-		err = d.dataChannel.Send(message)
+		err = errors.Trace(d.dataChannel.Send(message))
 	} else {
-		err = fmt.Errorf("[%s] No data channel", d.clientID)
+		err = errors.Errorf("[%s] No data channel", d.clientID)
 	}
 	d.mu.RUnlock()
 	return

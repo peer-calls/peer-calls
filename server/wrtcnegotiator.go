@@ -3,6 +3,7 @@ package server
 import (
 	"sync"
 
+	"github.com/juju/errors"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -102,6 +103,7 @@ func (n *Negotiator) Negotiate() (done <-chan struct{}) {
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
+
 	if n.negotiationDone != nil {
 		n.log.Printf("[%s] Negotiate: already negotiating, queueing for later", n.remotePeerID)
 		n.queuedNegotiation = true
@@ -120,9 +122,11 @@ func (n *Negotiator) addQueuedTransceivers() {
 		n.log.Printf("[%s] Adding queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
 		_, err := n.peerConnection.AddTransceiverFromKind(t.CodecType, t.Init)
 		if err != nil {
-			n.log.Printf("[%s] Error adding %s transceiver: %s", n.remotePeerID, err)
+			err = errors.Annotate(err, "add transceiver")
+			n.log.Printf("[%s] Error adding %s transceiver: %+v", n.remotePeerID, err)
 		}
 	}
+
 	n.queuedTransceiverRequests = []TransceiverRequest{}
 }
 
@@ -137,7 +141,7 @@ func (n *Negotiator) negotiate() {
 
 	n.log.Printf("[%s] negotiate: creating offer", n.remotePeerID)
 	offer, err := n.peerConnection.CreateOffer(nil)
-	n.onOffer(offer, err)
+	n.onOffer(offer, errors.Annotate(err, "create offer"))
 }
 
 func (n *Negotiator) requestNegotiation() {

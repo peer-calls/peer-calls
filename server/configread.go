@@ -1,33 +1,37 @@
 package server
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/juju/errors"
 	"gopkg.in/yaml.v2"
 )
 
 func ReadConfigFile(filename string, c *Config) (err error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("Error opening YAML file: %w", err)
+		return errors.Annotatef(err, "read config file: %s", filename)
 	}
+
+	defer f.Close()
+
 	err = ReadConfigYAML(f, c)
-	f.Close()
-	return err
+
+	return errors.Annotatef(err, "read yaml config: %s", filename)
 }
 
 func ReadConfigFiles(filenames []string, c *Config) (err error) {
 	for _, filename := range filenames {
 		err = ReadConfigFile(filename, c)
 		if err != nil {
-			break
+			return errors.Trace(err)
 		}
 	}
-	return err
+
+	return nil
 }
 
 func InitConfig(c *Config) {
@@ -45,13 +49,13 @@ func ReadConfig(filenames []string) (c Config, err error) {
 	InitConfig(&c)
 	err = ReadConfigFiles(filenames, &c)
 	ReadConfigFromEnv("PEERCALLS_", &c)
-	return c, err
+	return c, errors.Trace(err)
 }
 
 func ReadConfigYAML(reader io.Reader, c *Config) error {
 	decoder := yaml.NewDecoder(reader)
 	if err := decoder.Decode(c); err != nil {
-		return fmt.Errorf("Error parsing YAML: %w", err)
+		return errors.Annotatef(err, "decode yaml")
 	}
 	return nil
 }

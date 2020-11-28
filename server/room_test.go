@@ -9,6 +9,8 @@ import (
 )
 
 func TestRoomManager(t *testing.T) {
+	t.Parallel()
+
 	var newAdapter server.NewAdapterFunc = func(room string) server.Adapter {
 		return server.NewMemoryAdapter(room)
 	}

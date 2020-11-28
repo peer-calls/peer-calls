@@ -17,7 +17,7 @@ type WriterLogger struct {
 	Enabled bool
 }
 
-// Logger is an interface for logger
+// Logger is an interface for logger.
 type Logger interface {
 	// Printf formats a message and writes to output. If logger is not enabled,
 	// the message will not be formatted.
@@ -27,10 +27,10 @@ type Logger interface {
 	Println(values ...interface{})
 }
 
-// LoggerTimeFormat is the time format used by loggers in this package
-var LoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
+// LoggerTimeFormat is the time format used by loggers in this package.
+const LoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
 
-// NewWriterLogger creates a new logger
+// NewWriterLogger creates a new logger.
 func NewWriterLogger(name string, out io.Writer, enabled bool) *WriterLogger {
 	return &WriterLogger{name: name, out: out, Enabled: enabled}
 }
@@ -52,15 +52,18 @@ func (l *WriterLogger) Println(values ...interface{}) {
 func (l *WriterLogger) printf(message string, values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
+
 	date := time.Now().Format(LoggerTimeFormat)
-	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
+
+	_, _ = l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintf(message+"\n", values...)))
 }
 
 func (l *WriterLogger) println(values ...interface{}) {
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
+
 	date := time.Now().Format(LoggerTimeFormat)
-	l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
+	_, _ = l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", l.name) + fmt.Sprintln(values...)))
 }
 
 // Factory creates new loggers. Only one logger with a specific name
@@ -91,10 +94,13 @@ func NewFactory(out io.Writer, enabled []string) *Factory {
 // loggers from a comma-delimited environment variable.
 func NewFactoryFromEnv(prefix string, out io.Writer) *Factory {
 	log := os.Getenv(prefix + "LOG")
+
 	var enabled []string
+
 	if len(log) > 0 {
 		enabled = strings.Split(log, ",")
 	}
+
 	return NewFactory(out, enabled)
 }
 
@@ -115,11 +121,13 @@ func split(name string) (parts []string) {
 	if len(name) > 0 {
 		parts = strings.Split(name, ":")
 	}
+
 	return
 }
 
 func partsMatch(parts []string, enabledParts []string) bool {
 	isLastWildcard := false
+
 	for i, part := range parts {
 		if len(enabledParts) <= i {
 			return isLastWildcard
@@ -134,6 +142,7 @@ func partsMatch(parts []string, enabledParts []string) bool {
 
 		if enabledPart == "*" {
 			isLastWildcard = true
+
 			continue
 		}
 
@@ -170,10 +179,12 @@ func (l *Factory) GetLogger(name string) Logger {
 	l.loggersMu.Lock()
 	defer l.loggersMu.Unlock()
 	logger, ok := l.loggers[name]
+
 	if !ok {
 		enabled := l.isEnabled(name)
 		logger = NewWriterLogger(name, l.out, enabled)
 		l.loggers[name] = logger
 	}
+
 	return logger
 }
