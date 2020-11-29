@@ -121,18 +121,7 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 		if otherClientID != clientID {
 			t.log.Printf("[%s] broadcast from %s", otherClientID, clientID)
 
-			tr := otherPeerInRoom.dataTransceiver
-
-			var err error
-			if msg.IsString {
-				err = errors.Trace(tr.SendText(string(msg.Data)))
-			} else {
-				err = errors.Trace(tr.Send(msg.Data))
-			}
-
-			if err != nil {
-				t.log.Printf("[%s] broadcast error: %+v", otherClientID, errors.Trace(err))
-			}
+			otherPeerInRoom.dataTransceiver.Send(msg)
 		}
 	}
 }
