@@ -99,35 +99,37 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	clientID := client.ID()
 	a.log.Printf("Add clientID: %s to room: %s", clientID, a.room)
 
-	a.clientsMu.Lock()
-
 	err = a.Broadcast(NewMessageRoomJoin(a.room, clientID, client.Metadata()))
-	if err == nil {
-		a.clients[clientID] = client
-		a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
+	if err != nil {
+		return errors.Annotatef(err, "add client: %s", clientID)
 	}
 
+	a.clientsMu.Lock()
+	a.clients[clientID] = client
 	a.clientsMu.Unlock()
 
-	return errors.Annotatef(err, "add client: %s", clientID)
+	a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
+	return nil
 }
 
-func (a *RedisAdapter) Remove(clientID string) (err error) {
+func (a *RedisAdapter) Remove(clientID string) error {
 	a.clientsMu.Lock()
-
-	if _, ok := a.clients[clientID]; ok {
-		err = a.remove(clientID)
-	}
-
+	_, ok := a.clients[clientID]
+	delete(a.clients, clientID)
 	a.clientsMu.Unlock()
 
+	if !ok {
+		return nil
+	}
+
+	err := a.remove(clientID)
 	return errors.Annotatef(err, "remove client: %s", clientID)
 }
 
-func (a *RedisAdapter) removeAll() (err error) {
+func (a *RedisAdapter) removeAll(clientIDs []string) (err error) {
 	var errs MultiErrorHandler
 
-	for clientID := range a.clients {
+	for _, clientID := range clientIDs {
 		if err := a.remove(clientID); err != nil {
 			errs.Add(errors.Trace(err))
 		}
@@ -137,18 +139,19 @@ func (a *RedisAdapter) removeAll() (err error) {
 }
 
 func (a *RedisAdapter) remove(clientID string) (err error) {
+	var errs MultiErrorHandler
+
 	a.log.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	// can only remove clients connected to this adapter
 	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
-		a.log.Printf("Error deleting clientID from all clients: %s", err)
+		errs.Add(errors.Annotatef(err, "hdel %s %s", a.keys.roomClients, clientID))
 	}
 
-	delete(a.clients, clientID)
+	if err = a.Broadcast(NewMessageRoomLeave(a.room, clientID)); err != nil {
+		errs.Add(errors.Annotatef(err, "broadcast room leave %s %s", a.keys.roomClients, clientID))
+	}
 
-	err = a.Broadcast(NewMessageRoomLeave(a.room, clientID))
-	a.log.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
-
-	return errors.Annotatef(err, "remove client: %s", clientID)
+	return errors.Trace(errs.Err())
 }
 
 func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
@@ -206,8 +209,9 @@ func (a *RedisAdapter) handleMessage(
 	a.log.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s", pattern, channel, msg.Type)
 
 	handleRoomJoin := func() error {
-		a.clientsMu.Lock()
-		defer a.clientsMu.Unlock()
+		a.clientsMu.RLock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
 
 		payload, ok := msg.Payload.(map[string]interface{})
 		if !ok {
@@ -219,15 +223,16 @@ func (a *RedisAdapter) handleMessage(
 			return errors.Annotate(err, "room join")
 		}
 
-		err = a.localBroadcast(msg)
+		err = a.localBroadcast(clients, msg)
 		return errors.Annotate(err, "room join")
 	}
 
 	handleRoomLeave := func() error {
-		a.clientsMu.Lock()
-		defer a.clientsMu.Unlock()
+		a.clientsMu.RLock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
 
-		err = a.localBroadcast(msg)
+		err = a.localBroadcast(clients, msg)
 		if err != nil {
 			return errors.Trace(err)
 		}
@@ -244,9 +249,10 @@ func (a *RedisAdapter) handleMessage(
 
 	handleRoomBroadcast := func() error {
 		a.clientsMu.RLock()
-		defer a.clientsMu.RUnlock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
 
-		err = a.localBroadcast(msg)
+		err = a.localBroadcast(clients, msg)
 
 		return errors.Annotate(err, "room broadcast")
 	}
@@ -256,11 +262,15 @@ func (a *RedisAdapter) handleMessage(
 		clientID := params[len(params)-1]
 
 		a.clientsMu.RLock()
-		defer a.clientsMu.RUnlock()
+		client, ok := a.clients[clientID]
+		a.clientsMu.RUnlock()
 
-		err = a.localEmit(clientID, msg)
+		if !ok {
+			return errors.Annotatef(err, "client %s not found", clientID)
+		}
 
-		return errors.Annotate(err, "pattern")
+		err = a.localEmit(client, msg)
+		return errors.Annotatef(err, "channel %s", channel)
 	}
 
 	switch {
@@ -308,7 +318,7 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready chan<- struct{}) err
 			case *redis.Message:
 				err := a.handleMessage(msg.Pattern, msg.Channel, msg.Payload)
 				if err != nil {
-					a.log.Printf("Error handling message: %s", err)
+					a.log.Printf("Error handling message: %+v", errors.Trace(err))
 				}
 			}
 		case <-ctx.Done():
@@ -367,14 +377,29 @@ func (a *RedisAdapter) Close() error {
 	}
 
 	a.clientsMu.Lock()
+	clientIDs := make([]string, 0, len(a.clients))
 
-	defer a.clientsMu.Unlock()
+	for clientID := range a.clients {
+		clientIDs = append(clientIDs, clientID)
+		delete(a.clients, clientID)
+	}
+	a.clientsMu.Unlock()
 
-	if err := a.removeAll(); err != nil {
+	if err := a.removeAll(clientIDs); err != nil {
 		errs.Add(errors.Trace(err))
 	}
 
 	return errs.Err()
+}
+
+func (a *RedisAdapter) localClients() map[string]ClientWriter {
+	clients := make(map[string]ClientWriter, len(a.clients))
+
+	for k, v := range a.clients {
+		clients[k] = v
+	}
+
+	return clients
 }
 
 func (a *RedisAdapter) publish(channel string, msg Message) error {
@@ -397,13 +422,13 @@ func (a *RedisAdapter) Broadcast(msg Message) error {
 	return errors.Annotate(err, "broadcast")
 }
 
-func (a *RedisAdapter) localBroadcast(msg Message) (err error) {
+func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Message) (err error) {
 	a.log.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
 
 	var errs MultiErrorHandler
 
-	for clientID := range a.clients {
-		if err := a.localEmit(clientID, msg); err != nil {
+	for _, client := range clients {
+		if err := a.localEmit(client, msg); err != nil {
 			errs.Add(errors.Trace(err))
 		}
 	}
@@ -414,6 +439,7 @@ func (a *RedisAdapter) localBroadcast(msg Message) (err error) {
 func (a *RedisAdapter) Emit(clientID string, msg Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
 	a.log.Printf("Emit clientID: %s, type: %s to %s", clientID, msg.Type, channel)
+
 	data, err := a.serializer.Serialize(msg)
 	if err != nil {
 		return errors.Annotatef(err, "serialize message")
@@ -423,16 +449,15 @@ func (a *RedisAdapter) Emit(clientID string, msg Message) error {
 	return errors.Annotatef(err, "publish message")
 }
 
-func (a *RedisAdapter) localEmit(clientID string, msg Message) error {
+func (a *RedisAdapter) localEmit(client ClientWriter, msg Message) error {
+	clientID := client.ID()
+
 	a.log.Printf("RedisAdapter.localEmit clientID: %s, type: %s", clientID, msg.Type)
-	client, ok := a.clients[clientID]
-	if !ok {
-		return errors.Errorf("RedisAdapter.localEmit in room: %s - no local clientID: %s", a.room, clientID)
-	}
 
 	err := client.Write(msg)
 	if err != nil {
-		return errors.Annotatef(err, "RedisAdapter.localEmit in room: %s - error %s for clientID: %s", a.room, err, clientID)
+		return errors.Annotatef(err, "write %s %s", a.room, clientID)
 	}
+
 	return nil
 }
