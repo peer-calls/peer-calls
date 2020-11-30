@@ -99,14 +99,14 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	clientID := client.ID()
 	a.log.Printf("Add clientID: %s to room: %s", clientID, a.room)
 
+	a.clientsMu.Lock()
+	a.clients[clientID] = client
+	a.clientsMu.Unlock()
+
 	err = a.Broadcast(NewMessageRoomJoin(a.room, clientID, client.Metadata()))
 	if err != nil {
 		return errors.Annotatef(err, "add client: %s", clientID)
 	}
-
-	a.clientsMu.Lock()
-	a.clients[clientID] = client
-	a.clientsMu.Unlock()
 
 	a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
 	return nil
@@ -361,6 +361,12 @@ func (a *RedisAdapter) subscribeUntilReady(timeout time.Duration) {
 
 	select {
 	case <-ready:
+		// TODO perhaps it is not necessary to block here: an event with all users
+		// could be sent to all connected clients immediately after the
+		// subscription is completed.
+		//
+		// This would require some refactoring as currently the "users" event is
+		// being sent only after "ready" event has been received.
 	case <-timeoutDoneCh:
 		cancel()
 	}
