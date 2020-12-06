@@ -66,10 +66,14 @@ func (m *MemoryTracksManager) Add(room string, transport *WebRTCTransport) {
 }
 
 func (m *MemoryTracksManager) GetTracksMetadata(room string, clientID string) (metadata []TrackMetadata, ok bool) {
+	m.mu.RLock()
 	roomPeersManager, ok := m.roomPeersManager[room]
+	m.mu.RUnlock()
+
 	if !ok {
 		return metadata, false
 	}
+
 	return roomPeersManager.GetTracksMetadata(clientID)
 }
 
