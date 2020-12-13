@@ -21,7 +21,7 @@ func TestStartMissingConfig(t *testing.T) {
 	assert.Nil(t, stop)
 	err := <-errCh
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Error reading config")
+	assert.Contains(t, err.Error(), "read config")
 }
 
 func TestStartWrongPort(t *testing.T) {

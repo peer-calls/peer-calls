@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+
+	"github.com/juju/errors"
 )
 
 const (
@@ -45,13 +47,12 @@ func NewMessageRoomLeave(room string, clientID string) Message {
 
 type ByteSerializer struct{}
 
-const uint64Size = uint64(8)
-
 func (s ByteSerializer) Serialize(m Message) ([]byte, error) {
-	return json.Marshal(m)
+	b, err := json.Marshal(m)
+	return b, errors.Annotate(err, "serialize")
 }
 
 func (s ByteSerializer) Deserialize(data []byte) (msg Message, err error) {
 	err = json.Unmarshal(data, &msg)
-	return
+	return msg, errors.Annotate(err, "deserialize")
 }

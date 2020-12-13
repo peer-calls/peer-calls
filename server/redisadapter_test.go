@@ -2,22 +2,31 @@ package server_test
 
 import (
 	"context"
-	"errors"
+	pkgErrors "errors"
 	"sync"
 	"testing"
 
+	"time"
+
 	"github.com/go-redis/redis/v7"
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
+func errIs(err error, target error) bool {
+	return pkgErrors.Is(err, target)
+}
+
 func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	subRedis := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr:        "localhost:6379",
+		DialTimeout: 10 * time.Second,
 	})
 	pubRedis := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr:        "localhost:6379",
+		DialTimeout: 10 * time.Second,
 	})
 	return pubRedis, subRedis, func() {
 		pubRedis.Close()
@@ -55,20 +64,33 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 			for range msgChan {
 			}
 			err := client.Err()
-			assert.True(t, errors.Is(err, context.Canceled), "expected error to be context.Canceled, but was: %s", err)
+			assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected error to be context.Canceled, but was: %s", err)
 			wg.Done()
 		}(client)
 	}
 
 	assert.Nil(t, adapter1.Add(client1))
 	t.Log("waiting for room join message broadcast (1)")
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "a")), <-mockWriter1.out)
+
+	recv := func(t *testing.T, ch <-chan []byte) []byte {
+		t.Helper()
+
+		select {
+		case msg := <-ch:
+			return msg
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for message")
+			return nil
+		}
+	}
+
+	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "a")), recv(t, mockWriter1.out))
 
 	adapter2 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
 	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), <-mockWriter1.out)
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), <-mockWriter2.out)
+	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter1.out))
+	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter2.out))
 	assert.Equal(t, map[string]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter1))
 	assert.Equal(t, map[string]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter2))
 
@@ -89,7 +111,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 
 	assert.Nil(t, adapter1.Remove(client1.ID()))
 	t.Log("waiting for client id removal", client1.ID())
-	leaveMessage, err := serializer.Deserialize(<-mockWriter2.out)
+	leaveMessage, err := serializer.Deserialize(recv(t, mockWriter2.out))
 	assert.Nil(t, err)
 	assert.Equal(t, server.NewMessageRoomLeave(room, client1.ID()), leaveMessage)
 	assert.Equal(t, map[string]string{client2.ID(): "bbb"}, getClientIDs(t, adapter2))

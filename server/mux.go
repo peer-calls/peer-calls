@@ -125,7 +125,8 @@ func NewMux(
 			}
 
 			if accessToken == "" || accessToken != prom.AccessToken {
-				w.WriteHeader(401)
+				w.WriteHeader(http.StatusUnauthorized)
+
 				return
 			}
 			promhttp.Handler().ServeHTTP(w, r)
@@ -145,18 +146,24 @@ func newWebSocketHandler(
 	tracks TracksManager,
 ) http.Handler {
 	log := loggerFactory.GetLogger("mux")
+
 	switch network.Type {
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
+
 		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+	case NetworkTypeMesh:
+		fallthrough
 	default:
 		log.Println("Using network type mesh")
+
 		return NewMeshHandler(loggerFactory, wss)
 	}
 }
 
 func static(prefix string, box packr.Box) http.Handler {
 	fileServer := http.FileServer(http.FileSystem(box))
+
 	return http.StripPrefix(prefix, fileServer)
 }
 
@@ -165,12 +172,15 @@ func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	if callID == "" {
 		callID = NewUUIDBase62()
 	}
+
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
-	http.Redirect(w, r, url, 302)
+
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	data := mux.getData()
+
 	return "index.html", data, nil
 }
 

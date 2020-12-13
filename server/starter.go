@@ -3,6 +3,8 @@ package server
 import (
 	"net"
 	"net/http"
+
+	"github.com/juju/errors"
 )
 
 type ServerParams struct {
@@ -31,9 +33,9 @@ func (s StartStopper) Start(l net.Listener) (err error) {
 	} else {
 		err = s.server.Serve(l)
 	}
-	return
+	return errors.Annotate(err, "start")
 }
 
 func (s StartStopper) Stop() error {
-	return s.server.Close()
+	return errors.Annotate(s.server.Close(), "stop")
 }

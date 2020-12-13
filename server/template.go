@@ -12,13 +12,14 @@ type Templates map[string]*template.Template
 
 func (t Templates) Get(name string) (tpl *template.Template, ok bool) {
 	tpl, ok = t[name]
+
 	return
 }
 
 func ParseTemplates(box packr.Box) Templates {
 	templates := Templates{}
 
-	box.Walk(func(filename string, file packd.File) error {
+	_ = box.Walk(func(filename string, file packd.File) error {
 		if !strings.HasSuffix(filename, ".html") {
 			return nil
 		}

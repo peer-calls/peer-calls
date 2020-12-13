@@ -1,6 +1,7 @@
 package main
 
 import (
+	pkgErrors "errors"
 	"flag"
 	"fmt"
 	"net"
@@ -8,19 +9,25 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
-var gitDescribe string = "v0.0.0"
+const gitDescribe string = "v0.0.0"
 
-func configure(loggerFactory *logger.Factory, args []string) (net.Listener, *server.StartStopper, error) {
+func configure(loggerFactory server.LoggerFactory, args []string) (net.Listener, *server.StartStopper, error) {
 	log := loggerFactory.GetLogger("main")
 
 	flags := flag.NewFlagSet("peer-calls", flag.ExitOnError)
+
 	var configFilename string
+
 	flags.StringVar(&configFilename, "c", "", "Config file to use")
-	flags.Parse(args)
+
+	if err := flags.Parse(args); err != nil {
+		return nil, nil, errors.Annotate(err, "parse flags")
+	}
 
 	configFiles := []string{}
 	if configFilename != "" {
@@ -28,7 +35,7 @@ func configure(loggerFactory *logger.Factory, args []string) (net.Listener, *ser
 	}
 	c, err := server.ReadConfig(configFiles)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error reading config: %w", err)
+		return nil, nil, errors.Annotate(err, "read config")
 	}
 
 	log.Printf("Using config: %+v", c)
@@ -38,7 +45,7 @@ func configure(loggerFactory *logger.Factory, args []string) (net.Listener, *ser
 	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error starting server listener: %w", err)
+		return nil, nil, errors.Annotate(err, "listen")
 	}
 	startStopper := server.NewStartStopper(server.ServerParams{
 		TLSCertFile: c.TLS.Cert,
@@ -60,26 +67,29 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 		"-pion:*:info",
 		"*",
 	})
+
 	log := loggerFactory.GetLogger("main")
 
 	ch := make(chan error, 1)
 	l, startStopper, err := configure(loggerFactory, args)
 	if err != nil {
-		ch <- err
+		ch <- errors.Annotate(err, "configure")
 		close(ch)
 		return nil, nil, ch
 	}
+
 	addr = l.Addr().(*net.TCPAddr)
 	log.Printf("Listening on: %s", addr.String())
+
 	go func() {
 		err := startStopper.Start(l)
-		if err != http.ErrServerClosed {
-			ch <- fmt.Errorf("Error starting server: %w", err)
-		} else {
-			ch <- nil
+		if !pkgErrors.Is(errors.Cause(err), http.ErrServerClosed) {
+			ch <- errors.Annotate(err, "start server")
 		}
+
 		close(ch)
 	}()
+
 	return addr, startStopper.Stop, ch
 }
 

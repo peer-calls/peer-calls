@@ -22,6 +22,7 @@ func (r *BitrateEstimator) Estimate(receiverClientID string, bitrate uint64) uin
 
 	if bitrate <= r.bitrate {
 		r.bitrate = bitrate
+
 		return bitrate
 	}
 
@@ -31,6 +32,7 @@ func (r *BitrateEstimator) Estimate(receiverClientID string, bitrate uint64) uin
 			minBitrate = bitrate
 		}
 	}
+
 	r.bitrate = minBitrate
 
 	return minBitrate
@@ -67,12 +69,14 @@ func (r *TrackBitrateEstimators) Estimate(
 	defer r.mu.Unlock()
 
 	var minBitrate uint64 = math.MaxUint64
+
 	for _, ssrc := range ssrcs {
 		estimator, ok := r.estimators[ssrc]
 		if !ok {
 			estimator = NewBitrateEstimator()
 			r.estimators[ssrc] = estimator
 		}
+
 		minBitrate = min(minBitrate, estimator.Estimate(receiverClientID, bitrate))
 	}
 

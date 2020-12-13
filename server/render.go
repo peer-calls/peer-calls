@@ -3,8 +3,11 @@ package server
 import (
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/oxtoacart/bpool"
 )
+
+const defaultBufferPoolSize = 128
 
 type Renderer struct {
 	log Logger
@@ -18,7 +21,7 @@ type Renderer struct {
 func NewRenderer(loggerFactory LoggerFactory, templates Templates, baseURL string, version string) *Renderer {
 	return &Renderer{
 		log:       loggerFactory.GetLogger("renderer"),
-		bufPool:   bpool.NewBufferPool(128),
+		bufPool:   bpool.NewBufferPool(defaultBufferPoolSize),
 		templates: templates,
 		Version:   version,
 		BaseURL:   baseURL,
@@ -36,6 +39,7 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		if err == nil && templateName == "" {
 			return
 		}
+
 		template, ok := tr.templates.Get(templateName)
 		if !ok {
 			tr.log.Println("Template not found:", templateName)
@@ -44,7 +48,7 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		}
 
 		if err != nil {
-			tr.log.Println("An error occurred:", err)
+			tr.log.Printf("An error occurred: %+v", errors.Trace(err))
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -57,14 +61,20 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		buf := tr.bufPool.Get()
 		defer tr.bufPool.Put(buf)
 		tr.log.Println("Rendering template:", templateName)
+
 		err = template.Execute(buf, dataMap)
 		if err != nil {
-			tr.log.Println("Error rendering template", templateName, err)
+			tr.log.Printf("Error rendering template: %s: %+v", templateName, errors.Trace(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
-		buf.WriteTo(w)
+
+		if _, err := buf.WriteTo(w); err != nil {
+			tr.log.Printf("Error writing to buffer: %+v", errors.Trace(err))
+		}
 	}
+
 	return http.HandlerFunc(fn)
 }

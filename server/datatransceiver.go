@@ -1,9 +1,9 @@
 package server
 
 import (
-	"fmt"
-	"sync"
+	"io"
 
+	"github.com/juju/errors"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -13,12 +13,27 @@ type DataTransceiver struct {
 	clientID       string
 	peerConnection *webrtc.PeerConnection
 
-	mu             sync.RWMutex
-	dataChanOnce   sync.Once
-	dataChanClosed bool
-	dataChannel    *webrtc.DataChannel
-	messagesChan   chan webrtc.DataChannelMessage
-	closeChannel   chan struct{}
+	// dataChannelChan will receive DataChannels from peer connection
+	// OnDataChannel handler.
+	dataChannelChan chan *webrtc.DataChannel
+
+	// privateRecvMessagesChan is never closed and it is there to prevent panics
+	// when a message is received, but the recvMessagesChan has already been
+	// closed.
+	privateRecvMessagesChan chan webrtc.DataChannelMessage
+
+	// recvMessagesChan contains received messages. It will be closed on
+	// teardown.
+	recvMessagesChan chan webrtc.DataChannelMessage
+
+	// sendMessagesChan contains messages to be sent. It is never closed.
+	sendMessagesChan chan dataTransceiverMessageSend
+
+	// teardownChan will initiate a teardown as soon as it receives a message.
+	teardownChan chan struct{}
+
+	// torndownChan will be closed as soon as teardown is complete.
+	torndownChan chan struct{}
 }
 
 func NewDataTransceiver(
@@ -31,80 +46,124 @@ func NewDataTransceiver(
 		log:            loggerFactory.GetLogger("datatransceiver"),
 		clientID:       clientID,
 		peerConnection: peerConnection,
-		messagesChan:   make(chan webrtc.DataChannelMessage),
-		closeChannel:   make(chan struct{}),
+
+		dataChannelChan:         make(chan *webrtc.DataChannel),
+		privateRecvMessagesChan: make(chan webrtc.DataChannelMessage),
+		recvMessagesChan:        make(chan webrtc.DataChannelMessage),
+		sendMessagesChan:        make(chan dataTransceiverMessageSend),
+		teardownChan:            make(chan struct{}),
+		torndownChan:            make(chan struct{}),
 	}
+
+	go d.start()
+
 	if dataChannel != nil {
 		d.handleDataChannel(dataChannel)
 	}
+
 	peerConnection.OnDataChannel(d.handleDataChannel)
+
 	return d
 }
 
 func (d *DataTransceiver) handleDataChannel(dataChannel *webrtc.DataChannel) {
-	d.log.Printf("[%s] DataTransceiver.handleDataChannel: %s", d.clientID, dataChannel.Label())
 	if dataChannel.Label() == DataChannelName {
-		// only want a single data channel for messages and sending files
-		d.mu.Lock()
-		dataChannel.OnMessage(d.handleMessage)
-		d.dataChannel = dataChannel
-		d.mu.Unlock()
+		d.dataChannelChan <- dataChannel
+
+		dataChannel.OnMessage(func(message webrtc.DataChannelMessage) {
+			d.log.Printf("[%s] DataTransceiver.handleMessage", d.clientID)
+
+			select {
+			case <-d.torndownChan:
+				return
+			default:
+			}
+
+			select {
+			case d.privateRecvMessagesChan <- message:
+				// Successfully sent.
+			case <-d.torndownChan:
+				// DataTransceiver has been torn down.
+			}
+		})
+	}
+}
+
+func (d *DataTransceiver) start() {
+	defer func() {
+		close(d.recvMessagesChan)
+		close(d.torndownChan)
+	}()
+
+	var dataChannel *webrtc.DataChannel
+
+	handleSendMessage := func(message webrtc.DataChannelMessage) error {
+		if dataChannel == nil {
+			return errors.Errorf("data channel is nil")
+		}
+
+		if message.IsString {
+			return errors.Annotate(dataChannel.SendText(string(message.Data)), "send text")
+		}
+
+		return errors.Annotate(dataChannel.Send(message.Data), "send bytes")
+	}
+
+	for {
+		select {
+		case dc := <-d.dataChannelChan:
+			dataChannel = dc
+		case msg := <-d.privateRecvMessagesChan:
+			d.recvMessagesChan <- msg
+		case msgFuture := <-d.sendMessagesChan:
+			err := handleSendMessage(msgFuture.message)
+			if err != nil {
+				d.log.Printf("[%s] DataTransceiver send error: %+v", d.clientID, err)
+
+				msgFuture.errCh <- errors.Trace(err)
+			}
+		case <-d.teardownChan:
+			return
+		}
 	}
 }
 
 func (d *DataTransceiver) MessagesChannel() <-chan webrtc.DataChannelMessage {
-	return d.messagesChan
+	return d.recvMessagesChan
 }
 
 func (d *DataTransceiver) Close() {
 	d.log.Printf("[%s] DataTransceiver.Close", d.clientID)
-	d.dataChanOnce.Do(func() {
-		close(d.closeChannel)
-
-		d.mu.Lock()
-		defer d.mu.Unlock()
-
-		d.dataChanClosed = true
-		close(d.messagesChan)
-	})
-}
-
-func (d *DataTransceiver) handleMessage(msg webrtc.DataChannelMessage) {
-	d.log.Printf("[%s] DataTransceiver.handleMessage", d.clientID)
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	ch := d.messagesChan
-	if d.dataChanClosed {
-		ch = nil
-	}
 
 	select {
-	case ch <- msg:
-	case <-d.closeChannel:
+	case d.teardownChan <- struct{}{}:
+	case <-d.torndownChan:
 	}
+
+	<-d.torndownChan
 }
 
-func (d *DataTransceiver) SendText(message string) (err error) {
-	d.log.Printf("[%s] DataTransceiver.SendText", d.clientID)
-	d.mu.RLock()
-	if d.dataChannel != nil {
-		err = d.dataChannel.SendText(message)
-	} else {
-		err = fmt.Errorf("[%s] No data channel", d.clientID)
+func (d *DataTransceiver) Send(message webrtc.DataChannelMessage) <-chan error {
+	errCh := make(chan error, 1)
+
+	select {
+	case d.sendMessagesChan <- dataTransceiverMessageSend{
+		errCh:   errCh,
+		message: message,
+	}:
+	case <-d.torndownChan:
+		errCh <- errors.Trace(io.ErrClosedPipe)
 	}
-	d.mu.RUnlock()
-	return
+
+	close(errCh)
+
+	return errCh
 }
 
-func (d *DataTransceiver) Send(message []byte) (err error) {
-	d.log.Printf("[%s] DataTransceiver.Send", d.clientID)
-	d.mu.RLock()
-	if d.dataChannel != nil {
-		err = d.dataChannel.Send(message)
-	} else {
-		err = fmt.Errorf("[%s] No data channel", d.clientID)
-	}
-	d.mu.RUnlock()
-	return
+type dataTransceiverMessageSend struct {
+	// errCh will have error written to it if it occurrs. It will be closed once
+	// the message sending has finished.
+	errCh chan<- error
+	// message to send.
+	message webrtc.DataChannelMessage
 }

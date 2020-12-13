@@ -1,8 +1,7 @@
 package server
 
 import (
-	"fmt"
-
+	"github.com/juju/errors"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -63,32 +62,32 @@ func NewTransceiverRequest(userID string, kind webrtc.RTPCodecType, direction we
 	}
 }
 
-func newCandidate(candidate interface{}) (c Candidate, err error) {
+func newCandidate(candidate interface{}) (Candidate, error) {
+	var c Candidate
+
 	candidateMap, ok := candidate.(map[string]interface{})
 	if !ok {
-		err = fmt.Errorf("Expected candidate to be a map: %#v", candidate)
-		return
+		return c, errors.Errorf("Expected candidate to be a map: %#v", candidate)
 	}
 
 	candidateValue, ok := candidateMap["candidate"]
 	if !ok {
-		err = fmt.Errorf("Expected candidate.candidate %#v", candidate)
+		return c, errors.Errorf("expected candidate.candidate %#v", candidate)
 	}
 
 	candidateString, ok := candidateValue.(string)
 	if !ok {
-		err = fmt.Errorf("Expected candidate.candidate to be a string: %#v", candidate)
-		return
+		return c, errors.Errorf("expected candidate.candidate to be a string: %#v", candidate)
 	}
+
 	sdpMLineIndexValue, ok := candidateMap["sdpMLineIndex"]
 	if !ok {
-		err = fmt.Errorf("Expected candidate.sdpMLineIndex to exist: %#v", sdpMLineIndexValue)
-		return
+		return c, errors.Errorf("expected candidate.sdpMLineIndex to exist: %#v", sdpMLineIndexValue)
 	}
+
 	sdpMLineIndex, ok := sdpMLineIndexValue.(float64)
 	if !ok {
-		err = fmt.Errorf("Expected candidate.sdpMLineIndex be float64: %T", sdpMLineIndexValue)
-		return
+		return c, errors.Errorf("expected candidate.sdpMLineIndex be float64: %T", sdpMLineIndexValue)
 	}
 
 	sdpMid, ok := candidateMap["sdpMid"].(string)
@@ -102,24 +101,25 @@ func newCandidate(candidate interface{}) (c Candidate, err error) {
 	c.Candidate.SDPMLineIndex = &sdpMLineIndexUint16
 	c.Candidate.SDPMid = sdpMidPtr
 
-	return
+	return c, nil
 }
 
 func newTransceiverRequest(transceiverRequest interface{}) (r TransceiverRequestPayload, err error) {
 	transceiverRequestMap, ok := transceiverRequest.(map[string]interface{})
 	if !ok {
-		err = fmt.Errorf("Transceiver request is not a map: %#v", transceiverRequest)
+		err = errors.Errorf("Transceiver request is not a map: %#v", transceiverRequest)
 		return
 	}
 
 	kind, ok := transceiverRequestMap["kind"]
 	if !ok {
-		err = fmt.Errorf("Transceiver request kind not found: %#v", transceiverRequest)
+		err = errors.Errorf("Transceiver request kind not found: %#v", transceiverRequest)
 		return
 	}
+
 	kindString, ok := kind.(string)
 	if !ok {
-		err = fmt.Errorf("Transceiver request kind should be a string: %#v", transceiverRequest)
+		err = errors.Errorf("Transceiver request kind should be a string: %#v", transceiverRequest)
 		return
 	}
 
@@ -131,13 +131,13 @@ func newTransceiverRequest(transceiverRequest interface{}) (r TransceiverRequest
 	if init, ok := transceiverRequestMap["init"]; ok {
 		initMap, ok := init.(map[string]interface{})
 		if !ok {
-			err = fmt.Errorf("Expectd init to be a map: %#v", transceiverRequest)
+			err = errors.Errorf("expected init to be a map: %#v", transceiverRequest)
 		}
 
 		var transceiverInit webrtc.RtpTransceiverInit
+
 		for key, value := range initMap {
-			switch key {
-			case "direction":
+			if key == "direction" {
 				switch value {
 				case "sendrecv":
 					transceiverInit.Direction = webrtc.RTPTransceiverDirectionSendrecv
@@ -154,7 +154,7 @@ func newTransceiverRequest(transceiverRequest interface{}) (r TransceiverRequest
 		r.TransceiverRequest.Init = &transceiverInit
 	}
 
-	return
+	return r, errors.Trace(err)
 }
 
 func newRenegotiate() Renegotiate {
@@ -166,20 +166,21 @@ func newRenegotiate() Renegotiate {
 func newSDP(sdpType interface{}, signal map[string]interface{}) (s webrtc.SessionDescription, err error) {
 	sdpTypeString, ok := sdpType.(string)
 	if !ok {
-		err = fmt.Errorf("Expected signal.type to be string: %#v", signal)
+		err = errors.Errorf("Expected signal.type to be string: %#v", signal)
 		return
 	}
 
 	sdp, ok := signal["sdp"]
 	if !ok {
-		err = fmt.Errorf("Expected signal.sdp: %#v", signal)
+		err = errors.Errorf("Expected signal.sdp: %#v", signal)
 	}
 
 	sdpString, ok := sdp.(string)
 	if !ok {
-		err = fmt.Errorf("Expected signal.sdp to be string: %#v", signal)
+		err = errors.Errorf("Expected signal.sdp to be string: %#v", signal)
 		return
 	}
+
 	s.SDP = sdpString
 
 	switch sdpTypeString {
@@ -188,25 +189,25 @@ func newSDP(sdpType interface{}, signal map[string]interface{}) (s webrtc.Sessio
 	case "answer":
 		s.Type = webrtc.SDPTypeAnswer
 	case "pranswer":
-		err = fmt.Errorf("Handling of pranswer signal implemented")
+		err = errors.Errorf("Handling of pranswer signal implemented")
 	case "rollback":
-		err = fmt.Errorf("Handling of rollback signal not implemented")
+		err = errors.Errorf("Handling of rollback signal not implemented")
 	default:
-		err = fmt.Errorf("Unknown sdp type: %s", sdpString)
+		err = errors.Errorf("Unknown sdp type: %s", sdpString)
 	}
 
-	return
+	return s, errors.Trace(err)
 }
 
 func NewPayloadFromMap(payload map[string]interface{}) (p Payload, err error) {
 	userID, ok := payload["userId"].(string)
 	if !ok {
-		err = fmt.Errorf("No userId property in payload: %#v", payload)
+		err = errors.Errorf("No userId property in payload: %#v", payload)
 		return
 	}
 	signal, ok := payload["signal"].(map[string]interface{})
 	if !ok {
-		err = fmt.Errorf("No signal property in payload: %#v", payload)
+		err = errors.Errorf("No signal property in payload: %#v", payload)
 		return
 	}
 
@@ -221,15 +222,15 @@ func NewPayloadFromMap(payload map[string]interface{}) (p Payload, err error) {
 	} else if sdpType, ok := signal["type"]; ok {
 		value, err = newSDP(sdpType, signal)
 	} else {
-		err = fmt.Errorf("Unexpected signal message: %#v", payload)
-		return
+		err = errors.Errorf("unexpected signal message: %#v", payload)
 	}
 
 	if err != nil {
-		return
+		return p, errors.Trace(err)
 	}
 
 	p.UserID = userID
 	p.Signal = value
-	return
+
+	return p, nil
 }

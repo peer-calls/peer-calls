@@ -7,6 +7,8 @@ import (
 )
 
 func TestTrackBitrateEstimators(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	ssrcs := []uint32{123}

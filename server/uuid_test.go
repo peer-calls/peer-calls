@@ -11,11 +11,9 @@ func TestNewUUIDBase62(t *testing.T) {
 	t.Log(value)
 }
 
-var s string
-
 func BenchmarkNewUUID_normal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		s = uuid.New().String()
+		_ = uuid.New().String()
 	}
 }
 
@@ -26,5 +24,7 @@ func BenchmarkNewUUID_base62(b *testing.B) {
 }
 
 func TestTime(t *testing.T) {
+	t.Parallel()
+
 	NewUUIDBase62()
 }

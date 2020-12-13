@@ -2,12 +2,18 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	e "errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/juju/errors"
+)
+
+const (
+	defaultSubscriptionTimeout     = 10 * time.Second
+	defaultSubscriptionChannelSize = 100
 )
 
 type JSONMessage struct {
@@ -62,8 +68,10 @@ func NewRedisAdapter(
 	prefix string,
 	room string,
 ) *RedisAdapter {
-	var clientsMu sync.RWMutex
-	var byteSerializer ByteSerializer
+	var (
+		clientsMu      sync.RWMutex
+		byteSerializer ByteSerializer
+	)
 
 	adapter := RedisAdapter{
 		log:          loggerFactory.GetLogger("redis"),
@@ -82,7 +90,7 @@ func NewRedisAdapter(
 	adapter.keys.clientPattern = getClientChannelName(prefix, room, "*")
 	adapter.keys.roomClients = getRoomClientsName(prefix, room)
 
-	adapter.subscribeUntilReady()
+	adapter.subscribeUntilReady(defaultSubscriptionTimeout)
 
 	return &adapter
 }
@@ -90,54 +98,77 @@ func NewRedisAdapter(
 func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	clientID := client.ID()
 	a.log.Printf("Add clientID: %s to room: %s", clientID, a.room)
+
 	a.clientsMu.Lock()
+	a.clients[clientID] = client
+	a.clientsMu.Unlock()
+
 	err = a.Broadcast(NewMessageRoomJoin(a.room, clientID, client.Metadata()))
-	if err == nil {
-		a.clients[clientID] = client
-		a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
+	if err != nil {
+		return errors.Annotatef(err, "add client: %s", clientID)
 	}
-	a.clientsMu.Unlock()
-	return
+
+	a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
+	return nil
 }
 
-func (a *RedisAdapter) Remove(clientID string) (err error) {
+func (a *RedisAdapter) Remove(clientID string) error {
 	a.clientsMu.Lock()
-	if _, ok := a.clients[clientID]; ok {
-		err = a.remove(clientID)
-	}
+	_, ok := a.clients[clientID]
+	delete(a.clients, clientID)
 	a.clientsMu.Unlock()
-	return
+
+	if !ok {
+		return nil
+	}
+
+	err := a.remove(clientID)
+	return errors.Annotatef(err, "remove client: %s", clientID)
 }
 
-func (a *RedisAdapter) removeAll() (err error) {
-	for clientID := range a.clients {
-		if removeErr := a.remove(clientID); removeErr != nil && err == nil {
-			err = removeErr
+func (a *RedisAdapter) removeAll(clientIDs []string) (err error) {
+	var errs MultiErrorHandler
+
+	for _, clientID := range clientIDs {
+		if err := a.remove(clientID); err != nil {
+			errs.Add(errors.Trace(err))
 		}
 	}
-	return
+
+	return errors.Trace(errs.Err())
 }
 
 func (a *RedisAdapter) remove(clientID string) (err error) {
+	var errs MultiErrorHandler
+
 	a.log.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	// can only remove clients connected to this adapter
 	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
-		a.log.Printf("Error deleting clientID from all clients: %s", err)
+		errs.Add(errors.Annotatef(err, "hdel %s %s", a.keys.roomClients, clientID))
 	}
-	delete(a.clients, clientID)
-	err = a.Broadcast(NewMessageRoomLeave(a.room, clientID))
-	a.log.Printf("Remove clientID: %s from room: %s done (err: %s)", clientID, a.room, err)
-	return
+
+	if err = a.Broadcast(NewMessageRoomLeave(a.room, clientID)); err != nil {
+		errs.Add(errors.Annotatef(err, "broadcast room leave %s %s", a.keys.roomClients, clientID))
+	}
+
+	return errors.Trace(errs.Err())
 }
 
 func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
 	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
+
 	return metadata, err == nil
 }
 
 func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
 	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID, metadata).Result()
-	a.log.Printf("SetMetadata for clientID: %s, metadata: %s (err: %s)", clientID, metadata, err)
+	if err != nil {
+		// FIXME return error
+		a.log.Printf("Error SetMetadata for clientID: %s, metadata: %s", clientID, metadata, err)
+	} else {
+		a.log.Printf("SetMetadata for clientID: %s, metadata: %s", clientID, metadata)
+	}
+
 	return err == nil
 }
 
@@ -146,12 +177,12 @@ func (a *RedisAdapter) Clients() (map[string]string, error) {
 	a.log.Printf("Clients")
 
 	r := a.pubRedis.HGetAll(a.keys.roomClients)
-	allClients, err := r.Result()
 
+	allClients, err := r.Result()
 	if err != nil {
-		err = fmt.Errorf("Error retrieving clients in room: %s, reason: %w", a.room, err)
 		a.log.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
-		return allClients, err
+
+		return allClients, errors.Annotatef(err, "clients in room: %s", a.room)
 	}
 
 	a.log.Printf("Clients size: %d", len(allClients))
@@ -161,7 +192,8 @@ func (a *RedisAdapter) Clients() (map[string]string, error) {
 // Returns count of all known clients connected to this room
 func (a *RedisAdapter) Size() (size int, err error) {
 	c, err := a.Clients()
-	return len(c), err
+
+	return len(c), errors.Annotate(err, "size")
 }
 
 func (a *RedisAdapter) handleMessage(
@@ -171,57 +203,105 @@ func (a *RedisAdapter) handleMessage(
 ) error {
 	msg, err := a.deserializer.Deserialize([]byte(message))
 	if err != nil {
-		return fmt.Errorf("RedisAdapter.handleMessage error deserializing redis subscription: %w", err)
+		return errors.Annotate(err, "deserialize redis subscription")
 	}
+
 	a.log.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s", pattern, channel, msg.Type)
+
+	handleRoomJoin := func() error {
+		a.clientsMu.RLock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
+
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			return errors.Errorf("room join: expected a map[string]interface{}, but got payload of type %T", msg.Payload)
+		}
+
+		err = a.pubRedis.HSet(a.keys.roomClients, payload["clientID"], payload["metadata"]).Err()
+		if err != nil {
+			return errors.Annotate(err, "room join")
+		}
+
+		err = a.localBroadcast(clients, msg)
+		return errors.Annotate(err, "room join")
+	}
+
+	handleRoomLeave := func() error {
+		a.clientsMu.RLock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
+
+		err = a.localBroadcast(clients, msg)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		clientID, ok := msg.Payload.(string)
+		if !ok {
+			return errors.Errorf("room leave: expected a string, but got payload of type %T", msg.Payload)
+		}
+
+		err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err()
+
+		return errors.Annotate(err, "room leave")
+	}
+
+	handleRoomBroadcast := func() error {
+		a.clientsMu.RLock()
+		clients := a.localClients()
+		a.clientsMu.RUnlock()
+
+		err = a.localBroadcast(clients, msg)
+
+		return errors.Annotate(err, "room broadcast")
+	}
+
+	handlePattern := func() error {
+		params := strings.Split(channel, ":")
+		clientID := params[len(params)-1]
+
+		a.clientsMu.RLock()
+		client, ok := a.clients[clientID]
+		a.clientsMu.RUnlock()
+
+		if !ok {
+			return errors.Annotatef(err, "client %s not found", clientID)
+		}
+
+		err = a.localEmit(client, msg)
+		return errors.Annotatef(err, "channel %s", channel)
+	}
+
 	switch {
 	case channel == a.keys.roomChannel:
 		// localBroadcast to all clients
 		switch msg.Type {
 		case MessageTypeRoomJoin:
-			a.clientsMu.Lock()
-			payload, ok := msg.Payload.(map[string]interface{})
-			if ok {
-				err = a.pubRedis.HSet(a.keys.roomClients, payload["clientID"], payload["metadata"]).Err()
-				if err == nil {
-					err = a.localBroadcast(msg)
-				}
-			}
-			a.clientsMu.Unlock()
+			err = errors.Trace(handleRoomJoin())
 		case MessageTypeRoomLeave:
-			a.clientsMu.Lock()
-			err = a.localBroadcast(msg)
-			if err == nil {
-				clientID, ok := msg.Payload.(string)
-				if ok {
-					err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err()
-				}
-			}
-			a.clientsMu.Unlock()
+			err = errors.Trace(handleRoomLeave())
 		default:
-			a.clientsMu.RLock()
-			err = a.localBroadcast(msg)
-			a.clientsMu.RUnlock()
+			err = errors.Trace(handleRoomBroadcast())
 		}
 	case pattern == a.keys.clientPattern:
-		params := strings.Split(channel, ":")
-		clientID := params[len(params)-1]
-		a.clientsMu.RLock()
-		err = a.localEmit(clientID, msg)
-		a.clientsMu.RUnlock()
+		err = errors.Trace(handlePattern())
 	}
+
 	a.log.Printf("RedisAdapter.handleMessage done (err: %s)", err)
-	return err
+
+	return errors.Trace(err)
 }
 
 // Reads from subscribed keys and dispatches relevant messages to
 // client websockets. This method blocks until the context is closed.
-func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
+func (a *RedisAdapter) subscribe(ctx context.Context, ready chan<- struct{}) error {
 	a.log.Println("Subscribe", a.keys.roomChannel, a.keys.clientPattern)
 	pubsub := a.subRedis.PSubscribe(a.keys.roomChannel, a.keys.clientPattern)
+
 	defer pubsub.Close()
 
-	ch := pubsub.ChannelWithSubscriptions(100)
+	ch := pubsub.ChannelWithSubscriptions(defaultSubscriptionChannelSize)
 
 	isReady := false
 
@@ -232,100 +312,158 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready func()) error {
 			case *redis.Subscription:
 				if !isReady {
 					isReady = true
-					ready()
+
+					close(ready)
 				}
 			case *redis.Message:
 				err := a.handleMessage(msg.Pattern, msg.Channel, msg.Payload)
 				if err != nil {
-					a.log.Printf("Error handling message: %s", err)
+					a.log.Printf("Error handling message: %+v", errors.Trace(err))
 				}
 			}
 		case <-ctx.Done():
 			err := ctx.Err()
 			a.log.Println("Subscribe done", err)
-			return err
+			return errors.Trace(err)
 		}
 	}
 }
 
-func (a *RedisAdapter) subscribeUntilReady() {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	subscribeEndedChan := make(chan struct{})
-	var subscribeEndErr error
+func (a *RedisAdapter) subscribeUntilReady(timeout time.Duration) {
+	var err error
+
+	done := make(chan struct{})
+	ready := make(chan struct{})
+
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		subscribeEndErr = a.subscribe(ctx, wg.Done)
-		close(subscribeEndedChan)
-	}()
-	wg.Wait()
 
 	a.stop = func() error {
 		cancel()
-		<-subscribeEndedChan
-		return subscribeEndErr
+		<-done
+
+		return errors.Trace(err)
+	}
+
+	go func() {
+		err = errors.Trace(a.subscribe(ctx, ready))
+
+		close(done)
+	}()
+
+	var timeoutDoneCh <-chan struct{}
+
+	if timeout > 0 {
+		timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
+		defer timeoutCancel()
+
+		timeoutDoneCh = timeoutCtx.Done()
+	}
+
+	select {
+	case <-ready:
+		// TODO perhaps it is not necessary to block here: an event with all users
+		// could be sent to all connected clients immediately after the
+		// subscription is completed.
+		//
+		// This would require some refactoring as currently the "users" event is
+		// being sent only after "ready" event has been received.
+	case <-timeoutDoneCh:
+		cancel()
 	}
 }
 
 // Close closes the subscription, but not the redis clients
 func (a *RedisAdapter) Close() error {
-	var errs []error
+	var errs MultiErrorHandler
+
 	if a.stop != nil {
-		if err := a.stop(); !errors.Is(err, context.Canceled) {
-			errs = append(errs, err)
+		if err := errors.Cause(a.stop()); !e.Is(err, context.Canceled) {
+			errs.Add(errors.Trace(err))
 		}
 	}
+
 	a.clientsMu.Lock()
-	defer a.clientsMu.Unlock()
-	if err := a.removeAll(); err != nil {
-		errs = append(errs, err)
+	clientIDs := make([]string, 0, len(a.clients))
+
+	for clientID := range a.clients {
+		clientIDs = append(clientIDs, clientID)
+		delete(a.clients, clientID)
 	}
-	return firstError(errs...)
+	a.clientsMu.Unlock()
+
+	if err := a.removeAll(clientIDs); err != nil {
+		errs.Add(errors.Trace(err))
+	}
+
+	return errors.Trace(errs.Err())
+}
+
+func (a *RedisAdapter) localClients() map[string]ClientWriter {
+	clients := make(map[string]ClientWriter, len(a.clients))
+
+	for k, v := range a.clients {
+		clients[k] = v
+	}
+
+	return clients
 }
 
 func (a *RedisAdapter) publish(channel string, msg Message) error {
 	data, err := a.serializer.Serialize(msg)
 	if err != nil {
-		return fmt.Errorf("RedisAdapter.publish - error serializing message: %w", err)
+		return errors.Annotatef(err, "serialize")
 	}
-	return a.pubRedis.Publish(channel, string(data)).Err()
+
+	err = a.pubRedis.Publish(channel, string(data)).Err()
+
+	return errors.Annotate(err, "publish")
 }
 
 func (a *RedisAdapter) Broadcast(msg Message) error {
 	channel := a.keys.roomChannel
 	a.log.Printf("RedisAdapter.Broadcast type: %s to %s", msg.Type, channel)
-	return a.publish(channel, msg)
+
+	err := a.publish(channel, msg)
+
+	return errors.Annotate(err, "broadcast")
 }
 
-func (a *RedisAdapter) localBroadcast(msg Message) (err error) {
+func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Message) (err error) {
 	a.log.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
-	for clientID := range a.clients {
-		if emitErr := a.localEmit(clientID, msg); emitErr != nil && err == nil {
-			err = emitErr
+
+	var errs MultiErrorHandler
+
+	for _, client := range clients {
+		if err := a.localEmit(client, msg); err != nil {
+			errs.Add(errors.Trace(err))
 		}
 	}
-	return
+
+	return errors.Trace(errs.Err())
 }
 
 func (a *RedisAdapter) Emit(clientID string, msg Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
 	a.log.Printf("Emit clientID: %s, type: %s to %s", clientID, msg.Type, channel)
+
 	data, err := a.serializer.Serialize(msg)
 	if err != nil {
-		return fmt.Errorf("RedisAdapter.Emit - error serializing message: %w", err)
+		return errors.Annotatef(err, "serialize message")
 	}
-	return a.pubRedis.Publish(channel, string(data)).Err()
+
+	err = a.pubRedis.Publish(channel, string(data)).Err()
+	return errors.Annotatef(err, "publish message")
 }
 
-func (a *RedisAdapter) localEmit(clientID string, msg Message) error {
+func (a *RedisAdapter) localEmit(client ClientWriter, msg Message) error {
+	clientID := client.ID()
+
 	a.log.Printf("RedisAdapter.localEmit clientID: %s, type: %s", clientID, msg.Type)
-	client, ok := a.clients[clientID]
-	if !ok {
-		return fmt.Errorf("RedisAdapter.localEmit in room: %s - no local clientID: %s", a.room, clientID)
-	}
+
 	err := client.Write(msg)
 	if err != nil {
-		return fmt.Errorf("RedisAdapter.localEmit in room: %s - error %w for clientID: %s", a.room, err, clientID)
+		return errors.Annotatef(err, "write %s %s", a.room, clientID)
 	}
+
 	return nil
 }
