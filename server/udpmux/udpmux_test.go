@@ -1,10 +1,12 @@
 package udpmux
 
 import (
+	"io"
 	"net"
 	"os"
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +42,7 @@ func TestUDPMux_AcceptConn(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = mux.GetConn(conn.RemoteAddr())
-		assert.EqualError(t, err, "Connection already exists")
+		assert.Equal(t, errors.Cause(err), ErrConnAlreadyExists)
 
 		conns <- conn
 	}()
@@ -81,20 +83,22 @@ func TestUDPMux_GetConn(t *testing.T) {
 	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS", os.Stdout)
 
 	mux1 := New(Params{
-		Conn:          udpConn1,
-		MTU:           8192,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  20,
+		Conn:           udpConn1,
+		MTU:            8192,
+		LoggerFactory:  loggerFactory,
+		ReadChanSize:   20,
+		ReadBufferSize: 100,
 	})
 	defer mux1.Close()
 
 	mux2 := New(Params{
-		Conn:          udpConn2,
-		MTU:           8192,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  20,
+		Conn:           udpConn2,
+		MTU:            8192,
+		LoggerFactory:  loggerFactory,
+		ReadChanSize:   20,
+		ReadBufferSize: 100,
 	})
-	defer mux1.Close()
+	defer mux2.Close()
 
 	conns := make(chan net.Conn)
 	go func() {
@@ -137,11 +141,12 @@ func TestUDPMux_Close_GetConn(t *testing.T) {
 	})
 
 	mux1.Close()
+	<-mux1.CloseChannel()
 
 	createdConn, err := mux1.GetConn(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 1234,
 	})
-	require.EqualError(t, err, "UDPMux closed")
+	require.Equal(t, errors.Cause(err), io.ErrClosedPipe)
 	require.Nil(t, createdConn)
 }

@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
@@ -93,7 +94,9 @@ func TestRoomManagerFactory(t *testing.T) {
 		}
 
 		rm, nm := factory.NewRoomManager(networkConfig)
+		defer fmt.Println("done")
 		defer cleanup(rm, nm)
+		defer fmt.Println("cleanup")
 		_, ok := rm.(*server.ChannelRoomManager)
 		assert.True(t, ok)
 		assert.NotNil(t, nm)
