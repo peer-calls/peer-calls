@@ -1,17 +1,19 @@
+import classnames from 'classnames'
 import React from 'react'
+import { MdError } from 'react-icons/md'
 import { connect } from 'react-redux'
-import { AudioConstraint, MediaDevice, setAudioConstraint, setVideoConstraint, VideoConstraint, getMediaStream, enumerateDevices, play } from '../actions/MediaActions'
+import { dial } from '../actions/CallActions'
+import { AudioConstraint, enumerateDevices, getMediaStream, MediaDevice, play, setAudioConstraint, setVideoConstraint, VideoConstraint } from '../actions/MediaActions'
+import { error, info, warning } from '../actions/NotifyActions'
+import { DialState, DIAL_STATE_HUNG_UP, ME } from '../constants'
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
-import { Alerts, Alert } from './Alerts'
-import { info, warning, error } from '../actions/NotifyActions'
-import { ME, DialState, DIAL_STATE_HUNG_UP } from '../constants'
-import { dial } from '../actions/CallActions'
-import { network } from '../window'
-import classnames from 'classnames'
-import { Unsupported } from './Unsupported'
+import { config } from '../window'
+import { Alert, Alerts } from './Alerts'
 import { Message } from './Message'
-import { MdError } from 'react-icons/md'
+import { Unsupported } from './Unsupported'
+
+const { network } = config
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean

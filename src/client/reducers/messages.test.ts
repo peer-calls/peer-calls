@@ -1,3 +1,5 @@
+jest.mock('../window')
+
 import { addMessage, MessageType } from '../actions/ChatActions'
 import messages, { Message } from './messages'
 

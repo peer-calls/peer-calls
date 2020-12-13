@@ -49,7 +49,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Use Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v2.0.3
+      uses: actions/setup-go@v2.1.3
       with:
         go-version: ${{ matrix.go-version }}
     - run: go test ./... -race -coverprofile=coverage.out -v
@@ -64,7 +64,7 @@ jobs:
         go-version: ["1.14"]
     steps:
     - name: Use Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v2.0.3
+      uses: actions/setup-go@v2.1.3
       with:
         go-version: ${{ matrix.go-version }}
     - run: go get -u github.com/gobuffalo/packr/packr
@@ -75,7 +75,7 @@ jobs:
         name: build
     - run: find build/
     - run: mkdir -p build/release
-    - run: echo "::set-env name=git_describe::$(git describe --always --tags)"
+    - run: echo "git_describe=$(git describe --always --tags)" >> $GITHUB_ENV
     - run: echo $git_describe
     - run: export GOOS=linux GOARCH=amd64; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go
     - run: export GOOS=linux GOARCH=arm; packr build -ldflags "-X main.gitDescribe=$git_describe" -o build/release/peercalls.$GOOS.$GOARCH main.go

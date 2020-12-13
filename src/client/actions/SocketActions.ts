@@ -7,6 +7,7 @@ import { ClientSocket } from '../socket'
 import { Dispatch, GetState, Store } from '../store'
 import { removeNickname, setNicknames } from './NicknameActions'
 import { tracksMetadata } from './StreamActions'
+import { insertableStreamsCodec } from '../insertable-streams'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -53,6 +54,7 @@ class SocketHandler {
     const { dispatch } = this
     debug('metadata', payload)
     dispatch(tracksMetadata(payload))
+    insertableStreamsCodec.setTrackMetadata(payload.metadata)
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this

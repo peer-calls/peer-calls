@@ -39,6 +39,9 @@ func TestReadConfigFiles(t *testing.T) {
 	assert.Equal(t, "test_user", ice.AuthSecret.Username)
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
 	assert.Equal(t, []string(nil), c.Network.SFU.Interfaces)
+	assert.Equal(t, server.NetworkTypeSFU, c.Network.Type)
+	assert.Equal(t, uint16(9000), c.Network.SFU.UDP.PortMin)
+	assert.Equal(t, uint16(9010), c.Network.SFU.UDP.PortMax)
 }
 
 func TestReadConfigFiles_Error(t *testing.T) {
@@ -54,7 +57,7 @@ func TestReadYAML_error(t *testing.T) {
 	var c server.Config
 	err := server.ReadConfigYAML(reader, &c)
 	require.NotNil(t, err, "err should be defined")
-	assert.Regexp(t, "Error parsing YAML", err.Error())
+	assert.Regexp(t, "decode yaml", err.Error())
 }
 
 func TestReadFromEnv(t *testing.T) {
@@ -72,8 +75,12 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"ICE_SERVER_USERNAME", "test_user")
 	os.Setenv(prefix+"ICE_SERVER_SECRET", "test_secret")
 	os.Setenv(prefix+"NETWORK_TYPE", "sfu")
+	os.Setenv(prefix+"NETWORK_SFU_PROTOCOLS", "tcp6,udp4")
+	os.Setenv(prefix+"NETWORK_SFU_TCP_LISTEN_PORT", "8443")
 	os.Setenv(prefix+"NETWORK_SFU_INTERFACES", "a,b")
 	os.Setenv(prefix+"NETWORK_SFU_JITTER_BUFFER", "true")
+	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MIN", "9000")
+	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MAX", "9010")
 	os.Setenv(prefix+"PROMETHEUS_ACCESS_TOKEN", "at1234")
 	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_NODES", "127.0.0.1:3005,127.0.0.1:3006")
 	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR", "127.0.0.1:3004")
@@ -95,9 +102,13 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, server.AuthTypeSecret, ice.AuthType)
 	assert.Equal(t, "test_user", ice.AuthSecret.Username)
 	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
+	assert.Equal(t, []string{"tcp6", "udp4"}, c.Network.SFU.Protocols)
+	assert.Equal(t, 8443, c.Network.SFU.TCPListenPort)
 	assert.Equal(t, server.NetworkType("sfu"), c.Network.Type)
 	assert.Equal(t, []string{"a", "b"}, c.Network.SFU.Interfaces)
 	assert.Equal(t, true, c.Network.SFU.JitterBuffer)
+	assert.Equal(t, uint16(9000), c.Network.SFU.UDP.PortMin)
+	assert.Equal(t, uint16(9010), c.Network.SFU.UDP.PortMax)
 	assert.Equal(t, "at1234", c.Prometheus.AccessToken)
 	assert.Equal(t, "127.0.0.1:3004", c.Network.SFU.Transport.ListenAddr)
 	assert.Equal(t, []string{"127.0.0.1:3005", "127.0.0.1:3006"}, c.Network.SFU.Transport.Nodes)

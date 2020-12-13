@@ -1,9 +1,9 @@
 import { SocketEvent } from './SocketEvent'
-import { baseUrl, callId, userId } from './window'
+import { config } from './window'
 import { SocketClient, TypedEmitter } from './ws'
 export type ClientSocket = TypedEmitter<SocketEvent>
 
 const wsUrl = location.origin.replace(/^http/, 'ws') +
-  baseUrl + '/ws/' + callId + '/' + userId
+  config.baseUrl + '/ws/' + config.callId + '/' + config.userId
 
 export default new SocketClient<SocketEvent>(wsUrl)

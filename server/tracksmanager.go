@@ -1,11 +1,11 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 
+	"github.com/juju/errors"
 	"github.com/pion/rtcp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 const DataChannelName = "data"
@@ -35,7 +35,6 @@ func NewMemoryTracksManager(loggerFactory LoggerFactory, jitterBufferEnabled boo
 }
 
 func (m *MemoryTracksManager) Add(room string, transport Transport) {
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -72,10 +71,14 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 }
 
 func (m *MemoryTracksManager) GetTracksMetadata(room string, clientID string) (metadata []TrackMetadata, ok bool) {
+	m.mu.RLock()
 	roomPeersManager, ok := m.roomPeersManager[room]
+	m.mu.RUnlock()
+
 	if !ok {
 		return metadata, false
 	}
+
 	return roomPeersManager.GetTracksMetadata(clientID)
 }
 
@@ -111,11 +114,16 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
+
 			t.log.Printf("[%s] BEFORE Add track %+v from %s", otherClientID, track, clientID)
+
 			track := t.asUserTrack(track, clientID)
+
 			t.log.Printf("[%s] AFTER  Add track %+v from %s", otherClientID, track, clientID)
+
 			if err := otherTransport.AddTrack(track); err != nil {
-				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %s", otherClientID, err)
+				err = errors.Annotate(err, "add track")
+				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %+v", otherClientID, err)
 				continue
 			}
 		}
@@ -129,12 +137,10 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 	for otherClientID, otherPeerInRoom := range t.transports {
 		if otherClientID != clientID {
 			t.log.Printf("[%s] broadcast from %s", otherClientID, clientID)
-			var err error
-			if msg.IsString {
-				err = otherPeerInRoom.SendText(string(msg.Data))
-			} else {
-				err = otherPeerInRoom.Send(msg.Data)
-			}
+
+			// FIXME async
+			err := <-otherPeerInRoom.Send(msg)
+
 			if err != nil {
 				t.log.Printf("[%s] broadcast error: %s", otherClientID, err)
 			}
@@ -173,7 +179,8 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			if rtcpPacket != nil {
 				err := transport.WriteRTCP([]rtcp.Packet{rtcpPacket})
 				if err != nil {
-					t.log.Printf("[%s] Error writing RTCP packet: %s: %s", transport.ClientID(), rtcpPacket, err)
+					err = errors.Annotatef(err, "write rtcp")
+					t.log.Printf("[%s] Error writing RTCP packet: %s: %+v", transport.ClientID(), rtcpPacket, err)
 				}
 			}
 
@@ -183,7 +190,8 @@ func (t *RoomPeersManager) Add(transport Transport) {
 				if otherClientID != transport.ClientID() {
 					_, err := otherTransport.WriteRTP(packet)
 					if err != nil {
-						t.log.Printf("[%s] Error writing RTP packet for ssrc: %d: %s", otherClientID, packet.SSRC, err)
+						err = errors.Annotatef(err, "write rtp")
+						t.log.Printf("[%s] Error writing RTP packet for ssrc: %d: %+v", otherClientID, packet.SSRC, err)
 					}
 				}
 			}
@@ -193,58 +201,79 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	}()
 
 	go func() {
+		handleREMB := func(packet *rtcp.ReceiverEstimatedMaximumBitrate) error {
+			var errs MultiErrorHandler
+
+			bitrate := t.trackBitrateEstimators.Estimate(transport.ClientID(), packet.SSRCs, packet.Bitrate)
+			packet.Bitrate = bitrate
+
+			transportsSet := map[Transport]struct{}{}
+
+			for _, ssrc := range packet.SSRCs {
+				sourceTransport, ok := t.getTransportBySSRC(ssrc)
+				if ok {
+					transportsSet[sourceTransport] = struct{}{}
+				}
+			}
+
+			for sourceTransport := range transportsSet {
+				err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
+				errs.Add(errors.Trace(err))
+			}
+
+			return errors.Annotatef(errs.Err(), "remb")
+		}
+
+		handlePLI := func(packet *rtcp.PictureLossIndication) error {
+			sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
+			if !ok {
+				return errors.Errorf("no source transport for PictureLossIndication for track: %d", packet.MediaSSRC)
+			}
+
+			err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
+			return errors.Annotate(err, "write rtcp")
+		}
+
+		handleNack := func(packet *rtcp.TransportLayerNack) error {
+			var errs MultiErrorHandler
+
+			foundRTPPackets, nack := t.jitterHandler.HandleNack(packet)
+			for _, rtpPacket := range foundRTPPackets {
+				if _, err := transport.WriteRTP(rtpPacket); err != nil {
+					errs.Add(errors.Annotate(err, "write rtp"))
+				}
+			}
+
+			if nack != nil {
+				sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
+				if ok {
+					if err := sourceTransport.WriteRTCP([]rtcp.Packet{nack}); err != nil {
+						errs.Add(errors.Annotate(err, "write rtcp"))
+					}
+				}
+			}
+
+			return errors.Annotatef(errs.Err(), "nack")
+		}
+
 		for pkt := range transport.RTCPChannel() {
 			var err error
 			switch packet := pkt.(type) {
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				bitrate := t.trackBitrateEstimators.Estimate(transport.ClientID(), packet.SSRCs, packet.Bitrate)
-				packet.Bitrate = bitrate
-
-				transportsSet := map[Transport]struct{}{}
-				for _, ssrc := range packet.SSRCs {
-					sourceTransport, ok := t.getTransportBySSRC(ssrc)
-					if ok {
-						transportsSet[sourceTransport] = struct{}{}
-					}
-				}
-
-				for sourceTransport := range transportsSet {
-					rtcpErr := sourceTransport.WriteRTCP([]rtcp.Packet{pkt})
-					if err == nil && rtcpErr != nil {
-						err = rtcpErr
-					}
-				}
+				err = errors.Trace(handleREMB(packet))
 			case *rtcp.PictureLossIndication:
-				sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
-				if ok {
-					err = sourceTransport.WriteRTCP([]rtcp.Packet{pkt})
-				} else {
-					err = fmt.Errorf("Cannot find source transport for PictureLossIndication for track: %d", packet.MediaSSRC)
-				}
+				err = errors.Trace(handlePLI(packet))
 			case *rtcp.TransportLayerNack:
-				foundRTPPackets, nack := t.jitterHandler.HandleNack(packet)
-				for _, rtpPacket := range foundRTPPackets {
-					_, err := transport.WriteRTP(rtpPacket)
-					if err != nil {
-						t.log.Printf("[%s] Error writing found RTP packet per NACK request for track: %d: %s", transport.ClientID(), rtpPacket.SSRC, err)
-					} else {
-						err = fmt.Errorf("Cannot find source transport for NACK for track: %d", packet.MediaSSRC)
-					}
-				}
-				if nack != nil {
-					sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
-					if ok {
-						err = sourceTransport.WriteRTCP([]rtcp.Packet{nack})
-					}
-				}
+				err = errors.Trace(handleNack(packet))
 			case *rtcp.SourceDescription:
 			case *rtcp.ReceiverReport:
 			case *rtcp.SenderReport:
 			default:
 				t.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", transport.ClientID(), pkt.DestinationSSRC(), pkt)
 			}
+
 			if err != nil {
-				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %s", transport.ClientID(), err)
+				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %+v", transport.ClientID(), err)
 				// do not return early since the rtcp channel needs to be emptied
 			}
 		}
@@ -266,8 +295,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			t.log.Printf("[%s] AFTER  Add track %+v to %s", transport.ClientID(), track, existingClientID)
 			err := transport.AddTrack(track)
 			if err != nil {
+				err = errors.Annotatef(err, "add track")
 				t.log.Printf(
-					"Error adding peer clientID: %s track to clientID: %s - reason: %s",
+					"Error adding peer clientID: %s track to clientID: %s - reason: %+v",
 					existingClientID,
 					transport.ClientID(),
 					err,
@@ -277,7 +307,6 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	}
 
 	t.transports[transport.ClientID()] = transport
-
 }
 
 // getUserID tries to obtain to userID from a track, but otherwise falls back
@@ -320,15 +349,19 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 
 	tracks := transport.LocalTracks()
 	m = make([]TrackMetadata, 0, len(tracks))
+
 	for _, trackInfo := range tracks {
 		track := trackInfo.Track
+
 		trackMetadata := TrackMetadata{
 			Kind:     trackInfo.Kind.String(),
 			Mid:      trackInfo.Mid,
 			StreamID: track.Label(),
 			UserID:   t.getUserID(track),
 		}
+
 		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC(), trackMetadata)
+
 		m = append(m, trackMetadata)
 	}
 
@@ -357,7 +390,8 @@ func (t *RoomPeersManager) removeTrack(clientID string, track Track) {
 		if otherClientID != clientID {
 			err := otherTransport.RemoveTrack(track.SSRC())
 			if err != nil {
-				t.log.Printf("[%s] removeTrack error removing track: %s", clientID, err)
+				err = errors.Annotate(err, "remove track")
+				t.log.Printf("[%s] removeTrack error removing track: %+v", clientID, err)
 			}
 		}
 	}

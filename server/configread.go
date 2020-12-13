@@ -1,33 +1,37 @@
 package server
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/juju/errors"
 	"gopkg.in/yaml.v2"
 )
 
 func ReadConfigFile(filename string, c *Config) (err error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("Error opening YAML file: %w", err)
+		return errors.Annotatef(err, "read config file: %s", filename)
 	}
+
+	defer f.Close()
+
 	err = ReadConfigYAML(f, c)
-	f.Close()
-	return err
+
+	return errors.Annotatef(err, "read yaml config: %s", filename)
 }
 
 func ReadConfigFiles(filenames []string, c *Config) (err error) {
 	for _, filename := range filenames {
 		err = ReadConfigFile(filename, c)
 		if err != nil {
-			break
+			return errors.Trace(err)
 		}
 	}
-	return err
+
+	return nil
 }
 
 func InitConfig(c *Config) {
@@ -45,13 +49,13 @@ func ReadConfig(filenames []string) (c Config, err error) {
 	InitConfig(&c)
 	err = ReadConfigFiles(filenames, &c)
 	ReadConfigFromEnv("PEERCALLS_", &c)
-	return c, err
+	return c, errors.Trace(err)
 }
 
 func ReadConfigYAML(reader io.Reader, c *Config) error {
 	decoder := yaml.NewDecoder(reader)
 	if err := decoder.Decode(c); err != nil {
-		return fmt.Errorf("Error parsing YAML: %w", err)
+		return errors.Annotatef(err, "decode yaml")
 	}
 	return nil
 }
@@ -69,13 +73,20 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvString(&c.Store.Redis.Prefix, prefix+"STORE_REDIS_PREFIX")
 
 	setEnvNetworkType(&c.Network.Type, prefix+"NETWORK_TYPE")
+	setEnvString(&c.Network.SFU.TCPBindAddr, prefix+"NETWORK_SFU_TCP_BIND_ADDR")
+	setEnvInt(&c.Network.SFU.TCPListenPort, prefix+"NETWORK_SFU_TCP_LISTEN_PORT")
+	setEnvStringArray(&c.Network.SFU.Protocols, prefix+"NETWORK_SFU_PROTOCOLS")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
 	setEnvStringArray(&c.Network.SFU.Transport.Nodes, prefix+"NETWORK_SFU_TRANSPORT_NODES")
 	setEnvString(&c.Network.SFU.Transport.ListenAddr, prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR")
+	setEnvUint16(&c.Network.SFU.UDP.PortMin, prefix+"NETWORK_SFU_UDP_PORT_MIN")
+	setEnvUint16(&c.Network.SFU.UDP.PortMax, prefix+"NETWORK_SFU_UDP_PORT_MAX")
 
 	var ice ICEServer
+
 	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
+
 	if len(ice.URLs) > 0 {
 		setEnvAuthType(&ice.AuthType, prefix+"ICE_SERVER_AUTH_TYPE")
 		setEnvString(&ice.AuthSecret.Secret, prefix+"ICE_SERVER_SECRET")
@@ -109,8 +120,25 @@ func setEnvInt(dest *int, name string) {
 	}
 }
 
+func setEnvUint16(dest *uint16, name string) {
+	value, err := strconv.ParseUint(os.Getenv(name), 10, 32)
+	if err == nil {
+		*dest = uint16(value)
+	}
+}
+
 func setEnvBool(dest *bool, name string) {
-	*dest = os.Getenv(name) == "true"
+	val := os.Getenv(name)
+
+	// Only set the boolean value when the environment variable is explicitly set
+	// to either 'true' or 'false', to prevent resetting the pointer value to
+	// false when there is no environment variable defined.
+	switch val {
+	case "true":
+		*dest = true
+	case "false":
+		*dest = false
+	}
 }
 
 func setEnvAuthType(authType *AuthType, name string) {

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deploy/configmap.yaml
+- deploy/deployment.yaml
+- deploy/ingress.yaml
+- deploy/service.yaml
+- deploy/service-account.yaml
+- deploy/redis-deployment.yaml
+- deploy/redis-service.yaml

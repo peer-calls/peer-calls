@@ -8,7 +8,7 @@ import (
 
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 var receiveMTU int = 8192
@@ -269,14 +269,25 @@ func (t *ServerDataTransport) MessagesChannel() <-chan webrtc.DataChannelMessage
 	return t.messagesChan
 }
 
-func (t *ServerDataTransport) Send(message []byte) error {
-	b := make([]byte, 0, len(message)+1)
-	// mark as binary
-	b = append(b, 0)
-	b = append(b, message...)
+func (t *ServerDataTransport) Send(message webrtc.DataChannelMessage) <-chan error {
+	b := make([]byte, 0, len(message.Data)+1)
+
+	if message.IsString {
+		// Mark as string
+		b = append(b, 1)
+	} else {
+		// Mark as binary
+		b = append(b, 0)
+	}
+
+	b = append(b, message.Data...)
 
 	_, err := t.conn.Write(b)
-	return err
+
+	errCh := make(chan error, 1)
+	errCh <- err
+
+	return errCh
 }
 
 func (t *ServerDataTransport) SendText(message string) error {

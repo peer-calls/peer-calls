@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -105,6 +104,14 @@ func NewMux(
 		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
 		router.Post("/call", withGauge(prometheusCallJoinTotal, mux.routeNewCall))
 		router.Get("/call/{callID}", withGauge(prometheusCallViewsTotal, renderer.Render(mux.routeCall)))
+		router.Get("/probes/liveness", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		})
+		router.Get("/probes/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		})
 		router.Get("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(manifest)
@@ -118,7 +125,8 @@ func NewMux(
 			}
 
 			if accessToken == "" || accessToken != prom.AccessToken {
-				w.WriteHeader(401)
+				w.WriteHeader(http.StatusUnauthorized)
+
 				return
 			}
 			promhttp.Handler().ServeHTTP(w, r)
@@ -138,18 +146,24 @@ func newWebSocketHandler(
 	tracks TracksManager,
 ) http.Handler {
 	log := loggerFactory.GetLogger("mux")
+
 	switch network.Type {
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
+
 		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+	case NetworkTypeMesh:
+		fallthrough
 	default:
 		log.Println("Using network type mesh")
+
 		return NewMeshHandler(loggerFactory, wss)
 	}
 }
 
 func static(prefix string, box packr.Box) http.Handler {
 	fileServer := http.FileServer(http.FileSystem(box))
+
 	return http.StripPrefix(prefix, fileServer)
 }
 
@@ -158,28 +172,40 @@ func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	if callID == "" {
 		callID = NewUUIDBase62()
 	}
+
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
-	http.Redirect(w, r, url, 302)
+
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (mux *Mux) routeIndex(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
-	return "index.html", nil, nil
+	data := mux.getData()
+
+	return "index.html", data, nil
+}
+
+func (mux *Mux) getData() map[string]interface{} {
+	return map[string]interface{}{
+		"BaseURL": mux.BaseURL,
+		"Version": mux.version,
+	}
 }
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := NewUUIDBase62()
-
 	iceServers := GetICEAuthServers(mux.iceServers)
-	iceServersJSON, _ := json.Marshal(iceServers)
 
-	data := map[string]interface{}{
-		"Nickname":   r.Header.Get("X-Forwarded-User"),
-		"CallID":     callID,
-		"UserID":     userID,
-		"ICEServers": template.HTML(iceServersJSON),
-		"Network":    mux.network.Type,
-		"Version":    mux.version,
+	config := ClientConfig{
+		BaseURL:    mux.BaseURL,
+		Nickname:   r.Header.Get("X-Forwarded-User"),
+		CallID:     callID,
+		UserID:     userID,
+		ICEServers: iceServers,
+		Network:    mux.network.Type,
 	}
-	return "call.html", data, nil
+
+	configJSON, _ := json.Marshal(config)
+
+	return "call.html", string(configJSON), nil
 }

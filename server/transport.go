@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 type Transport interface {
@@ -36,6 +36,5 @@ type MediaTransport interface {
 
 type DataTransport interface {
 	MessagesChannel() <-chan webrtc.DataChannelMessage
-	Send(message []byte) error
-	SendText(message string) error
+	Send(message webrtc.DataChannelMessage) <-chan error
 }

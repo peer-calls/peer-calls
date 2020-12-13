@@ -2,6 +2,8 @@ package server
 
 import (
 	"net/http"
+
+	"github.com/juju/errors"
 )
 
 type ReadyMessage struct {
@@ -17,13 +19,16 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 		if err != nil {
 			log.Printf("Error subscribing to websocket messages: %s", err)
 		}
+
 		for msg := range sub.Messages {
 			adapter := sub.Adapter
 			room := sub.Room
 			clientID := sub.ClientID
 
-			var responseEventName string
-			var err error
+			var (
+				responseEventName string
+				err               error
+			)
 
 			switch msg.Type {
 			case "hangUp":
@@ -38,8 +43,11 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 				if readyClientsErr != nil {
 					log.Printf("Error retrieving clients: %s", readyClientsErr)
 				}
+
 				responseEventName = "users"
+
 				log.Printf("Got clients: %s", clients)
+
 				err = adapter.Broadcast(
 					NewMessage(responseEventName, room, map[string]interface{}{
 						"initiator": clientID,
@@ -47,9 +55,10 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 						"nicknames": clients,
 					}),
 				)
+				err = errors.Annotatef(err, "ready broadcast")
 			case "signal":
 				payload, _ := msg.Payload.(map[string]interface{})
-				signal, _ := payload["signal"]
+				signal := payload["signal"]
 				targetClientID, _ := payload["userId"].(string)
 
 				responseEventName = "signal"
@@ -58,6 +67,7 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 					"userId": clientID,
 					"signal": signal,
 				}))
+				err = errors.Annotatef(err, "signal emit")
 			}
 
 			if err != nil {
@@ -72,8 +82,9 @@ func getReadyClients(adapter Adapter) (map[string]string, error) {
 	filteredClients := map[string]string{}
 	clients, err := adapter.Clients()
 	if err != nil {
-		return filteredClients, err
+		return filteredClients, errors.Annotate(err, "ready clients")
 	}
+
 	for clientID, nickname := range clients {
 		// if nickame hasn't been set, the peer hasn't emitted ready yet so we
 		// don't connect to that peer.

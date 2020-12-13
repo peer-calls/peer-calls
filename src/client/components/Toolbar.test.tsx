@@ -1,3 +1,4 @@
+jest.mock('../insertable-streams')
 jest.mock('simple-peer')
 jest.mock('../window')
 import React from 'react'
@@ -6,8 +7,8 @@ import TestUtils from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { applyMiddleware, createStore } from 'redux'
 import SimplePeer from 'simple-peer'
-import { getDesktopStream, MediaKind, setAudioConstraint, setVideoConstraint } from '../actions/MediaActions'
-import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
+import { getDesktopStream, MediaKind, setAudioConstraint, setVideoConstraint, DisplayMediaConstraints } from '../actions/MediaActions'
+import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop, AddLocalStreamPayload } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, PEER_ADD } from '../constants'
 import reducers from '../reducers'
 import { LocalStream } from '../reducers/streams'
@@ -15,6 +16,8 @@ import { middlewares, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
 import Toolbar, { ToolbarProps } from './Toolbar'
 import { deferred } from '../deferred'
+import { insertableStreamsCodec } from '../insertable-streams'
+import { makeAction } from '../async'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -121,14 +124,64 @@ describe('components/Toolbar', () => {
     })
   })
 
-  describe('desktop sharing', () => {
-    it('starts desktop sharing', async () => {
-      const shareDesktop = node.querySelector('.stream-desktop')!
-      expect(shareDesktop).toBeDefined()
-      TestUtils.Simulate.click(shareDesktop)
-      await Promise.resolve()
-      expect(onGetDesktopStream.mock.calls.length).toBe(1)
+  describe('desktop sharing menu', () => {
+    let track1: MediaStreamTrack
+    let track2: MediaStreamTrack
+
+    beforeEach(() => {
+      onGetDesktopStream.mockImplementation(makeAction(
+        MEDIA_STREAM,
+        async (
+          constraints: DisplayMediaConstraints = {audio: true, video: false},
+        ) => {
+          track1 = new MediaStreamTrack()
+          track2 = new MediaStreamTrack()
+
+          const stream = new MediaStream()
+          stream.addTrack(track1)
+          stream.addTrack(track2)
+
+          const payload: AddLocalStreamPayload = {
+            stream: stream,
+            type: StreamTypeDesktop,
+          }
+          return payload
+        },
+      ))
     })
+
+    it('starts desktop sharing with audio', async () => {
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[1]
+      expect(shareDesktop).toBeTruthy()
+      TestUtils.Simulate.click(shareDesktop)
+
+      expect(onRemoveLocalStream.mock.calls.length).toBe(0)
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: true,
+        video: true,
+      } ]])
+    })
+
+    it('starts video-only desktop sharing', async () => {
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[2]
+      expect(shareDesktop).toBeTruthy()
+      TestUtils.Simulate.click(shareDesktop)
+
+      expect(onRemoveLocalStream.mock.calls.length).toBe(0)
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: false,
+        video: true,
+      } ]])
+    })
+
     it('stops desktop sharing', async () => {
       const stream = new MediaStream()
       desktopStream = {
@@ -138,11 +191,45 @@ describe('components/Toolbar', () => {
         mirror: false,
       }
       await render(store)
-      const shareDesktop = node.querySelector('.stream-desktop')!
-      expect(shareDesktop).toBeDefined()
+
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[0]
+      expect(shareDesktop).toBeTruthy()
       TestUtils.Simulate.click(shareDesktop)
-      await Promise.resolve()
-      expect(onRemoveLocalStream.mock.calls.length).toBe(1)
+
+      expect(onRemoveLocalStream.mock.calls)
+      .toEqual([[ desktopStream.stream, StreamTypeDesktop ]])
+      expect(onGetDesktopStream.mock.calls.length).toBe(0)
+    })
+
+    it('stops desktop sharing before switching streams', async () => {
+      const stream = new MediaStream()
+      desktopStream = {
+        stream,
+        streamId: stream.id,
+        type: StreamTypeDesktop,
+        mirror: false,
+      }
+      await render(store)
+
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      TestUtils.Simulate.click(menu)
+
+      const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[1]
+      expect(shareDesktop).toBeTruthy()
+      TestUtils.Simulate.click(shareDesktop)
+
+      expect(onRemoveLocalStream.mock.calls)
+      .toEqual([[ desktopStream.stream, StreamTypeDesktop ]])
+
+      expect(onGetDesktopStream.mock.calls).toEqual([[ {
+        audio: true,
+        video: true,
+      } ]])
     })
   })
 
@@ -412,6 +499,70 @@ describe('components/Toolbar track dropdowns', () => {
 
     })
 
+  })
+
+  describe('encryption-dialog', () => {
+    beforeEach(() => {
+      (insertableStreamsCodec.setPassword as jest.Mock).mockClear()
+    })
+
+    it('should toggle dialog', () => {
+      let dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).toBeNull()
+
+      const button = node.querySelector('.encryption')!
+      TestUtils.Simulate.click(button)
+
+      dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).not.toBeNull()
+
+      TestUtils.Simulate.click(button)
+
+      dialog = node.querySelector('.encryption-dialog-visible')
+      expect(dialog).toBeNull()
+    })
+
+    it('should set and disable encryption', () => {
+      (insertableStreamsCodec as any).mockSuccess(true)
+
+      const button = node.querySelector('.encryption')!
+      const input = node
+      .querySelector('.encryption-dialog .encryption-key') as HTMLInputElement
+
+      const password = 'p455w0rd'
+      input.value = password
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ]])
+      expect(button.classList.contains('encryption-enabled')).toBe(true)
+
+      input.value = ''
+      TestUtils.Simulate.keyUp(input, { key: 'a' } as any) // does nothing
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ], [ '' ]])
+      expect(button.classList.contains('encryption-enabled')).toBe(false)
+    })
+
+    it('should not succeed when worker is not started', () => {
+      (insertableStreamsCodec as any).mockSuccess(false)
+
+      const button = node.querySelector('.encryption')!
+
+      const input = node
+      .querySelector('.encryption-dialog .encryption-key') as HTMLInputElement
+
+      const password = 'p455w0rd'
+      input.value = password
+      TestUtils.Simulate.keyUp(input, { key: 'Enter' } as any)
+      expect(
+        (insertableStreamsCodec.setPassword as jest.Mock).mock.calls,
+      ).toEqual([[ password ]])
+
+      expect(button.classList.contains('encryption-enabled')).toBe(false)
+    })
   })
 
 })

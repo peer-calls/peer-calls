@@ -52,9 +52,16 @@ type NetworkConfig struct {
 }
 
 type NetworkConfigSFU struct {
-	Interfaces   []string        `yaml:"interfaces"`
-	JitterBuffer bool            `yaml:"jitter_buffer"`
-	Transport    TransportConfig `yaml:"transport"`
+	Interfaces    []string        `yaml:"interfaces"`
+	JitterBuffer  bool            `yaml:"jitter_buffer"`
+	Protocols     []string        `yaml:"protocols"`
+	TCPBindAddr   string          `yaml:"tcp_bind_addr"`
+	TCPListenPort int             `yaml:"tcp_listen_port"`
+	Transport     TransportConfig `yaml:"transport"`
+	UDP           struct {
+		PortMin uint16 `yaml:"port_min"`
+		PortMax uint16 `yaml:"port_max"`
+	} `yaml:"udp"`
 }
 
 type TransportConfig struct {
@@ -75,4 +82,19 @@ type Config struct {
 	Store      StoreConfig      `yaml:"store"`
 	Network    NetworkConfig    `yaml:"network"`
 	Prometheus PrometheusConfig `yaml:"prometheus"`
+}
+
+type ICEAuthServer struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
+}
+
+type ClientConfig struct {
+	BaseURL    string          `json:"baseUrl"`
+	Nickname   string          `json:"nickname"`
+	CallID     string          `json:"callId"`
+	UserID     string          `json:"userId"`
+	ICEServers []ICEAuthServer `json:"iceServers"`
+	Network    NetworkType     `json:"network"`
 }

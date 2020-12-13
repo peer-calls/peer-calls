@@ -1,12 +1,14 @@
 jest.mock('../window')
 
 import { applyMiddleware, createStore, Store } from 'redux'
-import { create } from '../middlewares'
-import { userId, nickname } from '../window'
-import reducers from './index'
+import { removeNickname, setNicknames } from '../actions/NicknameActions'
 import { ME } from '../constants'
-import { setNicknames, removeNickname } from '../actions/NicknameActions'
+import { create } from '../middlewares'
 import { getLocalNickname } from '../reducers/nicknames'
+import { config } from '../window'
+import reducers from './index'
+
+const { nickname, userId } = config
 
 describe('reducers/nicknames', () => {
 

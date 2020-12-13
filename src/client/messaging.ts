@@ -7,9 +7,10 @@ import { Encoder } from './codec'
 import { MESSAGE_SEND, ME } from './constants'
 import { State, Store } from './store'
 import { TextEncoder } from './textcodec'
-import { userId } from './window'
+import { config } from './window'
 
 const debug = _debug('peercalls')
+const { userId } = config
 
 export function createMessagingMiddleware(
   createEncoder = () => new Encoder(),

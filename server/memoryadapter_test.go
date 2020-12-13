@@ -2,10 +2,10 @@ package server_test
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -26,7 +26,8 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	size, err := adapter.Size()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, size)
-	adapter.Remove(clientID)
+	err = adapter.Remove(clientID)
+	assert.Nil(t, err)
 	clientIDs, err = adapter.Clients()
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]string{}, clientIDs)
@@ -50,7 +51,7 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 		for range msgChan {
 		}
 		err := client.Err()
-		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
+		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	msg := server.NewMessage("test-type", room, []byte("test"))
@@ -90,7 +91,7 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 		for range msgChan {
 		}
 		err := client1.Err()
-		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
+		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	go func() {
@@ -98,7 +99,7 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 		for range msgChan {
 		}
 		err := client2.Err()
-		assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, but got: %s", err)
+		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	msg := server.NewMessage("test-type", room, []byte("test"))

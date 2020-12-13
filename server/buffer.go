@@ -9,16 +9,16 @@ import (
 
 // Thanks to MIT-licensed pion/ion for inspiration!
 
-// maxSN is a maximum sequence number
+// maxSN is a maximum sequence number.
 const maxSN = uint16(math.MaxUint16)
 
-// videoClock represents the clock rate of VP8, VP9 and H264 codecs (90000 Hz)
+// videoClock represents the clock rate of VP8, VP9 and H264 codecs (90000 Hz).
 const videoClock = 90000
 
 // keep only packets relevant to last 2s of video
 const maxBufferTSDelta = videoClock * 2
 
-//1+16(FSN+BLP) https://tools.ietf.org/html/rfc2032#page-9
+// 1+16(FSN+BLP) https://tools.ietf.org/html/rfc2032#page-9.
 const maxNackPairSize uint16 = 17
 
 // Buffer holds the recent RTP packets and creates NACK RTCP packets
@@ -44,16 +44,11 @@ func NewBuffer() *Buffer {
 	return &b
 }
 
-// snDelta calculates the distance between the start and end when using the
-// ring buffer.
-func snDelta(startSN uint16, endSN uint16) uint16 {
-	return endSN - startSN
-}
-
 func tsDelta(ts1, ts2 uint32) uint32 {
 	if ts1 > ts2 {
 		return ts1 - ts2
 	}
+
 	return ts2 - ts1
 }
 
@@ -85,9 +80,10 @@ func (b *Buffer) Push(p *rtp.Packet) rtcp.Packet {
 
 		nackPairs, lostPkts := b.getNackPairs(windowStart, windowEnd)
 		b.lastNackSN = sn
+
 		if lostPkts > 0 {
 			return &rtcp.TransportLayerNack{
-				//origin ssrc
+				// origin ssrc
 				SenderSSRC: b.ssrc,
 				MediaSSRC:  b.ssrc,
 				Nacks:      nackPairs,
@@ -110,24 +106,30 @@ func (b *Buffer) getNackPairs(start uint16, end uint16) ([]rtcp.NackPair, int) {
 	delta := end - start
 	size := delta / maxNackPairSize
 	arraySize := size
+
 	if delta%maxNackPairSize > 0 {
-		arraySize += 1
+		arraySize++
 	}
 
 	var totalLostPkt int
+
 	pairs := make([]rtcp.NackPair, 0, arraySize)
+
 	for i := uint16(0); i < size; i++ {
 		nackPair, lostPkt := b.getNackPair(start, start+maxNackPairSize)
 		totalLostPkt += lostPkt
+
 		if lostPkt > 0 {
 			pairs = append(pairs, nackPair)
 		}
+
 		start += maxNackPairSize
 	}
 
 	if arraySize > size {
 		nackPair, lostPkt := b.getNackPair(start, end)
 		totalLostPkt += lostPkt
+
 		if lostPkt > 0 {
 			pairs = append(pairs, nackPair)
 		}
@@ -157,6 +159,7 @@ func (b *Buffer) getNackPair(start uint16, end uint16) (rtcp.NackPair, int) {
 		if b.packets[i] == nil {
 			fsn = i
 			lostPkts++
+
 			break
 		}
 	}
@@ -186,6 +189,7 @@ func (b *Buffer) clearOldPackets(ts uint32, sn uint16) {
 			if pkt == nil {
 				continue
 			}
+
 			if tsDelta(ts, pkt.Timestamp) < maxBufferTSDelta {
 				// we've reached newer packets we want to keep, abort
 				break

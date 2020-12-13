@@ -9,6 +9,8 @@ import (
 )
 
 func TestParseTemplates(t *testing.T) {
+	t.Parallel()
+
 	box := packr.NewBox("./templates")
 	templates := server.ParseTemplates(box)
 	t1, ok := templates["index.html"]
@@ -20,6 +22,8 @@ func TestParseTemplates(t *testing.T) {
 }
 
 func TestParseTemplates_noHTML(t *testing.T) {
+	t.Parallel()
+
 	box := packr.NewBox("../res")
 	templates := server.ParseTemplates(box)
 	t1, ok := templates["index.html"]

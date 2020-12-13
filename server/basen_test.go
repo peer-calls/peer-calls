@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cases = [][]byte{
-	{0x00},
-	{0x01},
-	{0x02},
-	{0xFF},
-}
-
 func getCases(start, end int) (cases [][]byte) {
 	var value big.Int
 	var offset big.Int
@@ -31,6 +24,8 @@ func getCases(start, end int) (cases [][]byte) {
 }
 
 func TestEncodeDecode_base16(t *testing.T) {
+	t.Parallel()
+
 	encoder := server.NewBaseNEncoder(server.AlphabetBase16)
 	decoder := server.NewBaseNDecoder(server.AlphabetBase16)
 	for _, data := range getCases(0x1, 0xFFFF) {
@@ -42,6 +37,8 @@ func TestEncodeDecode_base16(t *testing.T) {
 }
 
 func TestEncodeDecode_base62(t *testing.T) {
+	t.Parallel()
+
 	encoder := server.NewBaseNEncoder(server.AlphabetBase62)
 	decoder := server.NewBaseNDecoder(server.AlphabetBase62)
 	for _, data := range getCases(0x1, 0xFFFF) {
@@ -53,6 +50,8 @@ func TestEncodeDecode_base62(t *testing.T) {
 }
 
 func TestEncodeDecode_base64(t *testing.T) {
+	t.Parallel()
+
 	encoder := server.NewBaseNEncoder(server.AlphabetBase64)
 	decoder := server.NewBaseNDecoder(server.AlphabetBase64)
 	for _, data := range getCases(0x1, 0xFFFF) {
@@ -64,6 +63,8 @@ func TestEncodeDecode_base64(t *testing.T) {
 }
 
 func TestDecodeError_base64(t *testing.T) {
+	t.Parallel()
+
 	decoder := server.NewBaseNDecoder(server.AlphabetBase16)
 	_, err := decoder.Decode("A")
 	require.NotNil(t, err, "value is nil: %v", err)

@@ -1,28 +1,34 @@
 package test
 
-type TestCloser struct {
+import "github.com/juju/errors"
+
+type Closer struct {
 	cleanups []func() error
 }
 
-func (tc *TestCloser) Close() error {
+func (tc *Closer) Close() error {
 	var err error
+
 	for _, cleanup := range tc.cleanups {
 		// cleanup in reverse, like deferred
 		err2 := cleanup()
+
 		if err == nil {
 			err = err2
 		}
 	}
-	return err
+
+	return errors.Trace(err)
 }
 
-func (tc *TestCloser) Add(fn func()) {
+func (tc *Closer) Add(fn func()) {
 	tc.AddFuncErr(func() error {
 		fn()
+
 		return nil
 	})
 }
 
-func (tc *TestCloser) AddFuncErr(cleanup func() error) {
+func (tc *Closer) AddFuncErr(cleanup func() error) {
 	tc.cleanups = append([]func() error{cleanup}, tc.cleanups...)
 }

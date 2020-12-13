@@ -7,6 +7,7 @@ import * as constants from '../constants'
 import { MediaStreamAction, MediaTrackAction, MediaTrackEnableAction, MediaKind } from '../actions/MediaActions'
 import { RemoveLocalStreamAction, StreamType } from '../actions/StreamActions'
 import { HangUpAction } from '../actions/CallActions'
+import { insertableStreamsCodec } from '../insertable-streams'
 
 const debug = _debug('peercalls')
 
@@ -66,7 +67,8 @@ function handleLocalMediaStream(
         'Add track to peer, id: %s, kind: %s, label: %s',
         track.id, track.kind, track.label,
       )
-      peer.addTrack(track, stream)
+      const sender = peer.addTrack(track, stream)
+      insertableStreamsCodec.encrypt(sender)
     })
   })
   localStreams[streamType] = action.payload.stream
@@ -124,7 +126,8 @@ export function handleLocalMediaTrack(
 
   if (newTrack) {
     forEach(state, peer => {
-      peer.addTrack(newTrack, localStream)
+      const sender = peer.addTrack(newTrack, localStream)
+      insertableStreamsCodec.encrypt(sender)
     })
     localStream.addTrack(newTrack)
     return state

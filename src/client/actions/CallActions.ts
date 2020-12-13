@@ -1,10 +1,12 @@
 import { GetAsyncAction, makeAction } from '../async'
-import { DIAL, HANG_UP, SOCKET_EVENT_USERS, SOCKET_EVENT_HANG_UP, SOCKET_CONNECTED, SOCKET_DISCONNECTED } from '../constants'
+import { DIAL, HANG_UP, SOCKET_CONNECTED, SOCKET_DISCONNECTED, SOCKET_EVENT_HANG_UP, SOCKET_EVENT_USERS } from '../constants'
 import socket from '../socket'
 import store, { ThunkResult } from '../store'
-import { callId, userId } from '../window'
+import { config } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
+
+const { callId, userId } = config
 
 export interface ConnectedAction {
   type: 'SOCKET_CONNECTED'

@@ -1,31 +1,53 @@
-FROM node:12-alpine
-WORKDIR /app
-RUN apk add --no-cache git
-RUN chown node:node /app
-COPY package.json .
-USER node
-RUN npm install
-COPY webpack* tsconfig.json ./
-COPY src src
-RUN npm run build
+FROM node:12-alpine as frontend
 
-FROM golang:1.14-buster
-WORKDIR /app
-RUN chown nobody /app
-RUN go get -u github.com/gobuffalo/packr/packr
-COPY go.mod go.sum ./
-RUN go mod download
-COPY --from=0 /app/build build
-COPY .git .git
-COPY res res
-COPY server server
-COPY main.go .
-RUN packr build -ldflags "-X main.gitDescribe=$(git describe --always --tags)" -o peer-calls main.go
+# Add dependency instructions and fetch node_modules
+COPY package.json package-lock.json /src/
+WORKDIR /src
 
-FROM debian:buster-slim
-WORKDIR /app
-COPY --from=1 /app/peer-calls .
-USER nobody
-EXPOSE 3000
+RUN set -ex \
+ && apk add --no-cache \
+      git \
+ && npm ci
+
+# Add the application itself
+COPY ./ /src/
+
+RUN set -ex \
+ && npm run build
+
+
+FROM golang:alpine as server
+
+ENV CGO_ENABLED=0
+
+RUN set -ex \
+ && apk add --no-cache \
+      git \
+ && GOPATH=/usr/local go get -u github.com/gobuffalo/packr/packr
+
+# Add dependencies into mod cache
+COPY go.mod go.sum /src/
+WORKDIR /src
+
+RUN set -ex \
+ && go mod download
+
+# Add the application itself and build it
+COPY                  ./          /src/
+COPY --from=frontend  /src/build/ /src/build/
+
+RUN set -ex \
+ && packr build \
+      -ldflags "-X main.gitDescribe=$(git describe --always --tags --dirty)" \
+      -mod=readonly \
+      -o peer-calls
+
+
+FROM scratch
+
+COPY --from=server /src/peer-calls /usr/local/bin/
+
+EXPOSE 3000/tcp
 STOPSIGNAL SIGINT
-ENTRYPOINT ["./peer-calls"]
+
+ENTRYPOINT ["/usr/local/bin/peer-calls"]

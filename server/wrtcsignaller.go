@@ -1,10 +1,10 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 
-	"github.com/pion/webrtc/v2"
+	"github.com/juju/errors"
+	"github.com/pion/webrtc/v3"
 )
 
 type Signaller struct {
@@ -22,7 +22,6 @@ type Signaller struct {
 	signalChannel chan Payload
 	closeChannel  chan struct{}
 	closeOnce     sync.Once
-	wg            sync.WaitGroup
 
 	descriptionSent     chan struct{}
 	descriptionSentOnce sync.Once
@@ -61,7 +60,7 @@ func NewSignaller(
 	peerConnection.OnICEConnectionStateChange(s.handleICEConnectionStateChange)
 	peerConnection.OnICECandidate(s.handleICECandidate)
 
-	return s, s.initialize()
+	return s, errors.Annotate(s.initialize(), "new signaller")
 }
 
 // This does not close any channel, but returns a channel that can be used
@@ -84,8 +83,7 @@ func (s *Signaller) initialize() error {
 			},
 		)
 		if err != nil {
-			s.log.Printf("ERROR: %s", err)
-			return fmt.Errorf("[%s] NewSignaller: Error pre-adding video transceiver: %s", s.remotePeerID, err)
+			return errors.Annotate(err, "add video transceiver")
 		}
 
 		s.log.Printf("[%s] NewSignaller: Initiator pre-add audio transceiver", s.remotePeerID)
@@ -96,7 +94,7 @@ func (s *Signaller) initialize() error {
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("[%s] NewSignaller: Error pre-adding audio transceiver: %s", s.remotePeerID, err)
+			return errors.Annotate(err, "add audio transceiver")
 		}
 
 		s.log.Printf("[%s] NewSignaller: Initiator calling Negotiate()", s.remotePeerID)
@@ -117,7 +115,6 @@ func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICECon
 		connectionState == webrtc.ICEConnectionStateFailed {
 		s.Close()
 	}
-
 }
 
 func (s *Signaller) onSignal(payload Payload) {
@@ -152,7 +149,7 @@ func (s *Signaller) Close() (err error) {
 		close(s.signalChannel)
 		s.closed = true
 
-		err = s.peerConnection.Close()
+		err = errors.Annotate(s.peerConnection.Close(), "close")
 	})
 	s.closeDescriptionSent()
 	return
@@ -182,9 +179,8 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 
 func (s *Signaller) Signal(payload map[string]interface{}) error {
 	signalPayload, err := NewPayloadFromMap(payload)
-
 	if err != nil {
-		return fmt.Errorf("Error constructing signal from payload: %s", err)
+		return errors.Annotate(err, "construct signal from payload")
 	}
 
 	switch signal := signalPayload.Signal.(type) {
@@ -207,7 +203,7 @@ func (s *Signaller) Signal(payload map[string]interface{}) error {
 		s.sdpLog.Printf("[%s] Remote signal.type: %s, signal.sdp: %s", s.remotePeerID, signal.Type, signal.SDP)
 		return s.handleRemoteSDP(signal)
 	default:
-		return fmt.Errorf("[%s] Unexpected signal: %#v ", s.remotePeerID, signal)
+		return errors.Errorf("unexpected signal: %#v", signal)
 	}
 }
 
@@ -227,24 +223,24 @@ func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverReque
 func (s *Signaller) handleRemoteSDP(sessionDescription webrtc.SessionDescription) (err error) {
 	switch sessionDescription.Type {
 	case webrtc.SDPTypeOffer:
-		return s.handleRemoteOffer(sessionDescription)
+		return errors.Annotate(s.handleRemoteOffer(sessionDescription), "handle remote offer")
 	case webrtc.SDPTypeAnswer:
-		return s.handleRemoteAnswer(sessionDescription)
+		return errors.Annotate(s.handleRemoteAnswer(sessionDescription), "handle remote answer")
 	default:
-		return fmt.Errorf("[%s] Unexpected sdp type: %s", s.remotePeerID, sessionDescription.Type)
+		return errors.Errorf("unexpected sdp type: %s", sessionDescription.Type)
 	}
 }
 
 func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescription) (err error) {
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
-		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
+		return errors.Annotate(err, "set remote description")
 	}
 	answer, err := s.peerConnection.CreateAnswer(nil)
 	if err != nil {
-		return fmt.Errorf("[%s] Error creating answer: %w", s.remotePeerID, err)
+		return errors.Annotate(err, "create answer")
 	}
 	if err := s.peerConnection.SetLocalDescription(answer); err != nil {
-		return fmt.Errorf("[%s] Error setting local description: %w", s.remotePeerID, err)
+		return errors.Annotate(err, "set local description")
 	}
 
 	s.sdpLog.Printf("[%s] Local signal.type: %s, signal.sdp: %s", s.remotePeerID, answer.Type, answer.SDP)
@@ -263,7 +259,8 @@ func (s *Signaller) handleLocalRequestNegotiation() {
 func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
 	s.sdpLog.Printf("[%s] Local signal.type: %s, signal.sdp: %s", s.remotePeerID, offer.Type, offer.SDP)
 	if err != nil {
-		s.log.Printf("[%s] Error creating local offer: %s", s.remotePeerID, err)
+		err = errors.Annotate(err, "handle local offer")
+		s.log.Printf("[%s] Error creating local offer: %+v", s.remotePeerID, err)
 		// TODO abort connection
 		return
 	}
@@ -271,6 +268,7 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 	s.log.Printf("[%s] handle local offer setting local desc", s.remotePeerID)
 	err = s.peerConnection.SetLocalDescription(offer)
 	if err != nil {
+		err = errors.Annotate(err, "set local description")
 		s.log.Printf("[%s] Error setting local description from local offer: %s", s.remotePeerID, err)
 		// TODO abort connection
 		return
@@ -307,8 +305,9 @@ func (s *Signaller) Negotiate() <-chan struct{} {
 
 func (s *Signaller) handleRemoteAnswer(sessionDescription webrtc.SessionDescription) (err error) {
 	if err = s.peerConnection.SetRemoteDescription(sessionDescription); err != nil {
-		return fmt.Errorf("[%s] Error setting remote description: %w", s.remotePeerID, err)
+		return errors.Annotate(err, "set remote description")
 	}
+
 	return nil
 }
 

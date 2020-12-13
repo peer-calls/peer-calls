@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	pkgErrors "errors"
 	"net/http"
 	"path"
 	"time"
 
+	"github.com/juju/errors"
 	"nhooyr.io/websocket"
 )
 
@@ -41,7 +41,7 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 
 	if err != nil {
 		prometheusWSConnErrTotal.Inc()
-		return nil, fmt.Errorf("Error accepting websocket connection: %w", err)
+		return nil, errors.Annotatef(err, "accept websocket connection")
 	}
 
 	ctx := r.Context()
@@ -67,7 +67,8 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 			wss.log.Printf("[%s] Closing websocket connection - room: %s", clientID, room)
 			err := c.Close(websocket.StatusNormalClosure, "")
 			if err != nil {
-				wss.log.Printf("[%s] Error closing websocket connection: %w", clientID, err)
+				err = errors.Trace(err)
+				wss.log.Printf("[%s] Error closing websocket connection: %+v", clientID, err)
 			}
 		}()
 		defer func() {
@@ -76,7 +77,8 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 		}()
 		err = adapter.Add(client)
 		if err != nil {
-			wss.log.Printf("[%s] Error adding client to room: %s: %s", clientID, room, err)
+			err = errors.Trace(err)
+			wss.log.Printf("[%s] Error adding client to room: %s: %+v", clientID, room, err)
 			close(ch)
 			return
 		}
@@ -85,7 +87,7 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 			wss.log.Printf("[%s] adapter.Remove room: %s", clientID, room)
 			err := adapter.Remove(clientID)
 			if err != nil {
-				wss.log.Printf("[%s] Error removing client from adapter: %s", clientID, err)
+				wss.log.Printf("[%s] Error removing client from adapter: %+v", clientID, err)
 			}
 		}()
 
@@ -94,20 +96,24 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 		for message := range msgChan {
 			ch <- message
 		}
-		close(ch)
-		err = client.Err()
 
-		if errors.Is(err, context.Canceled) {
+		close(ch)
+
+		err = errors.Trace(client.Err())
+		cause := errors.Cause(err)
+
+		if pkgErrors.Is(cause, context.Canceled) {
 			err = nil
 			return
 		}
-		if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
-			websocket.CloseStatus(err) == websocket.StatusGoingAway {
+		if websocket.CloseStatus(cause) == websocket.StatusNormalClosure ||
+			websocket.CloseStatus(cause) == websocket.StatusGoingAway {
 			err = nil
 			return
 		}
+
 		if err != nil {
-			wss.log.Printf("[%s] Subscription error: %s", clientID, err)
+			wss.log.Printf("[%s] Subscription error: %+v", clientID, err)
 		}
 	}()
 

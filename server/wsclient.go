@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"nhooyr.io/websocket"
 )
+
+const defaultWSTimeout = 5 * time.Second
 
 type WSWriter interface {
 	Write(ctx context.Context, typ websocket.MessageType, msg []byte) error
@@ -28,7 +30,6 @@ type Client struct {
 	conn       WSReadWriter
 	metadata   string
 	serializer ByteSerializer
-	onceClose  sync.Once
 
 	errMu sync.RWMutex
 	err   error
@@ -63,9 +64,11 @@ func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg Me
 	defer cancel()
 	data, err := c.serializer.Serialize(msg)
 	if err != nil {
-		return fmt.Errorf("client.WriteTimeout - error serializing message: %w", err)
+		return errors.Annotate(err, "serialize")
 	}
-	return c.conn.Write(ctx, websocket.MessageText, data)
+
+	err = c.conn.Write(ctx, websocket.MessageText, data)
+	return errors.Annotate(err, "write")
 }
 
 func (c *Client) ID() string {
@@ -74,37 +77,37 @@ func (c *Client) ID() string {
 
 // Write writes a message to client socket
 func (c *Client) Write(msg Message) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	err := c.WriteTimeout(ctx, 5*time.Second, msg)
+	err := c.WriteTimeout(context.Background(), defaultWSTimeout, msg)
 	if err != nil {
-		return fmt.Errorf("client.Write: %w", err)
+		return errors.Trace(err)
 	}
+
 	return nil
 }
 
 func (c *Client) read(ctx context.Context) (message Message, err error) {
 	typ, data, err := c.conn.Read(ctx)
 	if err != nil {
-		err = fmt.Errorf("client.read - error reading data: %w", err)
-		return
+		return Message{}, errors.Annotate(err, "read")
 	}
+
 	message, err = c.serializer.Deserialize(data)
 	if err != nil {
-		err = fmt.Errorf("client.read - error deserializing data: %w", err)
-		return
+		return Message{}, errors.Annotate(err, "deserialize")
 	}
+
 	if typ != websocket.MessageText {
-		err = fmt.Errorf("client.read - expected text message: %w", err)
+		return Message{}, errors.Errorf("unexpected text message type, but got %s", typ)
 	}
-	return
+
+	return message, nil
 }
 
 func (c *Client) Err() error {
 	c.errMu.RLock()
 	defer c.errMu.RUnlock()
-	return c.err
+
+	return errors.Trace(c.err)
 }
 
 func (c *Client) Subscribe(ctx context.Context) <-chan Message {
@@ -116,10 +119,11 @@ func (c *Client) Subscribe(ctx context.Context) <-chan Message {
 			if err != nil {
 				c.errMu.Lock()
 				close(msgChan)
-				c.err = err
+				c.err = errors.Trace(err)
 				c.errMu.Unlock()
 				return
 			}
+
 			msgChan <- message
 		}
 	}()

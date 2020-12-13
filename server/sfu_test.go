@@ -10,8 +10,8 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
-	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
+	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -47,6 +47,7 @@ func TestSFU_ConnectDisconnect(t *testing.T) {
 
 func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Message) {
 	t.Helper()
+
 	for {
 		select {
 		case msg := <-ch:
@@ -67,7 +68,9 @@ func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Messa
 	}
 }
 
-func startSignalling(t *testing.T, wsClient *server.Client, wsRecvCh <-chan server.Message, signaller *server.Signaller) {
+func startSignalling(
+	t *testing.T, wsClient *server.Client, wsRecvCh <-chan server.Message, signaller *server.Signaller,
+) {
 	t.Helper()
 	signalChan := signaller.SignalChannel()
 
@@ -92,7 +95,7 @@ func startSignalling(t *testing.T, wsClient *server.Client, wsRecvCh <-chan serv
 
 func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID string) (pc *webrtc.PeerConnection, signaller *server.Signaller, cleanup func() error) {
 	t.Helper()
-	var closer test.TestCloser
+	var closer test.Closer
 	cleanup = closer.Close
 
 	wsc := mustDialWS(t, ctx, url)
@@ -137,7 +140,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 
 	startSignalling(t, wsClient, msgChan, signaller)
 
-	return
+	return pc, signaller, cleanup
 }
 
 func waitPeerConnected(t *testing.T, ctx context.Context, pc *webrtc.PeerConnection) {
