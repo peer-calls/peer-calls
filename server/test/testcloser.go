@@ -1,5 +1,7 @@
 package test
 
+import "github.com/juju/errors"
+
 type Closer struct {
 	cleanups []func() error
 }
@@ -16,7 +18,7 @@ func (tc *Closer) Close() error {
 		}
 	}
 
-	return err
+	return errors.Trace(err)
 }
 
 func (tc *Closer) Add(fn func()) {

@@ -235,7 +235,7 @@ func (t *RoomPeersManager) Add(transport *WebRTCTransport) {
 				}
 			}
 
-			return errs.Err()
+			return errors.Annotatef(errs.Err(), "nack")
 		}
 
 		for pkt := range transport.RTCPChannel() {

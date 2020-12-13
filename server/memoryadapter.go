@@ -59,10 +59,12 @@ func (m *MemoryAdapter) Metadata(clientID string) (metadata string, ok bool) {
 func (m *MemoryAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
 	m.clientsMu.Lock()
 	defer m.clientsMu.Unlock()
+
 	client, ok := m.clients[clientID]
 	if ok {
 		client.SetMetadata(metadata)
 	}
+
 	return ok
 }
 
@@ -112,7 +114,7 @@ func (m *MemoryAdapter) Emit(clientID string, msg Message) error {
 	m.clientsMu.RLock()
 	err := m.emit(clientID, msg)
 	m.clientsMu.RUnlock()
-	return err
+	return errors.Annotatef(err, "emit")
 }
 
 func (m *MemoryAdapter) emit(clientID string, msg Message) error {

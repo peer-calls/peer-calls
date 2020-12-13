@@ -395,7 +395,7 @@ func (a *RedisAdapter) Close() error {
 		errs.Add(errors.Trace(err))
 	}
 
-	return errs.Err()
+	return errors.Trace(errs.Err())
 }
 
 func (a *RedisAdapter) localClients() map[string]ClientWriter {

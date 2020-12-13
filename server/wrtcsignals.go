@@ -63,10 +63,7 @@ func NewTransceiverRequest(userID string, kind webrtc.RTPCodecType, direction we
 }
 
 func newCandidate(candidate interface{}) (Candidate, error) {
-	var (
-		c   Candidate
-		err error
-	)
+	var c Candidate
 
 	candidateMap, ok := candidate.(map[string]interface{})
 	if !ok {
@@ -75,18 +72,19 @@ func newCandidate(candidate interface{}) (Candidate, error) {
 
 	candidateValue, ok := candidateMap["candidate"]
 	if !ok {
-		err = errors.Errorf("expected candidate.candidate %#v", candidate)
-		return c, err
+		return c, errors.Errorf("expected candidate.candidate %#v", candidate)
 	}
 
 	candidateString, ok := candidateValue.(string)
 	if !ok {
 		return c, errors.Errorf("expected candidate.candidate to be a string: %#v", candidate)
 	}
+
 	sdpMLineIndexValue, ok := candidateMap["sdpMLineIndex"]
 	if !ok {
 		return c, errors.Errorf("expected candidate.sdpMLineIndex to exist: %#v", sdpMLineIndexValue)
 	}
+
 	sdpMLineIndex, ok := sdpMLineIndexValue.(float64)
 	if !ok {
 		return c, errors.Errorf("expected candidate.sdpMLineIndex be float64: %T", sdpMLineIndexValue)
@@ -118,6 +116,7 @@ func newTransceiverRequest(transceiverRequest interface{}) (r TransceiverRequest
 		err = errors.Errorf("Transceiver request kind not found: %#v", transceiverRequest)
 		return
 	}
+
 	kindString, ok := kind.(string)
 	if !ok {
 		err = errors.Errorf("Transceiver request kind should be a string: %#v", transceiverRequest)
@@ -136,6 +135,7 @@ func newTransceiverRequest(transceiverRequest interface{}) (r TransceiverRequest
 		}
 
 		var transceiverInit webrtc.RtpTransceiverInit
+
 		for key, value := range initMap {
 			if key == "direction" {
 				switch value {
@@ -180,6 +180,7 @@ func newSDP(sdpType interface{}, signal map[string]interface{}) (s webrtc.Sessio
 		err = errors.Errorf("Expected signal.sdp to be string: %#v", signal)
 		return
 	}
+
 	s.SDP = sdpString
 
 	switch sdpTypeString {
