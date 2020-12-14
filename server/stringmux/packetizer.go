@@ -1,12 +1,17 @@
 package stringmux
 
 import (
-	"fmt"
+	"github.com/juju/errors"
 )
 
 const (
 	StringMuxByte  uint8 = 0b11001000
 	MaxLenStreamID int   = 0xFF
+)
+
+var (
+	ErrStreamIDTooLarge = errors.New("stream id too large")
+	ErrInvalidHeader    = errors.New("invalid first byte")
 )
 
 func Marshal(streamID string, data []byte) ([]byte, error) {
@@ -23,10 +28,9 @@ func Marshal(streamID string, data []byte) ([]byte, error) {
 	 *        |                              ...                              |
 	 *        +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 	 */
-
 	lenStreamID := len(streamID)
 	if lenStreamID > MaxLenStreamID {
-		return nil, fmt.Errorf("StreamID too large")
+		return nil, errors.Annotate(ErrStreamIDTooLarge, "marshal")
 	}
 
 	result := make([]byte, 2+lenStreamID+len(data))
@@ -48,14 +52,16 @@ func Marshal(streamID string, data []byte) ([]byte, error) {
 }
 
 func Unmarshal(data []byte) (string, []byte, error) {
-	if len(data) < 2 {
-		return "", nil, fmt.Errorf("Header is too short")
+	headerSize := 2
+
+	if l := len(data); l < headerSize {
+		return "", nil, errors.Annotatef(ErrInvalidHeader, "size: %d", l)
 	}
 
 	offset := 0
 
 	if data[0] != StringMuxByte {
-		return "", nil, fmt.Errorf("First byte should be %b", StringMuxByte)
+		return "", nil, errors.Annotatef(ErrInvalidHeader, "expected: %+v, got: %+v", StringMuxByte, data[0])
 	}
 	offset++
 
@@ -63,7 +69,7 @@ func Unmarshal(data []byte) (string, []byte, error) {
 	offset++
 
 	if len(data) < offset+lenStreamID {
-		return "", nil, fmt.Errorf("StreamID length mismatch")
+		return "", nil, errors.Annotatef(ErrInvalidHeader, "expected: %d, got: %d", offset+lenStreamID, len(data))
 	}
 
 	streamID := string(data[offset : offset+lenStreamID])

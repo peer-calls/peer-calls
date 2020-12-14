@@ -10,6 +10,11 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
+type Conn interface {
+	net.Conn
+	CloseChannel() <-chan struct{}
+}
+
 type conn struct {
 	debugLogger logger.Logger
 
@@ -58,6 +63,7 @@ func (m *conn) Read(b []byte) (int, error) {
 
 	copy(b, buf)
 	m.debugLogger.Printf("%s recv %v", m, buf)
+
 	return len(buf), nil
 }
 
@@ -67,7 +73,10 @@ func (m *conn) Write(b []byte) (int, error) {
 		return 0, errors.Annotatef(io.ErrClosedPipe, "raddr: %s", m.raddr)
 	default:
 		m.debugLogger.Printf("%s send %v", m, b)
-		return m.conn.WriteTo(b, m.raddr)
+
+		i, err := m.conn.WriteTo(b, m.raddr)
+
+		return i, errors.Annotate(err, "write")
 	}
 }
 

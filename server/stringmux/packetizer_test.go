@@ -3,11 +3,14 @@ package stringmux
 import (
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMarshalUnmarshal(t *testing.T) {
+	t.Parallel()
+
 	data := []byte("somedata")
 
 	payload, err := Marshal("mystream", data)
@@ -22,27 +25,37 @@ func TestMarshalUnmarshal(t *testing.T) {
 }
 
 func TestMarshal_StreamIDTooLong(t *testing.T) {
+	t.Parallel()
+
 	streamID := string(make([]byte, 0xFF+1))
 	_, err := Marshal(streamID, []byte{1, 2, 3})
-	require.EqualError(t, err, "StreamID too large")
+	require.Equal(t, errors.Cause(err), ErrStreamIDTooLarge)
 }
 
 func TestUnmarshal_InvalidFirstTwoBytes(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := Unmarshal([]byte{123, 2, 'H', 'I', 1, 1})
-	require.EqualError(t, err, "First byte should be 11001000")
+	require.Equal(t, errors.Cause(err), ErrInvalidHeader)
 }
 
 func TestUnmarshal_InvalidHeader(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := Unmarshal([]byte{StringMuxByte})
-	require.EqualError(t, err, "Header is too short")
+	require.Equal(t, errors.Cause(err), ErrInvalidHeader)
 }
 
 func TestUnmarshal_LengthMismatch(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := Unmarshal([]byte{StringMuxByte, 3, 'T'})
-	require.EqualError(t, err, "StreamID length mismatch")
+	require.Equal(t, errors.Cause(err), ErrInvalidHeader)
 }
 
 func TestUnmarshal_OK(t *testing.T) {
+	t.Parallel()
+
 	streamID, data, err := Unmarshal([]byte{StringMuxByte, 2, 'i', 'd', 'd', 'a', 't', 'a'})
 	require.NoError(t, err)
 

@@ -1,302 +1,257 @@
 package stringmux
 
 import (
-	"fmt"
+	"io"
 	"net"
-	"sync"
-	"time"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
-var DefaultMTU uint32 = 8192
+const DefaultMTU uint32 = 8192
 
 type StringMux struct {
-	params      *Params
+	params *Params
+
 	logger      logger.Logger
 	debugLogger logger.Logger
-	conns       map[string]*conn
-	connChan    chan Conn
-	closeChan   chan struct{}
-	closeOnce   sync.Once
-	mu          sync.Mutex
-	wg          sync.WaitGroup
+
+	getConnRequestChan   chan getConnRequest
+	newConnChan          chan Conn
+	closeConnRequestChan chan closeConnRequest
+	remotePacketsChan    chan remotePacket
+
+	teardownChan chan struct{}
+	torndownChan chan struct{}
 }
 
 type Params struct {
-	LoggerFactory logger.LoggerFactory
-	Conn          net.Conn
-	MTU           uint32
-	ReadChanSize  int
+	LoggerFactory  logger.LoggerFactory
+	Conn           net.Conn
+	MTU            uint32
+	ReadChanSize   int
+	ReadBufferSize int
 }
 
 func New(params Params) *StringMux {
-	sm := &StringMux{
-		params:      &params,
+	m := &StringMux{
+		params: &params,
+
 		logger:      params.LoggerFactory.GetLogger("stringmux:info"),
 		debugLogger: params.LoggerFactory.GetLogger("stringmux:debug"),
-		closeChan:   make(chan struct{}),
-		connChan:    make(chan Conn),
-		conns:       make(map[string]*conn),
+
+		newConnChan:          make(chan Conn),
+		closeConnRequestChan: make(chan closeConnRequest),
+		getConnRequestChan:   make(chan getConnRequest),
+		remotePacketsChan:    make(chan remotePacket, params.ReadBufferSize),
+		teardownChan:         make(chan struct{}, 1),
+		torndownChan:         make(chan struct{}),
 	}
 
-	if sm.params.MTU == 0 {
-		sm.params.MTU = DefaultMTU
+	if m.params.MTU == 0 {
+		m.params.MTU = DefaultMTU
 	}
 
-	sm.wg.Add(1)
-	go func() {
-		defer sm.wg.Done()
-		sm.start()
-	}()
+	go m.start()
 
-	return sm
+	return m
 }
 
-func (sm *StringMux) start() {
-	buf := make([]byte, sm.params.MTU)
+func (m *StringMux) start() {
+	readingDone := make(chan struct{})
+
+	go func() {
+		defer close(readingDone)
+		m.startReading()
+	}()
+
+	conns := map[string]*conn{}
+
+	defer func() {
+		_ = m.params.Conn.Close()
+
+		<-readingDone
+
+		for _, conn := range conns {
+			conn.close()
+		}
+
+		close(m.newConnChan)
+		close(m.torndownChan)
+	}()
+
+	createConn := func(streamID string) *conn {
+		return &conn{
+			debugLogger: m.debugLogger,
+
+			conn:     m.params.Conn,
+			streamID: streamID,
+
+			readChan:             make(chan []byte, m.params.ReadChanSize),
+			closeConnRequestChan: m.closeConnRequestChan,
+			torndown:             make(chan struct{}),
+		}
+	}
+
+	getNewConn := func(req getConnRequest) {
+		streamID := req.streamID
+
+		_, ok := conns[streamID]
+		if ok {
+			req.errChan <- errors.Annotatef(ErrConnAlreadyExists, "streamID: %s", streamID)
+
+			return
+		}
+
+		conn := createConn(streamID)
+		conns[streamID] = conn
+
+		req.connChan <- conn
+	}
+
+	handlePacket := func(pkt remotePacket) {
+		streamID := pkt.streamID
+
+		conn, ok := conns[streamID]
+		if !ok {
+			conn = createConn(streamID)
+			conns[streamID] = conn
+			m.newConnChan <- conn
+		}
+
+		select {
+		case conn.readChan <- pkt.bytes:
+		default:
+			m.debugLogger.Printf("dropped packet for conn: %s, streamID: %s", conn, streamID)
+		}
+	}
+
+	handleClose := func(req closeConnRequest) {
+		streamID := req.conn.streamID
+
+		conn, ok := conns[streamID]
+		if !ok {
+			req.errChan <- errors.Annotatef(ErrConnNotFound, "streamID: %s", streamID)
+
+			return
+		}
+
+		if conn == req.conn {
+			delete(conns, streamID)
+			conn.close()
+		}
+
+		req.errChan <- nil
+	}
 
 	for {
-		i, err := sm.params.Conn.Read(buf)
+		select {
+		case req := <-m.getConnRequestChan:
+			getNewConn(req)
+		case pkt := <-m.remotePacketsChan:
+			handlePacket(pkt)
+		case req := <-m.closeConnRequestChan:
+			handleClose(req)
+		case <-m.teardownChan:
+			return
+		}
+	}
+}
 
+func (m *StringMux) startReading() {
+	buf := make([]byte, m.params.MTU)
+
+	for {
+		i, err := m.params.Conn.Read(buf)
 		if err != nil {
-			sm.logger.Printf("Error reading remote data: %s", err)
-			_ = sm.params.Conn.Close()
+			m.logger.Printf("Error reading remote data: %s", err)
+
 			return
 		}
 
 		streamID, data, err := Unmarshal(buf[:i])
 		if err != nil {
-			sm.logger.Printf("Error unmarshaling remote data: %s", err)
+			m.logger.Printf("Error unmarshaling remote data: %s", err)
+
 			return
 		}
 
-		sm.handleRemoteBytes(streamID, data)
+		pkt := remotePacket{
+			bytes:    make([]byte, len(data)),
+			streamID: streamID,
+		}
+
+		copy(pkt.bytes, data)
+
+		select {
+		case m.remotePacketsChan <- pkt:
+			// OK
+		case <-m.torndownChan:
+			return
+		}
 	}
 }
 
-func (sm *StringMux) AcceptConn() (Conn, error) {
-	conn, ok := <-sm.connChan
+func (m *StringMux) AcceptConn() (Conn, error) {
+	conn, ok := <-m.newConnChan
 	if !ok {
-		return nil, fmt.Errorf("StringMux closed")
+		return nil, errors.Annotate(io.ErrClosedPipe, "accept")
 	}
 
-	sm.logger.Printf("%s AcceptConn", conn)
+	m.logger.Printf("%s AcceptConn", conn)
 
 	return conn, nil
 }
 
-func (sm *StringMux) GetConn(streamID string) (Conn, error) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+func (m *StringMux) GetConn(streamID string) (Conn, error) {
+	req := getConnRequest{
+		streamID: streamID,
+		connChan: make(chan Conn, 1),
+		errChan:  make(chan error, 1),
+	}
 
 	select {
-	case <-sm.closeChan:
-		return nil, fmt.Errorf("StringMux closed")
-	default:
+	case m.getConnRequestChan <- req:
+	case <-m.torndownChan:
+		return nil, errors.Annotatef(io.ErrClosedPipe, "get conn")
 	}
-
-	if _, ok := sm.conns[streamID]; ok {
-		return nil, fmt.Errorf("Connection already exists")
-	}
-
-	c := sm.createConn(streamID, false)
-
-	sm.logger.Printf("%s GetConn", c)
-
-	return c, nil
-}
-
-func (sm *StringMux) handleRemoteBytes(streamID string, buf []byte) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
 
 	select {
-	case <-sm.closeChan:
-		// Check if StringMux was closed.
-		sm.logger.Println("Ignoring remote data because connection has been closed")
-		return
-	default:
+	case err := <-req.errChan:
+		return nil, errors.Trace(err)
+	case conn := <-req.connChan:
+		return conn, nil
 	}
+}
 
-	c := sm.getOrCreateConn(streamID, true)
+func (m *StringMux) Close() error {
 	select {
-	case <-c.closeChan:
-		// Check if only the muxed connection was closed.
-		sm.logger.Println("Ignoring remote data because connection has been closed")
-		return
-	default:
+	case m.teardownChan <- struct{}{}:
+	case <-m.torndownChan:
 	}
 
-	c.handleRemoteBytes(buf)
-}
+	<-m.torndownChan
 
-func (sm *StringMux) getOrCreateConn(streamID string, accept bool) *conn {
-	c, ok := sm.conns[streamID]
-	if !ok {
-		c = sm.createConn(streamID, accept)
-	}
-	return c
-}
-
-func (sm *StringMux) Close() error {
-	sm.logger.Println("StringMux Close")
-
-	err := sm.params.Conn.Close()
-
-	sm.close()
-
-	sm.wg.Wait()
-
-	return err
-}
-
-func (sm *StringMux) CloseChannel() <-chan struct{} {
-	return sm.closeChan
-}
-
-func (sm *StringMux) close() {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	for _, conn := range sm.conns {
-		sm.closeConn(conn)
-	}
-
-	sm.closeOnce.Do(func() {
-		close(sm.connChan)
-		close(sm.closeChan)
-	})
-}
-
-// handleClose calls closeConn ,but holds the lock.
-func (sm *StringMux) handleClose(conn *conn) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	sm.closeConn(conn)
-}
-
-// closeConn caller must hold the lock.
-func (sm *StringMux) closeConn(conn *conn) {
-	sm.logger.Printf("%s closeConn", conn)
-
-	conn.onceClose.Do(func() {
-		close(conn.readChan)
-		close(conn.closeChan)
-	})
-	delete(sm.conns, conn.RemoteAddr().String())
-}
-
-func (sm *StringMux) createConn(streamID string, accept bool) *conn {
-	c := &conn{
-		streamID:    streamID,
-		conn:        sm.params.Conn,
-		readChan:    make(chan []byte, sm.params.ReadChanSize),
-		closeChan:   make(chan struct{}),
-		onClose:     sm.handleClose,
-		debugLogger: sm.debugLogger,
-	}
-	sm.conns[streamID] = c
-	if accept {
-		sm.connChan <- c
-	}
-	return c
-}
-
-type Conn interface {
-	net.Conn
-	StreamID() string
-	CloseChannel() <-chan struct{}
-}
-
-type conn struct {
-	conn        net.Conn
-	streamID    string
-	readChan    chan []byte
-	closeChan   chan struct{}
-	onClose     func(*conn)
-	onceClose   sync.Once
-	debugLogger logger.Logger
-}
-
-var _ Conn = &conn{}
-
-func (c *conn) StreamID() string {
-	return c.streamID
-}
-
-func (c *conn) Close() error {
-	c.onClose(c)
 	return nil
 }
 
-func (c *conn) handleRemoteBytes(buf []byte) {
-	b := make([]byte, len(buf))
-	copy(b, buf)
-	c.readChan <- b
+func (m *StringMux) CloseChannel() <-chan struct{} {
+	return m.torndownChan
 }
 
-func (c *conn) CloseChannel() <-chan struct{} {
-	return c.closeChan
+type remotePacket struct {
+	bytes    []byte
+	streamID string
 }
 
-func (c *conn) Read(b []byte) (int, error) {
-	buf, ok := <-c.readChan
-	if !ok {
-		return 0, fmt.Errorf("Conn closed")
-	}
-	copy(b, buf)
-	c.debugLogger.Printf("%s recv %v", c, buf)
-	return len(buf), nil
+type getConnRequest struct {
+	streamID string
+
+	connChan chan Conn
+	errChan  chan error
 }
 
-func (c *conn) Write(b []byte) (int, error) {
-	select {
-	case <-c.closeChan:
-		return 0, fmt.Errorf("Conn is closed")
-	default:
-		data, err := Marshal(c.streamID, b)
-		if err != nil {
-			return 0, fmt.Errorf("Error marshalling data during write: %w", err)
-		}
-		c.debugLogger.Printf("%s send %v", c, b)
-		_, err = c.conn.Write(data)
-		if err != nil {
-			return 0, fmt.Errorf("Error writing data: %w", err)
-		}
-		return len(b), nil
-	}
-}
-
-func (c *conn) LocalAddr() net.Addr {
-	return c.conn.LocalAddr()
-}
-
-func (c *conn) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
-}
-
-func (c *conn) SetDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *conn) SetReadDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *conn) SetWriteDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *conn) String() string {
-	if s, ok := c.conn.(stringer); ok {
-		return fmt.Sprintf("%s [%s]", s.String(), c.streamID)
-	}
-
-	return fmt.Sprintf("[%s]", c.streamID)
-}
-
-type stringer interface {
-	String() string
+type closeConnRequest struct {
+	conn    *conn
+	errChan chan error
 }

@@ -34,7 +34,7 @@ type Params struct {
 }
 
 func New(params Params) *UDPMux {
-	u := &UDPMux{
+	m := &UDPMux{
 		params: &params,
 
 		logger:      params.LoggerFactory.GetLogger("udpmux:info"),
@@ -48,31 +48,31 @@ func New(params Params) *UDPMux {
 		torndownChan:         make(chan struct{}),
 	}
 
-	if u.params.MTU == 0 {
-		u.params.MTU = DefaultMTU
+	if m.params.MTU == 0 {
+		m.params.MTU = DefaultMTU
 	}
 
-	go u.startLoop()
+	go m.startLoop()
 
-	return u
+	return m
 }
 
-func (u *UDPMux) LocalAddr() net.Addr {
-	return u.params.Conn.LocalAddr()
+func (m *UDPMux) LocalAddr() net.Addr {
+	return m.params.Conn.LocalAddr()
 }
 
-func (u *UDPMux) AcceptConn() (Conn, error) {
-	conn, ok := <-u.newConnChan
+func (m *UDPMux) AcceptConn() (Conn, error) {
+	conn, ok := <-m.newConnChan
 	if !ok {
 		return nil, errors.Annotate(io.ErrClosedPipe, "accept")
 	}
 
-	u.logger.Printf("%s AcceptConn", conn)
+	m.logger.Printf("%s AcceptConn", conn)
 
 	return conn, nil
 }
 
-func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
+func (m *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	req := getConnRequest{
 		raddr:    raddr,
 		connChan: make(chan Conn, 1),
@@ -80,9 +80,9 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	}
 
 	select {
-	case <-u.torndownChan:
+	case m.getConnRequestChan <- req:
+	case <-m.torndownChan:
 		return nil, errors.Annotatef(io.ErrClosedPipe, "get conn")
-	case u.getConnRequestChan <- req:
 	}
 
 	select {
@@ -93,46 +93,44 @@ func (u *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 	}
 }
 
-func (u *UDPMux) startLoop() {
-	startDone := make(chan struct{})
+func (m *UDPMux) startLoop() {
+	readingDone := make(chan struct{})
 
 	go func() {
-		defer close(startDone)
-		u.startReading()
+		defer close(readingDone)
+		m.startReading()
 	}()
 
 	conns := map[string]*conn{}
 
 	defer func() {
-		_ = u.params.Conn.Close()
+		_ = m.params.Conn.Close()
 
-		<-startDone
+		<-readingDone
 
 		for _, conn := range conns {
 			conn.close()
 		}
 
-		close(u.newConnChan)
-		close(u.torndownChan)
+		close(m.newConnChan)
+		close(m.torndownChan)
 	}()
 
 	createConn := func(raddr net.Addr) *conn {
-		c := &conn{
-			debugLogger: u.debugLogger,
+		return &conn{
+			debugLogger: m.debugLogger,
 
-			conn:  u.params.Conn,
-			laddr: u.params.Conn.LocalAddr(),
+			conn:  m.params.Conn,
+			laddr: m.params.Conn.LocalAddr(),
 			raddr: raddr,
 
-			readChan:             make(chan []byte, u.params.ReadChanSize),
-			closeConnRequestChan: u.closeConnRequestChan,
+			readChan:             make(chan []byte, m.params.ReadChanSize),
+			closeConnRequestChan: m.closeConnRequestChan,
 			torndown:             make(chan struct{}),
 		}
-
-		return c
 	}
 
-	getOrCreateConn := func(req getConnRequest) {
+	getNewConn := func(req getConnRequest) {
 		raddrStr := req.raddr.String()
 
 		_, ok := conns[raddrStr]
@@ -155,13 +153,13 @@ func (u *UDPMux) startLoop() {
 		if !ok {
 			conn = createConn(pkt.raddr)
 			conns[raddrStr] = conn
-			u.newConnChan <- conn
+			m.newConnChan <- conn
 		}
 
 		select {
 		case conn.readChan <- pkt.bytes:
 		default:
-			u.debugLogger.Printf("dropped packet for conn: %s", conn.raddr)
+			m.debugLogger.Printf("dropped packet for conn: %s", conn.raddr)
 		}
 	}
 
@@ -185,25 +183,25 @@ func (u *UDPMux) startLoop() {
 
 	for {
 		select {
-		case req := <-u.getConnRequestChan:
-			getOrCreateConn(req)
-		case pkt := <-u.remotePacketsChan:
+		case req := <-m.getConnRequestChan:
+			getNewConn(req)
+		case pkt := <-m.remotePacketsChan:
 			handlePacket(pkt)
-		case req := <-u.closeConnRequestChan:
+		case req := <-m.closeConnRequestChan:
 			handleClose(req)
-		case <-u.teardownChan:
+		case <-m.teardownChan:
 			return
 		}
 	}
 }
 
-func (u *UDPMux) startReading() {
-	buf := make([]byte, u.params.MTU)
+func (m *UDPMux) startReading() {
+	buf := make([]byte, m.params.MTU)
 
 	for {
-		i, raddr, err := u.params.Conn.ReadFrom(buf)
+		i, raddr, err := m.params.Conn.ReadFrom(buf)
 		if err != nil {
-			u.logger.Printf("Error reading remote data: %s", err)
+			m.logger.Printf("Error reading remote data: %s", err)
 
 			return
 		}
@@ -216,32 +214,27 @@ func (u *UDPMux) startReading() {
 		copy(pkt.bytes, buf)
 
 		select {
-		case u.remotePacketsChan <- pkt:
+		case m.remotePacketsChan <- pkt:
 			// OK
-		case <-u.teardownChan:
+		case <-m.torndownChan:
 			return
 		}
 	}
 }
 
-func (u *UDPMux) CloseChannel() <-chan struct{} {
-	return u.torndownChan
+func (m *UDPMux) CloseChannel() <-chan struct{} {
+	return m.torndownChan
 }
 
-func (u *UDPMux) Close() error {
+func (m *UDPMux) Close() error {
 	select {
-	case u.teardownChan <- struct{}{}:
-	case <-u.torndownChan:
+	case m.teardownChan <- struct{}{}:
+	case <-m.torndownChan:
 	}
 
-	<-u.torndownChan
+	<-m.torndownChan
 
 	return nil
-}
-
-type Conn interface {
-	net.Conn
-	CloseChannel() <-chan struct{}
 }
 
 type remotePacket struct {

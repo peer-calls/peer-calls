@@ -1,9 +1,11 @@
 package stringmux_test
 
 import (
+	"io"
 	"net"
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
@@ -36,12 +38,14 @@ func TestStringMuxNew(t *testing.T) {
 	sm1 := stringmux.New(stringmux.Params{
 		Conn:          conn1,
 		LoggerFactory: loggerFactory,
+		ReadChanSize:  8,
 	})
 	defer sm1.Close()
 
 	sm2 := stringmux.New(stringmux.Params{
 		Conn:          conn2,
 		LoggerFactory: loggerFactory,
+		ReadChanSize:  8,
 	})
 	defer sm2.Close()
 
@@ -50,7 +54,7 @@ func TestStringMuxNew(t *testing.T) {
 	defer c1.Close()
 
 	_, err = sm1.GetConn("ab")
-	assert.EqualError(t, err, "Connection already exists")
+	assert.Equal(t, errors.Cause(err), stringmux.ErrConnAlreadyExists)
 	assert.Equal(t, "ab", c1.StreamID())
 
 	i, err := c1.Write([]byte("ping"))
@@ -85,6 +89,6 @@ func TestStringMux_Close_GetConn(t *testing.T) {
 	sm1.Close()
 
 	createdConn, err := sm1.GetConn("test")
-	require.EqualError(t, err, "StringMux closed")
+	require.Equal(t, errors.Cause(err), io.ErrClosedPipe)
 	require.Nil(t, createdConn)
 }
