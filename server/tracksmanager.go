@@ -184,6 +184,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 				}
 			}
 
+			// FIXME Do not lock (block) on long operations such as WriteRTP below.
 			t.mu.Lock()
 
 			for otherClientID, otherTransport := range t.transports {

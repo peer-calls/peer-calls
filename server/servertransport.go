@@ -6,6 +6,8 @@ import (
 	"io"
 	"sync"
 
+	"sync/atomic"
+
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -109,6 +111,18 @@ type ServerMediaTransport struct {
 	rtpCh    chan *rtp.Packet
 	rtcpCh   chan rtcp.Packet // TODO change to []rtcp.Packet
 	logger   Logger
+
+	stats struct {
+		readBytes       int64
+		readNoData      int64
+		readRTPPackets  int64
+		readRTCPPackets int64
+		readUnknown     int64
+
+		sentBytes       int64
+		sentRTPPackets  int64
+		sentRTCPPackets int64
+	}
 }
 
 var _ MediaTransport = &ServerMediaTransport{}
@@ -142,7 +156,18 @@ func (t *ServerMediaTransport) start() {
 			return
 		}
 
-		err = t.handle(buf[:i])
+		atomic.AddInt64(&t.stats.readBytes, int64(i))
+
+		// Bytes need to be copied from the buffer because unmarshaling RTP and
+		// RTCP packets will not create copies, so the raw body of these packets
+		// such as RTP.Payload would be replaced before being marshaled and sent
+		// downstream.
+		b := make([]byte, i)
+
+		copy(b, buf[:i])
+
+		err = t.handle(b)
+
 		if err != nil {
 			t.logger.Printf("Error handling remote data: %s", err)
 		}
@@ -151,15 +176,19 @@ func (t *ServerMediaTransport) start() {
 
 func (t *ServerMediaTransport) handle(buf []byte) error {
 	if len(buf) == 0 {
+		atomic.AddInt64(&t.stats.readNoData, 1)
 		return ErrNoData
 	}
 
 	switch {
 	case MatchRTP(buf):
+		atomic.AddInt64(&t.stats.readRTPPackets, 1)
 		return t.handleRTP(buf)
 	case MatchRTCP(buf):
+		atomic.AddInt64(&t.stats.readRTCPPackets, 1)
 		return t.handleRTCP(buf)
 	default:
+		atomic.AddInt64(&t.stats.readUnknown, 1)
 		return ErrUnknownPacket
 	}
 }
@@ -191,7 +220,14 @@ func (t *ServerMediaTransport) WriteRTCP(p []rtcp.Packet) error {
 	if err != nil {
 		return err
 	}
-	_, err = t.conn.Write(b)
+
+	i, err := t.conn.Write(b)
+
+	if err == nil {
+		atomic.AddInt64(&t.stats.sentRTCPPackets, 1)
+		atomic.AddInt64(&t.stats.sentBytes, int64(i))
+	}
+
 	return err
 }
 
@@ -200,7 +236,15 @@ func (t *ServerMediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return t.conn.Write(b)
+
+	i, err := t.conn.Write(b)
+
+	if err == nil {
+		atomic.AddInt64(&t.stats.sentRTPPackets, 1)
+		atomic.AddInt64(&t.stats.sentBytes, int64(i))
+	}
+
+	return i, err
 }
 
 func (t *ServerMediaTransport) RTPChannel() <-chan *rtp.Packet {
