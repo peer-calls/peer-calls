@@ -18,13 +18,13 @@ type TransportManager struct {
 	params        *TransportManagerParams
 	udpMux        *udpmux.UDPMux
 	closeChan     chan struct{}
-	factoriesChan chan *ServerTransportFactory
+	factoriesChan chan *TransportFactory
 	closeOnce     sync.Once
 	mu            sync.Mutex
 	wg            sync.WaitGroup
 	logger        Logger
 
-	factories map[*stringmux.StringMux]*ServerTransportFactory
+	factories map[*stringmux.StringMux]*TransportFactory
 }
 
 type StreamTransport struct {
@@ -63,8 +63,8 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 		params:        &params,
 		udpMux:        udpMux,
 		closeChan:     make(chan struct{}),
-		factoriesChan: make(chan *ServerTransportFactory),
-		factories:     make(map[*stringmux.StringMux]*ServerTransportFactory),
+		factoriesChan: make(chan *TransportFactory),
+		factories:     make(map[*stringmux.StringMux]*TransportFactory),
 		logger:        params.LoggerFactory.GetLogger("transportmanager"),
 	}
 
@@ -78,11 +78,11 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 	return t
 }
 
-func (t *TransportManager) Factories() []*ServerTransportFactory {
+func (t *TransportManager) Factories() []*TransportFactory {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	factories := make([]*ServerTransportFactory, 0, len(t.factories))
+	factories := make([]*TransportFactory, 0, len(t.factories))
 
 	for _, factory := range t.factories {
 		factories = append(factories, factory)
@@ -101,7 +101,7 @@ func (t *TransportManager) start() {
 
 		t.logger.Printf("Accept UDP connection: %s", conn.RemoteAddr())
 
-		factory, err := t.createServerTransportFactory(conn)
+		factory, err := t.createTransportFactory(conn)
 		if err != nil {
 			t.logger.Printf("Error creating transport factory: %s", err)
 			return
@@ -111,9 +111,9 @@ func (t *TransportManager) start() {
 	}
 }
 
-// createServerTransportFactory creates a new ServerTransportFactory for the
+// createTransportFactory creates a new TransportFactory for the
 // provided connection.
-func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*ServerTransportFactory, error) {
+func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportFactory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -125,7 +125,7 @@ func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*Serv
 		ReadBufferSize: 0,
 	})
 
-	factory := NewServerTransportFactory(t.params.LoggerFactory, &t.wg, stringMux)
+	factory := NewTransportFactory(t.params.LoggerFactory, &t.wg, stringMux)
 	t.factories[stringMux] = factory
 
 	t.wg.Add(1)
@@ -142,7 +142,7 @@ func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*Serv
 	return factory, nil
 }
 
-func (t *TransportManager) AcceptTransportFactory() (*ServerTransportFactory, error) {
+func (t *TransportManager) AcceptTransportFactory() (*TransportFactory, error) {
 	factory, ok := <-t.factoriesChan
 	if !ok {
 		return nil, errors.Annotate(io.ErrClosedPipe, "TransportManager is tearing down")
@@ -150,13 +150,13 @@ func (t *TransportManager) AcceptTransportFactory() (*ServerTransportFactory, er
 	return factory, nil
 }
 
-func (t *TransportManager) GetTransportFactory(raddr net.Addr) (*ServerTransportFactory, error) {
+func (t *TransportManager) GetTransportFactory(raddr net.Addr) (*TransportFactory, error) {
 	conn, err := t.udpMux.GetConn(raddr)
 	if err != nil {
 		return nil, errors.Annotatef(err, "getting conn for raddr: %s", raddr)
 	}
 
-	return t.createServerTransportFactory(conn)
+	return t.createTransportFactory(conn)
 }
 
 func (t *TransportManager) Close() error {
@@ -194,7 +194,7 @@ func (t *TransportManager) close() error {
 	return err
 }
 
-type ServerTransportFactory struct {
+type TransportFactory struct {
 	logger         Logger
 	loggerFactory  LoggerFactory
 	stringMux      *stringmux.StringMux
@@ -205,12 +205,12 @@ type ServerTransportFactory struct {
 	wg             *sync.WaitGroup
 }
 
-func NewServerTransportFactory(
+func NewTransportFactory(
 	loggerFactory LoggerFactory,
 	wg *sync.WaitGroup,
 	stringMux *stringmux.StringMux,
-) *ServerTransportFactory {
-	return &ServerTransportFactory{
+) *TransportFactory {
+	return &TransportFactory{
 		logger:         loggerFactory.GetLogger("stfactory"),
 		loggerFactory:  loggerFactory,
 		stringMux:      stringMux,
@@ -221,7 +221,7 @@ func NewServerTransportFactory(
 	}
 }
 
-func (t *ServerTransportFactory) addPendingPromise(tp *TransportPromise) (ok bool) {
+func (t *TransportFactory) addPendingPromise(tp *TransportPromise) (ok bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -239,7 +239,7 @@ func (t *ServerTransportFactory) addPendingPromise(tp *TransportPromise) (ok boo
 	return true
 }
 
-func (t *ServerTransportFactory) removePendingPromiseWhenDone(tp *TransportPromise) {
+func (t *TransportFactory) removePendingPromiseWhenDone(tp *TransportPromise) {
 	t.wg.Add(1)
 	go func() {
 		defer t.wg.Done()
@@ -257,7 +257,7 @@ func (t *ServerTransportFactory) removePendingPromiseWhenDone(tp *TransportPromi
 // canceled by using the Cancel method, or it can be Waited for by using the
 // Wait method. The Wait() method must be called and the error must be checked
 // and handled.
-func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
+func (t *TransportFactory) AcceptTransport() *TransportPromise {
 	conn, err := t.stringMux.AcceptConn()
 
 	if err != nil {
@@ -280,7 +280,7 @@ func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 	return tp
 }
 
-func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn, server bool) {
+func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn, server bool) {
 	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
@@ -330,7 +330,7 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 	}()
 }
 
-func (t *ServerTransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, reqStreamIDs map[string]struct{}) (conns map[string]stringmux.Conn, errConn error) {
+func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, reqStreamIDs map[string]struct{}) (conns map[string]stringmux.Conn, errConn error) {
 	var localMu sync.Mutex
 	localWaitCh := make(chan struct{})
 	localWaitChOnceClose := sync.Once{}
@@ -400,7 +400,7 @@ func (t *ServerTransportFactory) getOrAcceptStringMux(localMux *stringmux.String
 	return
 }
 
-func (t *ServerTransportFactory) createTransport(
+func (t *TransportFactory) createTransport(
 	raddr net.Addr,
 	streamID string,
 	localMux *stringmux.StringMux,
@@ -470,7 +470,7 @@ func (t *ServerTransportFactory) createTransport(
 	return streamTransport, nil
 }
 
-func (t *ServerTransportFactory) CloseTransport(streamID string) {
+func (t *TransportFactory) CloseTransport(streamID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -494,7 +494,7 @@ func (t *ServerTransportFactory) CloseTransport(streamID string) {
 // by using the Cancel method, or it can be Waited for by using the Wait
 // method. The Wait() method must be called and the error must be checked and
 // handled.
-func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise {
+func (t *TransportFactory) NewTransport(streamID string) *TransportPromise {
 	tp := NewTransportPromise(streamID, t.wg)
 
 	if !t.addPendingPromise(tp) {
@@ -516,7 +516,7 @@ func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise
 	return tp
 }
 
-func (t *ServerTransportFactory) Close() error {
+func (t *TransportFactory) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 

@@ -42,7 +42,7 @@ func TestTransportManager_RTP(t *testing.T) {
 	})
 	defer udpConn2.Close()
 
-	var f1, f2 *server.ServerTransportFactory
+	var f1, f2 *server.TransportFactory
 
 	tm1 := server.NewTransportManager(server.TransportManagerParams{
 		Conn:          udpConn1,

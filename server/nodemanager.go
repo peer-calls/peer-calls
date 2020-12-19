@@ -53,7 +53,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 			nm.logger.Println("Error creating transport factory for remote addr: %s", addr)
 		}
 
-		nm.handleServerTransportFactory(factory)
+		nm.handleTransportFactory(factory)
 	}
 
 	go nm.startTransportEventLoop()
@@ -70,11 +70,11 @@ func (nm *NodeManager) startTransportEventLoop() {
 			return
 		}
 
-		nm.handleServerTransportFactory(factory)
+		nm.handleTransportFactory(factory)
 	}
 }
 
-func (nm *NodeManager) handleServerTransportFactory(factory *ServerTransportFactory) {
+func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 	nm.wg.Add(1)
 	go func() {
 		defer nm.wg.Done()
