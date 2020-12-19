@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/rtp"
@@ -22,6 +23,26 @@ func listenUDP(laddr *net.UDPAddr) *net.UDPConn {
 		panic(err)
 	}
 	return conn
+}
+
+func waitForResponse(req *server.TransportRequest, timeout time.Duration) (*server.StreamTransport, error) {
+	var (
+		transport *server.StreamTransport
+		err       error
+	)
+
+	timer := time.NewTimer(20 * time.Second)
+	defer timer.Stop()
+
+	select {
+	case res := <-req.Response():
+		transport = res.Transport
+		err = res.Err
+	case <-timer.C:
+		err = errors.Errorf("timed out waiting for transport")
+	}
+
+	return transport, err
 }
 
 func TestTransportManager_RTP(t *testing.T) {
@@ -90,7 +111,9 @@ func TestTransportManager_RTP(t *testing.T) {
 		f1, err = tm1.AcceptTransportFactory()
 		require.NoError(t, err)
 
-		transport, err := f1.AcceptTransport().WaitTimeout(20 * time.Second)
+		req := f1.AcceptTransport()
+
+		transport, err := waitForResponse(req, 20*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "test-stream", transport.StreamID)
 
@@ -109,7 +132,9 @@ func TestTransportManager_RTP(t *testing.T) {
 		f2, err = tm2.GetTransportFactory(udpConn1.LocalAddr())
 		require.NoError(t, err)
 
-		transport, err := f2.NewTransport("test-stream").WaitTimeout(20 * time.Second)
+		req := f2.NewTransport("test-stream")
+
+		transport, err := waitForResponse(req, 20*time.Second)
 		require.NoError(t, err)
 
 		select {
@@ -150,14 +175,15 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 	f2, err := tm1.GetTransportFactory(udpConn1.LocalAddr())
 	require.NoError(t, err)
 
-	transportPromise := f2.NewTransport("test-stream")
+	req := f2.NewTransport("test-stream")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		transport, err := transportPromise.WaitTimeout(20 * time.Second)
+
+		transport, err := waitForResponse(req, 20*time.Second)
 		_, _ = transport, err
 		// Do not assert here because a test might fail if a transport is created
 		// before Cancel is called. Rare, but happens.
@@ -165,7 +191,7 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 		// require.Nil(t, transport)
 	}()
 
-	transportPromise.Cancel()
+	req.Cancel()
 
 	wg.Wait()
 }

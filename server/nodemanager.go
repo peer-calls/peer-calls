@@ -67,7 +67,8 @@ func (nm *NodeManager) startTransportEventLoop() {
 	for {
 		factory, err := nm.transportManager.AcceptTransportFactory()
 		if err != nil {
-			nm.logger.Printf("Error accepting transport factory: %s", err)
+			nm.logger.Printf("Error accepting transport factory: %+v", err)
+
 			return
 		}
 
@@ -77,6 +78,7 @@ func (nm *NodeManager) startTransportEventLoop() {
 
 func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 	nm.wg.Add(1)
+
 	go func() {
 		defer nm.wg.Done()
 
@@ -93,52 +95,64 @@ func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 			select {
 			case <-doneChan:
 				nm.logger.Printf("Aborting server transport factory goroutine")
+
 				return
 			default:
 			}
-			transportPromise := factory.AcceptTransport()
-			nm.handleTransportPromise(transportPromise)
+
+			req := factory.AcceptTransport()
+			errChan := nm.handleTransportRequest(req)
 
 			nm.wg.Add(1)
-			go func(p *TransportPromise) {
+
+			go func() {
 				defer nm.wg.Done()
 
-				_, err := p.Wait()
+				err := <-errChan
 				if err != nil {
-					nm.logger.Printf("Error while waiting for TransportPromise: %s", err)
+					nm.logger.Printf("Error while waiting for TransportRequest: %+v", err)
 					done()
 				}
-			}(transportPromise)
+			}()
 		}
 	}()
 }
 
-func (nm *NodeManager) handleTransportPromise(transportPromise *TransportPromise) {
+func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan error {
+	errChan := make(chan error, 1)
+
 	nm.wg.Add(1)
 
 	go func() {
 		defer nm.wg.Done()
+		defer close(errChan)
 
-		streamTransport, err := transportPromise.Wait()
+		response := <-req.Response()
 
-		if err != nil {
-			nm.logger.Printf("Error waiting for transport promise: %s", err)
+		if err := response.Err; err != nil {
+			errChan <- err
+			nm.logger.Printf("Error waiting for transport promise: %+v", err)
 			return
 		}
+
+		streamTransport := response.Transport
 
 		nm.mu.Lock()
 		defer nm.mu.Unlock()
 
-		nm.logger.Printf("Add transport: %s %s %s", transportPromise.StreamID(), streamTransport.StreamID, streamTransport.ClientID())
-		nm.params.TracksManager.Add(transportPromise.StreamID(), streamTransport)
+		nm.logger.Printf("Add transport: %s %s %s", req.StreamID(), streamTransport.StreamID, streamTransport.ClientID())
+		nm.params.TracksManager.Add(req.StreamID(), streamTransport)
 	}()
+
+	return errChan
 }
 
 func (nm *NodeManager) startRoomEventLoop() {
 	for {
 		roomEvent, err := nm.params.RoomManager.AcceptEvent()
 		if err != nil {
-			nm.logger.Printf("Error accepting room event: %s", err)
+			nm.logger.Printf("Error accepting room event: %+v", err)
+
 			return
 		}
 
@@ -146,8 +160,8 @@ func (nm *NodeManager) startRoomEventLoop() {
 		case RoomEventTypeAdd:
 			for _, factory := range nm.transportManager.Factories() {
 				nm.logger.Printf("Creating new transport for room: %s", roomEvent.RoomName)
-				transportPromise := factory.NewTransport(roomEvent.RoomName)
-				nm.handleTransportPromise(transportPromise)
+				transportRequest := factory.NewTransport(roomEvent.RoomName)
+				nm.handleTransportRequest(transportRequest)
 			}
 		case RoomEventTypeRemove:
 			for _, factory := range nm.transportManager.Factories() {

@@ -1,13 +1,12 @@
 package server
 
 import (
+	"context"
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/promise"
 	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
@@ -36,13 +35,13 @@ type StreamTransport struct {
 }
 
 func (st *StreamTransport) Close() error {
-	err := st.Transport.Close()
+	var errs MultiErrorHandler
 
-	_ = st.association.Close()
+	errs.Add(errors.Annotate(st.Transport.Close(), "close transport"))
+	errs.Add(errors.Annotate(st.association.Close(), "close association"))
+	errs.Add(errors.Annotate(st.stringMux.Close(), "close string mux"))
 
-	_ = st.stringMux.Close()
-
-	return err
+	return errors.Annotate(errs.Err(), "close stream transport")
 }
 
 type TransportManagerParams struct {
@@ -95,7 +94,7 @@ func (t *TransportManager) start() {
 	for {
 		conn, err := t.udpMux.AcceptConn()
 		if err != nil {
-			t.logger.Printf("Error accepting udpMux conn: %s", err)
+			t.logger.Printf("Error accepting udpMux conn: %+v", err)
 			return
 		}
 
@@ -103,7 +102,7 @@ func (t *TransportManager) start() {
 
 		factory, err := t.createTransportFactory(conn)
 		if err != nil {
-			t.logger.Printf("Error creating transport factory: %s", err)
+			t.logger.Printf("Error creating transport factory: %+v", err)
 			return
 		}
 
@@ -195,14 +194,14 @@ func (t *TransportManager) close() error {
 }
 
 type TransportFactory struct {
-	logger         Logger
-	loggerFactory  LoggerFactory
-	stringMux      *stringmux.StringMux
-	transportsChan chan *StreamTransport
-	transports     map[string]*StreamTransport
-	promises       map[string]*TransportPromise
-	mu             sync.Mutex
-	wg             *sync.WaitGroup
+	logger            Logger
+	loggerFactory     LoggerFactory
+	stringMux         *stringmux.StringMux
+	transportsChan    chan *StreamTransport
+	transports        map[string]*StreamTransport
+	pendingTransports map[string]*TransportRequest
+	mu                sync.Mutex
+	wg                *sync.WaitGroup
 }
 
 func NewTransportFactory(
@@ -211,76 +210,78 @@ func NewTransportFactory(
 	stringMux *stringmux.StringMux,
 ) *TransportFactory {
 	return &TransportFactory{
-		logger:         loggerFactory.GetLogger("stfactory"),
-		loggerFactory:  loggerFactory,
-		stringMux:      stringMux,
-		transportsChan: make(chan *StreamTransport),
-		transports:     map[string]*StreamTransport{},
-		promises:       map[string]*TransportPromise{},
-		wg:             wg,
+		logger:            loggerFactory.GetLogger("stfactory"),
+		loggerFactory:     loggerFactory,
+		stringMux:         stringMux,
+		transportsChan:    make(chan *StreamTransport),
+		transports:        map[string]*StreamTransport{},
+		pendingTransports: map[string]*TransportRequest{},
+		wg:                wg,
 	}
 }
 
-func (t *TransportFactory) addPendingPromise(tp *TransportPromise) (ok bool) {
+func (t *TransportFactory) addPendingTransport(req *TransportRequest) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	streamID := tp.StreamID()
+	streamID := req.StreamID()
 
 	if _, ok := t.transports[streamID]; ok {
-		return false
+		return errors.Errorf("transport already exist: %s", streamID)
 	}
 
-	if _, ok := t.promises[streamID]; ok {
-		return false
+	if _, ok := t.pendingTransports[streamID]; ok {
+		return errors.Errorf("transport promise already exists: %s", streamID)
 	}
 
-	t.promises[streamID] = tp
-	return true
+	t.pendingTransports[streamID] = req
+	return nil
 }
 
-func (t *TransportFactory) removePendingPromiseWhenDone(tp *TransportPromise) {
+func (t *TransportFactory) removePendingPromiseWhenDone(req *TransportRequest) {
 	t.wg.Add(1)
 	go func() {
 		defer t.wg.Done()
 
-		_, _ = tp.Wait()
+		<-req.Done()
 
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		delete(t.promises, tp.StreamID())
+		delete(t.pendingTransports, req.StreamID())
 	}()
 }
 
-// AcceptTransport returns a TransportPromise. This promise can be either
+// AcceptTransport returns a TransportRequest. This promise can be either
 // canceled by using the Cancel method, or it can be Waited for by using the
 // Wait method. The Wait() method must be called and the error must be checked
 // and handled.
-func (t *TransportFactory) AcceptTransport() *TransportPromise {
+func (t *TransportFactory) AcceptTransport() *TransportRequest {
 	conn, err := t.stringMux.AcceptConn()
 
 	if err != nil {
-		tp := NewTransportPromise("", t.wg)
-		tp.reject(errors.Annotate(err, "accept transport"))
-		return tp
+		req := NewTransportRequest(context.Background(), "")
+		req.set(nil, errors.Annotate(err, "accept transport"))
+		return req
 	}
 
-	tp := NewTransportPromise(conn.StreamID(), t.wg)
+	streamID := conn.StreamID()
 
-	if !t.addPendingPromise(tp) {
-		tp.reject(errors.Annotate(err, "promise or tranport already exists"))
-		return tp
+	req := NewTransportRequest(context.Background(), streamID)
+
+	if err := t.addPendingTransport(req); err != nil {
+		req.set(nil, errors.Annotatef(err, "accept: promise or transport already exists: %s", streamID))
+		return req
 	}
 
-	t.removePendingPromiseWhenDone(tp)
+	t.removePendingPromiseWhenDone(req)
 
-	t.createTransportAsync(tp, conn, true)
+	t.createTransportAsync(req, conn, true)
 
-	return tp
+	return req
 }
 
-func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn stringmux.Conn, server bool) {
+func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stringmux.Conn, server bool) {
 	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
@@ -293,11 +294,25 @@ func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn strin
 		ReadChanSize:  100,
 	})
 
-	// Ensure we don't get stuck at sctp.Client() or sctp.Server() forever.
-	tp.onCancel(func() {
-		tp.reject(ErrCanceled)
-		_ = localMux.Close()
-	})
+	// transportCreated will be closed as soon as the goroutine from which
+	// createTransport is called is done.
+	transportCreated := make(chan struct{})
+
+	t.wg.Add(1)
+
+	// The following gouroutine waits for the request context to be done
+	// (canceled) and closes the local mux so that the goroutine from which
+	// createTransport is called does not block forever.
+	go func() {
+		defer t.wg.Done()
+
+		select {
+		case <-req.Context().Done():
+			// Ensure we don't get stuck at sctp.Client() or sctp.Server() forever.
+			_ = localMux.Close()
+		case <-transportCreated:
+		}
+	}()
 
 	// TODO maybe we'll need to handle localMux Accept as well
 
@@ -308,7 +323,7 @@ func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn strin
 
 	if err != nil {
 		localMux.Close()
-		tp.done(nil, errors.Annotatef(err, "creating 's' and 'r' conns for raddr: %s %s", raddr, streamID))
+		req.set(nil, errors.Annotatef(err, "creating 's' and 'r' conns for raddr: %s %s", raddr, streamID))
 		return
 	}
 
@@ -318,6 +333,7 @@ func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn strin
 	t.wg.Add(1)
 	go func() {
 		defer t.wg.Done()
+		defer close(transportCreated)
 
 		transport, err := t.createTransport(conn.RemoteAddr(), conn.StreamID(), localMux, mediaConn, sctpConn, server)
 		if err != nil {
@@ -326,7 +342,7 @@ func (t *TransportFactory) createTransportAsync(tp *TransportPromise, conn strin
 			localMux.Close()
 		}
 
-		tp.done(transport, err)
+		req.set(transport, errors.Trace(err))
 	}()
 }
 
@@ -416,11 +432,11 @@ func (t *TransportFactory) createTransport(
 	var association *sctp.Association
 	var err error
 
-	if server {
-		association, err = sctp.Server(sctpConfig)
-	} else {
-		association, err = sctp.Client(sctpConfig)
-	}
+	// if server {
+	// 	association, err = sctp.Server(sctpConfig)
+	// } else {
+	association, err = sctp.Client(sctpConfig)
+	// }
 
 	if err != nil {
 		return nil, errors.Annotatef(err, "creating sctp association for raddr: %s %s", raddr, streamID)
@@ -474,7 +490,7 @@ func (t *TransportFactory) CloseTransport(streamID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if tp, ok := t.promises[streamID]; ok {
+	if tp, ok := t.pendingTransports[streamID]; ok {
 		// TODO check what happens when Cancel() is called later than resolve(). I
 		// think this might still cause the transport to be created and added to
 		// the transports map but not sure how to tackle this at this point.
@@ -486,34 +502,35 @@ func (t *TransportFactory) CloseTransport(streamID string) {
 	}
 
 	if transport, ok := t.transports[streamID]; ok {
-		transport.Close()
+		if err := transport.Close(); err != nil {
+			t.logger.Printf("Error closing transport: %s: %+v", streamID, err)
+		}
 	}
 }
 
-// NewTransport returns a TransportPromise. This promise can be either canceled
+// NewTransport returns a TransportRequest. This promise can be either canceled
 // by using the Cancel method, or it can be Waited for by using the Wait
 // method. The Wait() method must be called and the error must be checked and
 // handled.
-func (t *TransportFactory) NewTransport(streamID string) *TransportPromise {
-	tp := NewTransportPromise(streamID, t.wg)
+func (t *TransportFactory) NewTransport(streamID string) *TransportRequest {
+	req := NewTransportRequest(context.Background(), streamID)
 
-	if !t.addPendingPromise(tp) {
-		tp.reject(errors.Errorf("promise or transport already exists: %s", streamID))
-		return tp
+	if err := t.addPendingTransport(req); err != nil {
+		req.set(nil, errors.Annotatef(err, "new: promise or transport already exists: %s", streamID))
+		return req
 	}
 
-	t.removePendingPromiseWhenDone(tp)
+	t.removePendingPromiseWhenDone(req)
 
 	conn, err := t.stringMux.GetConn(streamID)
-
 	if err != nil {
-		tp.reject(errors.Annotatef(err, "retrieving transport conn: %s", streamID))
-		return tp
+		req.set(nil, errors.Annotatef(err, "retrieving transport conn: %s", streamID))
+		return req
 	}
 
-	t.createTransportAsync(tp, conn, false)
+	t.createTransportAsync(req, conn, false)
 
-	return tp
+	return req
 }
 
 func (t *TransportFactory) Close() error {
@@ -528,97 +545,80 @@ func (t *TransportFactory) Close() error {
 	return nil
 }
 
-type TransportPromise struct {
+type TransportRequest struct {
+	cancel func()
+
+	context      context.Context
 	streamID     string
-	promise      promise.Promise
-	cancelChan   chan struct{}
-	transport    *StreamTransport
-	resolveOnce  sync.Once
-	cancelOnce   sync.Once
-	onCancelOnce sync.Once
-	onCancelHdlr func()
-	wg           *sync.WaitGroup
+	responseChan chan TransportResponse
+	torndown     chan struct{}
+	setChan      chan TransportResponse
 }
 
-func NewTransportPromise(streamID string, wg *sync.WaitGroup) *TransportPromise {
-	return &TransportPromise{
-		promise:    promise.New(),
-		cancelChan: make(chan struct{}),
-		transport:  nil,
-		wg:         wg,
-		streamID:   streamID,
+type TransportResponse struct {
+	Transport *StreamTransport
+	Err       error
+}
+
+func NewTransportRequest(ctx context.Context, streamID string) *TransportRequest {
+	ctx, cancel := context.WithCancel(ctx)
+
+	t := &TransportRequest{
+		context:      ctx,
+		cancel:       cancel,
+		streamID:     streamID,
+		responseChan: make(chan TransportResponse, 1),
+		torndown:     make(chan struct{}),
+		setChan:      make(chan TransportResponse),
 	}
+
+	go t.start(ctx)
+
+	return t
 }
 
-func (t *TransportPromise) StreamID() string {
+func (t *TransportRequest) Context() context.Context {
+	return t.context
+}
+
+func (t *TransportRequest) Cancel() {
+	t.cancel()
+}
+
+func (t *TransportRequest) StreamID() string {
 	return t.streamID
 }
 
-func (t *TransportPromise) done(transport *StreamTransport, err error) {
-	t.resolveOnce.Do(func() {
-		if err != nil {
-			t.promise.Reject(errors.Trace(err))
-		} else {
-			t.transport = transport
-			t.promise.Resolve()
-		}
-	})
-}
+func (t *TransportRequest) start(ctx context.Context) {
+	defer close(t.torndown)
 
-func (t *TransportPromise) resolve(transport *StreamTransport) {
-	t.done(transport, nil)
-}
-
-func (t *TransportPromise) reject(err error) {
-	t.done(nil, err)
-}
-
-func (t *TransportPromise) onCancel(handleClose func()) {
-	t.onCancelOnce.Do(func() {
-		t.onCancelHdlr = handleClose
-	})
-}
-
-var ErrCanceled = errors.Errorf("canceled")
-
-// Cancel waits for the transport in another goroutine and closes it as soon as
-// the promise resolves.
-func (t *TransportPromise) Cancel() {
-	t.wg.Add(1)
-
-	go func() {
-		defer t.wg.Done()
-
-		t.cancelOnce.Do(func() {
-			close(t.cancelChan)
-
-			if t.onCancelHdlr != nil {
-				t.onCancelHdlr()
-			}
-
-			_ = t.promise.Wait()
-			if t.transport != nil {
-				t.transport.Close()
-			}
-		})
-	}()
-}
-
-// Wait returns the Transport or error after the promise is resolved or
-// rejected. Promise can be rejected if an error occurs or if a promise is
-// canceled using the Cancel function.
-func (t *TransportPromise) Wait() (*StreamTransport, error) {
-	err := t.promise.Wait()
-	return t.transport, err
-}
-
-// WaitTimeout behaes similar to Wait, except it will automatically cancel the
-// promise after a timeout.
-func (t *TransportPromise) WaitTimeout(d time.Duration) (*StreamTransport, error) {
 	select {
-	case <-t.promise.WaitChannel():
-	case <-time.After(d):
-		t.Cancel()
+	case <-ctx.Done():
+		t.responseChan <- TransportResponse{
+			Err:       errors.Trace(ctx.Err()),
+			Transport: nil,
+		}
+	case res := <-t.setChan:
+		t.responseChan <- res
 	}
-	return t.Wait()
+}
+
+func (t *TransportRequest) set(streamTransport *StreamTransport, err error) {
+	res := TransportResponse{
+		Transport: streamTransport,
+		Err:       err,
+	}
+
+	select {
+	case t.setChan <- res:
+	case <-t.torndown:
+	}
+}
+
+func (t *TransportRequest) Response() <-chan TransportResponse {
+	return t.responseChan
+}
+
+func (t *TransportRequest) Done() <-chan struct{} {
+	return t.torndown
 }
