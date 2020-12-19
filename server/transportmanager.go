@@ -128,6 +128,7 @@ func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportF
 	t.factories[stringMux] = factory
 
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 		<-stringMux.CloseChannel()
@@ -240,6 +241,7 @@ func (t *TransportFactory) addPendingTransport(req *TransportRequest) error {
 
 func (t *TransportFactory) removePendingPromiseWhenDone(req *TransportRequest) {
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 
