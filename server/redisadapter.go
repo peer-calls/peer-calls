@@ -206,8 +206,6 @@ func (a *RedisAdapter) handleMessage(
 		return errors.Annotate(err, "deserialize redis subscription")
 	}
 
-	a.log.Printf("RedisAdapter.handleMessage pattern: %s, channel: %s, type: %s", pattern, channel, msg.Type)
-
 	handleRoomJoin := func() error {
 		a.clientsMu.RLock()
 		clients := a.localClients()
@@ -287,8 +285,6 @@ func (a *RedisAdapter) handleMessage(
 	case pattern == a.keys.clientPattern:
 		err = errors.Trace(handlePattern())
 	}
-
-	a.log.Printf("RedisAdapter.handleMessage done (err: %s)", err)
 
 	return errors.Trace(err)
 }
