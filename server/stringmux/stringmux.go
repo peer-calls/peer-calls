@@ -230,6 +230,10 @@ func (m *StringMux) Close() error {
 	case <-m.torndownChan:
 	}
 
+	for range m.newConnChan {
+		// Empty the newConnChan in case there is a new connection blocking on send.
+	}
+
 	<-m.torndownChan
 
 	return nil
