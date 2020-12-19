@@ -1,6 +1,7 @@
 package stringmux
 
 import (
+	"context"
 	"io"
 	"net"
 
@@ -58,11 +59,12 @@ func New(params Params) *StringMux {
 }
 
 func (m *StringMux) start() {
+	readCtx, readCancel := context.WithCancel(context.Background())
 	readingDone := make(chan struct{})
 
 	go func() {
 		defer close(readingDone)
-		m.startReading()
+		m.startReading(readCtx)
 	}()
 
 	conns := map[string]*conn{}
@@ -70,6 +72,7 @@ func (m *StringMux) start() {
 	defer func() {
 		_ = m.params.Conn.Close()
 
+		readCancel()
 		<-readingDone
 
 		for _, conn := range conns {
@@ -158,8 +161,9 @@ func (m *StringMux) start() {
 	}
 }
 
-func (m *StringMux) startReading() {
+func (m *StringMux) startReading(ctx context.Context) {
 	buf := make([]byte, m.params.MTU)
+	done := ctx.Done()
 
 	for {
 		i, err := m.params.Conn.Read(buf)
@@ -186,7 +190,7 @@ func (m *StringMux) startReading() {
 		select {
 		case m.remotePacketsChan <- pkt:
 			// OK
-		case <-m.torndownChan:
+		case <-done:
 			return
 		}
 	}

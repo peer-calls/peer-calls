@@ -1,6 +1,7 @@
 package udpmux
 
 import (
+	"context"
 	"io"
 	"net"
 
@@ -94,11 +95,12 @@ func (m *UDPMux) GetConn(raddr net.Addr) (Conn, error) {
 }
 
 func (m *UDPMux) startLoop() {
+	readCtx, readCancel := context.WithCancel(context.Background())
 	readingDone := make(chan struct{})
 
 	go func() {
 		defer close(readingDone)
-		m.startReading()
+		m.startReading(readCtx)
 	}()
 
 	conns := map[string]*conn{}
@@ -106,6 +108,7 @@ func (m *UDPMux) startLoop() {
 	defer func() {
 		_ = m.params.Conn.Close()
 
+		readCancel()
 		<-readingDone
 
 		for _, conn := range conns {
@@ -195,8 +198,9 @@ func (m *UDPMux) startLoop() {
 	}
 }
 
-func (m *UDPMux) startReading() {
+func (m *UDPMux) startReading(ctx context.Context) {
 	buf := make([]byte, m.params.MTU)
+	done := ctx.Done()
 
 	for {
 		i, raddr, err := m.params.Conn.ReadFrom(buf)
@@ -216,7 +220,7 @@ func (m *UDPMux) startReading() {
 		select {
 		case m.remotePacketsChan <- pkt:
 			// OK
-		case <-m.torndownChan:
+		case <-done:
 			return
 		}
 	}
