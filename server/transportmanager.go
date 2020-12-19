@@ -1,11 +1,12 @@
 package server
 
 import (
-	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/promise"
 	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/udpmux"
@@ -51,10 +52,11 @@ type TransportManagerParams struct {
 
 func NewTransportManager(params TransportManagerParams) *TransportManager {
 	udpMux := udpmux.New(udpmux.Params{
-		Conn:          params.Conn,
-		MTU:           uint32(receiveMTU),
-		LoggerFactory: params.LoggerFactory,
-		ReadChanSize:  100,
+		Conn:           params.Conn,
+		MTU:            uint32(receiveMTU),
+		LoggerFactory:  params.LoggerFactory,
+		ReadChanSize:   100,
+		ReadBufferSize: 0,
 	})
 
 	t := &TransportManager{
@@ -67,6 +69,7 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 	}
 
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 		t.start()
@@ -108,10 +111,6 @@ func (t *TransportManager) start() {
 	}
 }
 
-func (t *TransportManager) create(conn udpmux.Conn) {
-	t.createServerTransportFactory(conn)
-}
-
 // createServerTransportFactory creates a new ServerTransportFactory for the
 // provided connection.
 func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*ServerTransportFactory, error) {
@@ -119,10 +118,11 @@ func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*Serv
 	defer t.mu.Unlock()
 
 	stringMux := stringmux.New(stringmux.Params{
-		LoggerFactory: t.params.LoggerFactory,
-		Conn:          conn,
-		MTU:           uint32(receiveMTU), // TODO not sure if this is ok
-		ReadChanSize:  100,
+		LoggerFactory:  t.params.LoggerFactory,
+		Conn:           conn,
+		MTU:            uint32(receiveMTU), // TODO not sure if this is ok
+		ReadChanSize:   100,
+		ReadBufferSize: 0,
 	})
 
 	factory := NewServerTransportFactory(t.params.LoggerFactory, &t.wg, stringMux)
@@ -145,7 +145,7 @@ func (t *TransportManager) createServerTransportFactory(conn udpmux.Conn) (*Serv
 func (t *TransportManager) AcceptTransportFactory() (*ServerTransportFactory, error) {
 	factory, ok := <-t.factoriesChan
 	if !ok {
-		return nil, fmt.Errorf("TransportManager is tearing down")
+		return nil, errors.Annotate(io.ErrClosedPipe, "TransportManager is tearing down")
 	}
 	return factory, nil
 }
@@ -153,7 +153,7 @@ func (t *TransportManager) AcceptTransportFactory() (*ServerTransportFactory, er
 func (t *TransportManager) GetTransportFactory(raddr net.Addr) (*ServerTransportFactory, error) {
 	conn, err := t.udpMux.GetConn(raddr)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting conn for raddr %s: %w", raddr, err)
+		return nil, errors.Annotatef(err, "getting conn for raddr: %s", raddr)
 	}
 
 	return t.createServerTransportFactory(conn)
@@ -262,14 +262,14 @@ func (t *ServerTransportFactory) AcceptTransport() *TransportPromise {
 
 	if err != nil {
 		tp := NewTransportPromise("", t.wg)
-		tp.reject(fmt.Errorf("Error AcceptTransport: %w", err))
+		tp.reject(errors.Annotate(err, "accept transport"))
 		return tp
 	}
 
 	tp := NewTransportPromise(conn.StreamID(), t.wg)
 
 	if !t.addPendingPromise(tp) {
-		tp.reject(fmt.Errorf("Promise or tranport already exists: %w", err))
+		tp.reject(errors.Annotate(err, "promise or tranport already exists"))
 		return tp
 	}
 
@@ -308,7 +308,7 @@ func (t *ServerTransportFactory) createTransportAsync(tp *TransportPromise, conn
 
 	if err != nil {
 		localMux.Close()
-		tp.done(nil, fmt.Errorf("Error creating 's' and 'r' conns for raddr: %s %s: %w", raddr, streamID, err))
+		tp.done(nil, errors.Annotatef(err, "creating 's' and 'r' conns for raddr: %s %s", raddr, streamID))
 		return
 	}
 
@@ -423,7 +423,7 @@ func (t *ServerTransportFactory) createTransport(
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Error creating sctp association for raddr: %s %s: %w", raddr, streamID, err)
+		return nil, errors.Annotatef(err, "creating sctp association for raddr: %s %s", raddr, streamID)
 	}
 
 	// TODO check if handling association.Accept is necessary since OpenStream
@@ -433,19 +433,24 @@ func (t *ServerTransportFactory) createTransport(
 	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		association.Close()
-		return nil, fmt.Errorf("Error creating metadata sctp stream for raddr: %s %s: %w", raddr, streamID, err)
+		return nil, errors.Annotatef(err, "creating metadata sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
 	dataStream, err := association.OpenStream(1, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		metadataStream.Close()
 		association.Close()
-		return nil, fmt.Errorf("Error creating data sctp stream for raddr: %s %s: %w", raddr, streamID, err)
+		return nil, errors.Annotatef(err, "creating data sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
 	transport := NewServerTransport(t.loggerFactory, mediaConn, dataStream, metadataStream)
 
-	streamTransport := &StreamTransport{transport, streamID, association, localMux}
+	streamTransport := &StreamTransport{
+		Transport:   transport,
+		StreamID:    streamID,
+		association: association,
+		stringMux:   localMux,
+	}
 
 	t.mu.Lock()
 	t.transports[streamID] = streamTransport
@@ -493,7 +498,7 @@ func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise
 	tp := NewTransportPromise(streamID, t.wg)
 
 	if !t.addPendingPromise(tp) {
-		tp.reject(fmt.Errorf("Promise or transport already exists: %s", streamID))
+		tp.reject(errors.Errorf("promise or transport already exists: %s", streamID))
 		return tp
 	}
 
@@ -502,7 +507,7 @@ func (t *ServerTransportFactory) NewTransport(streamID string) *TransportPromise
 	conn, err := t.stringMux.GetConn(streamID)
 
 	if err != nil {
-		tp.reject(fmt.Errorf("Error retrieving transport conn: %s: %s", streamID, err))
+		tp.reject(errors.Annotatef(err, "retrieving transport conn: %s", streamID))
 		return tp
 	}
 
@@ -574,7 +579,7 @@ func (t *TransportPromise) onCancel(handleClose func()) {
 	})
 }
 
-var ErrCanceled = fmt.Errorf("Canceled")
+var ErrCanceled = errors.Errorf("canceled")
 
 // Cancel waits for the transport in another goroutine and closes it as soon as
 // the promise resolves.

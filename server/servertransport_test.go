@@ -16,9 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type A = net.Conn
-type B = net.PacketConn
-
 func newUDPServer() *net.UDPConn {
 	laddr := &net.UDPAddr{
 		Port: 1234,

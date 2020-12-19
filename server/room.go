@@ -1,8 +1,10 @@
 package server
 
 import (
-	"fmt"
+	"io"
 	"sync"
+
+	"github.com/juju/errors"
 )
 
 type NewAdapterFunc func(room string) Adapter
@@ -103,7 +105,10 @@ func (r *ChannelRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
 
 	adapter, isNew = r.roomManager.Enter(room)
 	if isNew && !r.isClosed() {
-		r.roomEventsChan <- RoomEvent{room, RoomEventTypeAdd}
+		r.roomEventsChan <- RoomEvent{
+			RoomName: room,
+			Type:     RoomEventTypeAdd,
+		}
 	}
 	return adapter, isNew
 }
@@ -114,7 +119,10 @@ func (r *ChannelRoomManager) Exit(room string) (isRemoved bool) {
 
 	isRemoved = r.roomManager.Exit(room)
 	if isRemoved && !r.isClosed() {
-		r.roomEventsChan <- RoomEvent{room, RoomEventTypeRemove}
+		r.roomEventsChan <- RoomEvent{
+			RoomName: room,
+			Type:     RoomEventTypeRemove,
+		}
 	}
 	return isRemoved
 }
@@ -122,7 +130,7 @@ func (r *ChannelRoomManager) Exit(room string) (isRemoved bool) {
 func (r *ChannelRoomManager) AcceptEvent() (RoomEvent, error) {
 	event, ok := <-r.roomEventsChan
 	if !ok {
-		return event, fmt.Errorf("ChannelRoomManager closed")
+		return event, errors.Annotatef(io.ErrClosedPipe, "ChannelRoomManager closed")
 	}
 
 	return event, nil
