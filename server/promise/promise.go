@@ -1,6 +1,10 @@
 package promise
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/juju/errors"
+)
 
 type promise struct {
 	err    error
@@ -31,7 +35,7 @@ func New() Promise {
 
 func (p *promise) done(err error) {
 	p.once.Do(func() {
-		p.err = err
+		p.err = errors.Trace(err)
 		close(p.doneCh)
 	})
 }
@@ -41,12 +45,13 @@ func (p *promise) Resolve() {
 }
 
 func (p *promise) Reject(err error) {
-	p.done(err)
+	p.done(errors.Trace(err))
 }
 
 func (p *promise) Wait() error {
 	<-p.doneCh
-	return p.err
+
+	return errors.Trace(p.err)
 }
 
 func (p *promise) WaitChannel() <-chan struct{} {

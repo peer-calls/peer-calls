@@ -1,14 +1,16 @@
 package promise_test
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/promise"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPromise_Resolve(t *testing.T) {
+	t.Parallel()
+
 	p := promise.New()
 
 	go func() {
@@ -20,6 +22,8 @@ func TestPromise_Resolve(t *testing.T) {
 }
 
 func TestPromise_Reject(t *testing.T) {
+	t.Parallel()
+
 	p := promise.New()
 
 	errTest := errors.New("test")
@@ -29,5 +33,5 @@ func TestPromise_Reject(t *testing.T) {
 	}()
 
 	err := p.Wait()
-	assert.Equal(t, errTest, err)
+	assert.Equal(t, errTest, errors.Cause(err))
 }

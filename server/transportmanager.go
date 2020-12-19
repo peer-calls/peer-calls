@@ -557,7 +557,7 @@ func (t *TransportPromise) StreamID() string {
 func (t *TransportPromise) done(transport *StreamTransport, err error) {
 	t.resolveOnce.Do(func() {
 		if err != nil {
-			t.promise.Reject(err)
+			t.promise.Reject(errors.Trace(err))
 		} else {
 			t.transport = transport
 			t.promise.Resolve()

@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+
+	"github.com/juju/errors"
 )
 
 type Track interface {
@@ -84,7 +86,7 @@ func (s *SimpleTrack) UnmarshalJSON(data []byte) error {
 	s.id = j.ID
 	s.label = j.Label
 
-	return err
+	return errors.Annotatef(err, "unmarshal simple track json")
 }
 
 type UserTrack struct {
@@ -165,7 +167,7 @@ func (t *UserTrack) UnmarshalJSON(data []byte) error {
 	t.userID = j.UserID
 	t.roomID = j.RoomID
 
-	return err
+	return errors.Annotatef(err, "unmarshal user track json")
 }
 
 var _ Track = UserTrack{}

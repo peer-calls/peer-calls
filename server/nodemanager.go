@@ -3,6 +3,8 @@ package server
 import (
 	"net"
 	"sync"
+
+	"github.com/juju/errors"
 )
 
 type NodeManager struct {
@@ -26,9 +28,8 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 	logger := params.LoggerFactory.GetLogger("nodemanager")
 
 	conn, err := net.ListenUDP("udp", params.ListenAddr)
-
 	if err != nil {
-		return nil, err
+		return nil, errors.Annotatef(err, "listen udp: %s", params.ListenAddr)
 	}
 
 	logger.Printf("Listening on UDP port: %s", conn.LocalAddr().String())

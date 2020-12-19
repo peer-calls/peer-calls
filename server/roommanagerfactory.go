@@ -1,5 +1,7 @@
 package server
 
+import "github.com/juju/errors"
+
 type RoomManagerFactory struct {
 	params *RoomManagerFactoryParams
 	logger Logger
@@ -26,6 +28,7 @@ func (rmf *RoomManagerFactory) NewRoomManager(c NetworkConfig) (RoomManager, *No
 		if err == nil {
 			return roomManager, nodeManager
 		}
+
 		rmf.logger.Println("Error creating NodeTransport, falling back to single SFU")
 	}
 
@@ -38,12 +41,12 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 ) (*ChannelRoomManager, *NodeManager, error) {
 	listenAddr, err := ParseUDPAddr(c.SFU.Transport.ListenAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Annotatef(err, "parse UDP addr")
 	}
 
 	nodes, err := ParseUDPAddrs(c.SFU.Transport.Nodes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Annotatef(err, "parse UDP addrs")
 	}
 
 	channelRoomManager := NewChannelRoomManager(rooms)
@@ -55,10 +58,9 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 		RoomManager:   channelRoomManager,
 		TracksManager: rmf.params.TracksManager,
 	})
-
 	if err != nil {
 		channelRoomManager.Close()
-		return nil, nil, err
+		return nil, nil, errors.Annotatef(err, "new node manager")
 	}
 
 	return channelRoomManager, nodeManager, nil

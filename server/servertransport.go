@@ -8,15 +8,16 @@ import (
 
 	"sync/atomic"
 
+	"github.com/juju/errors"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
 
-var receiveMTU int = 8192
+const receiveMTU int = 8192
 
-var ErrNoData = fmt.Errorf("cannot handle empty buffer")
-var ErrUnknownPacket = fmt.Errorf("unknown packet")
+var ErrNoData = errors.Errorf("cannot handle empty buffer")
+var ErrUnknownPacket = errors.Errorf("unknown packet")
 
 // ServerTransport is used for server to server communication. The underlying
 // transport protocol is SCTP, and the following data is transferred:
@@ -56,7 +57,6 @@ func NewServerTransport(
 	dataConn io.ReadWriteCloser,
 	metadataConn io.ReadWriteCloser,
 ) *ServerTransport {
-
 	clientID := fmt.Sprintf("node:" + NewUUIDBase62())
 	logger := loggerFactory.GetLogger("servertransport")
 	logger.Printf("NewServerTransport: %s", clientID)
@@ -85,24 +85,17 @@ func (t *ServerTransport) CloseChannel() <-chan struct{} {
 }
 
 func (t *ServerTransport) Close() (err error) {
-	errors := make([]error, 3)
+	var errs MultiErrorHandler
 
-	errors[0] = t.ServerDataTransport.Close()
-	errors[1] = t.ServerMediaTransport.Close()
-	errors[2] = t.ServerMetadataTransport.Close()
+	errs.Add(t.ServerDataTransport.Close())
+	errs.Add(t.ServerMediaTransport.Close())
+	errs.Add(t.ServerMetadataTransport.Close())
 
 	t.closeOnce.Do(func() {
 		close(t.closeChan)
 	})
 
-	for _, oneError := range errors {
-		if oneError != nil {
-			err = oneError
-			break
-		}
-	}
-
-	return err
+	return errs.Err()
 }
 
 type ServerMediaTransport struct {
@@ -195,10 +188,12 @@ func (t *ServerMediaTransport) handle(buf []byte) error {
 
 func (t *ServerMediaTransport) handleRTP(buf []byte) error {
 	pkt := &rtp.Packet{}
+
 	err := pkt.Unmarshal(buf)
 	if err != nil {
-		return fmt.Errorf("Erorr unmarshalling RTP packet: %w", err)
+		return errors.Annotatef(err, "unmarshal RTP")
 	}
+
 	t.rtpCh <- pkt
 	return nil
 }
@@ -206,19 +201,21 @@ func (t *ServerMediaTransport) handleRTP(buf []byte) error {
 func (t *ServerMediaTransport) handleRTCP(buf []byte) error {
 	pkts, err := rtcp.Unmarshal(buf)
 	if err != nil {
-		return fmt.Errorf("Error unmarshalling RTCP packet: %w", err)
+		return errors.Annotatef(err, "unmarshal RTCP")
 	}
+
 	// TODO we should probably keep RTCP packets together.
 	for _, pkt := range pkts {
 		t.rtcpCh <- pkt
 	}
+
 	return nil
 }
 
 func (t *ServerMediaTransport) WriteRTCP(p []rtcp.Packet) error {
 	b, err := rtcp.Marshal(p)
 	if err != nil {
-		return err
+		return errors.Annotatef(err, "marshal RTCP")
 	}
 
 	i, err := t.conn.Write(b)
@@ -228,13 +225,13 @@ func (t *ServerMediaTransport) WriteRTCP(p []rtcp.Packet) error {
 		atomic.AddInt64(&t.stats.sentBytes, int64(i))
 	}
 
-	return err
+	return errors.Annotatef(err, "write RTCP")
 }
 
 func (t *ServerMediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
 	b, err := p.Marshal()
 	if err != nil {
-		return 0, err
+		return 0, errors.Annotatef(err, "marshal RTP")
 	}
 
 	i, err := t.conn.Write(b)
@@ -244,7 +241,7 @@ func (t *ServerMediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
 		atomic.AddInt64(&t.stats.sentBytes, int64(i))
 	}
 
-	return i, err
+	return i, errors.Annotatef(err, "write RTP")
 }
 
 func (t *ServerMediaTransport) RTPChannel() <-chan *rtp.Packet {
@@ -283,6 +280,7 @@ func (t *ServerDataTransport) start() {
 	defer close(t.messagesChan)
 
 	buf := make([]byte, receiveMTU)
+
 	for {
 		i, err := t.conn.Read(buf)
 		if err != nil {
@@ -477,12 +475,12 @@ func (t *ServerMetadataTransport) sendTrackEvent(trackEvent TrackEvent) error {
 	b, err := json.Marshal(trackEvent)
 
 	if err != nil {
-		return fmt.Errorf("sendTrackEvent: error marshaling trackEvent to JSON: %w", err)
+		return errors.Annotatef(err, "sendTrackEvent: marshal")
 	}
 
 	_, err = t.conn.Write(b)
 
-	return err
+	return errors.Annotatef(err, "sendTrackEvent: write")
 }
 
 func (t *ServerMetadataTransport) getCodecType(payloadType uint8) webrtc.RTPCodecType {
@@ -503,7 +501,7 @@ func (t *ServerMetadataTransport) RemoveTrack(ssrc uint32) error {
 	t.mu.Unlock()
 
 	if !ok {
-		return fmt.Errorf("RemoveTrack: Track not found: %d", ssrc)
+		return errors.Errorf("remove track: not found: %d", ssrc)
 	}
 
 	trackEvent := TrackEvent{
