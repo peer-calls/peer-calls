@@ -211,7 +211,7 @@ func (m *UDPMux) startReading() {
 			raddr: raddr,
 		}
 
-		copy(pkt.bytes, buf)
+		copy(pkt.bytes, buf[:i])
 
 		select {
 		case m.remotePacketsChan <- pkt:
