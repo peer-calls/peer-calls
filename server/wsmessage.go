@@ -6,11 +6,6 @@ import (
 	"github.com/juju/errors"
 )
 
-const (
-	MessageTypeRoomJoin  string = "ws_room_join"
-	MessageTypeRoomLeave string = "ws_room_leave"
-)
-
 type Serializer interface {
 	Serialize(message Message) ([]byte, error)
 }
@@ -23,14 +18,28 @@ type Deserializer interface {
 type Message struct {
 	// Types 0-10 are reserved for base functionality, others can be used for
 	// custom implementations.
-	Type string `json:"type"`
+	Type MessageType `json:"type"`
 	// Room this message is related to
 	Room string `json:"room"`
 	// Payload content
 	Payload interface{} `json:"payload"`
 }
 
-func NewMessage(typ string, room string, payload interface{}) Message {
+type MessageType string
+
+const (
+	MessageTypeHangUp MessageType = "hangUp"
+	MessageTypeReady  MessageType = "ready"
+	MessageTypeSignal MessageType = "signal"
+	MessageTypePing   MessageType = "ping"
+
+	MessageTypeRoomJoin  MessageType = "ws_room_join"
+	MessageTypeRoomLeave MessageType = "ws_room_leave"
+
+	MessageTypeUsers MessageType = "users"
+)
+
+func NewMessage(typ MessageType, room string, payload interface{}) Message {
 	return Message{Type: typ, Room: room, Payload: payload}
 }
 

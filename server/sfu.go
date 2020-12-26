@@ -107,13 +107,13 @@ func (sh *SocketHandler) HandleMessage(message Message) error {
 	defer sh.mu.Unlock()
 
 	switch message.Type {
-	case "hangUp":
+	case MessageTypeHangUp:
 		return sh.handleHangUp(message)
-	case "ready":
+	case MessageTypeReady:
 		return sh.handleReady(message)
-	case "signal":
+	case MessageTypeSignal:
 		return sh.handleSignal(message)
-	case "ping":
+	case MessageTypePing:
 		return nil
 	}
 

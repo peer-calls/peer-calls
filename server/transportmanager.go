@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -427,18 +428,22 @@ func (t *TransportFactory) createTransport(
 	server bool,
 ) (*StreamTransport, error) {
 	sctpConfig := sctp.Config{
-		NetConn:       sctpConn,
-		LoggerFactory: NewPionLoggerFactory(t.loggerFactory),
+		NetConn:              sctpConn,
+		LoggerFactory:        NewPionLoggerFactory(t.loggerFactory),
+		MaxMessageSize:       0,
+		MaxReceiveBufferSize: 0,
 	}
 
-	var association *sctp.Association
-	var err error
+	var (
+		association *sctp.Association
+		err         error
+	)
 
-	// if server {
-	// 	association, err = sctp.Server(sctpConfig)
-	// } else {
-	association, err = sctp.Client(sctpConfig)
-	// }
+	if server {
+		association, err = sctp.Server(sctpConfig)
+	} else {
+		association, err = sctp.Client(sctpConfig)
+	}
 
 	if err != nil {
 		return nil, errors.Annotatef(err, "creating sctp association for raddr: %s %s", raddr, streamID)
@@ -563,6 +568,7 @@ type TransportResponse struct {
 }
 
 func NewTransportRequest(ctx context.Context, streamID string) *TransportRequest {
+	fmt.Println("NewTransportRequest", streamID)
 	ctx, cancel := context.WithCancel(ctx)
 
 	t := &TransportRequest{
@@ -592,6 +598,7 @@ func (t *TransportRequest) StreamID() string {
 }
 
 func (t *TransportRequest) start(ctx context.Context) {
+	defer fmt.Println("NewTransportRequets DONE", t.streamID)
 	defer close(t.torndown)
 
 	select {

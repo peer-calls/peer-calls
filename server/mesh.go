@@ -26,15 +26,15 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			clientID := sub.ClientID
 
 			var (
-				responseEventName string
+				responseEventName MessageType
 				err               error
 			)
 
 			switch msg.Type {
-			case "hangUp":
+			case MessageTypeHangUp:
 				log.Printf("[%s] hangUp event", clientID)
 				adapter.SetMetadata(clientID, "")
-			case "ready":
+			case MessageTypeReady:
 				// FIXME check for errors
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
@@ -44,26 +44,23 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 					log.Printf("Error retrieving clients: %s", readyClientsErr)
 				}
 
-				responseEventName = "users"
-
 				log.Printf("Got clients: %s", clients)
 
 				err = adapter.Broadcast(
-					NewMessage(responseEventName, room, map[string]interface{}{
+					NewMessage(MessageTypeUsers, room, map[string]interface{}{
 						"initiator": clientID,
 						"peerIds":   clientsToPeerIDs(clients),
 						"nicknames": clients,
 					}),
 				)
 				err = errors.Annotatef(err, "ready broadcast")
-			case "signal":
+			case MessageTypeSignal:
 				payload, _ := msg.Payload.(map[string]interface{})
 				signal := payload["signal"]
 				targetClientID, _ := payload["userId"].(string)
 
-				responseEventName = "signal"
 				log.Printf("Send signal from: %s to %s", clientID, targetClientID)
-				err = adapter.Emit(targetClientID, NewMessage(responseEventName, room, map[string]interface{}{
+				err = adapter.Emit(targetClientID, NewMessage(MessageTypeSignal, room, map[string]interface{}{
 					"userId": clientID,
 					"signal": signal,
 				}))

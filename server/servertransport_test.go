@@ -116,6 +116,7 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 	require.Equal(t, 1, len(sentPkts))
 
 	expected := map[uint16][]byte{}
+
 	for _, pkt := range sentPkts {
 		b, err := pkt.Marshal()
 		require.NoError(t, err)
@@ -123,6 +124,7 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 	}
 
 	actual := map[uint16][]byte{}
+
 	for i := 0; i < len(sentPkts); i++ {
 		pkt := <-t2.RTPChannel()
 		b, err := pkt.Marshal()
@@ -180,6 +182,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	plf := NewPionLoggerFactory(loggerFactory)
 
 	var wg sync.WaitGroup
+
 	wg.Add(2)
 
 	// SCTP needs to be started in separate goroutines because creating a new
@@ -192,6 +195,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 		c1, err = sctp.Client(sctp.Config{
 			NetConn:              conn1,
 			MaxReceiveBufferSize: uint32(receiveMTU),
+			MaxMessageSize:       0,
 			LoggerFactory:        plf,
 		})
 		require.NoError(t, err)
@@ -205,6 +209,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 		c2, err = sctp.Client(sctp.Config{
 			NetConn:              conn2,
 			MaxReceiveBufferSize: uint32(receiveMTU),
+			MaxMessageSize:       0,
 			LoggerFactory:        plf,
 		})
 		require.NoError(t, err)
@@ -221,15 +226,27 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	// need to call write before accepting stream
 	t.Log("write")
 	i, err := s1.Write([]byte("ping"))
+	require.NoError(t, err)
 	require.Equal(t, 4, i)
 
 	t.Log("accept stream")
 	s2, err := c2.AcceptStream()
 	require.NoError(t, err)
+	assert.Equal(t, uint16(1), s2.StreamIdentifier())
 
 	t.Log("recv")
 	buf := make([]byte, 4)
 	i, err = s2.Read(buf)
+	assert.NoError(t, err)
 	assert.Equal(t, 4, i)
 	assert.Equal(t, "ping", string(buf))
+
+	conn1.Close()
+	i, err = s2.Write([]byte("second"))
+	require.NoError(t, err)
+	require.Equal(t, 6, i)
+
+	// b := make([]byte, 128)
+	// _, err = s2.Read(b)
+	// require.NoError(t, err)
 }

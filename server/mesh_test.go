@@ -169,12 +169,12 @@ func TestMesh_event_ready(t *testing.T) {
 	ws := mustDialWS(t, ctx, url)
 	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
-	mustWriteWS(t, ctx, ws, server.NewMessage("ready", "test-room", map[string]interface{}{
+	mustWriteWS(t, ctx, ws, server.NewMessage(server.MessageTypeReady, "test-room", map[string]interface{}{
 		"nickname": "abc",
 	}))
 	// msg := mustReadWS(t, ctx, ws)
 	msg := <-rooms.broadcast
-	assert.Equal(t, "users", msg.Type)
+	assert.Equal(t, server.MessageTypeUsers, msg.Type)
 	payload, ok := msg.Payload.(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, map[string]interface{}{
@@ -199,14 +199,14 @@ func TestMesh_event_signal(t *testing.T) {
 	defer ws.Close(websocket.StatusGoingAway, "")
 	otherClientID := "other-user"
 	var signal interface{} = "a-signal"
-	mustWriteWS(t, ctx, ws, server.NewMessage("signal", "test-room", map[string]interface{}{
+	mustWriteWS(t, ctx, ws, server.NewMessage(server.MessageTypeSignal, "test-room", map[string]interface{}{
 		"userId": otherClientID,
 		"signal": signal,
 	}))
 	emit, ok := <-rooms.emit
 	require.True(t, ok, "rooms.emit channel is closed")
 	assert.Equal(t, emit.clientID, otherClientID)
-	assert.Equal(t, "signal", emit.message.Type)
+	assert.Equal(t, server.MessageTypeSignal, emit.message.Type)
 	payload, ok := emit.message.Payload.(map[string]interface{})
 	require.True(t, ok, "unexpected payload type: %s", emit.message.Payload)
 	assert.Equal(t, signal, payload["signal"])

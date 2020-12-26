@@ -7,7 +7,7 @@ import (
 )
 
 func TestMessageSerializeDeserialize(t *testing.T) {
-	typ := "test-type"
+	typ := MessageType("test-type")
 	room := "test-room"
 	payload := "test-payload"
 	m1 := NewMessage(typ, room, payload)

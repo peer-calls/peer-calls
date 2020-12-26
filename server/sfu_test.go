@@ -52,8 +52,7 @@ func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Messa
 		select {
 		case msg := <-ch:
 			// t.Log("1 msg.Type", msg)
-			if msg.Type == "users" {
-				assert.Equal(t, "users", msg.Type)
+			if msg.Type == server.MessageTypeUsers {
 				assert.Equal(t, roomName, msg.Room)
 				payload := msg.Payload.(map[string]interface{})
 				assert.Equal(t, "__SERVER__", payload["initiator"])
