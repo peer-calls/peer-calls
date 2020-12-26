@@ -3,6 +3,7 @@ package logger_test
 import (
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server/logger"
@@ -140,6 +141,8 @@ func TestGetLogger_Wildcard_Disabled(t *testing.T) {
 
 func TestGetLogger_MaxLen(t *testing.T) {
 	defer test.UnsetEnvPrefix("TESTLOG_")
+	os.Setenv("TESTLOG_LOG", "-a:*:warn,-a:*:info,*")
+	defer test.UnsetEnvPrefix("TESTLOG_")
 	os.Setenv("TESTLOG_LOG", "*")
 	var out strings.Builder
 	loggerFactory := logger.NewFactoryFromEnv("TESTLOG_", &out)
@@ -159,4 +162,26 @@ func TestGetLogger_MaxLen(t *testing.T) {
 	assert.Regexp(t, " \\[ 12345678901234] a", result[0])
 	assert.Regexp(t, " \\[123456789012345] b", result[1])
 	assert.Regexp(t, " \\[234567890123456] c", result[2])
+}
+
+func BenchmarkLogger_Enabled(b *testing.B) {
+	defer test.UnsetEnvPrefix("TESTLOG_")
+	os.Setenv("TESTLOG_LOG", "a:info")
+
+	factory := logger.NewFactoryFromEnv("TESTLOG_", os.Stderr)
+
+	log := factory.GetLogger("a:info")
+
+	var thread int64
+
+	b.RunParallel(func(pb *testing.PB) {
+		curThread := atomic.AddInt64(&thread, 1)
+
+		var n int64
+
+		for pb.Next() {
+			curN := atomic.AddInt64(&n, 1)
+			log.Printf("benchmark thread=%d n=%d", curThread, curN)
+		}
+	})
 }
