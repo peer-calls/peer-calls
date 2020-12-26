@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -568,7 +567,6 @@ type TransportResponse struct {
 }
 
 func NewTransportRequest(ctx context.Context, streamID string) *TransportRequest {
-	fmt.Println("NewTransportRequest", streamID)
 	ctx, cancel := context.WithCancel(ctx)
 
 	t := &TransportRequest{
@@ -598,7 +596,6 @@ func (t *TransportRequest) StreamID() string {
 }
 
 func (t *TransportRequest) start(ctx context.Context) {
-	defer fmt.Println("NewTransportRequets DONE", t.streamID)
 	defer close(t.torndown)
 
 	select {
