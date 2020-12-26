@@ -5,11 +5,11 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 type NodeManager struct {
 	params           *NodeManagerParams
-	logger           Logger
 	wg               sync.WaitGroup
 	mu               sync.Mutex
 	transportManager *TransportManager
@@ -17,7 +17,7 @@ type NodeManager struct {
 }
 
 type NodeManagerParams struct {
-	LoggerFactory LoggerFactory
+	Log           logger.Logger
 	RoomManager   *ChannelRoomManager
 	TracksManager TracksManager
 	ListenAddr    *net.UDPAddr
@@ -25,33 +25,38 @@ type NodeManagerParams struct {
 }
 
 func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
-	logger := params.LoggerFactory.GetLogger("nodemanager")
+	params.Log = params.Log.WithNamespaceAppended("node_manager").WithCtx(logger.Ctx{
+		"local_addr": params.ListenAddr,
+	})
 
 	conn, err := net.ListenUDP("udp", params.ListenAddr)
 	if err != nil {
 		return nil, errors.Annotatef(err, "listen udp: %s", params.ListenAddr)
 	}
 
-	logger.Printf("Listening on UDP port: %s", conn.LocalAddr().String())
+	params.Log.Info("Listen on UDP", nil)
 
 	transportManager := NewTransportManager(TransportManagerParams{
-		Conn:          conn,
-		LoggerFactory: params.LoggerFactory,
+		Conn: conn,
+		Log:  params.Log,
 	})
 
 	nm := &NodeManager{
 		params:           &params,
 		transportManager: transportManager,
-		logger:           logger,
 		rooms:            map[string]struct{}{},
 	}
 
 	for _, addr := range params.Nodes {
-		logger.Printf("Configuring remote node: %s", addr.String())
+		log := params.Log.WithCtx(logger.Ctx{
+			"remote_addr": addr,
+		})
+
+		log.Info("Configuring remote node", nil)
 
 		factory, err := transportManager.GetTransportFactory(addr)
 		if err != nil {
-			nm.logger.Println("Error creating transport factory for remote addr: %s", addr)
+			log.Error(errors.Annotate(err, "create transport factory"), nil)
 		}
 
 		nm.handleTransportFactory(factory)
@@ -67,7 +72,7 @@ func (nm *NodeManager) startTransportEventLoop() {
 	for {
 		factory, err := nm.transportManager.AcceptTransportFactory()
 		if err != nil {
-			nm.logger.Printf("Error accepting transport factory: %+v", err)
+			nm.params.Log.Error(errors.Annotate(err, "accept transport factory"), nil)
 
 			return
 		}
@@ -94,7 +99,7 @@ func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 		for {
 			select {
 			case <-doneChan:
-				nm.logger.Printf("Aborting server transport factory goroutine")
+				nm.params.Log.Info("Aborting server transport factory goroutine", nil)
 
 				return
 			default:
@@ -110,7 +115,7 @@ func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 
 				err := <-errChan
 				if err != nil {
-					nm.logger.Printf("Error while waiting for TransportRequest: %+v", err)
+					nm.params.Log.Error(errors.Annotate(err, "wait for transport request"), nil)
 					done()
 				}
 			}()
@@ -131,7 +136,7 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 
 		if err := response.Err; err != nil {
 			errChan <- err
-			nm.logger.Printf("Error waiting for transport promise: %+v", err)
+			nm.params.Log.Error(errors.Annotate(err, "transport promise"), nil)
 			return
 		}
 
@@ -140,7 +145,10 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 		nm.mu.Lock()
 		defer nm.mu.Unlock()
 
-		nm.logger.Printf("Add transport: %s %s %s", req.StreamID(), streamTransport.StreamID, streamTransport.ClientID())
+		nm.params.Log.Info("Add transport", logger.Ctx{
+			"stream_id": req.StreamID(),
+			"client_id": streamTransport.ClientID(),
+		})
 		nm.params.TracksManager.Add(req.StreamID(), streamTransport)
 	}()
 
@@ -151,7 +159,7 @@ func (nm *NodeManager) startRoomEventLoop() {
 	for {
 		roomEvent, err := nm.params.RoomManager.AcceptEvent()
 		if err != nil {
-			nm.logger.Printf("Error accepting room event: %+v", err)
+			nm.params.Log.Error(errors.Annotate(err, "accept room event"), nil)
 
 			return
 		}
@@ -159,13 +167,17 @@ func (nm *NodeManager) startRoomEventLoop() {
 		switch roomEvent.Type {
 		case RoomEventTypeAdd:
 			for _, factory := range nm.transportManager.Factories() {
-				nm.logger.Printf("Creating new transport for room: %s", roomEvent.RoomName)
+				nm.params.Log.Info("Creating new transport", logger.Ctx{
+					"room": roomEvent.RoomName,
+				})
 				transportRequest := factory.NewTransport(roomEvent.RoomName)
 				nm.handleTransportRequest(transportRequest)
 			}
 		case RoomEventTypeRemove:
 			for _, factory := range nm.transportManager.Factories() {
-				nm.logger.Printf("Closing transport for room: %s", roomEvent.RoomName)
+				nm.params.Log.Info("Closing transport", logger.Ctx{
+					"room": roomEvent.RoomName,
+				})
 				factory.CloseTransport(roomEvent.RoomName)
 			}
 		}

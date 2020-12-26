@@ -5,12 +5,13 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/oxtoacart/bpool"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 const defaultBufferPoolSize = 128
 
 type Renderer struct {
-	log Logger
+	log logger.Logger
 
 	bufPool   *bpool.BufferPool
 	templates Templates
@@ -18,9 +19,9 @@ type Renderer struct {
 	BaseURL   string
 }
 
-func NewRenderer(loggerFactory LoggerFactory, templates Templates, baseURL string, version string) *Renderer {
+func NewRenderer(log logger.Logger, templates Templates, baseURL string, version string) *Renderer {
 	return &Renderer{
-		log:       loggerFactory.GetLogger("renderer"),
+		log:       log.WithNamespaceAppended("renderer"),
 		bufPool:   bpool.NewBufferPool(defaultBufferPoolSize),
 		templates: templates,
 		Version:   version,
@@ -40,15 +41,19 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 			return
 		}
 
+		log := tr.log.WithCtx(logger.Ctx{
+			"template_name": templateName,
+		})
+
 		template, ok := tr.templates.Get(templateName)
 		if !ok {
-			tr.log.Println("Template not found:", templateName)
+			tr.log.Error(errors.Errorf("Template not found: %s", templateName), nil)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err != nil {
-			tr.log.Printf("An error occurred: %+v", errors.Trace(err))
+			tr.log.Error(errors.Annotate(err, "render"), nil)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -60,11 +65,12 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 
 		buf := tr.bufPool.Get()
 		defer tr.bufPool.Put(buf)
-		tr.log.Println("Rendering template:", templateName)
+
+		log.Trace("Rendering template", nil)
 
 		err = template.Execute(buf, dataMap)
 		if err != nil {
-			tr.log.Printf("Error rendering template: %s: %+v", templateName, errors.Trace(err))
+			tr.log.Error(errors.Annotate(err, "render"), nil)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -72,7 +78,7 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 
 		if _, err := buf.WriteTo(w); err != nil {
-			tr.log.Printf("Error writing to buffer: %+v", errors.Trace(err))
+			tr.log.Error(errors.Annotate(err, "write to buffer"), nil)
 		}
 	}
 

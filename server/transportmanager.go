@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
@@ -21,7 +22,6 @@ type TransportManager struct {
 	closeOnce     sync.Once
 	mu            sync.Mutex
 	wg            sync.WaitGroup
-	logger        Logger
 
 	factories map[*stringmux.StringMux]*TransportFactory
 }
@@ -45,15 +45,17 @@ func (st *StreamTransport) Close() error {
 }
 
 type TransportManagerParams struct {
-	Conn          net.PacketConn
-	LoggerFactory LoggerFactory
+	Conn net.PacketConn
+	Log  logger.Logger
 }
 
 func NewTransportManager(params TransportManagerParams) *TransportManager {
+	params.Log = params.Log.WithNamespaceAppended("transport_manager")
+
 	udpMux := udpmux.New(udpmux.Params{
 		Conn:           params.Conn,
 		MTU:            uint32(receiveMTU),
-		LoggerFactory:  params.LoggerFactory,
+		Logger:         params.Log,
 		ReadChanSize:   100,
 		ReadBufferSize: 0,
 	})
@@ -64,7 +66,6 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 		closeChan:     make(chan struct{}),
 		factoriesChan: make(chan *TransportFactory),
 		factories:     make(map[*stringmux.StringMux]*TransportFactory),
-		logger:        params.LoggerFactory.GetLogger("transportmanager"),
 	}
 
 	t.wg.Add(1)
@@ -94,15 +95,19 @@ func (t *TransportManager) start() {
 	for {
 		conn, err := t.udpMux.AcceptConn()
 		if err != nil {
-			t.logger.Printf("Error accepting udpMux conn: %+v", err)
+			t.params.Log.Error(errors.Annotate(err, "accept udpmux conn"), nil)
 			return
 		}
 
-		t.logger.Printf("Accept UDP connection: %s", conn.RemoteAddr())
+		log := t.params.Log.WithCtx(logger.Ctx{
+			"remote_addr": conn.RemoteAddr(),
+		})
+
+		log.Info("Accept UDP conn", nil)
 
 		factory, err := t.createTransportFactory(conn)
 		if err != nil {
-			t.logger.Printf("Error creating transport factory: %+v", err)
+			log.Error(errors.Annotate(err, "create transport factory"), nil)
 			return
 		}
 
@@ -117,14 +122,14 @@ func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportF
 	defer t.mu.Unlock()
 
 	stringMux := stringmux.New(stringmux.Params{
-		LoggerFactory:  t.params.LoggerFactory,
+		Logger:         t.params.Log,
 		Conn:           conn,
 		MTU:            uint32(receiveMTU), // TODO not sure if this is ok
 		ReadChanSize:   100,
 		ReadBufferSize: 0,
 	})
 
-	factory := NewTransportFactory(t.params.LoggerFactory, &t.wg, stringMux)
+	factory := NewTransportFactory(t.params.Log, &t.wg, stringMux)
 	t.factories[stringMux] = factory
 
 	t.wg.Add(1)
@@ -195,8 +200,7 @@ func (t *TransportManager) close() error {
 }
 
 type TransportFactory struct {
-	logger            Logger
-	loggerFactory     LoggerFactory
+	log               logger.Logger
 	stringMux         *stringmux.StringMux
 	transportsChan    chan *StreamTransport
 	transports        map[string]*StreamTransport
@@ -206,13 +210,12 @@ type TransportFactory struct {
 }
 
 func NewTransportFactory(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	wg *sync.WaitGroup,
 	stringMux *stringmux.StringMux,
 ) *TransportFactory {
 	return &TransportFactory{
-		logger:            loggerFactory.GetLogger("stfactory"),
-		loggerFactory:     loggerFactory,
+		log:               log.WithNamespaceAppended("transport_factory"),
 		stringMux:         stringMux,
 		transportsChan:    make(chan *StreamTransport),
 		transports:        map[string]*StreamTransport{},
@@ -290,10 +293,10 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	// This can be optimized in the future since a StringMux has a minimal
 	// overhead of 3 bytes, and only a single bit is needed.
 	localMux := stringmux.New(stringmux.Params{
-		Conn:          conn,
-		LoggerFactory: t.loggerFactory,
-		MTU:           uint32(receiveMTU),
-		ReadChanSize:  100,
+		Conn:         conn,
+		Logger:       t.log,
+		MTU:          uint32(receiveMTU),
+		ReadChanSize: 100,
 	})
 
 	// transportCreated will be closed as soon as the goroutine from which
@@ -362,7 +365,10 @@ func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, r
 		if _, ok := reqStreamIDs[conn.StreamID()]; ok {
 			conns[conn.StreamID()] = conn
 		} else {
-			t.logger.Printf("%s Unexpected connection", conn)
+			t.log.Warn("Unexpected conn", logger.Ctx{
+				"stream_id":   conn.StreamID(),
+				"remote_addr": conn.RemoteAddr(),
+			})
 
 			// // drain data from blocking the event loop
 
@@ -428,7 +434,7 @@ func (t *TransportFactory) createTransport(
 ) (*StreamTransport, error) {
 	sctpConfig := sctp.Config{
 		NetConn:              sctpConn,
-		LoggerFactory:        NewPionLoggerFactory(t.loggerFactory),
+		LoggerFactory:        NewPionLoggerFactory(t.log),
 		MaxMessageSize:       0,
 		MaxReceiveBufferSize: 0,
 	}
@@ -465,7 +471,7 @@ func (t *TransportFactory) createTransport(
 		return nil, errors.Annotatef(err, "creating data sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
-	transport := NewServerTransport(t.loggerFactory, mediaConn, dataStream, metadataStream)
+	transport := NewServerTransport(t.log, mediaConn, dataStream, metadataStream)
 
 	streamTransport := &StreamTransport{
 		Transport:   transport,
@@ -509,7 +515,9 @@ func (t *TransportFactory) CloseTransport(streamID string) {
 
 	if transport, ok := t.transports[streamID]; ok {
 		if err := transport.Close(); err != nil {
-			t.logger.Printf("Error closing transport: %s: %+v", streamID, err)
+			t.log.Error(errors.Annotate(err, "close transport"), logger.Ctx{
+				"stream_id": streamID,
+			})
 		}
 	}
 }

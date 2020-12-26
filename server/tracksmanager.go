@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 )
@@ -18,17 +19,15 @@ type TrackMetadata struct {
 }
 
 type MemoryTracksManager struct {
-	loggerFactory       LoggerFactory
-	log                 Logger
+	log                 logger.Logger
 	mu                  sync.RWMutex
 	roomPeersManager    map[string]*RoomPeersManager
 	jitterBufferEnabled bool
 }
 
-func NewMemoryTracksManager(loggerFactory LoggerFactory, jitterBufferEnabled bool) *MemoryTracksManager {
+func NewMemoryTracksManager(log logger.Logger, jitterBufferEnabled bool) *MemoryTracksManager {
 	return &MemoryTracksManager{
-		loggerFactory:       loggerFactory,
-		log:                 loggerFactory.GetLogger("memorytracksmanager"),
+		log:                 log.WithNamespaceAppended("memory_tracks_manager"),
 		roomPeersManager:    map[string]*RoomPeersManager{},
 		jitterBufferEnabled: jitterBufferEnabled,
 	}
@@ -41,11 +40,10 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 	roomPeersManager, ok := m.roomPeersManager[room]
 	if !ok {
 		jitterHandler := NewJitterHandler(
-			m.loggerFactory.GetLogger("jitter"),
-			m.loggerFactory.GetLogger("nack"),
+			log,
 			m.jitterBufferEnabled,
 		)
-		roomPeersManager = NewRoomPeersManager(room, m.loggerFactory, jitterHandler)
+		roomPeersManager = NewRoomPeersManager(room, m.log, jitterHandler)
 		m.roomPeersManager[room] = roomPeersManager
 
 		// TODO Write to RoomEventsChan
@@ -83,9 +81,8 @@ func (m *MemoryTracksManager) GetTracksMetadata(room string, clientID string) (m
 }
 
 type RoomPeersManager struct {
-	loggerFactory LoggerFactory
-	log           Logger
-	mu            sync.RWMutex
+	log logger.Logger
+	mu  sync.RWMutex
 	// key is clientID
 	transports             map[string]Transport
 	jitterHandler          JitterHandler
@@ -94,10 +91,9 @@ type RoomPeersManager struct {
 	room                   string
 }
 
-func NewRoomPeersManager(room string, loggerFactory LoggerFactory, jitterHandler JitterHandler) *RoomPeersManager {
+func NewRoomPeersManager(room string, log logger.Logger, jitterHandler JitterHandler) *RoomPeersManager {
 	return &RoomPeersManager{
-		loggerFactory:          loggerFactory,
-		log:                    loggerFactory.GetLogger("roompeers"),
+		log:                    log.WithNamespaceAppended("room_peers_manager"),
 		transports:             map[string]Transport{},
 		jitterHandler:          jitterHandler,
 		trackBitrateEstimators: NewTrackBitrateEstimators(),

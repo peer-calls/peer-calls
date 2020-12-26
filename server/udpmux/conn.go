@@ -16,7 +16,7 @@ type Conn interface {
 }
 
 type conn struct {
-	debugLogger logger.Logger
+	logger logger.Logger
 
 	conn  net.PacketConn
 	laddr net.Addr
@@ -62,7 +62,9 @@ func (m *conn) Read(b []byte) (int, error) {
 	}
 
 	copy(b, buf)
-	m.debugLogger.Printf("%s recv %v", m, buf)
+	m.logger.Trace("recv", logger.Ctx{
+		"data": buf,
+	})
 
 	return len(buf), nil
 }
@@ -72,7 +74,9 @@ func (m *conn) Write(b []byte) (int, error) {
 	case <-m.torndown:
 		return 0, errors.Annotatef(io.ErrClosedPipe, "raddr: %s", m.raddr)
 	default:
-		m.debugLogger.Printf("%s send %v", m, b)
+		m.logger.Trace("send", logger.Ctx{
+			"data": b,
+		})
 
 		i, err := m.conn.WriteTo(b, m.raddr)
 

@@ -4,199 +4,220 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
-	"sync"
 	"time"
 )
 
-// WriterLogger is a logger that writes to io.Writer when it is enabled.
-type WriterLogger struct {
-	name    string
-	out     io.Writer
-	outMu   sync.Mutex
-	Enabled bool
-}
-
 // Logger is an interface for logger.
 type Logger interface {
-	// Printf formats a message and writes to output. If logger is not enabled,
-	// the message will not be formatted.
-	Printf(message string, values ...interface{})
-	// Println writes all values similar to fmt.Println. If logger is not enabled,
-	// the message will not be formatted
-	Println(values ...interface{})
+	Factory
+
+	// Level returns the current logger's level.
+	Level() Level
+
+	// IsLevelEnabled returns true when Level is enabled, false otherwise.
+	IsLevelEnabled(level Level) bool
+
+	// Trace adds a log entry with level trace.
+	Trace(message string, ctx Ctx) (int, error)
+
+	// Debug adds a log entry with level debug.
+	Debug(message string, ctx Ctx) (int, error)
+
+	// Info adds a log entry with level info.
+	Info(message string, ctx Ctx) (int, error)
+
+	// Warn adds a log entry with level warn.
+	Warn(message string, ctx Ctx) (int, error)
+
+	// Error adds a log entry with level error.
+	Error(err error, ctx Ctx) (int, error)
 }
 
-// LoggerTimeFormat is the time format used by loggers in this package.
-const LoggerTimeFormat = "2006-01-02T15:04:05.000000Z07:00"
-
-// NewWriterLogger creates a new logger.
-func NewWriterLogger(name string, out io.Writer, enabled bool) *WriterLogger {
-	return &WriterLogger{name: name, out: out, Enabled: enabled}
+func A() error {
+	return nil
 }
 
-// Printf implements Logger#Printf func.
-func (l *WriterLogger) Printf(message string, values ...interface{}) {
-	if l.Enabled {
-		l.printf(message, values...)
+type Factory interface {
+	// Ctx returns the current logger's context.
+	Ctx() Ctx
+
+	// WithCtx returns a new Logger with context appended to existing context.
+	WithCtx(Ctx) Logger
+
+	// WithFormatter returns a new Logger with formatter set.
+	WithFormatter(Formatter) Logger
+
+	// WithWriter returns a new Logger with writer set.
+	WithWriter(io.Writer) Logger
+
+	// WithNamespace returns a new Logger with namespace set.
+	WithNamespace(namespace string) Logger
+
+	// WithNamespaceAppended returns a new Logger with namespace appended.
+	WithNamespaceAppended(namespace string) Logger
+
+	// WithConfig returns a new Logger with config set.
+	WithConfig(config Config) Logger
+}
+
+// logger is a logger that writes to io.Writer when it is enabled.
+type logger struct {
+	config    Config
+	ctx       Ctx
+	formatter Formatter
+	writer    io.Writer
+}
+
+// New returns a new Logger with default StringFormatter. Be sure to call
+// WithConfig to set the required levels for different namespaces.
+func New() Logger {
+	return &logger{
+		config:    LevelDisabled,
+		ctx:       nil,
+		formatter: NewStringFormatter(StringFormatterParams{}),
+		writer:    os.Stderr,
 	}
 }
 
-// Println implements Logger#Println func.
-func (l *WriterLogger) Println(values ...interface{}) {
-	if l.Enabled {
-		l.println(values...)
+// compile-time assertion that logger implements Logger.
+var _ Logger = &logger{}
+
+// Ctx implements Logger.
+func (l *logger) Ctx() Ctx {
+	return l.ctx
+}
+
+// WithCtx implements Logger.
+func (l *logger) WithCtx(ctx Ctx) Logger {
+	return &logger{
+		config:    l.config,
+		ctx:       l.ctx.WithCtx(ctx),
+		formatter: l.formatter,
+		writer:    l.writer,
 	}
 }
 
-func (l *WriterLogger) printf(message string, values ...interface{}) {
-	l.outMu.Lock()
-	defer l.outMu.Unlock()
-
-	date := time.Now().Format(LoggerTimeFormat)
-
-	_, _ = l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", getName(l.name, 15)) + fmt.Sprintf(message+"\n", values...)))
-}
-
-func getName(name string, maxlen int) string {
-	if len(name) > maxlen {
-		return name[len(name)-maxlen:]
-	}
-
-	return name
-}
-
-func (l *WriterLogger) println(values ...interface{}) {
-	l.outMu.Lock()
-	defer l.outMu.Unlock()
-
-	date := time.Now().Format(LoggerTimeFormat)
-	_, _ = l.out.Write([]byte(date + fmt.Sprintf(" [%15s] ", getName(l.name, 15)) + fmt.Sprintln(values...)))
-}
-
-// Factory creates new loggers. Only one logger with a specific name
-// will be created.
-type Factory struct {
-	out            io.Writer
-	loggers        map[string]*WriterLogger
-	defaultEnabled []string
-	loggersMu      sync.Mutex
-}
-
-type LoggerFactory interface {
-	GetLogger(name string) Logger
-}
-
-// NewFactory creates a new logger factory. The enabled slice can be used
-// to set the default enabled loggers. Enabled string can contain strings
-// delimited with colon character, and can use wildcards. For example, if a
-// we have a logger with name `myproject:a:b`, it can be enabled by setting
-// the enabled string to `myproject:a:b`, or `myproject:*` or `myproject:*:b`.
-// To disable a logger, add a minus to the beginning of the name. For example,
-// to enable all loggers but one use: `-myproject:a:b,*`.
-func NewFactory(out io.Writer, enabled []string) *Factory {
-	return &Factory{
-		out:            out,
-		loggers:        map[string]*WriterLogger{},
-		defaultEnabled: enabled,
+// WithFormatter implements Logger.
+func (l *logger) WithFormatter(formatter Formatter) Logger {
+	return &logger{
+		config:    l.config,
+		ctx:       l.ctx,
+		formatter: formatter,
+		writer:    l.writer,
 	}
 }
 
-// NewFactoryFromEnv creates a new Factory and reads the enabled
-// loggers from a comma-delimited environment variable.
-func NewFactoryFromEnv(prefix string, out io.Writer) *Factory {
-	log := os.Getenv(prefix + "LOG")
-
-	var enabled []string
-
-	if len(log) > 0 {
-		enabled = strings.Split(log, ",")
-	}
-
-	return NewFactory(out, enabled)
-}
-
-// SetDefaultEnabled sets enabled loggers if the Factory has been
-// initialized with no loggers.
-func (l *Factory) SetDefaultEnabled(names []string) {
-	if len(l.defaultEnabled) == 0 {
-		l.defaultEnabled = names
-		for name, logger := range l.loggers {
-			if !logger.Enabled {
-				logger.Enabled = l.isEnabled(name)
-			}
-		}
+// WithWriter implements Logger.
+func (l *logger) WithWriter(writer io.Writer) Logger {
+	return &logger{
+		config:    l.config,
+		ctx:       l.ctx,
+		formatter: l.formatter,
+		writer:    writer,
 	}
 }
 
-func split(name string) (parts []string) {
-	if len(name) > 0 {
-		parts = strings.Split(name, ":")
+// WithNamespace implements Logger.
+func (l *logger) WithNamespace(namespace string) Logger {
+	return &logger{
+		config: l.config,
+		ctx: l.ctx.WithCtx(Ctx{
+			CtxKeyNamespace: namespace,
+		}),
+		formatter: l.formatter,
+		writer:    l.writer,
 	}
-
-	return
 }
 
-func partsMatch(parts []string, enabledParts []string) bool {
-	isLastWildcard := false
+// WithNamespaceAppended implements Logger.
+func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
+	oldNamespace := l.ctx.Namespace()
 
-	for i, part := range parts {
-		if len(enabledParts) <= i {
-			return isLastWildcard
-		}
-
-		isLastWildcard = false
-		enabledPart := enabledParts[i]
-
-		if enabledPart == part {
-			continue
-		}
-
-		if enabledPart == "*" {
-			isLastWildcard = true
-
-			continue
-		}
-
-		return false
+	if oldNamespace != "" {
+		newNamespace = fmt.Sprintf("%s:%s", oldNamespace, newNamespace)
 	}
 
-	return true
+	return l.WithNamespace(newNamespace)
 }
 
-func (l *Factory) isEnabled(name string) bool {
-	parts := split(name)
-
-	for _, enabledName := range l.defaultEnabled {
-		isEnabled := true
-
-		if strings.HasPrefix(enabledName, "-") {
-			enabledName = enabledName[1:]
-			isEnabled = false
-		}
-
-		enabledParts := split(enabledName)
-
-		if partsMatch(parts, enabledParts) {
-			return isEnabled
-		}
+// WithConfig implements Logger.
+func (l *logger) WithConfig(config Config) Logger {
+	return &logger{
+		config:    config,
+		ctx:       l.ctx,
+		formatter: l.formatter,
+		writer:    l.writer,
 	}
-
-	return false
 }
 
-// GetLogger creates or retrieves an existing logger with name. It is thread
-// safe.
-func (l *Factory) GetLogger(name string) Logger {
-	l.loggersMu.Lock()
-	defer l.loggersMu.Unlock()
-	logger, ok := l.loggers[name]
+// Level implements Logger.
+func (l *logger) Level() Level {
+	return l.config.LevelForNamespace(l.ctx.Namespace())
+}
 
-	if !ok {
-		enabled := l.isEnabled(name)
-		logger = NewWriterLogger(name, l.out, enabled)
-		l.loggers[name] = logger
+// Trace implements Logger.
+func (l *logger) Trace(message string, ctx Ctx) (int, error) {
+	i, err := l.log(time.Now().Unix(), LevelTrace, message, ctx)
+
+	return i, err
+}
+
+// Debug implements Logger.
+func (l *logger) Debug(message string, ctx Ctx) (int, error) {
+	i, err := l.log(time.Now().Unix(), LevelDebug, message, ctx)
+
+	return i, err
+}
+
+// Info implements Logger.
+func (l *logger) Info(message string, ctx Ctx) (int, error) {
+	i, err := l.log(time.Now().Unix(), LevelInfo, message, ctx)
+
+	return i, err
+}
+
+// Warn implements Logger.
+func (l *logger) Warn(message string, ctx Ctx) (int, error) {
+	i, err := l.log(time.Now().Unix(), LevelWarn, message, ctx)
+
+	return i, err
+}
+
+// Error implements Logger.
+func (l *logger) Error(err error, ctx Ctx) (int, error) {
+	i, err := l.log(time.Now().Unix(), LevelError, fmt.Sprintf("%+v", err), ctx)
+
+	return i, err
+}
+
+// IsLevelEnabled implements Logger.
+func (l *logger) IsLevelEnabled(level Level) bool {
+	configuredLevel := l.Level()
+
+	return configuredLevel > 0 && level <= configuredLevel
+}
+
+func (l *logger) log(ts int64, level Level, message string, ctx Ctx) (int, error) {
+	if !l.IsLevelEnabled(level) {
+		return 0, nil
 	}
 
-	return logger
+	mergedCtx := l.ctx.WithCtx(ctx)
+
+	formatted, err := l.formatter.Format(mergedCtx.WithCtx(Ctx{
+		CtxKeyNamespace: mergedCtx.Namespace(),
+		CtxKeyLevel:     level,
+		CtxKeyMessage:   message,
+		CtxKeyTimestamp: ts,
+	}))
+	if err != nil {
+		return 0, fmt.Errorf("log format error: %w", err)
+	}
+
+	i, err := l.writer.Write(formatted)
+	if err != nil {
+		return i, fmt.Errorf("log write error: %w", err)
+	}
+
+	return i, nil
 }

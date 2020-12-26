@@ -14,11 +14,8 @@ const DefaultMTU uint32 = 8192
 type StringMux struct {
 	params *Params
 
-	logger      logger.Logger
-	debugLogger logger.Logger
-
 	getConnRequestChan   chan getConnRequest
-	newConnChan          chan Conn
+	newConnChan          chan *conn
 	closeConnRequestChan chan closeConnRequest
 	remotePacketsChan    chan remotePacket
 
@@ -27,7 +24,7 @@ type StringMux struct {
 }
 
 type Params struct {
-	LoggerFactory  logger.LoggerFactory
+	Logger         logger.Logger
 	Conn           net.Conn
 	MTU            uint32
 	ReadChanSize   int
@@ -35,13 +32,15 @@ type Params struct {
 }
 
 func New(params Params) *StringMux {
+	params.Logger = params.Logger.WithNamespaceAppended("stringmux").WithCtx(logger.Ctx{
+		"local_addr":  params.Conn.LocalAddr(),
+		"remote_addr": params.Conn.RemoteAddr(),
+	})
+
 	m := &StringMux{
 		params: &params,
 
-		logger:      params.LoggerFactory.GetLogger("stringmux:info"),
-		debugLogger: params.LoggerFactory.GetLogger("stringmux:debug"),
-
-		newConnChan:          make(chan Conn),
+		newConnChan:          make(chan *conn),
 		closeConnRequestChan: make(chan closeConnRequest),
 		getConnRequestChan:   make(chan getConnRequest),
 		remotePacketsChan:    make(chan remotePacket, params.ReadBufferSize),
@@ -85,7 +84,9 @@ func (m *StringMux) start() {
 
 	createConn := func(streamID string) *conn {
 		return &conn{
-			debugLogger: m.debugLogger,
+			logger: m.params.Logger.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
+				"stream_id": streamID,
+			}),
 
 			conn:     m.params.Conn,
 			streamID: streamID,
@@ -125,7 +126,7 @@ func (m *StringMux) start() {
 		select {
 		case conn.readChan <- pkt.bytes:
 		default:
-			m.debugLogger.Printf("dropped packet for conn: %s, streamID: %s", conn, streamID)
+			conn.logger.Warn("Dropped packet", nil)
 		}
 	}
 
@@ -168,14 +169,14 @@ func (m *StringMux) startReading(ctx context.Context) {
 	for {
 		i, err := m.params.Conn.Read(buf)
 		if err != nil {
-			m.logger.Printf("Error reading remote data: %s", err)
+			m.params.Logger.Error(errors.Annotate(err, "reading remote data"), nil)
 
 			return
 		}
 
 		streamID, data, err := Unmarshal(buf[:i])
 		if err != nil {
-			m.logger.Printf("Error unmarshaling remote data: %s", err)
+			m.params.Logger.Error(errors.Annotate(err, "unmarshal remote data"), nil)
 
 			return
 		}
@@ -202,7 +203,7 @@ func (m *StringMux) AcceptConn() (Conn, error) {
 		return nil, errors.Annotate(io.ErrClosedPipe, "accept")
 	}
 
-	m.logger.Printf("%s AcceptConn", conn)
+	conn.logger.Info("Accept conn", nil)
 
 	return conn, nil
 }

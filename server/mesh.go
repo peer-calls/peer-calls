@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 type ReadyMessage struct {
@@ -11,19 +13,23 @@ type ReadyMessage struct {
 	Room   string `json:"room"`
 }
 
-func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
-	log := loggerFactory.GetLogger("mesh")
-
+func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		log = log.WithNamespaceAppended("mesh")
+
 		sub, err := wss.Subscribe(w, r)
 		if err != nil {
-			log.Printf("Error subscribing to websocket messages: %s", err)
+			log.Error(errors.Annotate(err, "subscribe to websocket messages"), nil)
 		}
 
 		for msg := range sub.Messages {
 			adapter := sub.Adapter
 			room := sub.Room
 			clientID := sub.ClientID
+
+			log = log.WithCtx(logger.Ctx{
+				"client_id": clientID,
+			})
 
 			var (
 				responseEventName MessageType
@@ -32,7 +38,7 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 
 			switch msg.Type {
 			case MessageTypeHangUp:
-				log.Printf("[%s] hangUp event", clientID)
+				log.Info("hangUp event", nil)
 				adapter.SetMetadata(clientID, "")
 			case MessageTypeReady:
 				// FIXME check for errors
@@ -41,10 +47,10 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 
 				clients, readyClientsErr := getReadyClients(adapter)
 				if readyClientsErr != nil {
-					log.Printf("Error retrieving clients: %s", readyClientsErr)
+					log.Error(errors.Annotate(err, "retrieving clients"), nil)
 				}
 
-				log.Printf("Got clients: %s", clients)
+				log.Info(fmt.Sprintf("Got clients: %s", clients), nil)
 
 				err = adapter.Broadcast(
 					NewMessage(MessageTypeUsers, room, map[string]interface{}{
@@ -59,7 +65,9 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 				signal := payload["signal"]
 				targetClientID, _ := payload["userId"].(string)
 
-				log.Printf("Send signal from: %s to %s", clientID, targetClientID)
+				log.Info("Send signal to", logger.Ctx{
+					"target_client_id": targetClientID,
+				})
 				err = adapter.Emit(targetClientID, NewMessage(MessageTypeSignal, room, map[string]interface{}{
 					"userId": clientID,
 					"signal": signal,
@@ -68,7 +76,10 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			}
 
 			if err != nil {
-				log.Printf("Error sending event (event: %s, room: %s, source: %s)", responseEventName, room, clientID)
+				log.Error(errors.Annotate(err, "sending event"), logger.Ctx{
+					"room":       room,
+					"event_name": responseEventName,
+				})
 			}
 		}
 	}

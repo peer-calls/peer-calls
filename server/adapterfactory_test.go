@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -11,7 +12,7 @@ import (
 func TestNewAdapterFactory_redis(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	f := server.NewAdapterFactory(loggerFactory, server.StoreConfig{
+	f := server.NewAdapterFactory(logger.New(), server.StoreConfig{
 		Type: "redis",
 		Redis: server.RedisConfig{
 			Prefix: "peercalls",

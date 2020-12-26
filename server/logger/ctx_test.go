@@ -1,13 +1,13 @@
-package logger2_test
+package logger_test
 
 import (
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/logger2"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/stretchr/testify/assert"
 )
 
-type Ctx = logger2.Ctx
+type Ctx = logger.Ctx
 
 func TestCtx(t *testing.T) {
 	t.Parallel()

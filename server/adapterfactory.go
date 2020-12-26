@@ -1,11 +1,13 @@
 package server
 
 import (
+	"log"
 	"net"
 	"strconv"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 type AdapterFactory struct {
@@ -15,18 +17,18 @@ type AdapterFactory struct {
 	NewAdapter func(room string) Adapter
 }
 
-func NewAdapterFactory(
-	loggerFactory LoggerFactory,
-	c StoreConfig,
-) *AdapterFactory {
-	log := loggerFactory.GetLogger("adapterfactory")
+func NewAdapterFactory(l logger.Logger, c StoreConfig) *AdapterFactory {
+	l = l.WithNamespaceAppended("adapterfactory")
 	f := AdapterFactory{}
 
 	switch c.Type {
 	case StoreTypeRedis:
 		addr := net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port))
 		prefix := c.Redis.Prefix
-		log.Printf("Using RedisAdapter: %s with prefix %s", addr, prefix)
+		l.Info("Using RedisAdapter", logger.Ctx{
+			"remote_addr": addr,
+			"prefix":      prefix,
+		})
 
 		f.pubClient = redis.NewClient(&redis.Options{
 			Addr: addr,
@@ -37,7 +39,7 @@ func NewAdapterFactory(
 		})
 
 		f.NewAdapter = func(room string) Adapter {
-			return NewRedisAdapter(loggerFactory, f.pubClient, f.subClient, prefix, room)
+			return NewRedisAdapter(l, f.pubClient, f.subClient, prefix, room)
 		}
 	default:
 		log.Printf("Using MemoryAdapter")

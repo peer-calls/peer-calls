@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 )
@@ -12,24 +13,28 @@ type JitterHandler interface {
 }
 
 type NackHandler struct {
-	log          Logger
-	nackLog      Logger
+	log          logger.Logger
+	nackLog      logger.Logger
 	jitterBuffer *JitterBuffer
 }
 
-func NewJitterHandler(log Logger, nackLog Logger, enabled bool) JitterHandler {
+func NewJitterHandler(log logger.Logger, enabled bool) JitterHandler {
 	if enabled {
-		return NewJitterNackHandler(log, nackLog, NewJitterBuffer())
+		return NewJitterNackHandler(log, NewJitterBuffer())
 	}
 	return &NoopNackHandler{}
 }
 
 func NewJitterNackHandler(
-	log Logger,
-	nackLog Logger,
+	log logger.Logger,
 	jitterBuffer *JitterBuffer,
 ) *NackHandler {
-	return &NackHandler{log, nackLog, jitterBuffer}
+	log = log.WithNamespaceAppended("jitter")
+	return &NackHandler{
+		log:          log,
+		nackLog:      log.WithNamespaceAppended("nack"),
+		jitterBuffer: jitterBuffer,
+	}
 }
 
 // ProcessNack tries to find the missing packet in JitterBuffer and send it,
@@ -40,7 +45,11 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 	var rtpPackets []*rtp.Packet
 
 	for _, nackPair := range nack.Nacks {
-		n.nackLog.Printf("NACK for track: %d (fsn: %d, blp: %#b)", nack.MediaSSRC, nackPair.PacketID, nackPair.LostPackets)
+		n.nackLog.Info("NACK for track: %d (fsn: %d, blp: %#b)", logger.Ctx{
+			"ssrc": nack.MediaSSRC,
+			"fsn":  nackPair.PacketID,
+			"blp":  nackPair.LostPackets,
+		})
 
 		nackPackets := nackPair.PacketList()
 		notFound := make([]uint16, 0, len(nackPackets))
@@ -48,12 +57,18 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 			rtpPacket := n.jitterBuffer.GetPacket(nack.MediaSSRC, sn)
 			if rtpPacket == nil {
 				// missing packet not found in jitter buffer
-				n.nackLog.Printf("RTP packet (ssrc: %d, sn: %d) missing", nack.MediaSSRC, sn)
+				n.nackLog.Info("RTP packet (ssrc: %d, sn: %d) missing", logger.Ctx{
+					"ssrc": nack.MediaSSRC,
+					"sn":   sn,
+				})
 				notFound = append(notFound, sn)
 				continue
 			}
 
-			n.nackLog.Printf("RTP packet (ssrc: %d, sn: %d) found in JitterBuffer", nack.MediaSSRC, sn)
+			n.nackLog.Info("RTP packet (ssrc: %d, sn: %d) found in JitterBuffer", logger.Ctx{
+				"ssrc": nack.MediaSSRC,
+				"sn":   sn,
+			})
 
 			// JitterBuffer had the missing packet, add it to the list
 			rtpPackets = append(rtpPackets, rtpPacket)

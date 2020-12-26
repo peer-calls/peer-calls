@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 const (
@@ -26,7 +27,7 @@ type Doner interface {
 }
 
 type RedisAdapter struct {
-	log          Logger
+	log          logger.Logger
 	serializer   Serializer
 	deserializer Deserializer
 
@@ -62,7 +63,7 @@ func getRoomClientsName(prefix string, room string) string {
 }
 
 func NewRedisAdapter(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	pubRedis *redis.Client,
 	subRedis *redis.Client,
 	prefix string,
@@ -74,7 +75,7 @@ func NewRedisAdapter(
 	)
 
 	adapter := RedisAdapter{
-		log:          loggerFactory.GetLogger("redis"),
+		log:          log.WithNamespaceAppended("redis"),
 		serializer:   byteSerializer,
 		deserializer: byteSerializer,
 		clients:      map[string]ClientWriter{},

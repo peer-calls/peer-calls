@@ -6,14 +6,12 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/stringmux"
-	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
-
-var loggerFactory = test.NewLoggerFactory()
 
 var addr1 = &net.UDPAddr{
 	IP:   net.IPv4(127, 0, 0, 1),
@@ -36,16 +34,16 @@ func TestStringMuxNew(t *testing.T) {
 	require.NoError(t, err)
 
 	sm1 := stringmux.New(stringmux.Params{
-		Conn:          conn1,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  8,
+		Conn:         conn1,
+		Logger:       logger.New(),
+		ReadChanSize: 8,
 	})
 	defer sm1.Close()
 
 	sm2 := stringmux.New(stringmux.Params{
-		Conn:          conn2,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  8,
+		Conn:         conn2,
+		Logger:       logger.New(),
+		ReadChanSize: 8,
 	})
 	defer sm2.Close()
 
@@ -82,8 +80,8 @@ func TestStringMux_Close_GetConn(t *testing.T) {
 	require.NoError(t, err)
 
 	sm1 := stringmux.New(stringmux.Params{
-		Conn:          conn1,
-		LoggerFactory: loggerFactory,
+		Conn:   conn1,
+		Logger: logger.New(),
 	})
 
 	sm1.Close()

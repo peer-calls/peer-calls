@@ -1,69 +1,77 @@
 package server
 
-import "github.com/pion/logging"
+import (
+	"fmt"
+
+	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/pion/logging"
+)
 
 type pionLogger struct {
-	traceLogger Logger
-	debugLogger Logger
-	infoLogger  Logger
-	warnLogger  Logger
-	errorLogger Logger
+	log logger.Logger
 }
 
 type PionLoggerFactory struct {
-	loggerFactory LoggerFactory
+	log logger.Logger
 }
 
-func NewPionLoggerFactory(loggerFactory LoggerFactory) *PionLoggerFactory {
-	return &PionLoggerFactory{loggerFactory}
+func NewPionLoggerFactory(log logger.Logger) *PionLoggerFactory {
+	return &PionLoggerFactory{log}
 }
 
 func (p PionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
 	return &pionLogger{
-		traceLogger: p.loggerFactory.GetLogger("pion:" + subsystem + ":trace"),
-		debugLogger: p.loggerFactory.GetLogger("pion:" + subsystem + ":debug"),
-		infoLogger:  p.loggerFactory.GetLogger("pion:" + subsystem + ":info"),
-		warnLogger:  p.loggerFactory.GetLogger("pion:" + subsystem + ":warn"),
-		errorLogger: p.loggerFactory.GetLogger("pion:" + subsystem + ":error"),
+		log: p.log.WithNamespace(subsystem),
 	}
 }
 
 func (p *pionLogger) Trace(msg string) {
-	p.traceLogger.Println(msg)
+	p.log.Trace(msg, nil)
 }
 
 func (p *pionLogger) Tracef(format string, args ...interface{}) {
-	p.traceLogger.Printf(format, args...)
+	if p.log.IsLevelEnabled(logger.LevelTrace) {
+		p.Trace(fmt.Sprintf(format, args...))
+	}
 }
 
 func (p *pionLogger) Debug(msg string) {
-	p.debugLogger.Println(msg)
+	p.log.Debug(msg, nil)
 }
 
 func (p *pionLogger) Debugf(format string, args ...interface{}) {
-	p.debugLogger.Printf(format, args...)
+	if p.log.IsLevelEnabled(logger.LevelDebug) {
+		p.Debug(fmt.Sprintf(format, args...))
+	}
 }
 
 func (p *pionLogger) Info(msg string) {
-	p.infoLogger.Println(msg)
+	p.log.Info(msg, nil)
 }
 
 func (p *pionLogger) Infof(format string, args ...interface{}) {
-	p.infoLogger.Printf(format, args...)
+	if p.log.IsLevelEnabled(logger.LevelInfo) {
+		p.Info(fmt.Sprintf(format, args...))
+	}
 }
 
 func (p *pionLogger) Warn(msg string) {
-	p.warnLogger.Println(msg)
+	p.log.Warn(msg, nil)
 }
 
 func (p *pionLogger) Warnf(format string, args ...interface{}) {
-	p.warnLogger.Printf(format, args...)
+	if p.log.IsLevelEnabled(logger.LevelWarn) {
+		p.Warn(fmt.Sprintf(format, args...))
+	}
 }
 
 func (p *pionLogger) Error(msg string) {
-	p.errorLogger.Println(msg)
+	p.log.Error(errors.Errorf(msg), nil)
 }
 
 func (p *pionLogger) Errorf(format string, args ...interface{}) {
-	p.errorLogger.Printf(format, args...)
+	if p.log.IsLevelEnabled(logger.LevelError) {
+		p.Error(fmt.Sprintf(format, args...))
+	}
 }

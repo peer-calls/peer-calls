@@ -14,11 +14,8 @@ const DefaultMTU uint32 = 8192
 type UDPMux struct {
 	params *Params
 
-	logger      logger.Logger
-	debugLogger logger.Logger
-
 	getConnRequestChan   chan getConnRequest
-	newConnChan          chan Conn
+	newConnChan          chan *conn
 	closeConnRequestChan chan closeConnRequest
 	remotePacketsChan    chan remotePacket
 
@@ -29,19 +26,20 @@ type UDPMux struct {
 type Params struct {
 	Conn           net.PacketConn
 	MTU            uint32
-	LoggerFactory  logger.LoggerFactory
+	Logger         logger.Logger
 	ReadChanSize   int
 	ReadBufferSize int
 }
 
 func New(params Params) *UDPMux {
+	params.Logger = params.Logger.WithNamespaceAppended("udpmux").WithCtx(logger.Ctx{
+		"local_addr": params.Conn.LocalAddr(),
+	})
+
 	m := &UDPMux{
 		params: &params,
 
-		logger:      params.LoggerFactory.GetLogger("udpmux:info"),
-		debugLogger: params.LoggerFactory.GetLogger("udpmux:debug"),
-
-		newConnChan:          make(chan Conn),
+		newConnChan:          make(chan *conn),
 		closeConnRequestChan: make(chan closeConnRequest),
 		getConnRequestChan:   make(chan getConnRequest),
 		remotePacketsChan:    make(chan remotePacket, params.ReadBufferSize),
@@ -68,7 +66,7 @@ func (m *UDPMux) AcceptConn() (Conn, error) {
 		return nil, errors.Annotate(io.ErrClosedPipe, "accept")
 	}
 
-	m.logger.Printf("%s AcceptConn", conn)
+	conn.logger.Info("Accept conn", nil)
 
 	return conn, nil
 }
@@ -121,7 +119,9 @@ func (m *UDPMux) startLoop() {
 
 	createConn := func(raddr net.Addr) *conn {
 		return &conn{
-			debugLogger: m.debugLogger,
+			logger: m.params.Logger.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
+				"remote_addr": raddr,
+			}),
 
 			conn:  m.params.Conn,
 			laddr: m.params.Conn.LocalAddr(),
@@ -162,7 +162,7 @@ func (m *UDPMux) startLoop() {
 		select {
 		case conn.readChan <- pkt.bytes:
 		default:
-			m.debugLogger.Printf("dropped packet for conn: %s", conn.raddr)
+			conn.logger.Warn("Dropped packet", nil)
 		}
 	}
 
@@ -205,7 +205,7 @@ func (m *UDPMux) startReading(ctx context.Context) {
 	for {
 		i, raddr, err := m.params.Conn.ReadFrom(buf)
 		if err != nil {
-			m.logger.Printf("Error reading remote data: %s", err)
+			m.params.Logger.Error(errors.Annotate(err, "reading remote data"), nil)
 
 			return
 		}

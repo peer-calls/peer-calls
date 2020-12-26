@@ -3,19 +3,15 @@ package udpmux
 import (
 	"io"
 	"net"
-	"os"
 	"testing"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/goleak"
 )
-
-var loggerFactory = test.NewLoggerFactory()
 
 func TestUDPMux_AcceptConn(t *testing.T) {
 	goleak.VerifyNone(t)
@@ -29,10 +25,10 @@ func TestUDPMux_AcceptConn(t *testing.T) {
 	defer udpConn1.Close()
 
 	mux := New(Params{
-		Conn:          udpConn1,
-		MTU:           8192,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  20,
+		Conn:         udpConn1,
+		MTU:          8192,
+		Logger:       logger.New(),
+		ReadChanSize: 20,
 	})
 	defer mux.Close()
 
@@ -80,12 +76,10 @@ func TestUDPMux_GetConn(t *testing.T) {
 	})
 	defer udpConn2.Close()
 
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS", os.Stdout)
-
 	mux1 := New(Params{
 		Conn:           udpConn1,
 		MTU:            8192,
-		LoggerFactory:  loggerFactory,
+		Logger:         logger.New(),
 		ReadChanSize:   20,
 		ReadBufferSize: 100,
 	})
@@ -94,7 +88,7 @@ func TestUDPMux_GetConn(t *testing.T) {
 	mux2 := New(Params{
 		Conn:           udpConn2,
 		MTU:            8192,
-		LoggerFactory:  loggerFactory,
+		Logger:         logger.New(),
 		ReadChanSize:   20,
 		ReadBufferSize: 100,
 	})
@@ -134,10 +128,10 @@ func TestUDPMux_Close_GetConn(t *testing.T) {
 	defer udpConn1.Close()
 
 	mux1 := New(Params{
-		Conn:          udpConn1,
-		MTU:           8192,
-		LoggerFactory: loggerFactory,
-		ReadChanSize:  20,
+		Conn:         udpConn1,
+		MTU:          8192,
+		Logger:       logger.New(),
+		ReadChanSize: 20,
 	})
 
 	mux1.Close()

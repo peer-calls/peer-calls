@@ -17,7 +17,7 @@ type Conn interface {
 }
 
 type conn struct {
-	debugLogger logger.Logger
+	logger logger.Logger
 
 	conn     net.Conn
 	streamID string
@@ -67,7 +67,9 @@ func (c *conn) Read(b []byte) (int, error) {
 
 	copy(b, buf)
 
-	c.debugLogger.Printf("%s recv %v", c, buf)
+	c.logger.Trace("recv", logger.Ctx{
+		"data": buf,
+	})
 
 	return len(buf), nil
 }
@@ -82,7 +84,9 @@ func (c *conn) Write(b []byte) (int, error) {
 			return 0, errors.Annotate(err, "marshal during write")
 		}
 
-		c.debugLogger.Printf("%s send %v", c, b)
+		c.logger.Trace("send", logger.Ctx{
+			"data": data,
+		})
 
 		_, err = c.conn.Write(data)
 

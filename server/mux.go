@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -60,7 +61,7 @@ type RoomManager interface {
 }
 
 func NewMux(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	baseURL string,
 	version string,
 	network NetworkConfig,
@@ -71,7 +72,7 @@ func NewMux(
 ) *Mux {
 	box := packr.NewBox("./templates")
 	templates := ParseTemplates(box)
-	renderer := NewRenderer(loggerFactory, templates, baseURL, version)
+	renderer := NewRenderer(log, templates, baseURL, version)
 
 	handler := chi.NewRouter()
 	mux := &Mux{
@@ -90,9 +91,9 @@ func NewMux(
 	}
 
 	wsHandler := newWebSocketHandler(
-		loggerFactory,
+		log,
 		network,
-		NewWSS(loggerFactory, rooms),
+		NewWSS(log, rooms),
 		iceServers,
 		tracks,
 	)
@@ -139,25 +140,25 @@ func NewMux(
 }
 
 func newWebSocketHandler(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	network NetworkConfig,
 	wss *WSS,
 	iceServers []ICEServer,
 	tracks TracksManager,
 ) http.Handler {
-	log := loggerFactory.GetLogger("mux")
+	log = log.WithNamespaceAppended("mux")
 
 	switch network.Type {
 	case NetworkTypeSFU:
-		log.Println("Using network type sfu")
+		log.Info("Using network type sfu", nil)
 
-		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+		return NewSFUHandler(log, wss, iceServers, network.SFU, tracks)
 	case NetworkTypeMesh:
 		fallthrough
 	default:
-		log.Println("Using network type mesh")
+		log.Info("Using network type mesh", nil)
 
-		return NewMeshHandler(loggerFactory, wss)
+		return NewMeshHandler(log, wss)
 	}
 }
 
