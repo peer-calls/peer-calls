@@ -121,17 +121,18 @@ func (n *wildcardNode) levelForNamespace(names []string) (Level, bool) {
 	return LevelDisabled, false
 }
 
-func (c *wildcardNode) LevelForNamespace(namespace string) Level {
+// LevelForNamespace implements Config.
+func (n *wildcardNode) LevelForNamespace(namespace string) Level {
 	if namespace == "" {
-		return c.level
+		return n.level
 	}
 
 	split := strings.Split(namespace, ":")
 
-	if level, ok := c.levelForNamespace(split); ok {
+	if level, ok := n.levelForNamespace(split); ok {
 		return level
 	}
 
 	// fmt.Println("fallback", c.level)
-	return c.level
+	return n.level
 }

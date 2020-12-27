@@ -218,11 +218,11 @@ func (sh *SocketHandler) handleReady(message Message) error {
 func (sh *SocketHandler) handleSignal(message Message) error {
 	payload, ok := message.Payload.(map[string]interface{})
 	if !ok {
-		return errors.Errorf("[%s] Ignoring signal because it is of unexpected type: %T", sh.clientID, payload)
+		return errors.Errorf("signal: unexpected type %T", payload)
 	}
 
 	if sh.webRTCTransport == nil {
-		return errors.Errorf("[%s] Ignoring signal '%v' because webRTCTransport is not initialized", sh.clientID, payload)
+		return errors.Errorf("signal: webRTCTransport not initialized")
 	}
 
 	err := sh.webRTCTransport.Signal(payload)

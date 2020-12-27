@@ -11,7 +11,7 @@ import (
 func TestWildcardNode(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, logger.Config(nil), logger.ConfigMap(nil).WithWildcards())
+	assert.Equal(t, logger.Config(nil), logger.NewConfig(nil))
 
 	configMap := logger.ConfigMap{
 		"a":                logger.Level(1),
@@ -27,7 +27,7 @@ func TestWildcardNode(t *testing.T) {
 		"**:both:sides:**": logger.Level(11),
 	}
 
-	config := configMap.WithWildcards()
+	config := logger.NewConfig(configMap)
 
 	type testCase struct {
 		namespace string

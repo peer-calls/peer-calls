@@ -63,6 +63,7 @@ type logger struct {
 	config    Config
 	ctx       Ctx
 	formatter Formatter
+	level     Level
 	namespace string
 	writer    io.Writer
 }
@@ -75,6 +76,7 @@ func New() Logger {
 		config:    LevelDisabled,
 		ctx:       nil,
 		formatter: NewStringFormatter(StringFormatterParams{}),
+		level:     LevelUnknown,
 		namespace: "",
 		writer:    os.Stderr,
 	}
@@ -83,7 +85,7 @@ func New() Logger {
 func NewFromEnv(key string) Logger {
 	envConfig := os.Getenv(key)
 
-	return New().WithConfig(NewConfigMapFromString(envConfig))
+	return New().WithConfig(NewConfigFromString(envConfig))
 }
 
 // compile-time assertion that logger implements Logger.
@@ -94,7 +96,7 @@ func (l *logger) Ctx() Ctx {
 	return l.ctx
 }
 
-func (l *logger) copyDefaults(old *logger) *logger {
+func (l *logger) setDefaults(old *logger) *logger {
 	if l.config == nil {
 		l.config = old.config
 	}
@@ -109,6 +111,9 @@ func (l *logger) copyDefaults(old *logger) *logger {
 
 	if l.namespace == "" {
 		l.namespace = old.namespace
+		l.level = old.level
+	} else {
+		l.level = l.config.LevelForNamespace(l.namespace)
 	}
 
 	if l.writer == nil {
@@ -122,28 +127,28 @@ func (l *logger) copyDefaults(old *logger) *logger {
 func (l *logger) WithCtx(ctx Ctx) Logger {
 	ret := logger{ctx: ctx}
 
-	return ret.copyDefaults(l)
+	return ret.setDefaults(l)
 }
 
 // WithFormatter implements Logger.
 func (l *logger) WithFormatter(formatter Formatter) Logger {
 	ret := &logger{formatter: formatter}
 
-	return ret.copyDefaults(l)
+	return ret.setDefaults(l)
 }
 
 // WithWriter implements Logger.
 func (l *logger) WithWriter(writer io.Writer) Logger {
 	ret := &logger{writer: writer}
 
-	return ret.copyDefaults(l)
+	return ret.setDefaults(l)
 }
 
 // WithNamespace implements Logger.
 func (l *logger) WithNamespace(namespace string) Logger {
 	ret := logger{namespace: namespace}
 
-	return ret.copyDefaults(l)
+	return ret.setDefaults(l)
 }
 
 // WithNamespaceAppended implements Logger.
@@ -161,7 +166,7 @@ func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
 func (l *logger) WithConfig(config Config) Logger {
 	ret := &logger{config: config}
 
-	return ret.copyDefaults(l)
+	return ret.setDefaults(l)
 }
 
 // Level implements Logger.

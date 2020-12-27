@@ -147,7 +147,7 @@ func TestLogger(t *testing.T) {
 			wantResult: "- debug [                 a:b] test k1=v1 k2=v3\n",
 		},
 		{
-			config: "b:trace",
+			config: "*:b:trace",
 			entries: []testEntry{
 				{"a:b", logger.LevelTrace, "test1", nil, nil},
 				{"a:c", logger.LevelTrace, "test2", nil, nil},
@@ -208,7 +208,7 @@ func TestLogger(t *testing.T) {
 
 		formatter := newTestFormatter()
 
-		root := logger.New().WithConfig(logger.NewConfigMapFromString(tc.config)).
+		root := logger.New().WithConfig(logger.NewConfigFromString(tc.config)).
 			WithWriter(w).
 			WithCtx(tc.ctx).
 			WithFormatter(formatter)
@@ -287,7 +287,7 @@ func TestNewFromEnv(t *testing.T) {
 
 	defer os.Setenv(envKey, old)
 
-	os.Setenv(envKey, "a:trace,:info")
+	os.Setenv(envKey, "**:a:trace,:info")
 
 	log := logger.NewFromEnv(envKey)
 

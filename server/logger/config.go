@@ -15,15 +15,15 @@ type Config interface {
 // be easily used for reading the configuration from an environment variable.
 type ConfigMap map[string]Level
 
-// NewStringConfig parses the provided string and returns Config.
-func NewConfigMapFromString(stringConfig string) Config {
+// NewConfigFromString parses the provided string and returns Config.
+func NewConfigFromString(stringConfig string) Config {
 	if stringConfig == "" {
 		return nil
 	}
 
 	configSlice := strings.Split(stringConfig, ",")
 
-	ret := make(ConfigMap, len(configSlice))
+	config := make(ConfigMap, len(configSlice))
 
 	for _, ns := range strings.Split(stringConfig, ",") {
 		level := LevelInfo
@@ -35,31 +35,12 @@ func NewConfigMapFromString(stringConfig string) Config {
 			}
 		}
 
-		ret[ns] = level
+		config[ns] = level
 	}
 
-	return ret
+	return NewConfig(config)
 }
 
-func (c ConfigMap) WithWildcards() Config {
-	return newWildcardNode(c)
-}
-
-// LevelForNamespace implements Config.
-func (c ConfigMap) LevelForNamespace(namespace string) Level {
-	if level, ok := c[namespace]; ok {
-		return level
-	}
-
-	// Check only the latest part of the namespace.
-	if index := strings.LastIndex(namespace, ":"); index > -1 {
-		namespace = namespace[index+1:]
-
-		if level, ok := c[namespace]; ok {
-			return level
-		}
-	}
-
-	// Return configuration for root logger.
-	return c[""]
+func NewConfig(configMap ConfigMap) Config {
+	return newWildcardNode(configMap)
 }

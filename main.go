@@ -61,14 +61,16 @@ func configure(log logger.Logger, args []string) (net.Listener, *server.StartSto
 
 func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan error) {
 	log := logger.New().
-		WithConfig(logger.ConfigMap{
-			"**:sdp":     logger.LevelDisabled,
-			"**:ws":      logger.LevelDisabled,
-			"**:nack":    logger.LevelDisabled,
-			"**:pion:**": logger.LevelWarn,
-			"":           logger.LevelInfo,
-		}).
-		WithConfig(logger.NewConfigMapFromString(os.Getenv("PEERCALLS_LOG"))).
+		WithConfig(
+			logger.NewConfig(logger.ConfigMap{
+				"**:sdp":     logger.LevelDisabled,
+				"**:ws":      logger.LevelDisabled,
+				"**:nack":    logger.LevelDisabled,
+				"**:pion:**": logger.LevelWarn,
+				"":           logger.LevelInfo,
+			}),
+		).
+		WithConfig(logger.NewConfigFromString(os.Getenv("PEERCALLS_LOG"))). // FIXME use wildcards here
 		WithFormatter(server.NewLogFormatter()).
 		WithNamespaceAppended("main")
 
