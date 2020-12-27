@@ -62,11 +62,11 @@ func configure(log logger.Logger, args []string) (net.Listener, *server.StartSto
 func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan error) {
 	log := logger.New().
 		WithConfig(logger.ConfigMap{
-			"sdp":  logger.LevelDisabled,
-			"ws":   logger.LevelDisabled,
-			"nack": logger.LevelDisabled,
-			"pion": logger.LevelWarn,
-			"":     logger.LevelInfo,
+			"**:sdp":     logger.LevelDisabled,
+			"**:ws":      logger.LevelDisabled,
+			"**:nack":    logger.LevelDisabled,
+			"**:pion:**": logger.LevelWarn,
+			"":           logger.LevelInfo,
 		}).
 		WithConfig(logger.NewConfigMapFromString(os.Getenv("PEERCALLS_LOG"))).
 		WithFormatter(server.NewLogFormatter()).

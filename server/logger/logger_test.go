@@ -56,6 +56,14 @@ func (f *testFormatter) Format(message logger.Message) ([]byte, error) {
 
 var errTest = fmt.Errorf("test err")
 
+func TestLogger_Namespace(t *testing.T) {
+	t.Parallel()
+
+	log := logger.New().WithNamespace("test").WithNamespaceAppended("test2")
+
+	assert.Equal(t, "test:test2", log.Namespace())
+}
+
 func TestLogger(t *testing.T) {
 	t.Parallel()
 

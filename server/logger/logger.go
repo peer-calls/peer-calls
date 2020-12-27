@@ -94,48 +94,56 @@ func (l *logger) Ctx() Ctx {
 	return l.ctx
 }
 
+func (l *logger) copyDefaults(old *logger) *logger {
+	if l.config == nil {
+		l.config = old.config
+	}
+
+	if l.ctx == nil {
+		l.ctx = old.ctx
+	}
+
+	if l.formatter == nil {
+		l.formatter = old.formatter
+	}
+
+	if l.namespace == "" {
+		l.namespace = old.namespace
+	}
+
+	if l.writer == nil {
+		l.writer = old.writer
+	}
+
+	return l
+}
+
 // WithCtx implements Logger.
 func (l *logger) WithCtx(ctx Ctx) Logger {
-	return &logger{
-		config:    l.config,
-		ctx:       l.ctx.WithCtx(ctx),
-		formatter: l.formatter,
-		namespace: l.namespace,
-		writer:    l.writer,
-	}
+	ret := logger{ctx: ctx}
+
+	return ret.copyDefaults(l)
 }
 
 // WithFormatter implements Logger.
 func (l *logger) WithFormatter(formatter Formatter) Logger {
-	return &logger{
-		config:    l.config,
-		ctx:       l.ctx,
-		formatter: formatter,
-		namespace: l.namespace,
-		writer:    l.writer,
-	}
+	ret := &logger{formatter: formatter}
+
+	return ret.copyDefaults(l)
 }
 
 // WithWriter implements Logger.
 func (l *logger) WithWriter(writer io.Writer) Logger {
-	return &logger{
-		config:    l.config,
-		ctx:       l.ctx,
-		formatter: l.formatter,
-		namespace: l.namespace,
-		writer:    writer,
-	}
+	ret := &logger{writer: writer}
+
+	return ret.copyDefaults(l)
 }
 
 // WithNamespace implements Logger.
 func (l *logger) WithNamespace(namespace string) Logger {
-	return &logger{
-		config:    l.config,
-		ctx:       l.ctx,
-		formatter: l.formatter,
-		namespace: namespace,
-		writer:    l.writer,
-	}
+	ret := logger{namespace: namespace}
+
+	return ret.copyDefaults(l)
 }
 
 // WithNamespaceAppended implements Logger.
@@ -151,17 +159,9 @@ func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
 
 // WithConfig implements Logger.
 func (l *logger) WithConfig(config Config) Logger {
-	if config == nil {
-		return l
-	}
+	ret := &logger{config: config}
 
-	return &logger{
-		config:    config,
-		ctx:       l.ctx,
-		formatter: l.formatter,
-		namespace: l.namespace,
-		writer:    l.writer,
-	}
+	return ret.copyDefaults(l)
 }
 
 // Level implements Logger.

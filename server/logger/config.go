@@ -41,6 +41,10 @@ func NewConfigMapFromString(stringConfig string) Config {
 	return ret
 }
 
+func (c ConfigMap) WithWildcards() Config {
+	return newWildcardNode(c)
+}
+
 // LevelForNamespace implements Config.
 func (c ConfigMap) LevelForNamespace(namespace string) Level {
 	if level, ok := c[namespace]; ok {

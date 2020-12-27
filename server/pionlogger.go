@@ -16,12 +16,13 @@ type PionLoggerFactory struct {
 }
 
 func NewPionLoggerFactory(log logger.Logger) *PionLoggerFactory {
+	log = log.WithNamespaceAppended("pion")
 	return &PionLoggerFactory{log}
 }
 
 func (p PionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
 	return &pionLogger{
-		log: p.log.WithNamespace(subsystem),
+		log: p.log.WithNamespaceAppended(subsystem),
 	}
 }
 
