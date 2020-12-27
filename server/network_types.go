@@ -7,10 +7,12 @@ import (
 )
 
 func NewNetworkTypes(log logger.Logger, networkTypes []string) (ret []webrtc.NetworkType) {
+	log = log.WithNamespaceAppended("network_types")
+
 	for _, networkType := range networkTypes {
 		nt, err := webrtc.NewNetworkType(networkType)
 		if err != nil {
-			log.Error(errors.Annotatef(err, "Invalid network type: %s", networkType), nil)
+			log.Error("NewNetworkType", errors.Trace(err), nil)
 
 			continue
 		}

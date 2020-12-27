@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -133,7 +134,8 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) server.Me
 }
 
 func setupMeshServer(rooms server.RoomManager) (s *httptest.Server, url string) {
-	handler := server.NewMeshHandler(loggerFactory, server.NewWSS(loggerFactory, rooms))
+	log := logger.New()
+	handler := server.NewMeshHandler(log, server.NewWSS(log, rooms))
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName + "/" + clientID
 	return

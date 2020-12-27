@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -21,22 +22,21 @@ type MetadataPayload struct {
 }
 
 func NewSFUHandler(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	wss *WSS,
 	iceServers []ICEServer,
 	sfuConfig NetworkConfigSFU,
 	tracksManager TracksManager,
 ) *SFU {
-	log := loggerFactory.GetLogger("sfu")
+	log = log.WithNamespaceAppended("sfu")
 
-	webRTCTransportFactory := NewWebRTCTransportFactory(loggerFactory, iceServers, sfuConfig)
+	webRTCTransportFactory := NewWebRTCTransportFactory(log, iceServers, sfuConfig)
 
-	return &SFU{loggerFactory, log, wss, tracksManager, webRTCTransportFactory}
+	return &SFU{log, wss, tracksManager, webRTCTransportFactory}
 }
 
 type SFU struct {
-	loggerFactory LoggerFactory
-	log           Logger
+	log           logger.Logger
 	wss           *WSS
 	tracksManager TracksManager
 
@@ -46,13 +46,18 @@ type SFU struct {
 func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sub, err := sfu.wss.Subscribe(w, r)
 	if err != nil {
-		sfu.log.Printf("Error accepting websocket connection: %s", err)
+		sfu.log.Error("Accept websocket connection", errors.Trace(err), nil)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	log := sfu.log.WithCtx(logger.Ctx{
+		"room_id":   sub.Room,
+		"client_id": sub.ClientID,
+	})
+
 	socketHandler := NewSocketHandler(
-		sfu.loggerFactory,
+		log,
 		sfu.tracksManager,
 		sfu.webRTCTransportFactory,
 		sub.ClientID,
@@ -63,7 +68,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for message := range sub.Messages {
 		err := socketHandler.HandleMessage(message)
 		if err != nil {
-			sfu.log.Printf("[%s] Error handling websocket message: %s", sub.ClientID, err)
+			log.Error("Handle websocket message", errors.Trace(err), nil)
 		}
 	}
 
@@ -71,8 +76,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type SocketHandler struct {
-	loggerFactory          LoggerFactory
-	log                    Logger
+	log                    logger.Logger
 	tracksManager          TracksManager
 	webRTCTransportFactory *WebRTCTransportFactory
 	webRTCTransport        *WebRTCTransport
@@ -84,7 +88,7 @@ type SocketHandler struct {
 }
 
 func NewSocketHandler(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	tracksManager TracksManager,
 	webRTCTransportFactory *WebRTCTransportFactory,
 	clientID string,
@@ -92,8 +96,7 @@ func NewSocketHandler(
 	adapter Adapter,
 ) *SocketHandler {
 	return &SocketHandler{
-		loggerFactory:          loggerFactory,
-		log:                    loggerFactory.GetLogger("sfu"),
+		log:                    log.WithNamespaceAppended("sfu"),
 		tracksManager:          tracksManager,
 		webRTCTransportFactory: webRTCTransportFactory,
 		clientID:               clientID,
@@ -123,7 +126,7 @@ func (sh *SocketHandler) HandleMessage(message Message) error {
 func (sh *SocketHandler) Cleanup() {
 	if sh.webRTCTransport != nil {
 		if err := sh.webRTCTransport.Close(); err != nil {
-			sh.log.Printf("[%s] cleanup: error in webRTCTransport.Close: %s", sh.clientID, err)
+			sh.log.Error("Cleanup: close WebRTCTransport", errors.Trace(err), nil)
 		}
 	}
 
@@ -133,14 +136,14 @@ func (sh *SocketHandler) Cleanup() {
 		}),
 	)
 	if err != nil {
-		sh.log.Printf("[%s] cleanup: error broadcasting hangUp: %s", sh.clientID, err)
+		sh.log.Error("Cleanup: broadcast hangUp", errors.Trace(err), nil)
 	}
 }
 
 func (sh *SocketHandler) handleHangUp(_ Message) error {
 	clientID := sh.clientID
 
-	sh.log.Printf("[%s] hangUp event", clientID)
+	sh.log.Info("hangUp event", nil)
 
 	if sh.webRTCTransport != nil {
 		err := sh.webRTCTransport.Close()
@@ -164,7 +167,9 @@ func (sh *SocketHandler) handleReady(message Message) error {
 
 	start := time.Now()
 
-	sh.log.Printf("[%s] Initiator: %s", clientID, initiator)
+	sh.log.Info("ready event", logger.Ctx{
+		"initiator": initiator,
+	})
 
 	if sh.webRTCTransport != nil {
 		return errors.Errorf("unexpected ready event in room %s - already have a webrtc transport", room)
@@ -237,14 +242,14 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 					Metadata: metadata,
 				}))
 				if err != nil {
-					sh.log.Printf("[%s] Error sending metadata: %+v", clientID, errors.Trace(err))
+					sh.log.Error("Send metadata", errors.Trace(err), nil)
 				}
 			}
 		}
 
 		err := adapter.Emit(clientID, NewMessage("signal", room, signal))
 		if err != nil {
-			sh.log.Printf("[%s] Error sending local signal: %+v", clientID, errors.Trace(err))
+			sh.log.Error("Send local signal", errors.Trace(err), nil)
 			// TODO abort connection
 		}
 	}
@@ -255,7 +260,7 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	sh.webRTCTransport = nil
-	sh.log.Printf("[%s] Peer connection closed, emitting hangUp event", clientID)
+	sh.log.Info("Peer connection closed, send hangUp event", nil)
 	adapter.SetMetadata(clientID, "")
 
 	err := sh.adapter.Broadcast(
@@ -264,6 +269,6 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 		}),
 	)
 	if err != nil {
-		sh.log.Printf("[%s] Error broadcasting hangUp: %+v", sh.clientID, errors.Trace(err))
+		sh.log.Error("Broadcast hangUp", errors.Trace(err), nil)
 	}
 }

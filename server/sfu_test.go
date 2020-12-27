@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -19,12 +20,14 @@ import (
 )
 
 func setupSFUServer(rooms server.RoomManager, jitterBufferEnabled bool) (s *httptest.Server, url string) {
+	log := test.NewLogger()
+
 	handler := server.NewSFUHandler(
-		loggerFactory,
-		server.NewWSS(loggerFactory, rooms),
+		log,
+		server.NewWSS(log, rooms),
 		[]server.ICEServer{},
 		server.NetworkConfigSFU{},
-		server.NewMemoryTracksManager(loggerFactory, jitterBufferEnabled),
+		server.NewMemoryTracksManager(log, jitterBufferEnabled),
 	)
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/"
@@ -32,8 +35,10 @@ func setupSFUServer(rooms server.RoomManager, jitterBufferEnabled bool) (s *http
 }
 
 func TestSFU_ConnectDisconnect(t *testing.T) {
+	log := test.NewLogger()
+
 	defer goleak.VerifyNone(t)
-	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
+	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	server, url := setupSFUServer(rooms, false)
@@ -116,10 +121,12 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	var mediaEngine webrtc.MediaEngine
 	server.RegisterCodecs(&mediaEngine, false)
 
+	log := test.NewLogger()
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(webrtc.SettingEngine{
-			LoggerFactory: server.NewPionLoggerFactory(loggerFactory),
+			LoggerFactory: server.NewPionLoggerFactory(log),
 		}),
 	)
 
@@ -127,7 +134,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	require.Nil(t, err, "error creating peer connection")
 
 	signaller, err = server.NewSignaller(
-		loggerFactory,
+		log,
 		false,
 		pc,
 		clientID,
@@ -179,8 +186,10 @@ func wait(t *testing.T, ctx context.Context, done <-chan struct{}) {
 }
 
 func TestSFU_PeerConnection(t *testing.T) {
+	log := test.NewLogger()
+
 	defer goleak.VerifyNone(t)
-	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
+	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms, false)
@@ -193,9 +202,13 @@ func TestSFU_PeerConnection(t *testing.T) {
 }
 
 func TestSFU_OnTrack(t *testing.T) {
+	log := test.NewLogger()
+
 	defer goleak.VerifyNone(t)
-	newAdapter := server.NewAdapterFactory(loggerFactory, server.StoreConfig{})
-	log := loggerFactory.GetLogger("test")
+	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
+
+	log = log.WithNamespaceAppended("test")
+
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms, false)
@@ -214,12 +227,15 @@ func TestSFU_OnTrack(t *testing.T) {
 	onTrackFired, onTrackFiredDone := context.WithCancel(ctx)
 	onTrackEOF, onTrackEOFDone := context.WithCancel(ctx)
 	pc2.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
-		log.Println("OnTrack", remoteTrack.SSRC())
+		log := log.WithCtx(logger.Ctx{"ssrc": remoteTrack.SSRC()})
+
+		log.Info("OnTrack", nil)
+
 		onTrackFiredDone()
 		for {
 			_, err := remoteTrack.ReadRTP()
 			if remoteTrack != nil {
-				log.Printf("pc2 remote track ended")
+				log.Info("pc2 remote track ended", nil)
 				assert.Equal(t, io.EOF, err, "error reading track")
 				onTrackEOFDone()
 				return
@@ -230,35 +246,37 @@ func TestSFU_OnTrack(t *testing.T) {
 	localTrack, err := pc1.NewTrack(webrtc.DefaultPayloadTypeVP8, 12345, "track-one", "stream-one")
 	require.NoError(t, err)
 
-	log.Println("AddTrack start")
+	log.Info("AddTrack start", logger.Ctx{
+		"ssrc": localTrack.SSRC(),
+	})
+
 	sender, err := pc1.AddTrack(localTrack)
-	log.Println("AddTrack end")
+
+	log.Info("AddTrack end", logger.Ctx{
+		"ssrc": localTrack.SSRC(),
+	})
+
 	require.NoError(t, err)
 	require.NotNil(t, sender)
 
 	go sendVideoUntilDone(t, onTrackFired.Done(), localTrack)
 
-	log.Printf("sending negotiate request (1)")
+	log.Info("sending negotiate request (1)", nil)
 	wait(t, ctx, signaller1.Negotiate())
-	log.Println("Negotiate (1) done ======================================================")
 
 	<-onTrackFired.Done()
-	log.Println("sending video done")
 	assert.Equal(t, context.Canceled, onTrackFired.Err(), "test timed out")
 
-	log.Println("removing track")
 	// trigger io.EOF when reading from track2
 	assert.NoError(t, pc1.RemoveTrack(sender))
 
-	log.Printf("sending negotiate request (2)")
+	log.Info("sending negotiate request (2)", nil)
 	wait(t, ctx, signaller1.Negotiate())
-	log.Println("Negotiate (2) done ======================================================")
 
 	<-onTrackEOF.Done()
 	assert.Equal(t, context.Canceled, onTrackEOF.Err(), "test timed out")
 
-	log.Printf("waiting for peer2 negotiation to be done (3)")
+	log.Info("waiting for peer2 negotiation to be done (3)", nil)
 	// server will want to negotiate after track is removed so we wait for negotiation to complete
 	wait(t, ctx, signaller2.NegotiationDone())
-	log.Println("Negotiation (3) done ======================================================")
 }

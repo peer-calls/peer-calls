@@ -2,6 +2,7 @@ package logger_test
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -45,12 +46,12 @@ func newTestFormatter() *testFormatter {
 	}
 }
 
-func (f *testFormatter) Format(ctx logger.Ctx) ([]byte, error) {
+func (f *testFormatter) Format(message logger.Message) ([]byte, error) {
 	if f.mockErr != nil {
 		return nil, f.mockErr
 	}
 
-	return f.StringFormatter.Format(ctx)
+	return f.StringFormatter.Format(message)
 }
 
 var errTest = fmt.Errorf("test err")
@@ -138,6 +139,22 @@ func TestLogger(t *testing.T) {
 			wantResult: "- debug [                 a:b] test k1=v1 k2=v3\n",
 		},
 		{
+			config: "b:trace",
+			entries: []testEntry{
+				{"a:b", logger.LevelTrace, "test1", nil, nil},
+				{"a:c", logger.LevelTrace, "test2", nil, nil},
+			},
+			wantResult: "- trace [                 a:b] test1\n",
+		},
+		{
+			config: ":debug",
+			entries: []testEntry{
+				{"a:b", logger.LevelDebug, "test1", nil, nil},
+				{"a:c", logger.LevelTrace, "test2", nil, nil},
+			},
+			wantResult: "- debug [                 a:b] test1\n",
+		},
+		{
 			config: "a:b:trace,c:d",
 			ctx: logger.Ctx{
 				"k1": "v1",
@@ -149,6 +166,8 @@ func TestLogger(t *testing.T) {
 				{"a:b", logger.LevelInfo, "test3", nil, logger.Ctx{"k4": "v4"}},
 				{"a:b", logger.LevelWarn, "test4", nil, logger.Ctx{"k5": "v5"}},
 				{"a:b", logger.LevelError, "", errTest, logger.Ctx{"k6": "v6"}},
+				{"a:b", logger.LevelError, "err msg", errTest, logger.Ctx{"k7": "v7"}},
+				{"a:b", logger.LevelError, "err msg", nil, logger.Ctx{"k8": "v8"}},
 				{"c:d", logger.LevelTrace, "test1", nil, logger.Ctx{"k2": "v3"}},
 				{"c:d", logger.LevelDebug, "test2", nil, logger.Ctx{"k3": "v3"}},
 				{"c:d", logger.LevelInfo, "test3", nil, logger.Ctx{"k4": "v4"}},
@@ -165,6 +184,8 @@ func TestLogger(t *testing.T) {
 -  info [                 a:b] test3 k1=v1 k2=v2 k4=v4
 -  warn [                 a:b] test4 k1=v1 k2=v2 k5=v5
 - error [                 a:b] test err k1=v1 k2=v2 k6=v6
+- error [                 a:b] err msg: test err k1=v1 k2=v2 k7=v7
+- error [                 a:b] err msg k1=v1 k2=v2 k8=v8
 -  info [                 c:d] test3 k1=v1 k2=v2 k4=v4
 -  warn [                 c:d] test4 k1=v1 k2=v2 k5=v5
 - error [                 c:d] test err k1=v1 k2=v2 k6=v6
@@ -192,7 +213,7 @@ func TestLogger(t *testing.T) {
 		for _, entry := range tc.entries {
 			switch entry.level {
 			case logger.LevelError:
-				_, gotErr = root.WithNamespace(entry.namespace).Error(entry.err, entry.ctx)
+				_, gotErr = root.WithNamespace(entry.namespace).Error(entry.message, entry.err, entry.ctx)
 			case logger.LevelWarn:
 				_, gotErr = root.WithNamespace(entry.namespace).Warn(entry.message, entry.ctx)
 			case logger.LevelInfo:
@@ -247,6 +268,32 @@ func TestLogger_Ctx(t *testing.T) {
 
 	assert.Equal(t, logger.Ctx(nil), log.Ctx())
 	assert.Equal(t, logger.Ctx{"a": "b"}, log.WithCtx(logger.Ctx{"a": "b"}).Ctx())
+}
+
+func TestNewFromEnv(t *testing.T) {
+	t.Parallel()
+
+	envKey := "TEST_LOG"
+
+	old := os.Getenv(envKey)
+
+	defer os.Setenv(envKey, old)
+
+	os.Setenv(envKey, "a:trace,:info")
+
+	log := logger.NewFromEnv(envKey)
+
+	assert.Equal(t, true, log.IsLevelEnabled(logger.LevelInfo))
+	assert.Equal(t, false, log.IsLevelEnabled(logger.LevelDebug))
+
+	assert.Equal(t, true, log.WithNamespace("a").IsLevelEnabled(logger.LevelInfo))
+	assert.Equal(t, true, log.WithNamespace("a").IsLevelEnabled(logger.LevelDebug))
+
+	assert.Equal(t, true, log.WithNamespace("c:b:a").IsLevelEnabled(logger.LevelInfo))
+	assert.Equal(t, true, log.WithNamespace("c:b:a").IsLevelEnabled(logger.LevelDebug))
+
+	assert.Equal(t, true, log.WithNamespace("b").IsLevelEnabled(logger.LevelInfo))
+	assert.Equal(t, false, log.WithNamespace("b").IsLevelEnabled(logger.LevelDebug))
 }
 
 func BenchmarkLogger_Disabled(b *testing.B) {

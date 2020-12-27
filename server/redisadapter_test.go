@@ -11,6 +11,7 @@ import (
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -44,7 +45,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	pub, sub, stop := configureRedis(t)
 	defer stop()
-	adapter1 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
+	adapter1 := server.NewRedisAdapter(test.NewLogger(), pub, sub, "peercalls", room)
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
 	client1 := server.NewClient(mockWriter1)
@@ -86,7 +87,7 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "a")), recv(t, mockWriter1.out))
 
-	adapter2 := server.NewRedisAdapter(loggerFactory, pub, sub, "peercalls", room)
+	adapter2 := server.NewRedisAdapter(test.NewLogger(), pub, sub, "peercalls", room)
 	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter1.out))

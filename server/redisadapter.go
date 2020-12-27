@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	e "errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -75,7 +76,9 @@ func NewRedisAdapter(
 	)
 
 	adapter := RedisAdapter{
-		log:          log.WithNamespaceAppended("redis"),
+		log: log.WithNamespaceAppended("redis_adapter").WithCtx(logger.Ctx{
+			"room_id": room,
+		}),
 		serializer:   byteSerializer,
 		deserializer: byteSerializer,
 		clients:      map[string]ClientWriter{},
@@ -98,7 +101,10 @@ func NewRedisAdapter(
 
 func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	clientID := client.ID()
-	a.log.Printf("Add clientID: %s to room: %s", clientID, a.room)
+
+	a.log.Trace("Add", logger.Ctx{
+		"client_id": clientID,
+	})
 
 	a.clientsMu.Lock()
 	a.clients[clientID] = client
@@ -106,14 +112,17 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 
 	err = a.Broadcast(NewMessageRoomJoin(a.room, clientID, client.Metadata()))
 	if err != nil {
-		return errors.Annotatef(err, "add client: %s", clientID)
+		return errors.Annotatef(err, "clientID: %s", clientID)
 	}
 
-	a.log.Printf("Add clientID: %s to room: %s done", clientID, a.room)
 	return nil
 }
 
 func (a *RedisAdapter) Remove(clientID string) error {
+	a.log.Trace("Remove", logger.Ctx{
+		"client_id": clientID,
+	})
+
 	a.clientsMu.Lock()
 	_, ok := a.clients[clientID]
 	delete(a.clients, clientID)
@@ -142,7 +151,6 @@ func (a *RedisAdapter) removeAll(clientIDs []string) (err error) {
 func (a *RedisAdapter) remove(clientID string) (err error) {
 	var errs MultiErrorHandler
 
-	a.log.Printf("Remove clientID: %s from room: %s", clientID, a.room)
 	// can only remove clients connected to this adapter
 	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
 		errs.Add(errors.Annotatef(err, "hdel %s %s", a.keys.roomClients, clientID))
@@ -162,12 +170,17 @@ func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
 }
 
 func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
+	logCtx := logger.Ctx{
+		"client_id": clientID,
+		"metadata":  metadata,
+	}
+
+	a.log.Trace("SetMetadata", logCtx)
+
 	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID, metadata).Result()
 	if err != nil {
 		// FIXME return error
-		a.log.Printf("Error SetMetadata for clientID: %s, metadata: %s", clientID, metadata, err)
-	} else {
-		a.log.Printf("SetMetadata for clientID: %s, metadata: %s", clientID, metadata)
+		a.log.Error("Setmetadata", errors.Trace(err), logCtx)
 	}
 
 	return err == nil
@@ -175,23 +188,22 @@ func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
 
 // Returns IDs of all known clients connected to this room
 func (a *RedisAdapter) Clients() (map[string]string, error) {
-	a.log.Printf("Clients")
+	a.log.Trace("Clients", nil)
 
 	r := a.pubRedis.HGetAll(a.keys.roomClients)
 
 	allClients, err := r.Result()
 	if err != nil {
-		a.log.Printf("Error retrieving clients in room: %s, reason: %s", a.room, err)
-
 		return allClients, errors.Annotatef(err, "clients in room: %s", a.room)
 	}
 
-	a.log.Printf("Clients size: %d", len(allClients))
 	return allClients, nil
 }
 
 // Returns count of all known clients connected to this room
 func (a *RedisAdapter) Size() (size int, err error) {
+	a.log.Trace("Size", nil)
+
 	c, err := a.Clients()
 
 	return len(c), errors.Annotate(err, "size")
@@ -293,7 +305,12 @@ func (a *RedisAdapter) handleMessage(
 // Reads from subscribed keys and dispatches relevant messages to
 // client websockets. This method blocks until the context is closed.
 func (a *RedisAdapter) subscribe(ctx context.Context, ready chan<- struct{}) error {
-	a.log.Println("Subscribe", a.keys.roomChannel, a.keys.clientPattern)
+	log := a.log.WithNamespace("subscribe").WithCtx(logger.Ctx{
+		"room_channel":   a.keys.roomChannel,
+		"client_pattern": a.keys.clientPattern,
+	})
+
+	log.Trace("subscribe", nil)
 	pubsub := a.subRedis.PSubscribe(a.keys.roomChannel, a.keys.clientPattern)
 
 	defer pubsub.Close()
@@ -315,12 +332,12 @@ func (a *RedisAdapter) subscribe(ctx context.Context, ready chan<- struct{}) err
 			case *redis.Message:
 				err := a.handleMessage(msg.Pattern, msg.Channel, msg.Payload)
 				if err != nil {
-					a.log.Printf("Error handling message: %+v", errors.Trace(err))
+					log.Error("Handle message", errors.Trace(err), nil)
 				}
 			}
 		case <-ctx.Done():
 			err := ctx.Err()
-			a.log.Println("Subscribe done", err)
+			log.Trace(fmt.Sprintf("Subscribe done: %+v", errors.Trace(err)), nil)
 			return errors.Trace(err)
 		}
 	}
@@ -418,7 +435,11 @@ func (a *RedisAdapter) publish(channel string, msg Message) error {
 
 func (a *RedisAdapter) Broadcast(msg Message) error {
 	channel := a.keys.roomChannel
-	a.log.Printf("RedisAdapter.Broadcast type: %s to %s", msg.Type, channel)
+
+	a.log.Trace("Broadcast", logger.Ctx{
+		"message_type": msg.Type,
+		"room_channel": channel,
+	})
 
 	err := a.publish(channel, msg)
 
@@ -426,7 +447,9 @@ func (a *RedisAdapter) Broadcast(msg Message) error {
 }
 
 func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Message) (err error) {
-	a.log.Printf("RedisAdapter.localBroadcast in room %s of message type: %s", a.room, msg.Type)
+	a.log.Trace("localBroadcast", logger.Ctx{
+		"message_type": msg.Type,
+	})
 
 	var errs MultiErrorHandler
 
@@ -441,7 +464,11 @@ func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Messa
 
 func (a *RedisAdapter) Emit(clientID string, msg Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
-	a.log.Printf("Emit clientID: %s, type: %s to %s", clientID, msg.Type, channel)
+
+	a.log.Trace("Emit", logger.Ctx{
+		"message_type":   msg.Type,
+		"client_channel": channel,
+	})
 
 	data, err := a.serializer.Serialize(msg)
 	if err != nil {
@@ -455,7 +482,9 @@ func (a *RedisAdapter) Emit(clientID string, msg Message) error {
 func (a *RedisAdapter) localEmit(client ClientWriter, msg Message) error {
 	clientID := client.ID()
 
-	a.log.Printf("RedisAdapter.localEmit clientID: %s, type: %s", clientID, msg.Type)
+	a.log.Trace("localEmit", logger.Ctx{
+		"message_type": msg.Type,
+	})
 
 	err := client.Write(msg)
 	if err != nil {

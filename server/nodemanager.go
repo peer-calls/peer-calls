@@ -56,7 +56,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 
 		factory, err := transportManager.GetTransportFactory(addr)
 		if err != nil {
-			log.Error(errors.Annotate(err, "create transport factory"), nil)
+			log.Error("Create transport factory", errors.Trace(err), nil)
 		}
 
 		nm.handleTransportFactory(factory)
@@ -72,7 +72,7 @@ func (nm *NodeManager) startTransportEventLoop() {
 	for {
 		factory, err := nm.transportManager.AcceptTransportFactory()
 		if err != nil {
-			nm.params.Log.Error(errors.Annotate(err, "accept transport factory"), nil)
+			nm.params.Log.Error("Accept transport factory", errors.Trace(err), nil)
 
 			return
 		}
@@ -115,7 +115,7 @@ func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 
 				err := <-errChan
 				if err != nil {
-					nm.params.Log.Error(errors.Annotate(err, "wait for transport request"), nil)
+					nm.params.Log.Error("Wait for transport request", errors.Trace(err), nil)
 					done()
 				}
 			}()
@@ -136,7 +136,7 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 
 		if err := response.Err; err != nil {
 			errChan <- err
-			nm.params.Log.Error(errors.Annotate(err, "transport promise"), nil)
+			nm.params.Log.Error("Transport promise", errors.Trace(err), nil)
 			return
 		}
 
@@ -159,7 +159,7 @@ func (nm *NodeManager) startRoomEventLoop() {
 	for {
 		roomEvent, err := nm.params.RoomManager.AcceptEvent()
 		if err != nil {
-			nm.params.Log.Error(errors.Annotate(err, "accept room event"), nil)
+			nm.params.Log.Error("Accept room event", errors.Trace(err), nil)
 
 			return
 		}

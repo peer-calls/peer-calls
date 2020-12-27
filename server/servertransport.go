@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -52,23 +53,21 @@ type ServerTransport struct {
 }
 
 func NewServerTransport(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	mediaConn io.ReadWriteCloser,
 	dataConn io.ReadWriteCloser,
 	metadataConn io.ReadWriteCloser,
 ) *ServerTransport {
 	clientID := fmt.Sprintf("node:" + NewUUIDBase62())
-	logger := loggerFactory.GetLogger("servertransport")
-	logger.Printf("NewServerTransport: %s", clientID)
-
-	mediaLogger := loggerFactory.GetLogger("servermediatransport")
-	metadataLogger := loggerFactory.GetLogger("metadatatransport")
-	dataLogger := loggerFactory.GetLogger("datatransport")
+	log = log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
+		"client_id": clientID,
+	})
+	log.Info("NewServerTransport", nil)
 
 	return &ServerTransport{
-		ServerMetadataTransport: NewServerMetadataTransport(metadataLogger, metadataConn),
-		ServerMediaTransport:    NewServerMediaTransport(mediaLogger, mediaConn),
-		ServerDataTransport:     NewServerDataTransport(dataLogger, dataConn),
+		ServerMetadataTransport: NewServerMetadataTransport(log, metadataConn),
+		ServerMediaTransport:    NewServerMediaTransport(log, mediaConn),
+		ServerDataTransport:     NewServerDataTransport(log, dataConn),
 		clientID:                clientID,
 		closeChan:               make(chan struct{}),
 	}
@@ -103,7 +102,7 @@ type ServerMediaTransport struct {
 	conn     io.ReadWriteCloser
 	rtpCh    chan *rtp.Packet
 	rtcpCh   chan rtcp.Packet // TODO change to []rtcp.Packet
-	logger   Logger
+	log      logger.Logger
 
 	stats struct {
 		readBytes       int64
@@ -120,13 +119,13 @@ type ServerMediaTransport struct {
 
 var _ MediaTransport = &ServerMediaTransport{}
 
-func NewServerMediaTransport(logger Logger, conn io.ReadWriteCloser) *ServerMediaTransport {
+func NewServerMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *ServerMediaTransport {
 
 	t := ServerMediaTransport{
 		conn:   conn,
 		rtpCh:  make(chan *rtp.Packet),
 		rtcpCh: make(chan rtcp.Packet),
-		logger: logger,
+		log:    log.WithNamespaceAppended("server_media_transport"),
 	}
 
 	go t.start()
@@ -145,7 +144,7 @@ func (t *ServerMediaTransport) start() {
 	for {
 		i, err := t.conn.Read(buf)
 		if err != nil {
-			t.logger.Printf("Error reading remote data: %s", err)
+			t.log.Error("Read remote data", errors.Trace(err), nil)
 			return
 		}
 
@@ -162,7 +161,7 @@ func (t *ServerMediaTransport) start() {
 		err = t.handle(b)
 
 		if err != nil {
-			t.logger.Printf("Error handling remote data: %s", err)
+			t.log.Error("Handle remote data", errors.Trace(err), nil)
 		}
 	}
 }
@@ -258,15 +257,15 @@ func (t *ServerMediaTransport) Close() error {
 
 type ServerDataTransport struct {
 	conn         io.ReadWriteCloser
-	logger       Logger
+	log          logger.Logger
 	messagesChan chan webrtc.DataChannelMessage
 }
 
 var _ DataTransport = &ServerDataTransport{}
 
-func NewServerDataTransport(logger Logger, conn io.ReadWriteCloser) *ServerDataTransport {
+func NewServerDataTransport(log logger.Logger, conn io.ReadWriteCloser) *ServerDataTransport {
 	transport := &ServerDataTransport{
-		logger:       logger,
+		log:          log.WithNamespaceAppended("server_data_transport"),
 		conn:         conn,
 		messagesChan: make(chan webrtc.DataChannelMessage),
 	}
@@ -284,12 +283,12 @@ func (t *ServerDataTransport) start() {
 	for {
 		i, err := t.conn.Read(buf)
 		if err != nil {
-			t.logger.Printf("Error reading remote data: %s", err)
+			t.log.Error("Read remote data", errors.Trace(err), nil)
 			return
 		}
 
 		if i < 1 {
-			t.logger.Printf("Message too short: %d", i)
+			t.log.Error(fmt.Sprintf("Message too short: %d", i), nil, nil)
 			return
 		}
 
@@ -348,7 +347,7 @@ func (t *ServerDataTransport) Close() error {
 
 type ServerMetadataTransport struct {
 	conn          io.ReadWriteCloser
-	logger        Logger
+	log           logger.Logger
 	trackEventsCh chan TrackEvent
 	localTracks   map[uint32]TrackInfo
 	remoteTracks  map[uint32]TrackInfo
@@ -357,9 +356,11 @@ type ServerMetadataTransport struct {
 
 var _ MetadataTransport = &ServerMetadataTransport{}
 
-func NewServerMetadataTransport(logger Logger, conn io.ReadWriteCloser) *ServerMetadataTransport {
+func NewServerMetadataTransport(log logger.Logger, conn io.ReadWriteCloser) *ServerMetadataTransport {
+	log = log.WithNamespaceAppended("server_metadata_transport")
+
 	transport := &ServerMetadataTransport{
-		logger:        logger,
+		log:           log,
 		conn:          conn,
 		localTracks:   map[uint32]TrackInfo{},
 		remoteTracks:  map[uint32]TrackInfo{},
@@ -379,7 +380,7 @@ func (t *ServerMetadataTransport) start() {
 	for {
 		i, err := t.conn.Read(buf)
 		if err != nil {
-			t.logger.Printf("Error reading remote data: %s", err)
+			t.log.Error("Read remote data", errors.Trace(err), nil)
 			return
 		}
 
@@ -395,7 +396,7 @@ func (t *ServerMetadataTransport) start() {
 
 		err = json.Unmarshal(buf[:i], &eventJSON)
 		if err != nil {
-			t.logger.Printf("Error unmarshalling remote data: %s: %s", err, string(buf[:i]))
+			t.log.Error("Unmarshal remote data", err, nil)
 			return
 		}
 
@@ -415,7 +416,7 @@ func (t *ServerMetadataTransport) start() {
 			t.mu.Unlock()
 		}
 
-		t.logger.Printf("Got track event: %+v", trackEvent)
+		t.log.Info(fmt.Sprintf("Got track event: %+v", trackEvent), nil)
 
 		t.trackEventsCh <- trackEvent
 	}

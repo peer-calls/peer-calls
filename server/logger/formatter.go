@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 // Formatter defines the rules on how to format the logging context before
@@ -12,7 +11,7 @@ import (
 // a log file, or serialize it to JSON before sending the bytes to transport.
 type Formatter interface {
 	// Format formats the logging context for transport.
-	Format(ctx Ctx) ([]byte, error)
+	Format(message Message) ([]byte, error)
 }
 
 // StringFormatter is the default implementation of Formatter and it prepares
@@ -46,55 +45,40 @@ func NewStringFormatter(params StringFormatterParams) *StringFormatter {
 }
 
 // Format implements Formatter.
-func (f *StringFormatter) Format(ctx Ctx) ([]byte, error) {
-	var (
-		level     Level
-		namespace string
-		message   string
-		timestamp string
-	)
-
+func (f *StringFormatter) Format(message Message) ([]byte, error) {
 	// TODO maybe use sync.Pool for builders here.
-	var b strings.Builder
+	ctx := message.Ctx
 
-	b.WriteString(message)
+	var keys []string
 
-	keys := make([]string, 0, len(ctx))
+	if l := len(ctx); l > 0 {
+		keys = make([]string, 0, l)
 
-	for k := range ctx {
-		keys = append(keys, k)
+		for k := range ctx {
+			keys = append(keys, k)
+		}
 	}
 
 	if !f.params.DisableContextKeySorting {
 		sort.Strings(keys)
 	}
 
+	var b strings.Builder
+
 	for _, k := range keys {
 		v := ctx[k]
 
-		switch k {
-		case CtxKeyMessage:
-			message, _ = v.(string)
-		case CtxKeyNamespace:
-			namespace, _ = v.(string)
-		case CtxKeyLevel:
-			level, _ = v.(Level)
-		case CtxKeyTimestamp:
-			ts, _ := v.(int64)
-			timestamp = time.Unix(ts, 0).Format(f.params.DateLayout)
-		default:
-			b.WriteString(" ")
-			b.WriteString(k)
-			b.WriteString("=")
-			b.WriteString(fmt.Sprintf("%+v", v))
-		}
+		b.WriteString(" ")
+		b.WriteString(k)
+		b.WriteString("=")
+		b.WriteString(fmt.Sprintf("%+v", v))
 	}
 
 	ret := fmt.Sprintf("%s %5s [%20s] %s%s\n",
-		timestamp,
-		level,
-		namespace,
-		message,
+		message.Timestamp.Format(f.params.DateLayout),
+		message.Level,
+		message.Namespace,
+		message.Body,
 		b.String(),
 	)
 

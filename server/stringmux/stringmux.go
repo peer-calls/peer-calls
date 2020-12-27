@@ -24,7 +24,7 @@ type StringMux struct {
 }
 
 type Params struct {
-	Logger         logger.Logger
+	Log            logger.Logger
 	Conn           net.Conn
 	MTU            uint32
 	ReadChanSize   int
@@ -32,7 +32,7 @@ type Params struct {
 }
 
 func New(params Params) *StringMux {
-	params.Logger = params.Logger.WithNamespaceAppended("stringmux").WithCtx(logger.Ctx{
+	params.Log = params.Log.WithNamespaceAppended("stringmux").WithCtx(logger.Ctx{
 		"local_addr":  params.Conn.LocalAddr(),
 		"remote_addr": params.Conn.RemoteAddr(),
 	})
@@ -84,7 +84,7 @@ func (m *StringMux) start() {
 
 	createConn := func(streamID string) *conn {
 		return &conn{
-			logger: m.params.Logger.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
+			logger: m.params.Log.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
 				"stream_id": streamID,
 			}),
 
@@ -169,14 +169,14 @@ func (m *StringMux) startReading(ctx context.Context) {
 	for {
 		i, err := m.params.Conn.Read(buf)
 		if err != nil {
-			m.params.Logger.Error(errors.Annotate(err, "reading remote data"), nil)
+			m.params.Log.Error("read remote data", errors.Trace(err), nil)
 
 			return
 		}
 
 		streamID, data, err := Unmarshal(buf[:i])
 		if err != nil {
-			m.params.Logger.Error(errors.Annotate(err, "unmarshal remote data"), nil)
+			m.params.Log.Error("unmarshal remote data", errors.Trace(err), nil)
 
 			return
 		}

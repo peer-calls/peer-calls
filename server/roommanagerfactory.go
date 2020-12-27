@@ -1,22 +1,25 @@
 package server
 
-import "github.com/juju/errors"
+import (
+	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
+)
 
 type RoomManagerFactory struct {
 	params *RoomManagerFactoryParams
-	logger Logger
 }
 
 type RoomManagerFactoryParams struct {
 	AdapterFactory *AdapterFactory
 	TracksManager  TracksManager
-	LoggerFactory  LoggerFactory
+	Log            logger.Logger
 }
 
 func NewRoomManagerFactory(params RoomManagerFactoryParams) *RoomManagerFactory {
+	params.Log = params.Log.WithNamespaceAppended("room_manager_factory")
+
 	return &RoomManagerFactory{
 		params: &params,
-		logger: params.LoggerFactory.GetLogger("roommanagerfactory"),
 	}
 }
 
@@ -29,7 +32,7 @@ func (rmf *RoomManagerFactory) NewRoomManager(c NetworkConfig) (RoomManager, *No
 			return roomManager, nodeManager
 		}
 
-		rmf.logger.Println("Error creating NodeTransport, falling back to single SFU")
+		rmf.params.Log.Info("Error creating NodeTransport, falling back to single SFU", nil)
 	}
 
 	return rooms, nil
@@ -52,7 +55,7 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 	channelRoomManager := NewChannelRoomManager(rooms)
 
 	nodeManager, err := NewNodeManager(NodeManagerParams{
-		LoggerFactory: rmf.params.LoggerFactory,
+		Log:           rmf.params.Log,
 		ListenAddr:    listenAddr,
 		Nodes:         nodes,
 		RoomManager:   channelRoomManager,

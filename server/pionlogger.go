@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 
-	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/logging"
 )
@@ -67,7 +66,7 @@ func (p *pionLogger) Warnf(format string, args ...interface{}) {
 }
 
 func (p *pionLogger) Error(msg string) {
-	p.log.Error(errors.Errorf(msg), nil)
+	p.log.Error(msg, nil, nil)
 }
 
 func (p *pionLogger) Errorf(format string, args ...interface{}) {

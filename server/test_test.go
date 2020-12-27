@@ -2,18 +2,14 @@ package server_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
 // This package contains commonly used test variables
-
-var loggerFactory = logger.NewFactoryFromEnv("PEERCALLS_", os.Stdout)
 
 const room = "test-room"
 

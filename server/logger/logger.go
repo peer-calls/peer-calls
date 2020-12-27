@@ -14,6 +14,8 @@ type Logger interface {
 	// Level returns the current logger's level.
 	Level() Level
 
+	Namespace() string
+
 	// IsLevelEnabled returns true when Level is enabled, false otherwise.
 	IsLevelEnabled(level Level) bool
 
@@ -30,11 +32,7 @@ type Logger interface {
 	Warn(message string, ctx Ctx) (int, error)
 
 	// Error adds a log entry with level error.
-	Error(err error, ctx Ctx) (int, error)
-}
-
-func A() error {
-	return nil
+	Error(message string, err error, ctx Ctx) (int, error)
 }
 
 type Factory interface {
@@ -65,18 +63,27 @@ type logger struct {
 	config    Config
 	ctx       Ctx
 	formatter Formatter
+	namespace string
 	writer    io.Writer
 }
 
 // New returns a new Logger with default StringFormatter. Be sure to call
+
 // WithConfig to set the required levels for different namespaces.
 func New() Logger {
 	return &logger{
 		config:    LevelDisabled,
 		ctx:       nil,
 		formatter: NewStringFormatter(StringFormatterParams{}),
+		namespace: "",
 		writer:    os.Stderr,
 	}
+}
+
+func NewFromEnv(key string) Logger {
+	envConfig := os.Getenv(key)
+
+	return New().WithConfig(NewConfigMapFromString(envConfig))
 }
 
 // compile-time assertion that logger implements Logger.
@@ -93,6 +100,7 @@ func (l *logger) WithCtx(ctx Ctx) Logger {
 		config:    l.config,
 		ctx:       l.ctx.WithCtx(ctx),
 		formatter: l.formatter,
+		namespace: l.namespace,
 		writer:    l.writer,
 	}
 }
@@ -103,6 +111,7 @@ func (l *logger) WithFormatter(formatter Formatter) Logger {
 		config:    l.config,
 		ctx:       l.ctx,
 		formatter: formatter,
+		namespace: l.namespace,
 		writer:    l.writer,
 	}
 }
@@ -113,6 +122,7 @@ func (l *logger) WithWriter(writer io.Writer) Logger {
 		config:    l.config,
 		ctx:       l.ctx,
 		formatter: l.formatter,
+		namespace: l.namespace,
 		writer:    writer,
 	}
 }
@@ -120,18 +130,17 @@ func (l *logger) WithWriter(writer io.Writer) Logger {
 // WithNamespace implements Logger.
 func (l *logger) WithNamespace(namespace string) Logger {
 	return &logger{
-		config: l.config,
-		ctx: l.ctx.WithCtx(Ctx{
-			CtxKeyNamespace: namespace,
-		}),
+		config:    l.config,
+		ctx:       l.ctx,
 		formatter: l.formatter,
+		namespace: namespace,
 		writer:    l.writer,
 	}
 }
 
 // WithNamespaceAppended implements Logger.
 func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
-	oldNamespace := l.ctx.Namespace()
+	oldNamespace := l.namespace
 
 	if oldNamespace != "" {
 		newNamespace = fmt.Sprintf("%s:%s", oldNamespace, newNamespace)
@@ -142,50 +151,68 @@ func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
 
 // WithConfig implements Logger.
 func (l *logger) WithConfig(config Config) Logger {
+	if config == nil {
+		return l
+	}
+
 	return &logger{
 		config:    config,
 		ctx:       l.ctx,
 		formatter: l.formatter,
+		namespace: l.namespace,
 		writer:    l.writer,
 	}
 }
 
 // Level implements Logger.
+func (l *logger) Namespace() string {
+	return l.namespace
+}
+
+// Level implements Logger.
 func (l *logger) Level() Level {
-	return l.config.LevelForNamespace(l.ctx.Namespace())
+	return l.config.LevelForNamespace(l.namespace)
 }
 
 // Trace implements Logger.
 func (l *logger) Trace(message string, ctx Ctx) (int, error) {
-	i, err := l.log(time.Now().Unix(), LevelTrace, message, ctx)
+	i, err := l.log(time.Now(), LevelTrace, message, ctx)
 
 	return i, err
 }
 
 // Debug implements Logger.
 func (l *logger) Debug(message string, ctx Ctx) (int, error) {
-	i, err := l.log(time.Now().Unix(), LevelDebug, message, ctx)
+	i, err := l.log(time.Now(), LevelDebug, message, ctx)
 
 	return i, err
 }
 
 // Info implements Logger.
 func (l *logger) Info(message string, ctx Ctx) (int, error) {
-	i, err := l.log(time.Now().Unix(), LevelInfo, message, ctx)
+	i, err := l.log(time.Now(), LevelInfo, message, ctx)
 
 	return i, err
 }
 
 // Warn implements Logger.
 func (l *logger) Warn(message string, ctx Ctx) (int, error) {
-	i, err := l.log(time.Now().Unix(), LevelWarn, message, ctx)
+	i, err := l.log(time.Now(), LevelWarn, message, ctx)
 
 	return i, err
 }
 
 // Error implements Logger.
-func (l *logger) Error(err error, ctx Ctx) (int, error) {
-	i, err := l.log(time.Now().Unix(), LevelError, fmt.Sprintf("%+v", err), ctx)
+func (l *logger) Error(message string, err error, ctx Ctx) (int, error) {
+	if err != nil {
+		if message != "" {
+			message = fmt.Sprintf("%s: %+v", message, err)
+		} else {
+			message = fmt.Sprintf("%+v", err)
+		}
+	}
+
+	i, err := l.log(time.Now(), LevelError, message, ctx)
 
 	return i, err
 }
@@ -197,19 +224,18 @@ func (l *logger) IsLevelEnabled(level Level) bool {
 	return configuredLevel > 0 && level <= configuredLevel
 }
 
-func (l *logger) log(ts int64, level Level, message string, ctx Ctx) (int, error) {
+func (l *logger) log(ts time.Time, level Level, message string, ctx Ctx) (int, error) {
 	if !l.IsLevelEnabled(level) {
 		return 0, nil
 	}
 
-	mergedCtx := l.ctx.WithCtx(ctx)
-
-	formatted, err := l.formatter.Format(mergedCtx.WithCtx(Ctx{
-		CtxKeyNamespace: mergedCtx.Namespace(),
-		CtxKeyLevel:     level,
-		CtxKeyMessage:   message,
-		CtxKeyTimestamp: ts,
-	}))
+	formatted, err := l.formatter.Format(Message{
+		Timestamp: ts,
+		Namespace: l.namespace,
+		Level:     level,
+		Body:      message,
+		Ctx:       l.ctx.WithCtx(ctx),
+	})
 	if err != nil {
 		return 0, fmt.Errorf("log format error: %w", err)
 	}

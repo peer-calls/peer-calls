@@ -19,7 +19,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 
 		sub, err := wss.Subscribe(w, r)
 		if err != nil {
-			log.Error(errors.Annotate(err, "subscribe to websocket messages"), nil)
+			log.Error("Subscribe to websocket", errors.Trace(err), nil)
 		}
 
 		for msg := range sub.Messages {
@@ -29,6 +29,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 
 			log = log.WithCtx(logger.Ctx{
 				"client_id": clientID,
+				"room_id":   room,
 			})
 
 			var (
@@ -47,7 +48,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 
 				clients, readyClientsErr := getReadyClients(adapter)
 				if readyClientsErr != nil {
-					log.Error(errors.Annotate(err, "retrieving clients"), nil)
+					log.Error("Retrieve clients", errors.Trace(err), nil)
 				}
 
 				log.Info(fmt.Sprintf("Got clients: %s", clients), nil)
@@ -76,8 +77,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 			}
 
 			if err != nil {
-				log.Error(errors.Annotate(err, "sending event"), logger.Ctx{
-					"room":       room,
+				log.Error("Send event", errors.Trace(err), logger.Ctx{
 					"event_name": responseEventName,
 				})
 			}

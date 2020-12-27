@@ -49,7 +49,7 @@ func TestTransportManager_RTP(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
-	loggerFactory := test.NewLoggerFactory()
+	log := test.NewLogger()
 
 	udpConn1 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
@@ -66,14 +66,14 @@ func TestTransportManager_RTP(t *testing.T) {
 	var f1, f2 *server.TransportFactory
 
 	tm1 := server.NewTransportManager(server.TransportManagerParams{
-		Conn:          udpConn1,
-		LoggerFactory: loggerFactory,
+		Conn: udpConn1,
+		Log:  log,
 	})
 	defer tm1.Close()
 
 	tm2 := server.NewTransportManager(server.TransportManagerParams{
-		Conn:          udpConn2,
-		LoggerFactory: loggerFactory,
+		Conn: udpConn2,
+		Log:  log,
 	})
 	defer tm2.Close()
 
@@ -157,7 +157,7 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
-	loggerFactory := test.NewLoggerFactory()
+	log := test.NewLogger()
 
 	udpConn1 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
@@ -166,8 +166,8 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 	defer udpConn1.Close()
 
 	tm1 := server.NewTransportManager(server.TransportManagerParams{
-		Conn:          udpConn1,
-		LoggerFactory: loggerFactory,
+		Conn: udpConn1,
+		Log:  log,
 	})
 	defer tm1.Close()
 

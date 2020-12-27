@@ -47,13 +47,13 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 
 		template, ok := tr.templates.Get(templateName)
 		if !ok {
-			tr.log.Error(errors.Errorf("Template not found: %s", templateName), nil)
+			log.Error("Template not found", nil, nil)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err != nil {
-			tr.log.Error(errors.Annotate(err, "render"), nil)
+			log.Error("Render", errors.Trace(err), nil)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -70,7 +70,7 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 
 		err = template.Execute(buf, dataMap)
 		if err != nil {
-			tr.log.Error(errors.Annotate(err, "render"), nil)
+			log.Error("Execute template", errors.Trace(err), nil)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -78,7 +78,7 @@ func (tr *Renderer) Render(h PageHandler) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 
 		if _, err := buf.WriteTo(w); err != nil {
-			tr.log.Error(errors.Annotate(err, "write to buffer"), nil)
+			log.Error("Write buffer", errors.Trace(err), nil)
 		}
 	}
 

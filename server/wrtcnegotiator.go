@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -13,7 +14,7 @@ type TransceiverRequest struct {
 }
 
 type Negotiator struct {
-	log Logger
+	log logger.Logger
 
 	initiator            bool
 	remotePeerID         string
@@ -29,7 +30,7 @@ type Negotiator struct {
 }
 
 func NewNegotiator(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
 	remotePeerID string,
@@ -37,7 +38,7 @@ func NewNegotiator(
 	onRequestNegotiation func(),
 ) *Negotiator {
 	n := &Negotiator{
-		log:                  loggerFactory.GetLogger("negotiator"),
+		log:                  log.WithNamespaceAppended("negotiator"),
 		initiator:            initiator,
 		peerConnection:       peerConnection,
 		remotePeerID:         remotePeerID,
@@ -50,11 +51,18 @@ func NewNegotiator(
 }
 
 func (n *Negotiator) AddTransceiverFromKind(t TransceiverRequest) {
+	logCtx := logger.Ctx{
+		"codec_type": t.CodecType,
+		"direction":  t.Init.Direction,
+	}
+
+	n.log.Info("Add transceiver", logCtx)
+
 	n.mu.Lock()
-	n.log.Printf("[%s] Queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
 	n.queuedTransceiverRequests = append(n.queuedTransceiverRequests, t)
 	n.mu.Unlock()
-	n.log.Printf("[%s] Calling Negotiate because a %s transceiver was queued", n.remotePeerID, t.CodecType)
+
+	n.log.Info("Negotiate because a transceiver was queued", logCtx)
 	n.Negotiate()
 }
 
@@ -79,7 +87,12 @@ func (n *Negotiator) Done() <-chan struct{} {
 func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 	// TODO check if we need to have a check for first stable state
 	// like simple-peer has.
-	n.log.Printf("[%s] Signaling state change: %s", n.remotePeerID, state)
+
+	logCtx := logger.Ctx{
+		"signaling_state": state,
+	}
+
+	n.log.Info("Signaling state changed", logCtx)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -89,7 +102,7 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 		n.closeDoneChannel()
 	case webrtc.SignalingStateStable:
 		if n.queuedNegotiation {
-			n.log.Printf("[%s] Executing queued negotiation", n.remotePeerID)
+			n.log.Info("Execute queued negotiation", logCtx)
 			n.queuedNegotiation = false
 			n.negotiate()
 		} else {
@@ -99,18 +112,18 @@ func (n *Negotiator) handleSignalingStateChange(state webrtc.SignalingState) {
 }
 
 func (n *Negotiator) Negotiate() (done <-chan struct{}) {
-	n.log.Printf("[%s] Negotiate", n.remotePeerID)
+	n.log.Info("Negotiate", nil)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	if n.negotiationDone != nil {
-		n.log.Printf("[%s] Negotiate: already negotiating, queueing for later", n.remotePeerID)
+		n.log.Info("Negotiate: lready negotiating, queueing for later", nil)
 		n.queuedNegotiation = true
 		return
 	}
 
-	n.log.Printf("[%s] Negotiate: start", n.remotePeerID)
+	n.log.Info("Negotiate: start", nil)
 	n.negotiationDone = make(chan struct{})
 
 	n.negotiate()
@@ -119,11 +132,16 @@ func (n *Negotiator) Negotiate() (done <-chan struct{}) {
 
 func (n *Negotiator) addQueuedTransceivers() {
 	for _, t := range n.queuedTransceiverRequests {
-		n.log.Printf("[%s] Adding queued %s transceiver, direction: %s", n.remotePeerID, t.CodecType, t.Init.Direction)
+		logCtx := logger.Ctx{
+			"codec_type": t.CodecType,
+			"direction":  t.Init.Direction,
+		}
+
+		n.log.Trace("Add queued transceiver", logCtx)
+
 		_, err := n.peerConnection.AddTransceiverFromKind(t.CodecType, t.Init)
 		if err != nil {
-			err = errors.Annotate(err, "add transceiver")
-			n.log.Printf("[%s] Error adding %s transceiver: %+v", n.remotePeerID, err)
+			n.log.Error("Add queued transceiver", errors.Trace(err), logCtx)
 		}
 	}
 
@@ -134,13 +152,15 @@ func (n *Negotiator) negotiate() {
 	n.addQueuedTransceivers()
 
 	if !n.initiator {
-		n.log.Printf("[%s] negotiate: requesting from initiator", n.remotePeerID)
+		n.log.Info("negotiate: requesting negotiation from initiator", nil)
 		n.requestNegotiation()
 		return
 	}
 
-	n.log.Printf("[%s] negotiate: creating offer", n.remotePeerID)
+	n.log.Info("negotiate: creating offer", nil)
+
 	offer, err := n.peerConnection.CreateOffer(nil)
+
 	n.onOffer(offer, errors.Annotate(err, "create offer"))
 }
 

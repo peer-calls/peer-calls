@@ -121,7 +121,7 @@ func (d *DataTransceiver) start() {
 		case msgFuture := <-d.sendMessagesChan:
 			err := handleSendMessage(msgFuture.message)
 			if err != nil {
-				d.log.Error(errors.Annotate(err, "send error"), nil)
+				d.log.Error("Send error", errors.Trace(err), nil)
 
 				msgFuture.errCh <- errors.Trace(err)
 			}

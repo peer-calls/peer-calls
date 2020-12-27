@@ -16,9 +16,7 @@ import (
 
 const gitDescribe string = "v0.0.0"
 
-func configure(loggerFactory server.LoggerFactory, args []string) (net.Listener, *server.StartStopper, error) {
-	log := loggerFactory.GetLogger("main")
-
+func configure(log logger.Logger, args []string) (net.Listener, *server.StartStopper, error) {
 	flags := flag.NewFlagSet("peer-calls", flag.ExitOnError)
 
 	var configFilename string
@@ -38,18 +36,18 @@ func configure(loggerFactory server.LoggerFactory, args []string) (net.Listener,
 		return nil, nil, errors.Annotate(err, "read config")
 	}
 
-	log.Printf("Using config: %+v", c)
+	log.Info(fmt.Sprintf("Using config: %+v", c), nil)
 	// rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	tracks := server.NewMemoryTracksManager(loggerFactory, c.Network.SFU.JitterBuffer)
+	tracks := server.NewMemoryTracksManager(log, c.Network.SFU.JitterBuffer)
 
 	roomManagerFactory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{
-		AdapterFactory: server.NewAdapterFactory(loggerFactory, c.Store),
-		LoggerFactory:  loggerFactory,
+		AdapterFactory: server.NewAdapterFactory(log, c.Store),
+		Log:            log,
 		TracksManager:  tracks,
 	})
 	rooms, _ := roomManagerFactory.NewRoomManager(c.Network)
 
-	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
+	mux := server.NewMux(log, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "listen")
@@ -62,25 +60,20 @@ func configure(loggerFactory server.LoggerFactory, args []string) (net.Listener,
 }
 
 func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan error) {
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
-	loggerFactory.SetDefaultEnabled([]string{
-		"-sdp",
-		"-ws",
-		"-nack",
-		"-rtp",
-		"-rtcp",
-		"-pion:*:trace",
-		"-pion:*:debug",
-		"-pion:*:info",
-		"-udpmux:debug",
-		"-stringmux:debug",
-		"*",
-	})
-
-	log := loggerFactory.GetLogger("main")
+	log := logger.New().
+		WithConfig(logger.ConfigMap{
+			"sdp":  logger.LevelDisabled,
+			"ws":   logger.LevelDisabled,
+			"nack": logger.LevelDisabled,
+			"pion": logger.LevelWarn,
+			"":     logger.LevelInfo,
+		}).
+		WithConfig(logger.NewConfigMapFromString(os.Getenv("PEERCALLS_LOG"))).
+		WithFormatter(server.NewLogFormatter()).
+		WithNamespaceAppended("main")
 
 	ch := make(chan error, 1)
-	l, startStopper, err := configure(loggerFactory, args)
+	l, startStopper, err := configure(log, args)
 	if err != nil {
 		ch <- errors.Annotate(err, "configure")
 		close(ch)
@@ -88,7 +81,9 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 	}
 
 	addr = l.Addr().(*net.TCPAddr)
-	log.Printf("Listening on: %s", addr.String())
+	log.Info("Listen", logger.Ctx{
+		"local_addr": addr,
+	})
 
 	go func() {
 		err := startStopper.Start(l)

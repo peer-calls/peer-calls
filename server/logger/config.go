@@ -18,7 +18,7 @@ type ConfigMap map[string]Level
 // NewStringConfig parses the provided string and returns Config.
 func NewConfigMapFromString(stringConfig string) Config {
 	if stringConfig == "" {
-		return ConfigMap{}
+		return nil
 	}
 
 	configSlice := strings.Split(stringConfig, ",")
@@ -43,11 +43,19 @@ func NewConfigMapFromString(stringConfig string) Config {
 
 // LevelForNamespace implements Config.
 func (c ConfigMap) LevelForNamespace(namespace string) Level {
-	level, ok := c[namespace]
-	if ok {
+	if level, ok := c[namespace]; ok {
 		return level
 	}
 
+	// Check only the latest part of the namespace.
+	if index := strings.LastIndex(namespace, ":"); index > -1 {
+		namespace = namespace[index+1:]
+
+		if level, ok := c[namespace]; ok {
+			return level
+		}
+	}
+
 	// Return configuration for root logger.
-	return c["*"]
+	return c[""]
 }

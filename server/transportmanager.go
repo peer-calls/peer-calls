@@ -55,7 +55,7 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 	udpMux := udpmux.New(udpmux.Params{
 		Conn:           params.Conn,
 		MTU:            uint32(receiveMTU),
-		Logger:         params.Log,
+		Log:            params.Log,
 		ReadChanSize:   100,
 		ReadBufferSize: 0,
 	})
@@ -95,7 +95,7 @@ func (t *TransportManager) start() {
 	for {
 		conn, err := t.udpMux.AcceptConn()
 		if err != nil {
-			t.params.Log.Error(errors.Annotate(err, "accept udpmux conn"), nil)
+			t.params.Log.Error("Accept UDPMux conn", errors.Trace(err), nil)
 			return
 		}
 
@@ -107,7 +107,7 @@ func (t *TransportManager) start() {
 
 		factory, err := t.createTransportFactory(conn)
 		if err != nil {
-			log.Error(errors.Annotate(err, "create transport factory"), nil)
+			t.params.Log.Error("Create Transport Factory", errors.Trace(err), nil)
 			return
 		}
 
@@ -122,7 +122,7 @@ func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportF
 	defer t.mu.Unlock()
 
 	stringMux := stringmux.New(stringmux.Params{
-		Logger:         t.params.Log,
+		Log:            t.params.Log,
 		Conn:           conn,
 		MTU:            uint32(receiveMTU), // TODO not sure if this is ok
 		ReadChanSize:   100,
@@ -294,7 +294,7 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	// overhead of 3 bytes, and only a single bit is needed.
 	localMux := stringmux.New(stringmux.Params{
 		Conn:         conn,
-		Logger:       t.log,
+		Log:          t.log,
 		MTU:          uint32(receiveMTU),
 		ReadChanSize: 100,
 	})
@@ -515,7 +515,7 @@ func (t *TransportFactory) CloseTransport(streamID string) {
 
 	if transport, ok := t.transports[streamID]; ok {
 		if err := transport.Close(); err != nil {
-			t.log.Error(errors.Annotate(err, "close transport"), logger.Ctx{
+			t.log.Error("Close transport", errors.Trace(err), logger.Ctx{
 				"stream_id": streamID,
 			})
 		}

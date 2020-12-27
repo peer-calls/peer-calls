@@ -26,13 +26,13 @@ type UDPMux struct {
 type Params struct {
 	Conn           net.PacketConn
 	MTU            uint32
-	Logger         logger.Logger
+	Log            logger.Logger
 	ReadChanSize   int
 	ReadBufferSize int
 }
 
 func New(params Params) *UDPMux {
-	params.Logger = params.Logger.WithNamespaceAppended("udpmux").WithCtx(logger.Ctx{
+	params.Log = params.Log.WithNamespaceAppended("udpmux").WithCtx(logger.Ctx{
 		"local_addr": params.Conn.LocalAddr(),
 	})
 
@@ -119,7 +119,7 @@ func (m *UDPMux) startLoop() {
 
 	createConn := func(raddr net.Addr) *conn {
 		return &conn{
-			logger: m.params.Logger.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
+			logger: m.params.Log.WithNamespaceAppended("conn").WithCtx(logger.Ctx{
 				"remote_addr": raddr,
 			}),
 
@@ -205,7 +205,7 @@ func (m *UDPMux) startReading(ctx context.Context) {
 	for {
 		i, raddr, err := m.params.Conn.ReadFrom(buf)
 		if err != nil {
-			m.params.Logger.Error(errors.Annotate(err, "reading remote data"), nil)
+			m.params.Log.Error("read remote data", errors.Trace(err), nil)
 
 			return
 		}

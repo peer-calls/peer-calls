@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net"
 	"strconv"
 
@@ -17,15 +16,16 @@ type AdapterFactory struct {
 	NewAdapter func(room string) Adapter
 }
 
-func NewAdapterFactory(l logger.Logger, c StoreConfig) *AdapterFactory {
-	l = l.WithNamespaceAppended("adapterfactory")
+func NewAdapterFactory(log logger.Logger, c StoreConfig) *AdapterFactory {
+	log = log.WithNamespaceAppended("adapterfactory")
 	f := AdapterFactory{}
 
 	switch c.Type {
 	case StoreTypeRedis:
 		addr := net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port))
 		prefix := c.Redis.Prefix
-		l.Info("Using RedisAdapter", logger.Ctx{
+
+		log.Info("Using RedisAdapter", logger.Ctx{
 			"remote_addr": addr,
 			"prefix":      prefix,
 		})
@@ -39,10 +39,10 @@ func NewAdapterFactory(l logger.Logger, c StoreConfig) *AdapterFactory {
 		})
 
 		f.NewAdapter = func(room string) Adapter {
-			return NewRedisAdapter(l, f.pubClient, f.subClient, prefix, room)
+			return NewRedisAdapter(log, f.pubClient, f.subClient, prefix, room)
 		}
 	default:
-		log.Printf("Using MemoryAdapter")
+		log.Info("Using MemoryAdapter", nil)
 
 		f.NewAdapter = func(room string) Adapter {
 			return NewMemoryAdapter(room)

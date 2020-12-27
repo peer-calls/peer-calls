@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +63,7 @@ func Test_routeIndex(t *testing.T) {
 	trk := newMockTracksManager()
 	prom := server.PrometheusConfig{"test1234"}
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom)
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -76,7 +77,7 @@ func Test_routeIndex_noBaseURL(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -90,7 +91,7 @@ func Test_routeNewCall_name(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("POST", "/test/call", reader)
@@ -106,7 +107,7 @@ func Test_routeNewCall_random(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test/call", nil)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -125,7 +126,7 @@ func Test_routeCall(t *testing.T) {
 	iceServers := []server.ICEServer{{
 		URLs: []string{"stun:"},
 	}}
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test/call/abc", nil)
 	mux.ServeHTTP(w, r)
@@ -150,7 +151,7 @@ func Test_manifest(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("GET", "/test/manifest.json", reader)
@@ -165,7 +166,7 @@ func Test_Metrics(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 
 	for _, testCase := range []struct {
 		statusCode    int

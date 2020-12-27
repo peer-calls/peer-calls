@@ -37,6 +37,10 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	log := m.log.WithCtx(logger.Ctx{
+		"room_id": room,
+	})
+
 	roomPeersManager, ok := m.roomPeersManager[room]
 	if !ok {
 		jitterHandler := NewJitterHandler(
@@ -49,7 +53,11 @@ func (m *MemoryTracksManager) Add(room string, transport Transport) {
 		// TODO Write to RoomEventsChan
 	}
 
-	m.log.Printf("[%s] MemoryTrackManager.Add peer to room: %s", transport.ClientID(), room)
+	log = log.WithCtx(logger.Ctx{
+		"client_id": transport.ClientID(),
+	})
+
+	log.Info("Add peer", nil)
 	roomPeersManager.Add(transport)
 
 	go func() {
@@ -108,18 +116,29 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 
 	t.clientIDBySSRC[track.SSRC()] = clientID
 
+	log := t.log.WithCtx(logger.Ctx{
+		"client_id": clientID,
+	})
+
 	for otherClientID, otherTransport := range t.transports {
 		if otherClientID != clientID {
 
-			t.log.Printf("[%s] BEFORE Add track %+v from %s", otherClientID, track, clientID)
+			log.Trace("Add track (BEFORE)", logger.Ctx{
+				"other_client_id": otherClientID,
+				"ssrc":            track.SSRC(),
+				"track":           track,
+			})
 
 			track := t.asUserTrack(track, clientID)
 
-			t.log.Printf("[%s] AFTER  Add track %+v from %s", otherClientID, track, clientID)
+			log.Trace("Add track (AFTER)", logger.Ctx{
+				"other_client_id": otherClientID,
+				"ssrc":            track.SSRC(),
+				"track":           track,
+			})
 
 			if err := otherTransport.AddTrack(track); err != nil {
-				err = errors.Annotate(err, "add track")
-				t.log.Printf("[%s] MemoryTracksManager.addTrack Error adding track: %+v", otherClientID, err)
+				log.Error("Add track", errors.Trace(err), nil)
 				continue
 			}
 		}
@@ -132,13 +151,14 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 
 	for otherClientID, otherPeerInRoom := range t.transports {
 		if otherClientID != clientID {
-			t.log.Printf("[%s] broadcast from %s", otherClientID, clientID)
-
 			// FIXME async
 			err := <-otherPeerInRoom.Send(msg)
 
 			if err != nil {
-				t.log.Printf("[%s] broadcast error: %s", otherClientID, err)
+				t.log.Error("Broadcast", errors.Trace(err), logger.Ctx{
+					"client_id":       clientID,
+					"other_client_id": otherClientID,
+				})
 			}
 		}
 	}
@@ -158,6 +178,10 @@ func (t *RoomPeersManager) getTransportBySSRC(ssrc uint32) (transport Transport,
 }
 
 func (t *RoomPeersManager) Add(transport Transport) {
+	log := t.log.WithCtx(logger.Ctx{
+		"client_id": transport.ClientID(),
+	})
+
 	go func() {
 		for trackEvent := range transport.TrackEventsChannel() {
 			switch trackEvent.Type {
@@ -175,8 +199,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			if rtcpPacket != nil {
 				err := transport.WriteRTCP([]rtcp.Packet{rtcpPacket})
 				if err != nil {
-					err = errors.Annotatef(err, "write rtcp")
-					t.log.Printf("[%s] Error writing RTCP packet: %s: %+v", transport.ClientID(), rtcpPacket, err)
+					log.Error("WriteRTCP", errors.Trace(err), nil)
 				}
 			}
 
@@ -187,8 +210,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 				if otherClientID != transport.ClientID() {
 					_, err := otherTransport.WriteRTP(packet)
 					if err != nil {
-						err = errors.Annotatef(err, "write rtp")
-						t.log.Printf("[%s] Error writing RTP packet for ssrc: %d: %+v", otherClientID, packet.SSRC, err)
+						log.Error("WriteRTP", errors.Trace(err), nil)
 					}
 				}
 			}
@@ -266,11 +288,13 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			case *rtcp.ReceiverReport:
 			case *rtcp.SenderReport:
 			default:
-				t.log.Printf("[%s] Got unhandled RTCP pkt for track: %d (%T)", transport.ClientID(), pkt.DestinationSSRC(), pkt)
+				t.log.Error("Unhandled RTCP Packet", nil, logger.Ctx{
+					"destination_ssrc": pkt.DestinationSSRC(),
+				})
 			}
 
 			if err != nil {
-				t.log.Printf("[%s] addTrackToPeer error sending RTCP packet to source peer: %+v", transport.ClientID(), err)
+				t.log.Error("Send RTCP to source peer", errors.Trace(err), nil)
 				// do not return early since the rtcp channel needs to be emptied
 			}
 		}
@@ -287,18 +311,27 @@ func (t *RoomPeersManager) Add(transport Transport) {
 
 	for existingClientID, existingTransport := range t.transports {
 		for _, trackInfo := range existingTransport.RemoteTracks() {
-			t.log.Printf("[%s] BEFORE Add track %+v to %s", transport.ClientID(), trackInfo.Track, existingClientID)
+
+			log.Trace("Add track to existing (BEFORE)", logger.Ctx{
+				"other_client_id": existingClientID,
+				"ssrc":            trackInfo.Track.SSRC(),
+				"track":           trackInfo.Track,
+			})
+
 			track := t.asUserTrack(trackInfo.Track, existingClientID)
-			t.log.Printf("[%s] AFTER  Add track %+v to %s", transport.ClientID(), track, existingClientID)
+
+			log.Trace("Add track to existing (AFTER)", logger.Ctx{
+				"other_client_id": existingClientID,
+				"ssrc":            track.SSRC(),
+				"track":           track,
+			})
+
 			err := transport.AddTrack(track)
 			if err != nil {
 				err = errors.Annotatef(err, "add track")
-				t.log.Printf(
-					"Error adding peer clientID: %s track to clientID: %s - reason: %+v",
-					existingClientID,
-					transport.ClientID(),
-					err,
-				)
+				t.log.Error("Add track", errors.Trace(err), logger.Ctx{
+					"other_client_id": existingClientID,
+				})
 			}
 		}
 	}
@@ -357,7 +390,10 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 			UserID:   t.getUserID(track),
 		}
 
-		t.log.Printf("[%s] GetTracksMetadata: %d %#v", clientID, track.SSRC(), trackMetadata)
+		t.log.Trace("GetTracksMetadata", logger.Ctx{
+			"ssrc":      track.SSRC(),
+			"client_id": clientID,
+		})
 
 		m = append(m, trackMetadata)
 	}
@@ -366,7 +402,10 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 }
 
 func (t *RoomPeersManager) Remove(clientID string) {
-	t.log.Printf("removePeer: %s", clientID)
+	t.log.Trace("Remove", logger.Ctx{
+		"client_id": clientID,
+	})
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -375,7 +414,12 @@ func (t *RoomPeersManager) Remove(clientID string) {
 }
 
 func (t *RoomPeersManager) removeTrack(clientID string, track Track) {
-	t.log.Printf("[%s] removeTrack ssrc: %d from other peers", clientID, track.SSRC())
+	logCtx := logger.Ctx{
+		"client_id": clientID,
+		"ssrc":      track.SSRC(),
+	}
+
+	t.log.Trace("Remove track", logCtx)
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -387,8 +431,9 @@ func (t *RoomPeersManager) removeTrack(clientID string, track Track) {
 		if otherClientID != clientID {
 			err := otherTransport.RemoveTrack(track.SSRC())
 			if err != nil {
-				err = errors.Annotate(err, "remove track")
-				t.log.Printf("[%s] removeTrack error removing track: %+v", clientID, err)
+				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
+					"other_client_id": otherClientID,
+				})
 			}
 		}
 	}

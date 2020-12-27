@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -35,14 +35,14 @@ func TestStringMuxNew(t *testing.T) {
 
 	sm1 := stringmux.New(stringmux.Params{
 		Conn:         conn1,
-		Logger:       logger.New(),
+		Log:       test.NewLogger(),
 		ReadChanSize: 8,
 	})
 	defer sm1.Close()
 
 	sm2 := stringmux.New(stringmux.Params{
 		Conn:         conn2,
-		Logger:       logger.New(),
+		Log:       test.NewLogger(),
 		ReadChanSize: 8,
 	})
 	defer sm2.Close()
@@ -81,7 +81,7 @@ func TestStringMux_Close_GetConn(t *testing.T) {
 
 	sm1 := stringmux.New(stringmux.Params{
 		Conn:   conn1,
-		Logger: logger.New(),
+		Log: test.NewLogger(),
 	})
 
 	sm1.Close()

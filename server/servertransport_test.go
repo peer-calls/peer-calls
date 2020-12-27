@@ -2,11 +2,10 @@ package server
 
 import (
 	"net"
-	"os"
 	"sync"
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -81,11 +80,10 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
-	logger := loggerFactory.GetLogger("test")
+	log := test.NewLogger()
 
-	t1 := NewServerMediaTransport(logger, conn1)
-	t2 := NewServerMediaTransport(logger, conn2)
+	t1 := NewServerMediaTransport(log, conn1)
+	t2 := NewServerMediaTransport(log, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -139,11 +137,10 @@ func TestServerMediaTransport_RTCP(t *testing.T) {
 	conn1 := newUDPServer()
 	conn2 := newUDPClient(conn1.LocalAddr())
 
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
-	logger := loggerFactory.GetLogger("test")
+	log := test.NewLogger()
 
-	t1 := NewServerMediaTransport(logger, conn1)
-	t2 := NewServerMediaTransport(logger, conn2)
+	t1 := NewServerMediaTransport(log, conn1)
+	t2 := NewServerMediaTransport(log, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -177,9 +174,9 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	defer conn1.Close()
 	defer conn2.Close()
 
-	loggerFactory := logger.NewFactoryFromEnv("PEERCALLS_", os.Stderr)
+	log := test.NewLogger()
 
-	plf := NewPionLoggerFactory(loggerFactory)
+	plf := NewPionLoggerFactory(log)
 
 	var wg sync.WaitGroup
 

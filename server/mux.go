@@ -70,6 +70,8 @@ func NewMux(
 	tracks TracksManager,
 	prom PrometheusConfig,
 ) *Mux {
+	log = log.WithNamespaceAppended("mux")
+
 	box := packr.NewBox("./templates")
 	templates := ParseTemplates(box)
 	renderer := NewRenderer(log, templates, baseURL, version)
@@ -146,7 +148,7 @@ func newWebSocketHandler(
 	iceServers []ICEServer,
 	tracks TracksManager,
 ) http.Handler {
-	log = log.WithNamespaceAppended("mux")
+	log = log.WithNamespaceAppended("websocket_handler")
 
 	switch network.Type {
 	case NetworkTypeSFU:

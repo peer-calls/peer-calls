@@ -13,16 +13,17 @@ func TestRoomManagerFactory(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
-	loggerFactory := test.NewLoggerFactory()
+	log := test.NewLogger()
+
 	tracksManager := newMockTracksManager()
-	adapterFactory := server.NewAdapterFactory(loggerFactory, server.StoreConfig{
+	adapterFactory := server.NewAdapterFactory(log, server.StoreConfig{
 		Type: server.StoreTypeMemory,
 	})
 
 	defer adapterFactory.Close()
 
 	factory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{
-		LoggerFactory:  loggerFactory,
+		Log:            log,
 		AdapterFactory: adapterFactory,
 		TracksManager:  tracksManager,
 	})
