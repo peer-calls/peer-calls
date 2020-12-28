@@ -35,9 +35,11 @@ func TestPionLogger(t *testing.T) {
 	for i, tc := range testCases {
 		descr := fmt.Sprintf("test case: %d", i)
 
-		log := logger.New().WithWriter(&b).WithConfig(logger.ConfigMap{
-			"pion": logger.LevelTrace,
-		}).WithFormatter(logger.NewStringFormatter(logger.StringFormatterParams{
+		log := logger.New().WithWriter(&b).WithConfig(
+			logger.NewConfig(logger.ConfigMap{
+				"pion": logger.LevelTrace,
+			}),
+		).WithFormatter(logger.NewStringFormatter(logger.StringFormatterParams{
 			DisableContextKeySorting: false,
 			DateLayout:               "-",
 		}))

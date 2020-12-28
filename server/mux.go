@@ -43,9 +43,17 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.handler.ServeHTTP(w, r)
 }
 
+type SubscribeParams struct {
+	Room     string
+	ClientID string
+	SSRC     uint32
+}
+
 type TracksManager interface {
 	Add(room string, transport Transport)
 	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
+	Subscribe(params SubscribeParams) error
+	Unsubscribe(params SubscribeParams) error
 }
 
 func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc {

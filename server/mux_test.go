@@ -24,14 +24,18 @@ type addedPeer struct {
 }
 
 type mockTracksManager struct {
-	added chan addedPeer
+	added        chan addedPeer
+	subscribed   chan server.SubscribeParams
+	unsubscribed chan server.SubscribeParams
 }
 
 var _ server.TracksManager = &mockTracksManager{}
 
 func newMockTracksManager() *mockTracksManager {
 	return &mockTracksManager{
-		added: make(chan addedPeer, 10),
+		added:        make(chan addedPeer, 10),
+		subscribed:   make(chan server.SubscribeParams, 10),
+		unsubscribed: make(chan server.SubscribeParams, 10),
 	}
 }
 
@@ -45,6 +49,16 @@ func (m *mockTracksManager) Add(room string, transport server.Transport) {
 
 func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]server.TrackMetadata, bool) {
 	return nil, true
+}
+
+func (m *mockTracksManager) Subscribe(params server.SubscribeParams) error {
+	m.subscribed <- params
+	return nil
+}
+
+func (m *mockTracksManager) Unsubscribe(params server.SubscribeParams) error {
+	m.unsubscribed <- params
+	return nil
 }
 
 func mesh() (network server.NetworkConfig) {

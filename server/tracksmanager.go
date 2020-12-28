@@ -88,6 +88,14 @@ func (m *MemoryTracksManager) GetTracksMetadata(room string, clientID string) (m
 	return roomPeersManager.GetTracksMetadata(clientID)
 }
 
+func (m *MemoryTracksManager) Subscribe(params SubscribeParams) error {
+	return errors.Errorf("Not implemented")
+}
+
+func (m *MemoryTracksManager) Unsubscribe(params SubscribeParams) error {
+	return errors.Errorf("Not implemented")
+}
+
 type RoomPeersManager struct {
 	log logger.Logger
 	mu  sync.RWMutex
@@ -129,6 +137,8 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 				"track":           track,
 			})
 
+			// TODO store the track associations in the map and let the clients
+			// subscribe as needed instead of subscribing automatically.
 			track := t.asUserTrack(track, clientID)
 
 			log.Trace("Add track (AFTER)", logger.Ctx{
