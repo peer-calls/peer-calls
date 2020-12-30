@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -49,7 +50,7 @@ func TestTrackEventsSuber(t *testing.T) {
 
 	ev := TrackEvent{
 		TrackInfo: TrackInfo{},
-		Type:      TrackEventTypeAdd,
+		Type:      transport.TrackEventTypeAdd,
 	}
 
 	select {

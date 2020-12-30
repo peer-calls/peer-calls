@@ -21,7 +21,7 @@ type PubSub struct {
 
 	// subsBySubClientID is a map of a set of pubs that the transport has
 	// subscribed to.
-	subsBySubClientID map[string]pubSet
+	subsBySubClientID map[string]map[uint32]*pub
 }
 
 // New returns a new instance of PubSub.
@@ -29,7 +29,7 @@ func New() *PubSub {
 	return &PubSub{
 		pubs:              map[publishedTrack]*pub{},
 		pubsByPubClientID: map[string]pubSet{},
-		subsBySubClientID: map[string]pubSet{},
+		subsBySubClientID: map[string]map[uint32]*pub{},
 	}
 }
 
@@ -103,10 +103,10 @@ func (p *PubSub) sub(pb *pub, transport Transport) error {
 	}
 
 	if _, ok := p.subsBySubClientID[subClientID]; !ok {
-		p.subsBySubClientID[subClientID] = pubSet{}
+		p.subsBySubClientID[subClientID] = map[uint32]*pub{}
 	}
 
-	p.subsBySubClientID[subClientID][pb] = struct{}{}
+	p.subsBySubClientID[subClientID][pb.track.SSRC()] = pb
 
 	return nil
 }
@@ -134,7 +134,7 @@ func (p *PubSub) Unsub(clientID string, ssrc uint32, subClientID string) error {
 func (p *PubSub) unsub(subClientID string, pb *pub) error {
 	err := pb.unsub(subClientID)
 
-	delete(p.subsBySubClientID[subClientID], pb)
+	delete(p.subsBySubClientID[subClientID], pb.track.SSRC())
 
 	if len(p.subsBySubClientID[subClientID]) == 0 {
 		delete(p.subsBySubClientID, subClientID)
@@ -150,7 +150,7 @@ func (p *PubSub) Terminate(clientID string) {
 		p.Unpub(clientID, pb.track.SSRC())
 	}
 
-	for pb := range p.subsBySubClientID[clientID] {
+	for _, pb := range p.subsBySubClientID[clientID] {
 		_ = p.unsub(clientID, pb)
 	}
 }
@@ -178,6 +178,15 @@ func (p *PubSub) Subscribers(clientID string, ssrc uint32) []Transport {
 	}
 
 	return transports
+}
+
+func (p *PubSub) PubClientID(subClientID string, ssrc uint32) (string, bool) {
+	pb, ok := p.subsBySubClientID[subClientID][ssrc]
+	if !ok {
+		return "", false
+	}
+
+	return pb.clientID, true
 }
 
 type publishedTrack struct {

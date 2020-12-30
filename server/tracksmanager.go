@@ -5,6 +5,8 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pubsub"
+	_transport "github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 )
@@ -97,14 +99,17 @@ func (m *MemoryTracksManager) Unsubscribe(params SubscribeParams) error {
 }
 
 type RoomPeersManager struct {
-	log logger.Logger
-	mu  sync.RWMutex
-	// key is clientID
-	transports             map[string]Transport
+	log                    logger.Logger
+	mu                     sync.RWMutex
 	jitterHandler          JitterHandler
 	trackBitrateEstimators *TrackBitrateEstimators
-	clientIDBySSRC         map[uint32]string
-	room                   string
+
+	// transports indexed by ClientID
+	transports map[string]Transport
+	room       string
+
+	// pubsub keeps track of published tracks and its subscribers.
+	pubsub *pubsub.PubSub
 }
 
 func NewRoomPeersManager(room string, log logger.Logger, jitterHandler JitterHandler) *RoomPeersManager {
@@ -113,8 +118,10 @@ func NewRoomPeersManager(room string, log logger.Logger, jitterHandler JitterHan
 		transports:             map[string]Transport{},
 		jitterHandler:          jitterHandler,
 		trackBitrateEstimators: NewTrackBitrateEstimators(),
-		clientIDBySSRC:         map[uint32]string{},
 		room:                   room,
+
+		pubsub: pubsub.New(),
+		// trackEventsSuber: newTrackEventsSuber(),
 	}
 }
 
@@ -122,33 +129,32 @@ func (t *RoomPeersManager) addTrack(clientID string, track Track) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.clientIDBySSRC[track.SSRC()] = clientID
-
 	log := t.log.WithCtx(logger.Ctx{
 		"client_id": clientID,
+		"ssrc":      track.SSRC(),
 	})
 
-	for otherClientID, otherTransport := range t.transports {
-		if otherClientID != clientID {
+	log.Trace("Add track (BEFORE)", logger.Ctx{
+		"track": track,
+	})
 
-			log.Trace("Add track (BEFORE)", logger.Ctx{
-				"other_client_id": otherClientID,
-				"ssrc":            track.SSRC(),
-				"track":           track,
-			})
+	track = t.asUserTrack(track, clientID)
 
-			// TODO store the track associations in the map and let the clients
-			// subscribe as needed instead of subscribing automatically.
-			track := t.asUserTrack(track, clientID)
+	log.Trace("Add track (AFTER)", logger.Ctx{
+		"track": track,
+	})
 
-			log.Trace("Add track (AFTER)", logger.Ctx{
-				"other_client_id": otherClientID,
-				"ssrc":            track.SSRC(),
-				"track":           track,
-			})
+	t.pubsub.Pub(clientID, track)
 
-			if err := otherTransport.AddTrack(track); err != nil {
-				log.Error("Add track", errors.Trace(err), nil)
+	// TODO store the track associations in the map and let the clients
+	// subscribe as needed instead of subscribing automatically.
+	for subClientID, subTransport := range t.transports {
+		if subClientID != clientID {
+			if err := t.pubsub.Sub(clientID, track.SSRC(), subTransport); err != nil {
+				log.Error("Add track", errors.Trace(err), logger.Ctx{
+					"sub_client_id": subClientID,
+				})
+
 				continue
 			}
 		}
@@ -174,11 +180,11 @@ func (t *RoomPeersManager) broadcast(clientID string, msg webrtc.DataChannelMess
 	}
 }
 
-func (t *RoomPeersManager) getTransportBySSRC(ssrc uint32) (transport Transport, ok bool) {
+func (t *RoomPeersManager) getTransportBySSRC(subClientID string, ssrc uint32) (transport Transport, ok bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	clientID, ok := t.clientIDBySSRC[ssrc]
+	clientID, ok := t.pubsub.PubClientID(subClientID, ssrc)
 	if !ok {
 		return nil, false
 	}
@@ -195,9 +201,9 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	go func() {
 		for trackEvent := range transport.TrackEventsChannel() {
 			switch trackEvent.Type {
-			case TrackEventTypeAdd:
+			case _transport.TrackEventTypeAdd:
 				t.addTrack(transport.ClientID(), trackEvent.TrackInfo.Track)
-			case TrackEventTypeRemove:
+			case _transport.TrackEventTypeRemove:
 				t.removeTrack(transport.ClientID(), trackEvent.TrackInfo.Track)
 			}
 		}
@@ -213,19 +219,21 @@ func (t *RoomPeersManager) Add(transport Transport) {
 				}
 			}
 
-			// FIXME Do not lock (block) on long operations such as WriteRTP below.
 			t.mu.Lock()
 
-			for otherClientID, otherTransport := range t.transports {
-				if otherClientID != transport.ClientID() {
-					_, err := otherTransport.WriteRTP(packet)
-					if err != nil {
-						log.Error("WriteRTP", errors.Trace(err), nil)
-					}
-				}
-			}
+			subTransports := t.pubsub.Subscribers(transport.ClientID(), packet.SSRC)
 
 			t.mu.Unlock()
+
+			for subClientID, subTransport := range subTransports {
+				if _, err := subTransport.(Transport).WriteRTP(packet); err != nil {
+					log.Error("WriteRTP", errors.Trace(err), logger.Ctx{
+						"pub_client_id": transport.ClientID(),
+						"sub_client_id": subClientID,
+						"ssrc":          packet.SSRC,
+					})
+				}
+			}
 		}
 	}()
 
@@ -239,7 +247,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			transportsSet := map[Transport]struct{}{}
 
 			for _, ssrc := range packet.SSRCs {
-				sourceTransport, ok := t.getTransportBySSRC(ssrc)
+				sourceTransport, ok := t.getTransportBySSRC(transport.ClientID(), ssrc)
 				if ok {
 					transportsSet[sourceTransport] = struct{}{}
 				}
@@ -254,7 +262,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 		}
 
 		handlePLI := func(packet *rtcp.PictureLossIndication) error {
-			sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
+			sourceTransport, ok := t.getTransportBySSRC(transport.ClientID(), packet.MediaSSRC)
 			if !ok {
 				return errors.Errorf("no source transport for PictureLossIndication for track: %d", packet.MediaSSRC)
 			}
@@ -274,7 +282,7 @@ func (t *RoomPeersManager) Add(transport Transport) {
 			}
 
 			if nack != nil {
-				sourceTransport, ok := t.getTransportBySSRC(packet.MediaSSRC)
+				sourceTransport, ok := t.getTransportBySSRC(transport.ClientID(), packet.MediaSSRC)
 				if ok {
 					if err := sourceTransport.WriteRTCP([]rtcp.Packet{nack}); err != nil {
 						errs.Add(errors.Annotate(err, "write rtcp"))
@@ -319,28 +327,14 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	for existingClientID, existingTransport := range t.transports {
-		for _, trackInfo := range existingTransport.RemoteTracks() {
-
-			log.Trace("Add track to existing (BEFORE)", logger.Ctx{
-				"other_client_id": existingClientID,
-				"ssrc":            trackInfo.Track.SSRC(),
-				"track":           trackInfo.Track,
-			})
-
-			track := t.asUserTrack(trackInfo.Track, existingClientID)
-
-			log.Trace("Add track to existing (AFTER)", logger.Ctx{
-				"other_client_id": existingClientID,
-				"ssrc":            track.SSRC(),
-				"track":           track,
-			})
-
-			err := transport.AddTrack(track)
-			if err != nil {
+	for pubClientID, pubTransport := range t.transports {
+		for _, trackInfo := range pubTransport.RemoteTracks() {
+			if err := t.pubsub.Sub(pubClientID, trackInfo.Track.SSRC(), transport); err != nil {
 				err = errors.Annotatef(err, "add track")
-				t.log.Error("Add track", errors.Trace(err), logger.Ctx{
-					"other_client_id": existingClientID,
+				t.log.Error("sub", errors.Trace(err), logger.Ctx{
+					"pub_client_id": pubTransport.ClientID(),
+					"sub_client_id": transport.ClientID(),
+					"ssrc":          trackInfo.Track.SSRC(),
 				})
 			}
 		}
@@ -351,14 +345,16 @@ func (t *RoomPeersManager) Add(transport Transport) {
 
 // getUserID tries to obtain to userID from a track, but otherwise falls back
 // to the clientID.
-func (t *RoomPeersManager) getUserID(track Track) string {
+func (t *RoomPeersManager) getUserID(subClientID string, track Track) string {
 	var userID string
 	if userIdentifiable, ok := track.(UserIdentifiable); ok {
 		userID = userIdentifiable.UserID()
 	}
+
 	if userID == "" {
-		userID = t.clientIDBySSRC[track.SSRC()]
+		userID, _ = t.pubsub.PubClientID(subClientID, track.SSRC())
 	}
+
 	return userID
 }
 
@@ -372,7 +368,7 @@ func (t *RoomPeersManager) asUserTrack(track Track, clientID string) Track {
 	return NewUserTrack(track, clientID, t.room)
 }
 
-// GetTracksMetadata retrieves remote track metadata for a specific peer.
+// GetTracksMetadata retrieves local track metadata for a specific peer.
 //
 // TODO In the future, this method will need to be implemented differently for
 // WebRTCTransport and RTPTransport, since RTPTransport might contain tracks
@@ -397,7 +393,7 @@ func (t *RoomPeersManager) GetTracksMetadata(clientID string) (m []TrackMetadata
 			Kind:     trackInfo.Kind.String(),
 			Mid:      trackInfo.Mid,
 			StreamID: track.Label(),
-			UserID:   t.getUserID(track),
+			UserID:   t.getUserID(clientID, track),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{
@@ -434,17 +430,7 @@ func (t *RoomPeersManager) removeTrack(clientID string, track Track) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.trackBitrateEstimators.Remove(track.SSRC())
-	delete(t.clientIDBySSRC, track.SSRC())
+	t.pubsub.Unpub(clientID, track.SSRC())
 
-	for otherClientID, otherTransport := range t.transports {
-		if otherClientID != clientID {
-			err := otherTransport.RemoveTrack(track.SSRC())
-			if err != nil {
-				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
-					"other_client_id": otherClientID,
-				})
-			}
-		}
-	}
+	t.trackBitrateEstimators.Remove(track.SSRC())
 }

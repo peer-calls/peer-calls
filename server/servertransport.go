@@ -10,6 +10,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -17,8 +18,10 @@ import (
 
 const receiveMTU int = 8192
 
-var ErrNoData = errors.Errorf("cannot handle empty buffer")
-var ErrUnknownPacket = errors.Errorf("unknown packet")
+var (
+	ErrNoData        = errors.Errorf("cannot handle empty buffer")
+	ErrUnknownPacket = errors.Errorf("unknown packet")
+)
 
 // ServerTransport is used for server to server communication. The underlying
 // transport protocol is SCTP, and the following data is transferred:
@@ -406,11 +409,11 @@ func (t *ServerMetadataTransport) start() {
 		}
 
 		switch trackEvent.Type {
-		case TrackEventTypeAdd:
+		case transport.TrackEventTypeAdd:
 			t.mu.Lock()
 			t.remoteTracks[trackEvent.TrackInfo.Track.SSRC()] = trackEvent.TrackInfo
 			t.mu.Unlock()
-		case TrackEventTypeRemove:
+		case transport.TrackEventTypeRemove:
 			t.mu.Lock()
 			delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
 			t.mu.Unlock()
@@ -466,7 +469,7 @@ func (t *ServerMetadataTransport) AddTrack(track Track) error {
 
 	trackEvent := TrackEvent{
 		TrackInfo: trackInfo,
-		Type:      TrackEventTypeAdd,
+		Type:      transport.TrackEventTypeAdd,
 	}
 
 	return t.sendTrackEvent(trackEvent)
@@ -507,7 +510,7 @@ func (t *ServerMetadataTransport) RemoveTrack(ssrc uint32) error {
 
 	trackEvent := TrackEvent{
 		TrackInfo: trackInfo,
-		Type:      TrackEventTypeRemove,
+		Type:      transport.TrackEventTypeRemove,
 	}
 
 	return t.sendTrackEvent(trackEvent)

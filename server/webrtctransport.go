@@ -179,6 +179,7 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 		})
 	}
 
+	// nolint:exhaustivestruct
 	webrtcConfig := webrtc.Configuration{
 		ICEServers: webrtcICEServers,
 	}
@@ -345,10 +346,12 @@ func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
 
 func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 	p.mu.Lock()
+
 	pta, ok := p.localTracks[ssrc]
 	if ok {
 		delete(p.localTracks, ssrc)
 	}
+
 	p.mu.Unlock()
 
 	if !ok {
@@ -505,7 +508,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	p.addRemoteTrack(rti)
 	p.trackEventsCh <- TrackEvent{
 		TrackInfo: trackInfo,
-		Type:      TrackEventTypeAdd,
+		Type:      transport.TrackEventTypeAdd,
 	}
 
 	p.wg.Add(1)
@@ -515,7 +518,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 			p.removeRemoteTrack(trackInfo.Track.SSRC())
 			p.trackEventsCh <- TrackEvent{
 				TrackInfo: trackInfo,
-				Type:      TrackEventTypeRemove,
+				Type:      transport.TrackEventTypeRemove,
 			}
 
 			p.wg.Done()

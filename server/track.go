@@ -14,11 +14,6 @@ type (
 	TrackEvent     = transport.TrackEvent
 )
 
-const (
-	TrackEventTypeAdd    = transport.TrackEventTypeAdd
-	TrackEventTypeRemove = transport.TrackEventTypeRemove
-)
-
 type SimpleTrack = transport.SimpleTrack
 
 type UserIdentifiable interface {
