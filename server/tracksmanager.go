@@ -90,11 +90,18 @@ func (m *MemoryTracksManager) GetTracksMetadata(room string, clientID string) (m
 	return roomPeersManager.GetTracksMetadata(clientID)
 }
 
-func (m *MemoryTracksManager) Subscribe(params SubscribeParams) error {
-	return errors.Errorf("Not implemented")
+func (m *MemoryTracksManager) Sub(params SubParams) error {
+	rpm, ok := m.roomPeersManager[params.Room]
+	if !ok {
+		return errors.Errorf("room not found: %s", params.Room)
+	}
+
+	err := rpm.Sub(params)
+
+	return errors.Trace(err)
 }
 
-func (m *MemoryTracksManager) Unsubscribe(params SubscribeParams) error {
+func (m *MemoryTracksManager) Unsub(params SubParams) error {
 	return errors.Errorf("Not implemented")
 }
 
@@ -341,6 +348,23 @@ func (t *RoomPeersManager) Add(transport Transport) {
 	}
 
 	t.transports[transport.ClientID()] = transport
+}
+
+func (t *RoomPeersManager) Sub(params SubParams) error {
+	transport, ok := t.transports[params.SubClientID]
+	if !ok {
+		return errors.Errorf("transport not found: %s", params.PubClientID)
+	}
+
+	err := t.pubsub.Sub(params.PubClientID, params.SSRC, transport)
+
+	return errors.Trace(err)
+}
+
+func (t *RoomPeersManager) Unsub(params SubParams) error {
+	err := t.pubsub.Unsub(params.PubClientID, params.SSRC, params.SubClientID)
+
+	return errors.Trace(err)
 }
 
 // getUserID tries to obtain to userID from a track, but otherwise falls back
