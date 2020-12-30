@@ -27,7 +27,7 @@ func TestTrackEventsSuber(t *testing.T) {
 
 	defer closeInput()
 
-	s := newTrackEventsSuber(in)
+	s := newTrackEventsSuber(in, 1)
 
 	sub1, err := s.Subscribe("a")
 	assert.NoError(t, err)

@@ -27,12 +27,14 @@ type trackEventSubResponse struct {
 type trackEventsSuber struct {
 	subRequestsChan chan trackEventSubRequest
 	torndown        chan struct{}
+	bufferSize      int
 }
 
-func newTrackEventsSuber(in <-chan TrackEvent) *trackEventsSuber {
+func newTrackEventsSuber(in <-chan TrackEvent, bufferSize int) *trackEventsSuber {
 	s := &trackEventsSuber{
 		subRequestsChan: make(chan trackEventSubRequest),
 		torndown:        make(chan struct{}),
+		bufferSize:      bufferSize,
 	}
 
 	go s.start(in)
@@ -70,7 +72,7 @@ func (s *trackEventsSuber) start(in <-chan TrackEvent) {
 			}
 
 			if req.typ == subRequestTypeSubscribe {
-				sub := make(chan TrackEvent)
+				sub := make(chan TrackEvent, s.bufferSize)
 				subs[req.clientID] = sub
 				req.done <- trackEventSubResponse{
 					sub: sub,
