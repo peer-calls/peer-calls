@@ -4,14 +4,20 @@ import (
 	"encoding/json"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/transport"
 )
 
-type Track interface {
-	PayloadType() uint8
-	SSRC() uint32
-	ID() string
-	Label() string
-}
+type (
+	Track          = transport.Track
+	TrackInfo      = transport.TrackInfo
+	TrackEventType = transport.TrackEventType
+	TrackEvent     = transport.TrackEvent
+)
+
+const (
+	TrackEventTypeAdd    = transport.TrackEventTypeAdd
+	TrackEventTypeRemove = transport.TrackEventTypeRemove
+)
 
 type UserIdentifiable interface {
 	UserID() string

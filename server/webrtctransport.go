@@ -13,24 +13,6 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-type TrackInfo struct {
-	Track Track
-	Kind  webrtc.RTPCodecType
-	Mid   string
-}
-
-type TrackEventType uint8
-
-const (
-	TrackEventTypeAdd TrackEventType = iota + 1
-	TrackEventTypeRemove
-)
-
-type TrackEvent struct {
-	TrackInfo TrackInfo
-	Type      TrackEventType
-}
-
 type WebRTCTransportFactory struct {
 	log        logger.Logger
 	iceServers []ICEServer
