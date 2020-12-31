@@ -158,7 +158,7 @@ func (sh *SocketHandler) handleHangUp(_ Message) error {
 
 func (sh *SocketHandler) handleReady(message Message) error {
 	adapter := sh.adapter
-	room := sh.room
+	roomID := sh.room
 	clientID := sh.clientID
 
 	initiator := localPeerID
@@ -173,7 +173,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	})
 
 	if sh.webRTCTransport != nil {
-		return errors.Errorf("unexpected ready event in room %s - already have a webrtc transport", room)
+		return errors.Errorf("unexpected ready event in room %s - already have a webrtc transport", roomID)
 	}
 
 	payload, ok := message.Payload.(map[string]interface{})
@@ -189,7 +189,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	}
 
 	err = adapter.Broadcast(
-		NewMessage("users", room, map[string]interface{}{
+		NewMessage("users", roomID, map[string]interface{}{
 			"initiator": initiator,
 			"peerIds":   []string{localPeerID},
 			"nicknames": clients,
@@ -199,7 +199,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		return errors.Annotatef(err, "broadcasting users")
 	}
 
-	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(clientID)
+	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(roomID, clientID)
 	if err != nil {
 		return errors.Annotatef(err, "create new WebRTCTransport")
 	}
@@ -209,7 +209,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	prometheusWebRTCConnTotal.Inc()
 	prometheusWebRTCConnActive.Inc()
 
-	sh.tracksManager.Add(room, webRTCTransport)
+	sh.tracksManager.Add(roomID, webRTCTransport)
 
 	go sh.processLocalSignals(message, webRTCTransport.SignalChannel(), start)
 

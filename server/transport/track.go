@@ -28,6 +28,7 @@ const (
 )
 
 type TrackEvent struct {
+	ClientID  string
 	TrackInfo TrackInfo
 	Type      TrackEventType
 }

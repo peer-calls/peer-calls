@@ -8,6 +8,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
@@ -147,7 +148,9 @@ type WebRTCTransport struct {
 
 	log logger.Logger
 
-	clientID        string
+	clientID string
+	roomID   string
+
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
 	dataTransceiver *DataTransceiver
@@ -162,7 +165,7 @@ type WebRTCTransport struct {
 
 var _ Transport = &WebRTCTransport{}
 
-func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTransport, error) {
+func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}
 
 	for _, iceServer := range GetICEAuthServers(f.iceServers) {
@@ -189,11 +192,11 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(clientID string) (*WebRTCTran
 		return nil, errors.Annotate(err, "new peer connection")
 	}
 
-	return NewWebRTCTransport(f.log, clientID, true, peerConnection)
+	return NewWebRTCTransport(f.log, roomID, clientID, true, peerConnection)
 }
 
 func NewWebRTCTransport(
-	log logger.Logger, clientID string, initiator bool, peerConnection *webrtc.PeerConnection,
+	log logger.Logger, roomID, clientID string, initiator bool, peerConnection *webrtc.PeerConnection,
 ) (*WebRTCTransport, error) {
 	log = log.WithNamespaceAppended("webrtc_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
@@ -477,9 +480,13 @@ func (p *WebRTCTransport) LocalTracks() []TrackInfo {
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
 	trackInfo := TrackInfo{
-		Track: transport.NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
-		Kind:  track.Kind(),
-		Mid:   "",
+		Track: sfu.NewUserTrack(
+			transport.NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
+			p.clientID,
+			p.roomID,
+		),
+		Kind: track.Kind(),
+		Mid:  "",
 	}
 
 	log := p.log.WithCtx(logger.Ctx{
@@ -509,6 +516,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	p.trackEventsCh <- TrackEvent{
 		TrackInfo: trackInfo,
 		Type:      transport.TrackEventTypeAdd,
+		ClientID:  p.clientID,
 	}
 
 	p.wg.Add(1)
@@ -519,6 +527,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 			p.trackEventsCh <- TrackEvent{
 				TrackInfo: trackInfo,
 				Type:      transport.TrackEventTypeRemove,
+				ClientID:  p.clientID,
 			}
 
 			p.wg.Done()

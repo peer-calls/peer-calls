@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-
 	"sync/atomic"
 
 	"github.com/juju/errors"
@@ -68,7 +67,7 @@ func NewServerTransport(
 	log.Info("NewServerTransport", nil)
 
 	return &ServerTransport{
-		ServerMetadataTransport: NewServerMetadataTransport(log, metadataConn),
+		ServerMetadataTransport: NewServerMetadataTransport(log, metadataConn, clientID),
 		ServerMediaTransport:    NewServerMediaTransport(log, mediaConn),
 		ServerDataTransport:     NewServerDataTransport(log, dataConn),
 		clientID:                clientID,
@@ -123,7 +122,6 @@ type ServerMediaTransport struct {
 var _ MediaTransport = &ServerMediaTransport{}
 
 func NewServerMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *ServerMediaTransport {
-
 	t := ServerMediaTransport{
 		conn:   conn,
 		rtpCh:  make(chan *rtp.Packet),
@@ -349,6 +347,7 @@ func (t *ServerDataTransport) Close() error {
 }
 
 type ServerMetadataTransport struct {
+	clientID      string
 	conn          io.ReadWriteCloser
 	log           logger.Logger
 	trackEventsCh chan TrackEvent
@@ -359,10 +358,11 @@ type ServerMetadataTransport struct {
 
 var _ MetadataTransport = &ServerMetadataTransport{}
 
-func NewServerMetadataTransport(log logger.Logger, conn io.ReadWriteCloser) *ServerMetadataTransport {
+func NewServerMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID string) *ServerMetadataTransport {
 	log = log.WithNamespaceAppended("server_metadata_transport")
 
 	transport := &ServerMetadataTransport{
+		clientID:      clientID,
 		log:           log,
 		conn:          conn,
 		localTracks:   map[uint32]TrackInfo{},
@@ -404,8 +404,13 @@ func (t *ServerMetadataTransport) start() {
 		}
 
 		trackEvent := TrackEvent{
-			TrackInfo: TrackInfo{eventJSON.TrackInfo.Track, eventJSON.TrackInfo.Kind, eventJSON.TrackInfo.Mid},
-			Type:      eventJSON.Type,
+			TrackInfo: TrackInfo{
+				Track: eventJSON.TrackInfo.Track,
+				Kind:  eventJSON.TrackInfo.Kind,
+				Mid:   eventJSON.TrackInfo.Mid,
+			},
+			Type:     eventJSON.Type,
+			ClientID: t.clientID,
 		}
 
 		switch trackEvent.Type {
@@ -470,6 +475,7 @@ func (t *ServerMetadataTransport) AddTrack(track Track) error {
 	trackEvent := TrackEvent{
 		TrackInfo: trackInfo,
 		Type:      transport.TrackEventTypeAdd,
+		ClientID:  t.clientID,
 	}
 
 	return t.sendTrackEvent(trackEvent)
@@ -511,6 +517,7 @@ func (t *ServerMetadataTransport) RemoveTrack(ssrc uint32) error {
 	trackEvent := TrackEvent{
 		TrackInfo: trackInfo,
 		Type:      transport.TrackEventTypeRemove,
+		ClientID:  t.clientID,
 	}
 
 	return t.sendTrackEvent(trackEvent)

@@ -278,27 +278,18 @@ func (t *PeerManager) Unsub(params SubParams) error {
 	return errors.Trace(err)
 }
 
-// getUserID tries to obtain to userID from a track, but otherwise falls back
-// to the clientID.
-func (t *PeerManager) getUserID(subClientID string, track transport.Track) string {
-	var userID string
-	if userIdentifiable, ok := track.(userIdentifiable); ok {
-		userID = userIdentifiable.UserID()
-	}
-
-	if userID == "" {
-		userID, _ = t.pubsub.PubClientID(subClientID, track.SSRC())
-	}
-
-	return userID
-}
-
 // asUserTrack adds business level metadata to track such as userID and roomID
 // if such data does not already exist.
 func (t *PeerManager) asUserTrack(track transport.Track, clientID string) transport.Track {
 	if _, ok := track.(userIdentifiable); ok {
 		return track
 	}
+
+	t.log.Warn("Unexpected non-user track", logger.Ctx{
+		"track":     track,
+		"ssrc":      track.SSRC(),
+		"client_id": clientID,
+	})
 
 	return NewUserTrack(track, clientID, t.room)
 }
@@ -322,13 +313,13 @@ func (t *PeerManager) GetTracksMetadata(clientID string) (m []TrackMetadata, ok 
 	m = make([]TrackMetadata, 0, len(tracks))
 
 	for _, trackInfo := range tracks {
-		track := trackInfo.Track
+		track := trackInfo.Track.(UserTrack)
 
 		trackMetadata := TrackMetadata{
 			Kind:     trackInfo.Kind.String(),
 			Mid:      trackInfo.Mid,
 			StreamID: track.Label(),
-			UserID:   t.getUserID(clientID, track),
+			UserID:   track.UserID(),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{
