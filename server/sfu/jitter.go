@@ -22,6 +22,7 @@ func NewJitterHandler(log logger.Logger, enabled bool) JitterHandler {
 	if enabled {
 		return NewJitterNackHandler(log, NewJitterBuffer())
 	}
+
 	return &NoopNackHandler{}
 }
 
@@ -30,6 +31,7 @@ func NewJitterNackHandler(
 	jitterBuffer *JitterBuffer,
 ) *NackHandler {
 	log = log.WithNamespaceAppended("jitter")
+
 	return &NackHandler{
 		log:          log,
 		nackLog:      log.WithNamespaceAppended("nack"),
@@ -53,6 +55,7 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 
 		nackPackets := nackPair.PacketList()
 		notFound := make([]uint16, 0, len(nackPackets))
+
 		for _, sn := range nackPackets {
 			rtpPacket := n.jitterBuffer.GetPacket(nack.MediaSSRC, sn)
 			if rtpPacket == nil {
@@ -61,7 +64,9 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 					"ssrc": nack.MediaSSRC,
 					"sn":   sn,
 				})
+
 				notFound = append(notFound, sn)
+
 				continue
 			}
 
@@ -73,6 +78,7 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 			// JitterBuffer had the missing packet, add it to the list
 			rtpPackets = append(rtpPackets, rtpPacket)
 		}
+
 		if len(notFound) > 0 {
 			actualNacks = append(actualNacks, CreateNackPair(notFound))
 		}

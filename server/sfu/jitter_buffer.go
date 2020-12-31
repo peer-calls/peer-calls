@@ -43,6 +43,7 @@ func (j *JitterBuffer) GetPacket(ssrc uint32, sn uint16) *rtp.Packet {
 	if !ok {
 		return nil
 	}
+
 	return buffer.GetPacket(sn)
 }
 

@@ -15,13 +15,13 @@ const maxSN = uint16(math.MaxUint16)
 // videoClock represents the clock rate of VP8, VP9 and H264 codecs (90000 Hz).
 const videoClock = 90000
 
-// keep only packets relevant to last 2s of video
+// keep only packets relevant to last 2s of video.
 const maxBufferTSDelta = videoClock * 2
 
 // 1+16(FSN+BLP) https://tools.ietf.org/html/rfc2032#page-9.
 const maxNackPairSize uint16 = 17
 
-// Buffer holds the recent RTP packets and creates NACK RTCP packets
+// Buffer holds the recent RTP packets and creates NACK RTCP packets.
 type Buffer struct {
 	packets [int(maxSN) + 1]*rtp.Packet
 
@@ -37,10 +37,11 @@ type Buffer struct {
 	ssrc uint32
 }
 
-// NewBuffer creates a new buffer for recent RTP packets
+// NewBuffer creates a new buffer for recent RTP packets.
 func NewBuffer() *Buffer {
 	var b Buffer
 	b.nackWindowSize = maxNackPairSize
+
 	return &b
 }
 
@@ -178,7 +179,7 @@ func (b *Buffer) getNackPair(start uint16, end uint16) (rtcp.NackPair, int) {
 	return rtcp.NackPair{PacketID: fsn, LostPackets: blp}, lostPkts
 }
 
-// clearOldPackets clears old packets by timestamp
+// clearOldPackets clears old packets by timestamp.
 func (b *Buffer) clearOldPackets(ts uint32, sn uint16) {
 	clearTS := b.lastClearTS
 	clearSN := b.lastClearSN
@@ -221,6 +222,7 @@ func CreateNackPair(sequenceNumbers []uint16) rtcp.NackPair {
 	}
 
 	fsn := sequenceNumbers[0]
+
 	var blp rtcp.PacketBitmap
 
 	for _, i := range sequenceNumbers[1:] {

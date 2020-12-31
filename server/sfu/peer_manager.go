@@ -105,6 +105,7 @@ func (t *PeerManager) getTransportBySSRC(subClientID string, ssrc uint32) (
 	}
 
 	transport, ok = t.transports[clientID]
+
 	return transport, ok
 }
 
@@ -183,6 +184,7 @@ func (t *PeerManager) Add(tr transport.Transport) {
 			}
 
 			err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
+
 			return errors.Annotate(err, "write rtcp")
 		}
 

@@ -19,7 +19,7 @@ type TracksManager struct {
 
 func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManager {
 	return &TracksManager{
-		log:                 log.WithNamespaceAppended("memory_tracks_manager"),
+		log:                 log.WithNamespaceAppended("tracks_manager"),
 		peerManagers:        map[string]*PeerManager{},
 		jitterBufferEnabled: jitterBufferEnabled,
 	}
