@@ -61,6 +61,12 @@ func (t *PeerManager) addTrack(clientID string, track transport.Track) {
 	// Let the server transports know of the new track.
 	for subClientID, subTransport := range t.serverTransports {
 		if subClientID != clientID {
+			// Note: pubsub.Sub is _not_ called here because the server transport
+			// does not want to receive RTP/RTCP data immmediatelly if there are
+			// no interested parties on the other end of the connection. This is done
+			// later, when Pub/Sub events are handled. These events are sent thorugh
+			// servertransport.MetadataTransport - see the goroutine reading from
+			// TrackEventsChannel for more info.
 			if err := subTransport.AddTrack(track); err != nil {
 				log.Error("Add track", errors.Trace(err), logger.Ctx{
 					"sub_client_id": subClientID,
