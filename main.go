@@ -64,11 +64,12 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 	log := logger.New().
 		WithConfig(
 			logger.NewConfig(logger.ConfigMap{
-				"**:sdp":     logger.LevelDisabled,
-				"**:ws":      logger.LevelDisabled,
-				"**:nack":    logger.LevelDisabled,
-				"**:pion:**": logger.LevelWarn,
-				"":           logger.LevelInfo,
+				"**:sdp":          logger.LevelError,
+				"**:ws":           logger.LevelError,
+				"**:nack":         logger.LevelError,
+				"**:signaller:**": logger.LevelError,
+				"**:pion:**":      logger.LevelWarn,
+				"":                logger.LevelInfo,
 			}),
 		).
 		WithConfig(logger.NewConfigFromString(os.Getenv("PEERCALLS_LOG"))). // FIXME use wildcards here
