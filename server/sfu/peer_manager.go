@@ -286,7 +286,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.transports[tr.ClientID()] = tr
 
-	return pubTrackEventSub, nil
+	return pubTrackEventsCh, nil
 }
 
 func (t *PeerManager) Sub(params SubParams) error {

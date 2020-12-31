@@ -54,6 +54,11 @@ func (p *PubSub) Pub(pubClientID string, track transport.Track) {
 	}
 
 	p.pubsByPubClientID[pubClientID][pb] = struct{}{}
+
+	p.eventsChan <- PubTrackEvent{
+		PubTrack: newPubTrack(pb),
+		Type:     transport.TrackEventTypeAdd,
+	}
 }
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
@@ -75,6 +80,11 @@ func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
 		}
 
 		delete(p.pubs, track)
+
+		p.eventsChan <- PubTrackEvent{
+			PubTrack: newPubTrack(pb),
+			Type:     transport.TrackEventTypeRemove,
+		}
 	}
 }
 
@@ -202,19 +212,8 @@ func (p *PubSub) Tracks() []PubTrack {
 	if l := len(p.pubs); l > 0 {
 		ret = make([]PubTrack, 0, l)
 
-		for clientTrack, pub := range p.pubs {
-			var userID string
-
-			userTrack, ok := pub.track.(userIdentifiable)
-			if ok {
-				userID = userTrack.UserID()
-			}
-
-			ret = append(ret, PubTrack{
-				SSRC:     pub.track.SSRC(),
-				ClientID: clientTrack.ClientID,
-				UserID:   userID,
-			})
+		for _, pub := range p.pubs {
+			ret = append(ret, newPubTrack(pub))
 		}
 	}
 

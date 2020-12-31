@@ -242,6 +242,8 @@ func (t *MediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
 		return 0, errors.Annotatef(err, "marshal RTP")
 	}
 
+	// TODO skip writing rtp packet when no subscribers.
+
 	i, err := t.conn.Write(b)
 
 	if err == nil {
