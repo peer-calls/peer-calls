@@ -125,7 +125,7 @@ func (l *logger) setDefaults(old *logger) *logger {
 
 // WithCtx implements Logger.
 func (l *logger) WithCtx(ctx Ctx) Logger {
-	ret := logger{ctx: ctx}
+	ret := logger{ctx: l.ctx.WithCtx(ctx)}
 
 	return ret.setDefaults(l)
 }
