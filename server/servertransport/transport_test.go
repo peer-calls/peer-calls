@@ -1,11 +1,13 @@
-package server
+package servertransport
 
 import (
 	"net"
 	"sync"
 	"testing"
 
+	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -82,8 +84,8 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 
 	log := test.NewLogger()
 
-	t1 := NewServerMediaTransport(log, conn1)
-	t2 := NewServerMediaTransport(log, conn2)
+	t1 := NewMediaTransport(log, conn1)
+	t2 := NewMediaTransport(log, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -91,7 +93,7 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 	ssrc := uint32(123)
 
 	packetizer := rtp.NewPacketizer(
-		receiveMTU,
+		ReceiveMTU,
 		96,
 		ssrc,
 		&codecs.VP8Payloader{},
@@ -99,7 +101,7 @@ func TestServerMediaTransport_RTP(t *testing.T) {
 		96000,
 	)
 
-	writeSample := func(transport MediaTransport, s media.Sample) []*rtp.Packet {
+	writeSample := func(transport transport.MediaTransport, s media.Sample) []*rtp.Packet {
 		pkts := packetizer.Packetize(s.Data, s.Samples)
 
 		for _, pkt := range pkts {
@@ -139,8 +141,8 @@ func TestServerMediaTransport_RTCP(t *testing.T) {
 
 	log := test.NewLogger()
 
-	t1 := NewServerMediaTransport(log, conn1)
-	t2 := NewServerMediaTransport(log, conn2)
+	t1 := NewMediaTransport(log, conn1)
+	t2 := NewMediaTransport(log, conn2)
 
 	defer t1.Close()
 	defer t2.Close()
@@ -149,7 +151,7 @@ func TestServerMediaTransport_RTCP(t *testing.T) {
 		SSRC: uint32(123),
 	}
 
-	writeRTCP := func(transport MediaTransport, pkts []rtcp.Packet) {
+	writeRTCP := func(transport transport.MediaTransport, pkts []rtcp.Packet) {
 		err := transport.WriteRTCP(pkts)
 		require.NoError(t, err)
 	}
@@ -176,7 +178,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 
 	log := test.NewLogger()
 
-	plf := NewPionLoggerFactory(log)
+	plf := pionlogger.NewFactory(log)
 
 	var wg sync.WaitGroup
 
@@ -191,7 +193,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 		var err error
 		c1, err = sctp.Client(sctp.Config{
 			NetConn:              conn1,
-			MaxReceiveBufferSize: uint32(receiveMTU),
+			MaxReceiveBufferSize: uint32(ReceiveMTU),
 			MaxMessageSize:       0,
 			LoggerFactory:        plf,
 		})
@@ -205,7 +207,7 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 		var err error
 		c2, err = sctp.Client(sctp.Config{
 			NetConn:              conn2,
-			MaxReceiveBufferSize: uint32(receiveMTU),
+			MaxReceiveBufferSize: uint32(ReceiveMTU),
 			MaxMessageSize:       0,
 			LoggerFactory:        plf,
 		})

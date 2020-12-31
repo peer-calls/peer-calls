@@ -155,6 +155,7 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 		ch, err := nm.params.TracksManager.Add(req.StreamID(), streamTransport)
 		if err != nil {
 			errChan <- errors.Trace(err)
+
 			nm.params.Log.Error("Add transport", err, nil)
 
 			return
@@ -174,7 +175,19 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 			// The server transport would also need to be updated to:
 			// 1. Not sub to tracks until at least one track is added.
 			// 2. Automatically unsub from tracks after the last track is removed.
-			for range ch {
+			//
+			// Additionally, something needs to be done to prevent duplicate tracks
+			// when more than 2 server nodes are present. For example, if there were
+			// 3 nodes with 1 peer connection connected to node A, it would be
+			// redundant if both server transports from node A and node B both
+			// advertised the tracks from the peer connection to node C.
+			for pubTrackEvent := range ch {
+				nm.params.Log.Info("Pub Track Event", logger.Ctx{
+					"client_id":        pubTrackEvent.PubTrack.ClientID,
+					"user_id":          pubTrackEvent.PubTrack.UserID,
+					"ssrc":             pubTrackEvent.PubTrack.SSRC,
+					"track_event_type": pubTrackEvent.Type,
+				})
 			}
 		}()
 	}()

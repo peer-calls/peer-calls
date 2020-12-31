@@ -1,4 +1,4 @@
-package server
+package pionlogger
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 )
 
 func TestPionLogger(t *testing.T) {
+	t.Parallel()
+
 	type entry struct {
 		level   string
 		message string
@@ -44,7 +46,7 @@ func TestPionLogger(t *testing.T) {
 			DateLayout:               "-",
 		}))
 
-		plf := NewPionLoggerFactory(log)
+		plf := NewFactory(log)
 
 		subsystem := tc.subsystem
 		if subsystem == "" {
@@ -76,7 +78,7 @@ func TestPionLogger(t *testing.T) {
 			case "errorf":
 				pionLogger.Errorf(entry.message, entry.args...)
 			default:
-				panic(fmt.Sprintf("unknwon level: %s", entry.level))
+				panic(fmt.Sprintf("unknown level: %s", entry.level))
 			}
 		}
 

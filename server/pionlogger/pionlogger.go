@@ -1,4 +1,4 @@
-package server
+package pionlogger
 
 import (
 	"fmt"
@@ -11,16 +11,16 @@ type pionLogger struct {
 	log logger.Logger
 }
 
-type PionLoggerFactory struct {
+type Factory struct {
 	log logger.Logger
 }
 
-func NewPionLoggerFactory(log logger.Logger) *PionLoggerFactory {
+func NewFactory(log logger.Logger) *Factory {
 	log = log.WithNamespaceAppended("pion")
-	return &PionLoggerFactory{log}
+	return &Factory{log}
 }
 
-func (p PionLoggerFactory) NewLogger(subsystem string) logging.LeveledLogger {
+func (p Factory) NewLogger(subsystem string) logging.LeveledLogger {
 	return &pionLogger{
 		log: p.log.WithNamespaceAppended(subsystem),
 	}

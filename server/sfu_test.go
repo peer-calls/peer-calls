@@ -10,6 +10,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/webrtc/v3"
@@ -127,7 +128,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(webrtc.SettingEngine{
-			LoggerFactory: server.NewPionLoggerFactory(log),
+			LoggerFactory: pionlogger.NewFactory(log),
 		}),
 	)
 

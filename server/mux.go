@@ -13,6 +13,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/server/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -178,7 +179,7 @@ func static(prefix string, box packr.Box) http.Handler {
 func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	callID := r.PostFormValue("call")
 	if callID == "" {
-		callID = NewUUIDBase62()
+		callID = uuid.New()
 	}
 
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
@@ -201,7 +202,7 @@ func (mux *Mux) getData() map[string]interface{} {
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
-	userID := NewUUIDBase62()
+	userID := uuid.New()
 	iceServers := GetICEAuthServers(mux.iceServers)
 
 	config := ClientConfig{

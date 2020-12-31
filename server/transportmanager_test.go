@@ -9,6 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -102,7 +103,7 @@ func TestTransportManager_RTP(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	var transport1, transport2 server.Transport
+	var transport1, transport2 transport.Transport
 
 	go func() {
 		defer wg.Done()

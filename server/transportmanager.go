@@ -8,7 +8,10 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pionlogger"
+	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
 )
@@ -27,7 +30,8 @@ type TransportManager struct {
 }
 
 type StreamTransport struct {
-	Transport
+	transport.Transport
+
 	StreamID string
 
 	association *sctp.Association
@@ -54,7 +58,7 @@ func NewTransportManager(params TransportManagerParams) *TransportManager {
 
 	udpMux := udpmux.New(udpmux.Params{
 		Conn:           params.Conn,
-		MTU:            uint32(receiveMTU),
+		MTU:            uint32(servertransport.ReceiveMTU),
 		Log:            params.Log,
 		ReadChanSize:   100,
 		ReadBufferSize: 0,
@@ -124,7 +128,7 @@ func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportF
 	stringMux := stringmux.New(stringmux.Params{
 		Log:            t.params.Log,
 		Conn:           conn,
-		MTU:            uint32(receiveMTU), // TODO not sure if this is ok
+		MTU:            uint32(servertransport.ReceiveMTU), // TODO not sure if this is ok
 		ReadChanSize:   100,
 		ReadBufferSize: 0,
 	})
@@ -295,7 +299,7 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	localMux := stringmux.New(stringmux.Params{
 		Conn:         conn,
 		Log:          t.log,
-		MTU:          uint32(receiveMTU),
+		MTU:          uint32(servertransport.ReceiveMTU),
 		ReadChanSize: 100,
 	})
 
@@ -434,7 +438,7 @@ func (t *TransportFactory) createTransport(
 ) (*StreamTransport, error) {
 	sctpConfig := sctp.Config{
 		NetConn:              sctpConn,
-		LoggerFactory:        NewPionLoggerFactory(t.log),
+		LoggerFactory:        pionlogger.NewFactory(t.log),
 		MaxMessageSize:       0,
 		MaxReceiveBufferSize: 0,
 	}
@@ -471,7 +475,7 @@ func (t *TransportFactory) createTransport(
 		return nil, errors.Annotatef(err, "creating data sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
-	transport := NewServerTransport(t.log, mediaConn, dataStream, metadataStream)
+	transport := servertransport.NewTransport(t.log, mediaConn, dataStream, metadataStream)
 
 	streamTransport := &StreamTransport{
 		Transport:   transport,

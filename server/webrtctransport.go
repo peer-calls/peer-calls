@@ -8,6 +8,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
@@ -34,7 +35,7 @@ func NewWebRTCTransportFactory(
 	log = log.WithNamespaceAppended("webrtc_transport_factory")
 
 	settingEngine := webrtc.SettingEngine{
-		LoggerFactory: NewPionLoggerFactory(log),
+		LoggerFactory: pionlogger.NewFactory(log),
 	}
 
 	networkTypes := NewNetworkTypes(log, sfuConfig.Protocols)
@@ -163,7 +164,7 @@ type WebRTCTransport struct {
 	remoteTracks map[uint32]remoteTrack
 }
 
-var _ Transport = &WebRTCTransport{}
+var _ transport.Transport = &WebRTCTransport{}
 
 func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}

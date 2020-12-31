@@ -13,6 +13,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ var iceServers = []server.ICEServer{}
 type addedPeer struct {
 	room      string
 	clientID  string
-	transport server.Transport
+	transport transport.Transport
 }
 
 type mockTracksManager struct {
@@ -41,7 +42,7 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, transport server.Transport) (<-chan pubsub.PubTrackEvent, error) {
+func (m *mockTracksManager) Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	ch := make(chan pubsub.PubTrackEvent)
 	close(ch)
 

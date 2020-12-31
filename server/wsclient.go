@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/uuid"
 	"nhooyr.io/websocket"
 )
 
@@ -42,7 +43,7 @@ func NewClient(conn WSReadWriter) *Client {
 
 func NewClientWithID(conn WSReadWriter, id string) *Client {
 	if id == "" {
-		id = NewUUIDBase62()
+		id = uuid.New()
 	}
 	return &Client{
 		id:   id,
