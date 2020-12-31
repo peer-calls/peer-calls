@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
 )
 
@@ -9,6 +10,8 @@ import (
 // The user of this implementation must implement locking if it will be used
 // by multiple goroutines.
 type PubSub struct {
+	log logger.Logger
+
 	eventsChan chan PubTrackEvent
 
 	events *events
@@ -27,10 +30,11 @@ type PubSub struct {
 }
 
 // New returns a new instance of PubSub.
-func New() *PubSub {
+func New(log logger.Logger) *PubSub {
 	eventsChan := make(chan PubTrackEvent)
 
 	return &PubSub{
+		log:               log.WithNamespace("pubsub"),
 		eventsChan:        eventsChan,
 		events:            newEvents(eventsChan, 0),
 		pubs:              map[clientTrack]*pub{},
@@ -41,6 +45,11 @@ func New() *PubSub {
 
 // Pub publishes a track.
 func (p *PubSub) Pub(pubClientID string, track transport.Track) {
+	p.log.Info("Pub", logger.Ctx{
+		"pub_client_id": pubClientID,
+		"ssrc":          track.SSRC(),
+	})
+
 	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     track.SSRC(),

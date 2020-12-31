@@ -20,7 +20,7 @@ type MetadataTransport struct {
 	trackEventsCh chan transport.TrackEvent
 	localTracks   map[uint32]transport.TrackInfo
 	remoteTracks  map[uint32]transport.TrackInfo
-	mu            *sync.Mutex
+	mu            *sync.RWMutex
 }
 
 var _ transport.MetadataTransport = &MetadataTransport{}
@@ -35,7 +35,7 @@ func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID s
 		localTracks:   map[uint32]transport.TrackInfo{},
 		remoteTracks:  map[uint32]transport.TrackInfo{},
 		trackEventsCh: make(chan transport.TrackEvent),
-		mu:            &sync.Mutex{},
+		mu:            &sync.RWMutex{},
 	}
 
 	go transport.start()
@@ -147,8 +147,8 @@ func (t *MetadataTransport) TrackEventsChannel() <-chan transport.TrackEvent {
 }
 
 func (t *MetadataTransport) LocalTracks() []transport.TrackInfo {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	localTracks := make([]transport.TrackInfo, 0, len(t.localTracks))
 
@@ -160,8 +160,8 @@ func (t *MetadataTransport) LocalTracks() []transport.TrackInfo {
 }
 
 func (t *MetadataTransport) RemoteTracks() []transport.TrackInfo {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	remoteTracks := make([]transport.TrackInfo, 0, len(t.remoteTracks))
 

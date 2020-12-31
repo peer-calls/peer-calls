@@ -39,7 +39,7 @@ func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler)
 		trackBitrateEstimators: NewTrackBitrateEstimators(),
 		room:                   room,
 
-		pubsub: pubsub.New(),
+		pubsub: pubsub.New(log),
 	}
 }
 
@@ -76,10 +76,10 @@ func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	for otherClientID, otherPeerInRoom := range t.webrtcTransports {
-		if otherClientID != clientID {
+	broadcast := func(tr transport.Transport) {
+		if otherClientID := tr.ClientID(); otherClientID != clientID {
 			// FIXME async
-			err := <-otherPeerInRoom.Send(msg)
+			err := <-tr.Send(msg)
 			if err != nil {
 				t.log.Error("Broadcast", errors.Trace(err), logger.Ctx{
 					"client_id":       clientID,
@@ -87,6 +87,14 @@ func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) 
 				})
 			}
 		}
+	}
+
+	for _, tr := range t.webrtcTransports {
+		broadcast(tr)
+	}
+
+	for _, tr := range t.serverTransports {
+		broadcast(tr)
 	}
 }
 
@@ -101,7 +109,16 @@ func (t *PeerManager) getTransportBySSRC(subClientID string, ssrc uint32) (
 		return nil, false
 	}
 
-	transport, ok = t.webrtcTransports[clientID]
+	transport, ok = t.getTransport(clientID)
+
+	return transport, ok
+}
+
+func (t *PeerManager) getTransport(clientID string) (transport.Transport, bool) {
+	transport, ok := t.webrtcTransports[clientID]
+	if !ok {
+		transport, ok = t.serverTransports[clientID]
+	}
 
 	return transport, ok
 }
@@ -344,7 +361,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	transport, ok := t.webrtcTransports[params.SubClientID]
+	transport, ok := t.getTransport(params.SubClientID)
 	if !ok {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
@@ -368,7 +385,7 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	transport, ok := t.webrtcTransports[clientID]
+	transport, ok := t.getTransport(clientID)
 	if !ok {
 		return m, false
 	}
@@ -397,6 +414,7 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	return m, true
 }
 
+// Remove removes the transport and unsubscribes it from track events.
 func (t *PeerManager) Remove(clientID string) {
 	t.log.Trace("Remove", logger.Ctx{
 		"client_id": clientID,
@@ -411,8 +429,19 @@ func (t *PeerManager) Remove(clientID string) {
 		})
 	}
 
+	// WebRTC transports do not need to be explicitly terminated, only
+	// ServerTransports do. This is because a closed WebRTC tranports will still
+	// dispatch track remove events after the streams are closed. However,
+	// calling Terminate for WebRTC transports shouldn't cause any errors.
+	t.pubsub.Terminate(clientID)
+
 	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
+
+	// Since it is unknown whether this was about a server or webrtc transport,
+	// delete from both. Having a collision here is not possible becaues server
+	// transports have special prefix.
 	delete(t.webrtcTransports, clientID)
+	delete(t.serverTransports, clientID)
 }
 
 func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
@@ -449,7 +478,7 @@ func (t *PeerManager) Size() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return len(t.webrtcTransports)
+	return len(t.webrtcTransports) + len(t.serverTransports)
 }
 
 func (t *PeerManager) Close() <-chan struct{} {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ import (
 func TestPubSub(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	ps := pubsub.New()
+	ps := pubsub.New(logger.New())
 
 	defer ps.Close()
 
