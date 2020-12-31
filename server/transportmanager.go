@@ -11,7 +11,6 @@ import (
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
-	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
 )
@@ -30,7 +29,7 @@ type TransportManager struct {
 }
 
 type StreamTransport struct {
-	transport.Transport
+	*servertransport.Transport
 
 	StreamID string
 

@@ -182,6 +182,19 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 			// redundant if both server transports from node A and node B both
 			// advertised the tracks from the peer connection to node C.
 			for pubTrackEvent := range ch {
+				// If tracks stop being automatically added to all other transports,
+				// the AddTrack/RemoveTrack methods could be called here to provide
+				// track metadata to streamTransport.
+				//
+				// However, there is one big difference in how StreamTransport _should_
+				// handle addition or removal of tracks when compared to
+				// WebRTCTransport: StreamTransport should only advertise tracks to
+				// but not actually subscribe to them to prevent unnecessary network
+				// traffic, whereas WebRTC transport always already receives tracks
+				// from the app clients (browsers).
+				//
+				// The question is: how should StreamTransport handle/receive
+				// subscription requests?
 				nm.params.Log.Info("Pub Track Event", logger.Ctx{
 					"client_id":        pubTrackEvent.PubTrack.ClientID,
 					"user_id":          pubTrackEvent.PubTrack.UserID,
