@@ -305,7 +305,7 @@ func (a *RedisAdapter) handleMessage(
 // Reads from subscribed keys and dispatches relevant messages to
 // client websockets. This method blocks until the context is closed.
 func (a *RedisAdapter) subscribe(ctx context.Context, ready chan<- struct{}) error {
-	log := a.log.WithNamespace("subscribe").WithCtx(logger.Ctx{
+	log := a.log.WithCtx(logger.Ctx{
 		"room_channel":   a.keys.roomChannel,
 		"client_pattern": a.keys.clientPattern,
 	})

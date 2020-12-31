@@ -34,7 +34,7 @@ func New(log logger.Logger) *PubSub {
 	eventsChan := make(chan PubTrackEvent)
 
 	return &PubSub{
-		log:               log.WithNamespace("pubsub"),
+		log:               log.WithNamespaceAppended("pubsub"),
 		eventsChan:        eventsChan,
 		events:            newEvents(eventsChan, 0),
 		pubs:              map[clientTrack]*pub{},
