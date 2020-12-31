@@ -61,7 +61,7 @@ func (t *PeerManager) addTrack(clientID string, track transport.Track) {
 	// Let the server transports know of the new track.
 	for subClientID, subTransport := range t.serverTransports {
 		if subClientID != clientID {
-			if err := t.pubsub.Sub(clientID, track.SSRC(), subTransport); err != nil {
+			if err := subTransport.AddTrack(track); err != nil {
 				log.Error("Add track", errors.Trace(err), logger.Ctx{
 					"sub_client_id": subClientID,
 				})
@@ -459,7 +459,7 @@ func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
 
 	t.trackBitrateEstimators.Remove(track.SSRC())
 
-	// Let the server transports know the track has been removed
+	// Let the server transports know the track has been removed.
 	for subClientID, subTransport := range t.serverTransports {
 		if subClientID != clientID {
 			if err := subTransport.RemoveTrack(track.SSRC()); err != nil {
