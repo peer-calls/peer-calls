@@ -10,6 +10,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -43,19 +45,11 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.handler.ServeHTTP(w, r)
 }
 
-type SubParams struct {
-	// Room to which to subscribe to.
-	Room        string
-	PubClientID string
-	SSRC        uint32
-	SubClientID string
-}
-
 type TracksManager interface {
-	Add(room string, transport Transport)
-	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
-	Sub(params SubParams) error
-	Unsub(params SubParams) error
+	Add(room string, transport transport.Transport)
+	GetTracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool)
+	Sub(params sfu.SubParams) error
+	Unsub(params sfu.SubParams) error
 }
 
 func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc {

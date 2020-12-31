@@ -1,4 +1,4 @@
-package server
+package sfu
 
 import (
 	"github.com/peer-calls/peer-calls/server/logger"

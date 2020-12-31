@@ -1,4 +1,4 @@
-package server
+package sfu
 
 import (
 	"encoding/json"
@@ -42,7 +42,7 @@ func TestTrack_UserTrack(t *testing.T) {
 	assert.Equal(t, "d", t2.RoomID())
 
 	// Can be unmarshaled to SimpleTrack
-	t3 := SimpleTrack{}
+	t3 := transport.SimpleTrack{}
 	err = json.Unmarshal(b, &t3)
 
 	assert.Equal(t, uint8(3), t3.PayloadType())

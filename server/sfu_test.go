@@ -10,6 +10,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -27,7 +28,7 @@ func setupSFUServer(rooms server.RoomManager, jitterBufferEnabled bool) (s *http
 		server.NewWSS(log, rooms),
 		[]server.ICEServer{},
 		server.NetworkConfigSFU{},
-		server.NewMemoryTracksManager(log, jitterBufferEnabled),
+		sfu.NewTracksManager(log, jitterBufferEnabled),
 	)
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/"

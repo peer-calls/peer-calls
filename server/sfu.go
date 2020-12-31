@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -17,8 +18,8 @@ const localPeerID = "__SERVER__"
 const serverIsInitiator = true
 
 type MetadataPayload struct {
-	UserID   string          `json:"userId"`
-	Metadata []TrackMetadata `json:"metadata"`
+	UserID   string              `json:"userId"`
+	Metadata []sfu.TrackMetadata `json:"metadata"`
 }
 
 func NewSFUHandler(

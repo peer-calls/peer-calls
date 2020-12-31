@@ -12,6 +12,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
 )
 
 const gitDescribe string = "v0.0.0"
@@ -38,7 +39,7 @@ func configure(log logger.Logger, args []string) (net.Listener, *server.StartSto
 
 	log.Info(fmt.Sprintf("Using config: %+v", c), nil)
 	// rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	tracks := server.NewMemoryTracksManager(log, c.Network.SFU.JitterBuffer)
+	tracks := sfu.NewTracksManager(log, c.Network.SFU.JitterBuffer)
 
 	roomManagerFactory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{
 		AdapterFactory: server.NewAdapterFactory(log, c.Store),

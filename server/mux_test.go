@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,8 +26,8 @@ type addedPeer struct {
 
 type mockTracksManager struct {
 	added        chan addedPeer
-	subscribed   chan server.SubParams
-	unsubscribed chan server.SubParams
+	subscribed   chan sfu.SubParams
+	unsubscribed chan sfu.SubParams
 }
 
 var _ server.TracksManager = &mockTracksManager{}
@@ -34,8 +35,8 @@ var _ server.TracksManager = &mockTracksManager{}
 func newMockTracksManager() *mockTracksManager {
 	return &mockTracksManager{
 		added:        make(chan addedPeer, 10),
-		subscribed:   make(chan server.SubParams, 10),
-		unsubscribed: make(chan server.SubParams, 10),
+		subscribed:   make(chan sfu.SubParams, 10),
+		unsubscribed: make(chan sfu.SubParams, 10),
 	}
 }
 
@@ -47,16 +48,16 @@ func (m *mockTracksManager) Add(room string, transport server.Transport) {
 	}
 }
 
-func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]server.TrackMetadata, bool) {
+func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool) {
 	return nil, true
 }
 
-func (m *mockTracksManager) Sub(params server.SubParams) error {
+func (m *mockTracksManager) Sub(params sfu.SubParams) error {
 	m.subscribed <- params
 	return nil
 }
 
-func (m *mockTracksManager) Unsub(params server.SubParams) error {
+func (m *mockTracksManager) Unsub(params sfu.SubParams) error {
 	m.unsubscribed <- params
 	return nil
 }
