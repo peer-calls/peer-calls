@@ -429,19 +429,17 @@ func (t *PeerManager) Remove(clientID string) {
 		})
 	}
 
-	// WebRTC transports do not need to be explicitly terminated, only
-	// ServerTransports do. This is because a closed WebRTC tranports will still
-	// dispatch track remove events after the streams are closed. However,
-	// calling Terminate for WebRTC transports shouldn't cause any errors.
-	t.pubsub.Terminate(clientID)
+	if _, ok := t.serverTransports[clientID]; ok {
+		// WebRTC transports do not need to be explicitly terminated, only
+		// ServerTransports do. This is because a closed WebRTC tranports will
+		// still dispatch track remove events after the streams are closed.
+		t.pubsub.Terminate(clientID)
+		delete(t.serverTransports, clientID)
+	} else {
+		delete(t.webrtcTransports, clientID)
+	}
 
 	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
-
-	// Since it is unknown whether this was about a server or webrtc transport,
-	// delete from both. Having a collision here is not possible becaues server
-	// transports have special prefix.
-	delete(t.webrtcTransports, clientID)
-	delete(t.serverTransports, clientID)
 }
 
 func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
