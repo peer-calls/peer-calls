@@ -1,6 +1,8 @@
 package pubsub
 
 import (
+	"fmt"
+
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -246,6 +248,8 @@ func (p *PubSub) Tracks() []PubTrack {
 			ret = append(ret, newPubTrack(pub))
 		}
 	}
+
+	p.log.Trace(fmt.Sprintf("Tracks: %d", len(ret)), nil)
 
 	return ret
 }

@@ -85,7 +85,7 @@ class SocketHandler {
     const { ssrc, pubClientId, type } = pubTrack
 
     if (type == TrackEventType.Add) {
-      this.socket.emit('subTrack', {
+      this.socket.emit(constants.SOCKET_EVENT_SUB_TRACK, {
         ssrc,
         type: TrackEventType.Sub,
         pubClientId,
@@ -137,4 +137,5 @@ export function removeEventListeners (socket: ClientSocket) {
   socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
   socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
   socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)
+  socket.removeAllListeners(constants.SOCKET_EVENT_PUB_TRACK)
 }
