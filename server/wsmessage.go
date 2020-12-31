@@ -32,8 +32,8 @@ const (
 	MessageTypeReady    MessageType = "ready"
 	MessageTypeSignal   MessageType = "signal"
 	MessageTypePing     MessageType = "ping"
-	MessageTypePubTrack MessageType = "pub_track"
-	MessageTypeSubTrack MessageType = "sub_track"
+	MessageTypePubTrack MessageType = "pubTrack"
+	MessageTypeSubTrack MessageType = "subTrack"
 
 	MessageTypeRoomJoin  MessageType = "ws_room_join"
 	MessageTypeRoomLeave MessageType = "ws_room_leave"

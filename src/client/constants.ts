@@ -55,6 +55,8 @@ export const SOCKET_EVENT_READY = 'ready'
 export const SOCKET_EVENT_SIGNAL = 'signal'
 export const SOCKET_EVENT_USERS = 'users'
 export const SOCKET_EVENT_HANG_UP = 'hangUp'
+export const SOCKET_EVENT_PUB_TRACK = 'pubTrack'
+export const SOCKET_EVENT_SUB_TRACK = 'subTrack'
 
 export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'

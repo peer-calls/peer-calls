@@ -8,6 +8,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -151,19 +152,19 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 
 	pubClientID := event["pubClientId"].(string)
 	ssrc := uint32(event["ssrc"].(float64))
-	typ := event["type"].(string)
+	typ := transport.TrackEventType(event["type"].(float64))
 
 	var err error
 
 	switch typ {
-	case "subscribe":
+	case transport.TrackEventTypeSub:
 		err = sh.tracksManager.Sub(sfu.SubParams{
 			PubClientID: pubClientID,
 			Room:        sh.room,
 			SSRC:        ssrc,
 			SubClientID: sh.clientID,
 		})
-	case "unsubscribe":
+	case transport.TrackEventTypeUnsub:
 		err = sh.tracksManager.Unsub(sfu.SubParams{
 			PubClientID: pubClientID,
 			Room:        sh.room,
@@ -171,7 +172,7 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 			SubClientID: sh.clientID,
 		})
 	default:
-		err = errors.Errorf("invalid payload type: %s", typ)
+		err = errors.Errorf("invalid payload type: %d", typ)
 	}
 
 	return errors.Trace(err)

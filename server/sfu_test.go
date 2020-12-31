@@ -89,16 +89,16 @@ func startSignalling(
 			payload, ok := msg.Payload.(map[string]interface{})
 
 			switch msg.Type {
-			case "signal":
+			case server.MessageTypeSignal:
 				require.True(t, ok, "invalid signal msg payload type")
 				err := signaller.Signal(payload)
 				require.NoError(t, err, "error in receiving signal payload: %w", err)
-			case "pub_track":
+			case server.MessageTypePubTrack:
 				if transport.TrackEventType(payload["type"].(float64)) == transport.TrackEventTypeAdd {
 					err := wsClient.Write(server.Message{
 						Type: server.MessageTypeSubTrack,
 						Payload: map[string]interface{}{
-							"type":        "subscribe",
+							"type":        transport.TrackEventTypeSub,
 							"ssrc":        uint32(payload["ssrc"].(float64)),
 							"pubClientId": payload["pubClientId"].(string),
 						},

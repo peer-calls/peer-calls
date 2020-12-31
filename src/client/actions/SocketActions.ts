@@ -1,5 +1,5 @@
 import _debug from 'debug'
-import { MetadataPayload, SocketEvent } from '../SocketEvent'
+import { MetadataPayload, SocketEvent, TrackEventType } from '../SocketEvent'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
@@ -81,6 +81,17 @@ class SocketHandler {
       stream,
     })(dispatch, getState))
   }
+  handlePub = (pubTrack: SocketEvent['pubTrack']) => {
+    const { ssrc, pubClientId, type } = pubTrack
+
+    if (type == TrackEventType.Add) {
+      this.socket.emit('subTrack', {
+        ssrc,
+        type: TrackEventType.Sub,
+        pubClientId,
+      })
+    }
+  }
 }
 
 export interface HandshakeOptions {
@@ -111,6 +122,7 @@ export function handshake (options: HandshakeOptions) {
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
+  socket.on(constants.SOCKET_EVENT_PUB_TRACK, handler.handlePub)
 
   debug('userId: %s', userId)
   socket.emit(constants.SOCKET_EVENT_READY, {
