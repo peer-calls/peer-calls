@@ -110,18 +110,23 @@ func (sh *SocketHandler) HandleMessage(message Message) error {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 
+	var err error
+
 	switch message.Type {
 	case MessageTypeHangUp:
-		return sh.handleHangUp(message)
+		err = errors.Trace(sh.handleHangUp(message))
 	case MessageTypeReady:
-		return sh.handleReady(message)
+		err = errors.Trace(sh.handleReady(message))
 	case MessageTypeSignal:
-		return sh.handleSignal(message)
+		err = errors.Trace(sh.handleSignal(message))
+	case MessageTypeSubTrack:
+		err = errors.Trace(sh.handleSubTrackEvent(message))
 	case MessageTypePing:
-		return nil
+	default:
+		err = errors.Errorf("Unhandled event: %s", message.Type)
 	}
 
-	return errors.Errorf("Unhandled event: %s", message.Type)
+	return errors.Trace(err)
 }
 
 func (sh *SocketHandler) Cleanup() {
@@ -139,6 +144,37 @@ func (sh *SocketHandler) Cleanup() {
 	if err != nil {
 		sh.log.Error("Cleanup: broadcast hangUp", errors.Trace(err), nil)
 	}
+}
+
+func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
+	event := m.Payload.(map[string]interface{})
+
+	pubClientID := event["pubClientId"].(string)
+	ssrc := uint32(event["ssrc"].(float64))
+	typ := event["type"].(string)
+
+	var err error
+
+	switch typ {
+	case "subscribe":
+		err = sh.tracksManager.Sub(sfu.SubParams{
+			PubClientID: pubClientID,
+			Room:        sh.room,
+			SSRC:        ssrc,
+			SubClientID: sh.clientID,
+		})
+	case "unsubscribe":
+		err = sh.tracksManager.Unsub(sfu.SubParams{
+			PubClientID: pubClientID,
+			Room:        sh.room,
+			SSRC:        ssrc,
+			SubClientID: sh.clientID,
+		})
+	default:
+		err = errors.Errorf("invalid payload type: %s", typ)
+	}
+
+	return errors.Trace(err)
 }
 
 func (sh *SocketHandler) handleHangUp(_ Message) error {
@@ -217,9 +253,14 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	go func() {
 		for pubTrackEvent := range pubTrackEventsCh {
 			err := sh.adapter.Emit(clientID, Message{
-				Type:    MessageTypePubTrackEvent,
-				Payload: pubTrackEvent,
-				Room:    roomID,
+				Type: MessageTypePubTrack,
+				Payload: map[string]interface{}{
+					"ssrc":        pubTrackEvent.PubTrack.SSRC,
+					"pubClientId": pubTrackEvent.PubTrack.ClientID,
+					"userId":      pubTrackEvent.PubTrack.UserID,
+					"type":        pubTrackEvent.Type,
+				},
+				Room: roomID,
 			})
 			if err != nil {
 				sh.log.Error("Emit pub track event", errors.Trace(err), nil)

@@ -95,3 +95,7 @@ func (t *Transport) Close() (err error) {
 
 	return errs.Err()
 }
+
+func (t *Transport) Type() transport.Type {
+	return transport.TypeServer
+}

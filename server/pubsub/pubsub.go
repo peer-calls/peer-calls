@@ -235,6 +235,8 @@ func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
 }
 
 func (p *PubSub) Close() {
+	// FIXME this causes panics because peer manager close is called before
+	// all goroutines exit.
 	close(p.eventsChan)
 	<-p.events.torndown
 }

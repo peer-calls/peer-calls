@@ -13,6 +13,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
 	"github.com/stretchr/testify/assert"
@@ -75,18 +76,39 @@ func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Messa
 }
 
 func startSignalling(
-	t *testing.T, wsClient *server.Client, wsRecvCh <-chan server.Message, signaller *server.Signaller,
+	t *testing.T,
+	wsClient *server.Client,
+	wsRecvCh <-chan server.Message,
+	signaller *server.Signaller,
 ) {
 	t.Helper()
 	signalChan := signaller.SignalChannel()
 
 	go func() {
 		for msg := range wsRecvCh {
-			if msg.Type == "signal" {
-				payload, ok := msg.Payload.(map[string]interface{})
+			payload, ok := msg.Payload.(map[string]interface{})
+
+			switch msg.Type {
+			case "signal":
 				require.True(t, ok, "invalid signal msg payload type")
 				err := signaller.Signal(payload)
 				require.NoError(t, err, "error in receiving signal payload: %w", err)
+			case "pub_track":
+				if transport.TrackEventType(payload["type"].(float64)) == transport.TrackEventTypeAdd {
+					err := wsClient.Write(server.Message{
+						Type: server.MessageTypeSubTrack,
+						Payload: map[string]interface{}{
+							"type":        "subscribe",
+							"ssrc":        uint32(payload["ssrc"].(float64)),
+							"pubClientId": payload["pubClientId"].(string),
+						},
+						Room: msg.Room,
+					})
+					require.NoError(t, err, "error sending sub_track event to ws: %w", err)
+				}
+
+			default:
+				// fmt.Println("unhandled ws message", msg.Type, payload)
 			}
 		}
 	}()
@@ -99,10 +121,22 @@ func startSignalling(
 	}()
 }
 
-func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID string) (pc *webrtc.PeerConnection, signaller *server.Signaller, cleanup func() error) {
+type peerCtx struct {
+	pc        *webrtc.PeerConnection
+	signaller *server.Signaller
+	wsClient  *server.Client
+	msg       <-chan server.Message
+	close     func() error
+}
+
+func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID string) peerCtx {
 	t.Helper()
+
+	var peerCtx peerCtx
+
 	var closer test.Closer
-	cleanup = closer.Close
+
+	peerCtx.close = closer.Close
 
 	wsc := mustDialWS(t, ctx, url)
 	closer.AddFuncErr(func() error {
@@ -132,23 +166,23 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 		}),
 	)
 
-	pc, err = api.NewPeerConnection(webrtc.Configuration{})
+	peerCtx.pc, err = api.NewPeerConnection(webrtc.Configuration{})
 	require.Nil(t, err, "error creating peer connection")
 
-	signaller, err = server.NewSignaller(
+	peerCtx.signaller, err = server.NewSignaller(
 		log,
 		false,
-		pc,
+		peerCtx.pc,
 		clientID,
 		"__SERVER__",
 	)
 	require.Nil(t, err, "error creating signaller")
 
-	closer.AddFuncErr(signaller.Close) // also closes pc
+	closer.AddFuncErr(peerCtx.signaller.Close) // also closes pc
 
-	startSignalling(t, wsClient, msgChan, signaller)
+	startSignalling(t, wsClient, msgChan, peerCtx.signaller)
 
-	return pc, signaller, cleanup
+	return peerCtx
 }
 
 func waitPeerConnected(t *testing.T, ctx context.Context, pc *webrtc.PeerConnection) {
@@ -198,9 +232,9 @@ func TestSFU_PeerConnection(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	pc, _, cleanup := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
-	defer cleanup()
-	waitPeerConnected(t, ctx, pc)
+	peerCtx := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
+	defer peerCtx.close()
+	waitPeerConnected(t, ctx, peerCtx.pc)
 }
 
 func TestSFU_OnTrack(t *testing.T) {
@@ -218,13 +252,16 @@ func TestSFU_OnTrack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	pc1, signaller1, cleanup := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
-	defer cleanup()
-	waitPeerConnected(t, ctx, pc1)
+	peerCtx1 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
+	defer peerCtx1.close()
+	waitPeerConnected(t, ctx, peerCtx1.pc)
 
-	pc2, signaller2, cleanup := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID2, clientID2)
-	defer cleanup()
-	waitPeerConnected(t, ctx, pc2)
+	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID2, clientID2)
+	defer peerCtx2.close()
+	waitPeerConnected(t, ctx, peerCtx2.pc)
+
+	pc1 := peerCtx1.pc
+	pc2 := peerCtx2.pc
 
 	onTrackFired, onTrackFiredDone := context.WithCancel(ctx)
 	onTrackEOF, onTrackEOFDone := context.WithCancel(ctx)
@@ -264,7 +301,7 @@ func TestSFU_OnTrack(t *testing.T) {
 	go sendVideoUntilDone(t, onTrackFired.Done(), localTrack)
 
 	log.Info("sending negotiate request (1)", nil)
-	wait(t, ctx, signaller1.Negotiate())
+	wait(t, ctx, peerCtx1.signaller.Negotiate())
 
 	<-onTrackFired.Done()
 	assert.Equal(t, context.Canceled, onTrackFired.Err(), "test timed out")
@@ -273,12 +310,12 @@ func TestSFU_OnTrack(t *testing.T) {
 	assert.NoError(t, pc1.RemoveTrack(sender))
 
 	log.Info("sending negotiate request (2)", nil)
-	wait(t, ctx, signaller1.Negotiate())
+	wait(t, ctx, peerCtx1.signaller.Negotiate())
 
 	<-onTrackEOF.Done()
 	assert.Equal(t, context.Canceled, onTrackEOF.Err(), "test timed out")
 
 	log.Info("waiting for peer2 negotiation to be done (3)", nil)
 	// server will want to negotiate after track is removed so we wait for negotiation to complete
-	wait(t, ctx, signaller2.NegotiationDone())
+	wait(t, ctx, peerCtx2.signaller.NegotiationDone())
 }

@@ -6,8 +6,16 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
+type Type int
+
+const (
+	TypeWebRTC Type = iota + 1
+	TypeServer
+)
+
 type Transport interface {
 	ClientID() string
+	Type() Type
 	MediaTransport
 	DataTransport
 	MetadataTransport

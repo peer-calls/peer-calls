@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
 )
 
@@ -28,7 +29,16 @@ func (p *pub) sub(clientID string, transport Transport) error {
 
 	p.subs[clientID] = transport
 
-	return nil
+	var err error
+
+	if t, ok := p.track.(suber); ok {
+		// Send a message to server transport to actually subscribe to this track.
+		// This prevents unnecessary data to be sent across different peer calls
+		// server nodes.
+		err = t.Sub()
+	}
+
+	return errors.Trace(err)
 }
 
 func (p *pub) unsub(subClientID string) error {
@@ -39,11 +49,28 @@ func (p *pub) unsub(subClientID string) error {
 
 	delete(p.subs, subClientID)
 
-	err := transport.RemoveTrack(p.track.SSRC())
+	errs := multierr.New()
 
-	return errors.Trace(err)
+	if t, ok := p.track.(unsuber); ok {
+		// Send a message to server transport to unsubscribe to this track. This
+		// prevents unnecessary data to be sent across different peer calls server
+		// nodes.
+		errs.Add(t.Unsub())
+	}
+
+	errs.Add(transport.RemoveTrack(p.track.SSRC()))
+
+	return errors.Trace(errs.Err())
 }
 
 func (p *pub) subscribers() transportsMap {
 	return p.subs
+}
+
+type unsuber interface {
+	Unsub() error
+}
+
+type suber interface {
+	Sub() error
 }

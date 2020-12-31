@@ -10,6 +10,8 @@ import (
 )
 
 func TestTrack(t *testing.T) {
+	t.Parallel()
+
 	t1 := transport.NewSimpleTrack(3, 123, "a", "b")
 
 	b, err := json.Marshal(t1)

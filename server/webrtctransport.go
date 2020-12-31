@@ -302,6 +302,10 @@ func (p *WebRTCTransport) ClientID() string {
 	return p.clientID
 }
 
+func (p *WebRTCTransport) Type() transport.Type {
+	return transport.TypeWebRTC
+}
+
 func (p *WebRTCTransport) WriteRTCP(packets []rtcp.Packet) error {
 	p.log.Trace("WriteRTCP", logger.Ctx{
 		"packets": packets,

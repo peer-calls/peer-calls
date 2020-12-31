@@ -73,9 +73,49 @@ func (t *MetadataTransport) start() {
 			return
 		}
 
+		track := &ServerTrack{
+			UserTrack: eventJSON.TrackInfo.Track,
+			onSub: func() error {
+				t.log.Info("Sub", logger.Ctx{
+					"ssrc":      eventJSON.TrackInfo.Track.SSRC(),
+					"client_id": t.clientID,
+				})
+
+				err = t.sendTrackEvent(transport.TrackEvent{
+					TrackInfo: transport.TrackInfo{
+						Track: eventJSON.TrackInfo.Track,
+						Kind:  eventJSON.TrackInfo.Kind,
+						Mid:   eventJSON.TrackInfo.Mid,
+					},
+					ClientID: t.clientID,
+					Type:     transport.TrackEventTypeSub,
+				})
+
+				return errors.Trace(err)
+			},
+			onUnsub: func() error {
+				t.log.Info("Unsub", logger.Ctx{
+					"ssrc":      eventJSON.TrackInfo.Track.SSRC(),
+					"client_id": t.clientID,
+				})
+
+				err = t.sendTrackEvent(transport.TrackEvent{
+					TrackInfo: transport.TrackInfo{
+						Track: eventJSON.TrackInfo.Track,
+						Kind:  eventJSON.TrackInfo.Kind,
+						Mid:   eventJSON.TrackInfo.Mid,
+					},
+					ClientID: t.clientID,
+					Type:     transport.TrackEventTypeSub,
+				})
+
+				return errors.Trace(err)
+			},
+		}
+
 		trackEvent := transport.TrackEvent{
 			TrackInfo: transport.TrackInfo{
-				Track: eventJSON.TrackInfo.Track,
+				Track: track,
 				Kind:  eventJSON.TrackInfo.Kind,
 				Mid:   eventJSON.TrackInfo.Mid,
 			},
@@ -92,6 +132,8 @@ func (t *MetadataTransport) start() {
 			t.mu.Lock()
 			delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
 			t.mu.Unlock()
+		case transport.TrackEventTypeSub:
+		case transport.TrackEventTypeUnsub:
 		}
 
 		t.log.Info(fmt.Sprintf("Got track event: %+v", trackEvent), nil)
