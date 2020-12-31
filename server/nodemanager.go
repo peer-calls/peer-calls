@@ -223,6 +223,7 @@ func (nm *NodeManager) startRoomEventLoop() {
 				nm.params.Log.Info("Creating new transport", logger.Ctx{
 					"room": roomEvent.RoomName,
 				})
+
 				transportRequest := factory.NewTransport(roomEvent.RoomName)
 				nm.handleTransportRequest(transportRequest)
 			}

@@ -56,7 +56,9 @@ func (r *AdapterRoomManager) Exit(room string) (isRemoved bool) {
 		adapter.count--
 		if adapter.count == 0 {
 			isRemoved = true
+
 			delete(r.rooms, room)
+
 			adapter.adapter.Close() // FIXME log error
 		}
 	}
