@@ -209,7 +209,23 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	prometheusWebRTCConnTotal.Inc()
 	prometheusWebRTCConnActive.Inc()
 
-	sh.tracksManager.Add(roomID, webRTCTransport)
+	pubTrackEventsCh, err := sh.tracksManager.Add(roomID, webRTCTransport)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	go func() {
+		for pubTrackEvent := range pubTrackEventsCh {
+			err := sh.adapter.Emit(clientID, Message{
+				Type:    MessageTypePubTrackEvent,
+				Payload: pubTrackEvent,
+				Room:    roomID,
+			})
+			if err != nil {
+				sh.log.Error("Emit pub track event", errors.Trace(err), nil)
+			}
+		}
+	}()
 
 	go sh.processLocalSignals(message, webRTCTransport.SignalChannel(), start)
 

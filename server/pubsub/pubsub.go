@@ -9,9 +9,13 @@ import (
 // The user of this implementation must implement locking if it will be used
 // by multiple goroutines.
 type PubSub struct {
+	eventsChan chan PubTrackEvent
+
+	events *events
+
 	// pubs is a map of pubs indexed by clientID of transport that published the
 	// track and the track SSRC.
-	pubs map[PubTrack]*pub
+	pubs map[clientTrack]*pub
 
 	// pubsByPubClientID is a map of a set of pubs that have been created by a
 	// particular transport (indexes by clientID).
@@ -24,8 +28,12 @@ type PubSub struct {
 
 // New returns a new instance of PubSub.
 func New() *PubSub {
+	eventsChan := make(chan PubTrackEvent)
+
 	return &PubSub{
-		pubs:              map[PubTrack]*pub{},
+		eventsChan:        eventsChan,
+		events:            newEvents(eventsChan, 0),
+		pubs:              map[clientTrack]*pub{},
 		pubsByPubClientID: map[string]pubSet{},
 		subsBySubClientID: map[string]map[uint32]*pub{},
 	}
@@ -33,14 +41,14 @@ func New() *PubSub {
 
 // Pub publishes a track.
 func (p *PubSub) Pub(pubClientID string, track transport.Track) {
-	pubTrack := PubTrack{
+	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     track.SSRC(),
 	}
 
 	pb := newPub(pubClientID, track)
 
-	p.pubs[pubTrack] = pb
+	p.pubs[clientTrack] = pb
 	if _, ok := p.pubsByPubClientID[pubClientID]; !ok {
 		p.pubsByPubClientID[pubClientID] = pubSet{}
 	}
@@ -50,7 +58,7 @@ func (p *PubSub) Pub(pubClientID string, track transport.Track) {
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
 func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
-	track := PubTrack{
+	track := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
 	}
@@ -72,7 +80,7 @@ func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
 
 // Sub subscribes to a published track.
 func (p *PubSub) Sub(pubClientID string, ssrc uint32, transport Transport) error {
-	track := PubTrack{
+	track := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
 	}
@@ -111,18 +119,18 @@ func (p *PubSub) sub(pb *pub, transport Transport) error {
 
 // Unsub unsubscribes from a published track.
 func (p *PubSub) Unsub(pubClientID string, ssrc uint32, subClientID string) error {
-	pubTrack := PubTrack{
+	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
 	}
 
 	var err error
 
-	pb, ok := p.pubs[pubTrack]
+	pb, ok := p.pubs[clientTrack]
 	if !ok {
-		err = errors.Annotatef(ErrTrackNotFound, "unsub: track: %s, clientID: %s", pubTrack, subClientID)
+		err = errors.Annotatef(ErrTrackNotFound, "unsub: track: %s, clientID: %s", clientTrack, subClientID)
 	} else {
-		err = errors.Annotatef(p.unsub(subClientID, pb), "unsub: track: %s, clientID: %s", pubTrack, subClientID)
+		err = errors.Annotatef(p.unsub(subClientID, pb), "unsub: track: %s, clientID: %s", clientTrack, subClientID)
 	}
 
 	return errors.Trace(err)
@@ -156,14 +164,14 @@ func (p *PubSub) Terminate(clientID string) {
 // Subscribers returns all transports subscribed to a specific clientID/track
 // pair.
 func (p *PubSub) Subscribers(pubClientID string, ssrc uint32) []Transport {
-	pubTrack := PubTrack{
+	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
 	}
 
 	var transports []Transport
 
-	if pb, ok := p.pubs[pubTrack]; ok {
+	if pb, ok := p.pubs[clientTrack]; ok {
 		subs := pb.subscribers()
 
 		if l := len(subs); l > 0 {
@@ -194,12 +202,46 @@ func (p *PubSub) Tracks() []PubTrack {
 	if l := len(p.pubs); l > 0 {
 		ret = make([]PubTrack, 0, l)
 
-		for pubTrack := range p.pubs {
-			ret = append(ret, pubTrack)
+		for clientTrack, pub := range p.pubs {
+			var userID string
+
+			userTrack, ok := pub.track.(userIdentifiable)
+			if ok {
+				userID = userTrack.UserID()
+			}
+
+			ret = append(ret, PubTrack{
+				SSRC:     pub.track.SSRC(),
+				ClientID: clientTrack.ClientID,
+				UserID:   userID,
+			})
 		}
 	}
 
 	return ret
 }
 
+// SubscribeToEvents creates a new subscription to track events.
+func (p *PubSub) SubscribeToEvents(clientID string) (<-chan PubTrackEvent, error) {
+	ch, err := p.events.Subscribe(clientID)
+
+	return ch, errors.Annotatef(err, "sub events: clientID: %s", clientID)
+}
+
+// UnsubscribeFromEvents removes an existing subscription from track events.
+func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
+	err := p.events.Unsubscribe(clientID)
+
+	return errors.Annotatef(err, "unsub events: clientID: %s", clientID)
+}
+
+func (p *PubSub) Close() {
+	close(p.eventsChan)
+	<-p.events.torndown
+}
+
 type pubSet map[*pub]struct{}
+
+type userIdentifiable interface {
+	UserID() string
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/prometheus/client_golang/prometheus"
@@ -46,7 +47,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, transport transport.Transport)
+	Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error)
 	TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool)
 	Sub(params sfu.SubParams) error
 	Unsub(params sfu.SubParams) error

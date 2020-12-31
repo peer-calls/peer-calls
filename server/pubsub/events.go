@@ -1,4 +1,4 @@
-package server
+package pubsub
 
 import (
 	"io"
@@ -20,18 +20,18 @@ type trackEventSubRequest struct {
 }
 
 type trackEventSubResponse struct {
-	sub <-chan TrackEvent
+	sub <-chan PubTrackEvent
 	err error
 }
 
-type trackEventsSuber struct {
+type events struct {
 	subRequestsChan chan trackEventSubRequest
 	torndown        chan struct{}
 	bufferSize      int
 }
 
-func newTrackEventsSuber(in <-chan TrackEvent, bufferSize int) *trackEventsSuber {
-	s := &trackEventsSuber{
+func newEvents(in <-chan PubTrackEvent, bufferSize int) *events {
+	s := &events{
 		subRequestsChan: make(chan trackEventSubRequest),
 		torndown:        make(chan struct{}),
 		bufferSize:      bufferSize,
@@ -42,8 +42,8 @@ func newTrackEventsSuber(in <-chan TrackEvent, bufferSize int) *trackEventsSuber
 	return s
 }
 
-func (s *trackEventsSuber) start(in <-chan TrackEvent) {
-	subs := map[string]chan TrackEvent{}
+func (s *events) start(in <-chan PubTrackEvent) {
+	subs := map[string]chan PubTrackEvent{}
 
 	defer func() {
 		for _, outCh := range subs {
@@ -72,7 +72,7 @@ func (s *trackEventsSuber) start(in <-chan TrackEvent) {
 			}
 
 			if req.typ == subRequestTypeSubscribe {
-				sub := make(chan TrackEvent, s.bufferSize)
+				sub := make(chan PubTrackEvent, s.bufferSize)
 				subs[req.clientID] = sub
 				req.done <- trackEventSubResponse{
 					sub: sub,
@@ -85,17 +85,18 @@ func (s *trackEventsSuber) start(in <-chan TrackEvent) {
 	}
 }
 
-func (s *trackEventsSuber) request(req trackEventSubRequest) (<-chan TrackEvent, error) {
+func (s *events) request(req trackEventSubRequest) (<-chan PubTrackEvent, error) {
 	select {
 	case s.subRequestsChan <- req:
 		res := <-req.done
+
 		return res.sub, errors.Trace(res.err)
 	case <-s.torndown:
 		return nil, errors.Trace(io.ErrClosedPipe)
 	}
 }
 
-func (s *trackEventsSuber) Subscribe(clientID string) (<-chan TrackEvent, error) {
+func (s *events) Subscribe(clientID string) (<-chan PubTrackEvent, error) {
 	req := trackEventSubRequest{
 		typ:      subRequestTypeSubscribe,
 		clientID: clientID,
@@ -107,7 +108,7 @@ func (s *trackEventsSuber) Subscribe(clientID string) (<-chan TrackEvent, error)
 	return sub, errors.Annotatef(err, "subscribe: %s", clientID)
 }
 
-func (s *trackEventsSuber) Unsubscribe(clientID string) error {
+func (s *events) Unsubscribe(clientID string) error {
 	req := trackEventSubRequest{
 		typ:      subRequestTypeUnsubscribe,
 		clientID: clientID,
@@ -117,4 +118,8 @@ func (s *trackEventsSuber) Unsubscribe(clientID string) error {
 	_, err := s.request(req)
 
 	return errors.Annotatef(err, "unsubscribe: %s", clientID)
+}
+
+func (s *events) Done() <-chan struct{} {
+	return s.torndown
 }

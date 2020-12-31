@@ -9,12 +9,15 @@ import (
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
 func TestPubSub(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	ps := pubsub.New()
+
+	defer ps.Close()
 
 	t1 := newTransportMock("a")
 	t2 := newTransportMock("b")

@@ -135,8 +135,10 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 		response := <-req.Response()
 
 		if err := response.Err; err != nil {
+			err = errors.Trace(err)
 			errChan <- err
-			nm.params.Log.Error("Transport promise", errors.Trace(err), nil)
+			nm.params.Log.Error("Transport promise", err, nil)
+
 			return
 		}
 
@@ -149,7 +151,32 @@ func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan erro
 			"stream_id": req.StreamID(),
 			"client_id": streamTransport.ClientID(),
 		})
-		nm.params.TracksManager.Add(req.StreamID(), streamTransport)
+
+		ch, err := nm.params.TracksManager.Add(req.StreamID(), streamTransport)
+		if err != nil {
+			errChan <- errors.Trace(err)
+			nm.params.Log.Error("Add transport", err, nil)
+
+			return
+		}
+
+		go func() {
+			// FIXME currently all transport subscribe to all published tracks.
+			//
+			// This is the first step in an attempt to communicate the changes in
+			// published tracks without actually adding the tracks to the peer
+			// connection and wasting data.
+			//
+			// The frontend would need to be updated to handle these events and
+			// subscribe to interesting streams. The first version might simply
+			// subscribe to all tracks.
+			//
+			// The server transport would also need to be updated to:
+			// 1. Not sub to tracks until at least one track is added.
+			// 2. Automatically unsub from tracks after the last track is removed.
+			for range ch {
+			}
+		}()
 	}()
 
 	return errChan

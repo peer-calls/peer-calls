@@ -103,10 +103,42 @@ func (t *PeerManager) getTransportBySSRC(subClientID string, ssrc uint32) (
 	return transport, ok
 }
 
-func (t *PeerManager) Add(tr transport.Transport) {
+func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	log := t.log.WithCtx(logger.Ctx{
 		"client_id": tr.ClientID(),
 	})
+
+	pubTrackEventSub, err := t.pubsub.SubscribeToEvents(tr.ClientID())
+	if err != nil {
+		return nil, errors.Annotatef(err, "subscribe to events: %s", tr.ClientID())
+	}
+
+	pubTracks := t.pubsub.Tracks()
+
+	pubTrackEventsCh := make(chan pubsub.PubTrackEvent)
+
+	go func() {
+		defer close(pubTrackEventsCh)
+
+		for _, pubTrack := range pubTracks {
+			if pubTrack.ClientID != tr.ClientID() {
+				pubTrackEventsCh <- pubsub.PubTrackEvent{
+					PubTrack: pubsub.PubTrack{
+						ClientID: pubTrack.ClientID,
+						UserID:   pubTrack.UserID,
+						SSRC:     pubTrack.SSRC,
+					},
+					Type: transport.TrackEventTypeAdd,
+				}
+			}
+		}
+
+		for event := range pubTrackEventSub {
+			if event.PubTrack.ClientID != tr.ClientID() {
+				pubTrackEventsCh <- event
+			}
+		}
+	}()
 
 	go func() {
 		for trackEvent := range tr.TrackEventsChannel() {
@@ -253,6 +285,8 @@ func (t *PeerManager) Add(tr transport.Transport) {
 	}
 
 	t.transports[tr.ClientID()] = tr
+
+	return pubTrackEventSub, nil
 }
 
 func (t *PeerManager) Sub(params SubParams) error {
@@ -314,6 +348,12 @@ func (t *PeerManager) Remove(clientID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	if err := t.pubsub.UnsubscribeFromEvents(clientID); err != nil {
+		t.log.Error("Unsubscribe from events", errors.Trace(err), logger.Ctx{
+			"client_id": clientID,
+		})
+	}
+
 	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
 	delete(t.transports, clientID)
 }
@@ -339,6 +379,13 @@ func (t *PeerManager) Size() int {
 	defer t.mu.RUnlock()
 
 	return len(t.transports)
+}
+
+func (t *PeerManager) Close() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.pubsub.Close()
 }
 
 type userIdentifiable interface {

@@ -28,10 +28,11 @@ type Message struct {
 type MessageType string
 
 const (
-	MessageTypeHangUp MessageType = "hangUp"
-	MessageTypeReady  MessageType = "ready"
-	MessageTypeSignal MessageType = "signal"
-	MessageTypePing   MessageType = "ping"
+	MessageTypeHangUp        MessageType = "hangUp"
+	MessageTypeReady         MessageType = "ready"
+	MessageTypeSignal        MessageType = "signal"
+	MessageTypePing          MessageType = "ping"
+	MessageTypePubTrackEvent MessageType = "pub_track_event"
 
 	MessageTypeRoomJoin  MessageType = "ws_room_join"
 	MessageTypeRoomLeave MessageType = "ws_room_leave"

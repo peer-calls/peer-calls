@@ -5,6 +5,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
 )
 
@@ -25,7 +26,7 @@ func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManage
 	}
 }
 
-func (m *TracksManager) Add(room string, transport transport.Transport) {
+func (m *TracksManager) Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -50,7 +51,11 @@ func (m *TracksManager) Add(room string, transport transport.Transport) {
 	})
 
 	log.Info("Add peer", nil)
-	peerManager.Add(transport)
+
+	pubTrackEventsCh, err := peerManager.Add(transport)
+	if err != nil {
+		return nil, errors.Annotatef(err, "add transport")
+	}
 
 	go func() {
 		<-transport.CloseChannel()
@@ -62,10 +67,13 @@ func (m *TracksManager) Add(room string, transport transport.Transport) {
 		// TODO tell the difference between server and webrtc transports since
 		// server transports should not be counted, and they should be removed.
 		if peerManager.Size() == 0 {
+			peerManager.Close()
 			// TODO write to RoomEventsChan
 			delete(m.peerManagers, room)
 		}
 	}()
+
+	return pubTrackEventsCh, nil
 }
 
 func (m *TracksManager) TracksMetadata(room string, clientID string) (metadata []TrackMetadata, ok bool) {

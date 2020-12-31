@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
@@ -40,12 +41,17 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, transport server.Transport) {
+func (m *mockTracksManager) Add(room string, transport server.Transport) (<-chan pubsub.PubTrackEvent, error) {
+	ch := make(chan pubsub.PubTrackEvent)
+	close(ch)
+
 	m.added <- addedPeer{
 		room:      room,
 		clientID:  clientID,
 		transport: transport,
 	}
+
+	return ch, nil
 }
 
 func (m *mockTracksManager) TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool) {
