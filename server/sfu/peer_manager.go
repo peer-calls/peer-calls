@@ -48,13 +48,7 @@ func (t *PeerManager) addTrack(clientID string, track transport.Track) {
 		"ssrc":      track.SSRC(),
 	})
 
-	log.Trace("Add track (BEFORE)", logger.Ctx{
-		"track": track,
-	})
-
-	track = t.asUserTrack(track, clientID)
-
-	log.Trace("Add track (AFTER)", logger.Ctx{
+	log.Trace("Add track", logger.Ctx{
 		"track": track,
 	})
 
@@ -278,29 +272,8 @@ func (t *PeerManager) Unsub(params SubParams) error {
 	return errors.Trace(err)
 }
 
-// asUserTrack adds business level metadata to track such as userID and roomID
-// if such data does not already exist.
-func (t *PeerManager) asUserTrack(track transport.Track, clientID string) transport.Track {
-	if _, ok := track.(userIdentifiable); ok {
-		return track
-	}
-
-	t.log.Warn("Unexpected non-user track", logger.Ctx{
-		"track":     track,
-		"ssrc":      track.SSRC(),
-		"client_id": clientID,
-	})
-
-	return NewUserTrack(track, clientID, t.room)
-}
-
-// GetTracksMetadata retrieves local track metadata for a specific peer.
-//
-// TODO In the future, this method will need to be implemented differently for
-// WebRTCTransport and RTPTransport, since RTPTransport might contain tracks
-// for multiple users in a peer. Therefor the RTPTransport should be able to
-// provide metadata on its own.
-func (t *PeerManager) GetTracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
+// TracksMetadata retrieves local track metadata for a specific transport.
+func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 

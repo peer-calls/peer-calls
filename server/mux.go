@@ -47,7 +47,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type TracksManager interface {
 	Add(room string, transport transport.Transport)
-	GetTracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool)
+	TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool)
 	Sub(params sfu.SubParams) error
 	Unsub(params sfu.SubParams) error
 }

@@ -48,7 +48,7 @@ func (m *mockTracksManager) Add(room string, transport server.Transport) {
 	}
 }
 
-func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool) {
+func (m *mockTracksManager) TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool) {
 	return nil, true
 }
 
