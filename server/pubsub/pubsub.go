@@ -45,9 +45,9 @@ func New(log logger.Logger) *PubSub {
 
 // Pub publishes a track.
 func (p *PubSub) Pub(pubClientID string, track transport.Track) {
-	p.log.Info("Pub", logger.Ctx{
-		"pub_client_id": pubClientID,
-		"ssrc":          track.SSRC(),
+	p.log.Trace("Pub", logger.Ctx{
+		"client_id": pubClientID,
+		"ssrc":      track.SSRC(),
 	})
 
 	clientTrack := clientTrack{
@@ -72,6 +72,11 @@ func (p *PubSub) Pub(pubClientID string, track transport.Track) {
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
 func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
+	p.log.Trace("Unpub", logger.Ctx{
+		"client_id": pubClientID,
+		"ssrc":      ssrc,
+	})
+
 	track := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
@@ -99,6 +104,12 @@ func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
 
 // Sub subscribes to a published track.
 func (p *PubSub) Sub(pubClientID string, ssrc uint32, transport Transport) error {
+	p.log.Trace("Sub", logger.Ctx{
+		"client_id":     transport.ClientID(),
+		"ssrc":          ssrc,
+		"pub_client_id": pubClientID,
+	})
+
 	track := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
@@ -138,6 +149,12 @@ func (p *PubSub) sub(pb *pub, transport Transport) error {
 
 // Unsub unsubscribes from a published track.
 func (p *PubSub) Unsub(pubClientID string, ssrc uint32, subClientID string) error {
+	p.log.Trace("Sub", logger.Ctx{
+		"client_id":     subClientID,
+		"ssrc":          ssrc,
+		"pub_client_id": pubClientID,
+	})
+
 	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		SSRC:     ssrc,
@@ -171,6 +188,10 @@ func (p *PubSub) unsub(subClientID string, pb *pub) error {
 // Terminate unpublishes al tracks from from a particular client, as well as
 // removes any subscriptions it has.
 func (p *PubSub) Terminate(clientID string) {
+	p.log.Trace("Terminate", logger.Ctx{
+		"client_id": clientID,
+	})
+
 	for pb := range p.pubsByPubClientID[clientID] {
 		p.Unpub(clientID, pb.track.SSRC())
 	}
@@ -231,6 +252,10 @@ func (p *PubSub) Tracks() []PubTrack {
 
 // SubscribeToEvents creates a new subscription to track events.
 func (p *PubSub) SubscribeToEvents(clientID string) (<-chan PubTrackEvent, error) {
+	p.log.Trace("SubscribeToEvents", logger.Ctx{
+		"client_id": clientID,
+	})
+
 	ch, err := p.events.Subscribe(clientID)
 
 	return ch, errors.Annotatef(err, "sub events: clientID: %s", clientID)
@@ -238,6 +263,10 @@ func (p *PubSub) SubscribeToEvents(clientID string) (<-chan PubTrackEvent, error
 
 // UnsubscribeFromEvents removes an existing subscription from track events.
 func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
+	p.log.Trace("UnsubscribeFromEvents", logger.Ctx{
+		"client_id": clientID,
+	})
+
 	err := p.events.Unsubscribe(clientID)
 
 	return errors.Annotatef(err, "unsub events: clientID: %s", clientID)
