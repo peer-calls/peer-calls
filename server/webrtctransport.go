@@ -156,7 +156,7 @@ type WebRTCTransport struct {
 	signaller       *Signaller
 	dataTransceiver *DataTransceiver
 
-	trackEventsCh chan TrackEvent
+	trackEventsCh chan transport.TrackEvent
 	rtpCh         chan *rtp.Packet
 	rtcpCh        chan rtcp.Packet
 
@@ -258,7 +258,7 @@ func NewWebRTCTransport(
 		peerConnection:  peerConnection,
 		dataTransceiver: dataTransceiver,
 
-		trackEventsCh: make(chan TrackEvent),
+		trackEventsCh: make(chan transport.TrackEvent),
 		rtpCh:         make(chan *rtp.Packet),
 		rtcpCh:        make(chan rtcp.Packet),
 
@@ -281,14 +281,14 @@ func NewWebRTCTransport(
 }
 
 type localTrack struct {
-	trackInfo   TrackInfo
+	trackInfo   transport.TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	sender      *webrtc.RTPSender
 	track       *webrtc.Track
 }
 
 type remoteTrack struct {
-	trackInfo   TrackInfo
+	trackInfo   transport.TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	receiver    *webrtc.RTPReceiver
 	track       *webrtc.Track
@@ -372,7 +372,7 @@ func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 	return nil
 }
 
-func (p *WebRTCTransport) AddTrack(t Track) error {
+func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 	track, err := p.peerConnection.NewTrack(t.PayloadType(), t.SSRC(), t.ID(), t.Label())
 	if err != nil {
 		return errors.Annotate(err, "new track")
@@ -420,7 +420,7 @@ func (p *WebRTCTransport) AddTrack(t Track) error {
 		}
 	}
 
-	trackInfo := TrackInfo{
+	trackInfo := transport.TrackInfo{
 		Track: t,
 		Kind:  track.Kind(),
 		Mid:   "",
@@ -448,11 +448,11 @@ func (p *WebRTCTransport) removeRemoteTrack(ssrc uint32) {
 }
 
 // RemoteTracks returns info about receiving tracks
-func (p *WebRTCTransport) RemoteTracks() []TrackInfo {
+func (p *WebRTCTransport) RemoteTracks() []transport.TrackInfo {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	list := make([]TrackInfo, 0, len(p.remoteTracks))
+	list := make([]transport.TrackInfo, 0, len(p.remoteTracks))
 
 	for _, rti := range p.remoteTracks {
 		trackInfo := rti.trackInfo
@@ -464,11 +464,11 @@ func (p *WebRTCTransport) RemoteTracks() []TrackInfo {
 }
 
 // LocalTracks returns info about sending tracks
-func (p *WebRTCTransport) LocalTracks() []TrackInfo {
+func (p *WebRTCTransport) LocalTracks() []transport.TrackInfo {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	list := make([]TrackInfo, 0, len(p.localTracks))
+	list := make([]transport.TrackInfo, 0, len(p.localTracks))
 
 	for _, lti := range p.localTracks {
 		trackInfo := lti.trackInfo
@@ -480,7 +480,7 @@ func (p *WebRTCTransport) LocalTracks() []TrackInfo {
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
-	trackInfo := TrackInfo{
+	trackInfo := transport.TrackInfo{
 		Track: sfu.NewUserTrack(
 			transport.NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
 			p.clientID,
@@ -514,7 +514,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	rti := remoteTrack{trackInfo, transceiver, receiver, track}
 
 	p.addRemoteTrack(rti)
-	p.trackEventsCh <- TrackEvent{
+	p.trackEventsCh <- transport.TrackEvent{
 		TrackInfo: trackInfo,
 		Type:      transport.TrackEventTypeAdd,
 		ClientID:  p.clientID,
@@ -525,7 +525,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 	go func() {
 		defer func() {
 			p.removeRemoteTrack(trackInfo.Track.SSRC())
-			p.trackEventsCh <- TrackEvent{
+			p.trackEventsCh <- transport.TrackEvent{
 				TrackInfo: trackInfo,
 				Type:      transport.TrackEventTypeRemove,
 				ClientID:  p.clientID,
@@ -566,7 +566,7 @@ func (p *WebRTCTransport) SignalChannel() <-chan Payload {
 	return p.signaller.SignalChannel()
 }
 
-func (p *WebRTCTransport) TrackEventsChannel() <-chan TrackEvent {
+func (p *WebRTCTransport) TrackEventsChannel() <-chan transport.TrackEvent {
 	return p.trackEventsCh
 }
 
