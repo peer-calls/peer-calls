@@ -12,7 +12,19 @@ import (
 	"github.com/peer-calls/peer-calls/server/udpmux"
 )
 
-// Manager is in charge of managing server-to-server UDP Transports.
+// Manager is in charge of managing server-to-server UDP Transports. The
+// overarching design is as follows.
+//
+//  1. UDPMux is used to demultiplex UDP packets coming in from different Peer
+//     Calls nodes based on remote addr.
+//  2. For each incoming connection, a new transport factory is created.
+//  3. Each factory creates a separate transport peer room, and it uses the
+//     stringmux package to figure out which packets are for which room.
+//  4. Each stream transport then uses a stringmux again to figure out which
+//     packet is for which transport component:
+//     - packets with 'm' prefix are media packets for MediaTransport, and
+//     - packets with 's' prefix are for SCTP component which is used for
+//       DataTransport and MetadataTransport.
 type Manager struct {
 	params *ManagerParams
 

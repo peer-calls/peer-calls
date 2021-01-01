@@ -14,6 +14,8 @@ import (
 	"github.com/pion/sctp"
 )
 
+// Factory is in charge of creating Transports by an incoming request or a
+// local request.
 type Factory struct {
 	log               logger.Logger
 	stringMux         *stringmux.StringMux
