@@ -55,10 +55,12 @@ func (t *Factory) addPendingTransport(req *Request) error {
 
 	t.pendingTransports[streamID] = req
 
+	t.removePendingRequestWhenDone(req)
+
 	return nil
 }
 
-func (t *Factory) removePendingPromiseWhenDone(req *Request) {
+func (t *Factory) removePendingRequestWhenDone(req *Request) {
 	t.wg.Add(1)
 
 	go func() {
@@ -95,8 +97,6 @@ func (t *Factory) AcceptTransport() *Request {
 
 		return req
 	}
-
-	t.removePendingPromiseWhenDone(req)
 
 	t.createTransportAsync(req, conn, true)
 
@@ -168,7 +168,10 @@ func (t *Factory) createTransportAsync(req *Request, conn stringmux.Conn, server
 			localMux.Close()
 		}
 
-		req.set(transport, errors.Trace(err))
+		if ok := req.set(transport, errors.Trace(err)); !ok && err == nil {
+			// Request has already been canceled so close this transport.
+			transport.Close()
+		}
 	}()
 }
 
@@ -335,15 +338,12 @@ func (t *Factory) CloseTransport(streamID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if tp, ok := t.pendingTransports[streamID]; ok {
-		// TODO check what happens when Cancel() is called later than resolve(). I
-		// think this might still cause the transport to be created and added to
-		// the transports map but not sure how to tackle this at this point.
-		//
-		// The good thing is that the promise will still be set by the time the
-		// transport is added to transports map, but I'm still not 100% sure that
-		// it will cover all edge cases.
-		tp.Cancel()
+	if req, ok := t.pendingTransports[streamID]; ok {
+		// Cancel the pending request.
+		req.Cancel()
+
+		// Wait for pending request to settle.
+		<-req.Done()
 	}
 
 	if transport, ok := t.transports[streamID]; ok {
@@ -367,8 +367,6 @@ func (t *Factory) NewTransport(streamID string) *Request {
 
 		return req
 	}
-
-	t.removePendingPromiseWhenDone(req)
 
 	conn, err := t.stringMux.GetConn(streamID)
 	if err != nil {

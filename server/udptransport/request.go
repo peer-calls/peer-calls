@@ -64,7 +64,7 @@ func (t *Request) start(ctx context.Context) {
 	}
 }
 
-func (t *Request) set(streamTransport *Transport, err error) {
+func (t *Request) set(streamTransport *Transport, err error) bool {
 	res := Response{
 		Transport: streamTransport,
 		Err:       err,
@@ -72,7 +72,9 @@ func (t *Request) set(streamTransport *Transport, err error) {
 
 	select {
 	case t.setChan <- res:
+		return true
 	case <-t.torndown:
+		return false
 	}
 }
 
