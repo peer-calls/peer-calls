@@ -276,9 +276,9 @@ func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
 	return errors.Annotatef(err, "unsub events: clientID: %s", clientID)
 }
 
+// Close closes the subscription channel. The caller must ensure that no
+// other methods are called after close has been called.
 func (p *PubSub) Close() {
-	// FIXME this causes panics because peer manager close is called before
-	// all goroutines exit.
 	close(p.eventsChan)
 	<-p.events.torndown
 }
