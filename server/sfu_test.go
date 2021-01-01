@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"strings"
@@ -116,7 +117,9 @@ func startSignalling(
 	go func() {
 		for signal := range signalChan {
 			err := wsClient.Write(server.NewMessage("signal", roomName, signal))
-			require.NoError(t, err, "error sending signal to ws: %w", err)
+			// Sometimes there are late signals e created even after the test has
+			// finished successfully, so ignore the errors, but log them.
+			t.Log(fmt.Errorf("error sending signal to ws: %w", err))
 		}
 	}()
 }
