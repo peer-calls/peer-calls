@@ -2,6 +2,7 @@ package udptransport
 
 import (
 	"context"
+	"io"
 	"net"
 	"sync"
 
@@ -257,7 +258,7 @@ func (t *Factory) createTransport(
 	raddr net.Addr,
 	streamID string,
 	localMux *stringmux.StringMux,
-	mediaConn net.Conn,
+	mediaConn io.ReadWriteCloser,
 	sctpConn net.Conn,
 	server bool,
 ) (*Transport, error) {
@@ -319,7 +320,7 @@ func (t *Factory) createTransport(
 
 	go func() {
 		defer t.wg.Done()
-		<-transport.CloseChannel()
+		<-transport.Done()
 
 		t.mu.Lock()
 		defer t.mu.Unlock()

@@ -12,24 +12,34 @@ import (
 	"github.com/peer-calls/peer-calls/server/udpmux"
 )
 
-// Manager is in charge of managing server-to-server transports.
+// Manager is in charge of managing server-to-server UDP Transports.
 type Manager struct {
-	params        *ManagerParams
-	udpMux        *udpmux.UDPMux
-	closeChan     chan struct{}
+	params *ManagerParams
+
+	// udpMux is used for demultiplexing UDP packets from other server nodes.
+	udpMux *udpmux.UDPMux
+
+	// torndown will be closed when manager is closed.
+	torndown chan struct{}
+
+	// factoriesChan contains accepted Factories.
 	factoriesChan chan *Factory
 	closeOnce     sync.Once
-	mu            sync.Mutex
+	mu            sync.RWMutex
 	wg            sync.WaitGroup
 
+	// factories is the map of all created and active Factories.
 	factories map[*stringmux.StringMux]*Factory
 }
 
+// ManagerParams are the parameters for Manager.
 type ManagerParams struct {
+	// Conn is the packet connection to use for sending server-to-server data.
 	Conn net.PacketConn
 	Log  logger.Logger
 }
 
+// NewManager creates a new instance of Manager.
 func NewManager(params ManagerParams) *Manager {
 	params.Log = params.Log.WithNamespaceAppended("transport_manager")
 
@@ -46,7 +56,7 @@ func NewManager(params ManagerParams) *Manager {
 	t := &Manager{
 		params:        &params,
 		udpMux:        udpMux,
-		closeChan:     make(chan struct{}),
+		torndown:      make(chan struct{}),
 		factoriesChan: make(chan *Factory),
 		factories:     make(map[*stringmux.StringMux]*Factory),
 	}
@@ -62,8 +72,8 @@ func NewManager(params ManagerParams) *Manager {
 }
 
 func (t *Manager) Factories() []*Factory {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	factories := make([]*Factory, 0, len(t.factories))
 
@@ -102,7 +112,7 @@ func (t *Manager) start() {
 
 // createFactory creates a new Factory for the provided
 // connection.
-func (t *Manager) createFactory(conn udpmux.Conn) (*Factory, error) {
+func (t *Manager) createFactory(conn net.Conn) (*Factory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -123,7 +133,7 @@ func (t *Manager) createFactory(conn udpmux.Conn) (*Factory, error) {
 
 	go func() {
 		defer t.wg.Done()
-		<-stringMux.CloseChannel()
+		<-stringMux.Done()
 
 		t.mu.Lock()
 		defer t.mu.Unlock()
@@ -160,8 +170,8 @@ func (t *Manager) Close() error {
 	return err
 }
 
-func (t *Manager) CloseChannel() <-chan struct{} {
-	return t.closeChan
+func (t *Manager) Done() <-chan struct{} {
+	return t.torndown
 }
 
 func (t *Manager) close() error {
@@ -181,7 +191,7 @@ func (t *Manager) close() error {
 			delete(t.factories, stringMux)
 		}
 
-		close(t.closeChan)
+		close(t.torndown)
 	})
 
 	return errors.Trace(err)

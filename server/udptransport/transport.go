@@ -8,13 +8,21 @@ import (
 	"github.com/pion/sctp"
 )
 
+// Transport wraps servertransport.Transport and it contains the connection
+// details for sending data via SCTP.
 type Transport struct {
 	*servertransport.Transport
 
+	// StreamID is the StreamID from stringmux.
 	StreamID string
 
+	// association is used for creating streams for servertransport.DataTransport
+	// and servertransport.MetadataTransport.
 	association *sctp.Association
-	stringMux   *stringmux.StringMux
+
+	// stringMux is used for demultiplexing UDP packets and directing them to
+	// servertransport.MediaTransport and the SCTP association.
+	stringMux *stringmux.StringMux
 }
 
 func (t *Transport) Close() error {

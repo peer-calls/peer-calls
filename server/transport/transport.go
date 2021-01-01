@@ -32,7 +32,7 @@ type MetadataTransport interface {
 
 type Closable interface {
 	Close() error
-	CloseChannel() <-chan struct{}
+	Done() <-chan struct{}
 }
 
 type MediaTransport interface {

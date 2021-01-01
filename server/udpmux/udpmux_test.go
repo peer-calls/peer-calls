@@ -135,7 +135,7 @@ func TestUDPMux_Close_GetConn(t *testing.T) {
 	})
 
 	mux1.Close()
-	<-mux1.CloseChannel()
+	<-mux1.Done()
 
 	createdConn, err := mux1.GetConn(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},

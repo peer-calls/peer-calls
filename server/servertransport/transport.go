@@ -78,7 +78,7 @@ func (t *Transport) ClientID() string {
 	return t.clientID
 }
 
-func (t *Transport) CloseChannel() <-chan struct{} {
+func (t *Transport) Done() <-chan struct{} {
 	return t.closeChan
 }
 

@@ -58,7 +58,7 @@ func (m *TracksManager) Add(room string, transport transport.Transport) (<-chan 
 	}
 
 	go func() {
-		<-transport.CloseChannel()
+		<-transport.Done()
 		m.mu.Lock()
 		defer m.mu.Unlock()
 

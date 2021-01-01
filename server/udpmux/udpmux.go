@@ -226,7 +226,7 @@ func (m *UDPMux) startReading(ctx context.Context) {
 	}
 }
 
-func (m *UDPMux) CloseChannel() <-chan struct{} {
+func (m *UDPMux) Done() <-chan struct{} {
 	return m.torndownChan
 }
 

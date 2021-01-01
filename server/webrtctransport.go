@@ -269,7 +269,7 @@ func NewWebRTCTransport(
 
 	go func() {
 		// wait for peer connection to be closed
-		<-signaller.CloseChannel()
+		<-signaller.Done()
 		// do not close channels before all writing goroutines exit
 		transport.wg.Wait()
 		transport.dataTransceiver.Close()
@@ -319,8 +319,8 @@ func (p *WebRTCTransport) WriteRTCP(packets []rtcp.Packet) error {
 	return errors.Annotate(err, "write rtcp")
 }
 
-func (p *WebRTCTransport) CloseChannel() <-chan struct{} {
-	return p.signaller.CloseChannel()
+func (p *WebRTCTransport) Done() <-chan struct{} {
+	return p.signaller.Done()
 }
 
 func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {

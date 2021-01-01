@@ -66,7 +66,7 @@ func NewSignaller(
 
 // This does not close any channel, but returns a channel that can be used
 // for signalling closing of peer connection
-func (s *Signaller) CloseChannel() <-chan struct{} {
+func (s *Signaller) Done() <-chan struct{} {
 	return s.closeChannel
 }
 

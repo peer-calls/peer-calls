@@ -12,7 +12,7 @@ import (
 
 type Conn interface {
 	net.Conn
-	CloseChannel() <-chan struct{}
+	Done() <-chan struct{}
 }
 
 type conn struct {
@@ -51,7 +51,7 @@ func (m *conn) close() {
 	close(m.torndown)
 }
 
-func (m *conn) CloseChannel() <-chan struct{} {
+func (m *conn) Done() <-chan struct{} {
 	return m.torndown
 }
 

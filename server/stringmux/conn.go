@@ -13,7 +13,7 @@ import (
 type Conn interface {
 	net.Conn
 	StreamID() string
-	CloseChannel() <-chan struct{}
+	Done() <-chan struct{}
 }
 
 type conn struct {
@@ -55,7 +55,7 @@ func (c *conn) close() {
 	close(c.torndown)
 }
 
-func (c *conn) CloseChannel() <-chan struct{} {
+func (c *conn) Done() <-chan struct{} {
 	return c.torndown
 }
 

@@ -244,7 +244,7 @@ func (m *StringMux) Close() error {
 	return nil
 }
 
-func (m *StringMux) CloseChannel() <-chan struct{} {
+func (m *StringMux) Done() <-chan struct{} {
 	return m.torndownChan
 }
 
