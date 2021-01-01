@@ -17,7 +17,9 @@ import (
 //
 //  1. UDPMux is used to demultiplex UDP packets coming in from different Peer
 //     Calls nodes based on remote addr.
-//  2. For each incoming connection, a new transport factory is created.
+//  2. For each incoming server packet from a specific remote address, a new
+//     transport factory is created. A transport factory can also be created
+//     manually.
 //  3. Each factory creates a separate transport peer room, and it uses the
 //     stringmux package to figure out which packets are for which room.
 //  4. Each stream transport then uses a stringmux again to figure out which
@@ -25,6 +27,9 @@ import (
 //     - packets with 'm' prefix are media packets for MediaTransport, and
 //     - packets with 's' prefix are for SCTP component which is used for
 //       DataTransport and MetadataTransport.
+//
+// Due to the issues with sctp connection closure, it might be wise to create
+// long-lived SCTP connection per factory and demultiplex packets separately.
 type Manager struct {
 	params *ManagerParams
 
