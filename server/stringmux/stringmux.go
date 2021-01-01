@@ -15,7 +15,7 @@ type StringMux struct {
 	params *Params
 
 	getConnRequestChan   chan getConnRequest
-	newConnChan          chan *conn
+	newConnChan          chan Conn
 	closeConnRequestChan chan closeConnRequest
 	remotePacketsChan    chan remotePacket
 
@@ -40,7 +40,7 @@ func New(params Params) *StringMux {
 	m := &StringMux{
 		params: &params,
 
-		newConnChan:          make(chan *conn),
+		newConnChan:          make(chan Conn),
 		closeConnRequestChan: make(chan closeConnRequest),
 		getConnRequestChan:   make(chan getConnRequest),
 		remotePacketsChan:    make(chan remotePacket, params.ReadBufferSize),
@@ -197,15 +197,24 @@ func (m *StringMux) startReading(ctx context.Context) {
 	}
 }
 
+// Conns is the channel with incoming connections. Users should use either
+// AcceptConn or Conns, but never both.
+func (m *StringMux) Conns() <-chan Conn {
+	return m.newConnChan
+}
+
+// AcceptConn reads from Conns channel. It returns io.ErrClosedPipe when
+// the channel is closed. Users should use either AcceptConn or Conns, but
+// never both.
 func (m *StringMux) AcceptConn() (Conn, error) {
-	conn, ok := <-m.newConnChan
+	c, ok := <-m.newConnChan
 	if !ok {
 		return nil, errors.Annotate(io.ErrClosedPipe, "accept")
 	}
 
-	conn.logger.Info("Accept conn", nil)
+	c.(*conn).logger.Info("Accept conn", nil)
 
-	return conn, nil
+	return c, nil
 }
 
 func (m *StringMux) GetConn(streamID string) (Conn, error) {
