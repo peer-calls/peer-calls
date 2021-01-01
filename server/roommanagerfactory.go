@@ -63,6 +63,7 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 	})
 	if err != nil {
 		channelRoomManager.Close()
+
 		return nil, nil, errors.Annotatef(err, "new node manager")
 	}
 
