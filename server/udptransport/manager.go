@@ -142,8 +142,7 @@ func (t *Manager) start() {
 	}
 }
 
-// createFactory creates a new Factory for the provided
-// connection.
+// createFactory creates a new Factory for the provided connection.
 func (t *Manager) createFactory(conn net.Conn) (*Factory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -185,6 +184,8 @@ func (t *Manager) AcceptFactory() (*Factory, error) {
 	return factory, nil
 }
 
+// GetFactory returns the transport Factory for remote address. It will fail
+// when a conn for raddr already exists.
 func (t *Manager) GetFactory(raddr net.Addr) (*Factory, error) {
 	conn, err := t.udpMux.GetConn(raddr)
 	if err != nil {
@@ -202,6 +203,8 @@ func (t *Manager) Close() error {
 	return err
 }
 
+// Done returns a channel which is closed after the manager has closed and all
+// goroutines have settled.
 func (t *Manager) Done() <-chan struct{} {
 	return t.torndown
 }
