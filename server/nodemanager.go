@@ -6,13 +6,14 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/udptransport"
 )
 
 type NodeManager struct {
 	params           *NodeManagerParams
 	wg               sync.WaitGroup
 	mu               sync.Mutex
-	transportManager *TransportManager
+	transportManager *udptransport.Manager
 	rooms            map[string]struct{}
 }
 
@@ -36,7 +37,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 
 	params.Log.Info("Listen on UDP", nil)
 
-	transportManager := NewTransportManager(TransportManagerParams{
+	transportManager := udptransport.NewManager(udptransport.ManagerParams{
 		Conn: conn,
 		Log:  params.Log,
 	})
@@ -54,7 +55,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 
 		log.Info("Configuring remote node", nil)
 
-		factory, err := transportManager.GetTransportFactory(addr)
+		factory, err := transportManager.GetFactory(addr)
 		if err != nil {
 			log.Error("Create transport factory", errors.Trace(err), nil)
 		}
@@ -70,7 +71,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 
 func (nm *NodeManager) startTransportEventLoop() {
 	for {
-		factory, err := nm.transportManager.AcceptTransportFactory()
+		factory, err := nm.transportManager.AcceptFactory()
 		if err != nil {
 			nm.params.Log.Error("Accept transport factory", errors.Trace(err), nil)
 
@@ -81,7 +82,7 @@ func (nm *NodeManager) startTransportEventLoop() {
 	}
 }
 
-func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
+func (nm *NodeManager) handleTransportFactory(factory *udptransport.Factory) {
 	nm.wg.Add(1)
 
 	go func() {
@@ -123,7 +124,7 @@ func (nm *NodeManager) handleTransportFactory(factory *TransportFactory) {
 	}()
 }
 
-func (nm *NodeManager) handleTransportRequest(req *TransportRequest) <-chan error {
+func (nm *NodeManager) handleTransportRequest(req *udptransport.Request) <-chan error {
 	errChan := make(chan error, 1)
 
 	nm.wg.Add(1)

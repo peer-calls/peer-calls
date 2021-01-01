@@ -1,8 +1,7 @@
-package server
+package udptransport
 
 import (
 	"context"
-	"io"
 	"net"
 	"sync"
 
@@ -11,229 +10,35 @@ import (
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
-	"github.com/peer-calls/peer-calls/server/udpmux"
 	"github.com/pion/sctp"
 )
 
-// TransportManager is in charge of managing server-to-server transports.
-type TransportManager struct {
-	params        *TransportManagerParams
-	udpMux        *udpmux.UDPMux
-	closeChan     chan struct{}
-	factoriesChan chan *TransportFactory
-	closeOnce     sync.Once
-	mu            sync.Mutex
-	wg            sync.WaitGroup
-
-	factories map[*stringmux.StringMux]*TransportFactory
-}
-
-type StreamTransport struct {
-	*servertransport.Transport
-
-	StreamID string
-
-	association *sctp.Association
-	stringMux   *stringmux.StringMux
-}
-
-func (st *StreamTransport) Close() error {
-	var errs MultiErrorHandler
-
-	errs.Add(errors.Annotate(st.Transport.Close(), "close transport"))
-	errs.Add(errors.Annotate(st.association.Close(), "close association"))
-	errs.Add(errors.Annotate(st.stringMux.Close(), "close string mux"))
-
-	return errors.Annotate(errs.Err(), "close stream transport")
-}
-
-type TransportManagerParams struct {
-	Conn net.PacketConn
-	Log  logger.Logger
-}
-
-func NewTransportManager(params TransportManagerParams) *TransportManager {
-	params.Log = params.Log.WithNamespaceAppended("transport_manager")
-
-	readChanSize := 100
-
-	udpMux := udpmux.New(udpmux.Params{
-		Conn:           params.Conn,
-		MTU:            uint32(servertransport.ReceiveMTU),
-		Log:            params.Log,
-		ReadChanSize:   readChanSize,
-		ReadBufferSize: 0,
-	})
-
-	t := &TransportManager{
-		params:        &params,
-		udpMux:        udpMux,
-		closeChan:     make(chan struct{}),
-		factoriesChan: make(chan *TransportFactory),
-		factories:     make(map[*stringmux.StringMux]*TransportFactory),
-	}
-
-	t.wg.Add(1)
-
-	go func() {
-		defer t.wg.Done()
-		t.start()
-	}()
-
-	return t
-}
-
-func (t *TransportManager) Factories() []*TransportFactory {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	factories := make([]*TransportFactory, 0, len(t.factories))
-
-	for _, factory := range t.factories {
-		factories = append(factories, factory)
-	}
-
-	return factories
-}
-
-func (t *TransportManager) start() {
-	for {
-		conn, err := t.udpMux.AcceptConn()
-		if err != nil {
-			t.params.Log.Error("Accept UDPMux conn", errors.Trace(err), nil)
-
-			return
-		}
-
-		log := t.params.Log.WithCtx(logger.Ctx{
-			"remote_addr": conn.RemoteAddr(),
-		})
-
-		log.Info("Accept UDP conn", nil)
-
-		factory, err := t.createTransportFactory(conn)
-		if err != nil {
-			t.params.Log.Error("Create Transport Factory", errors.Trace(err), nil)
-
-			return
-		}
-
-		t.factoriesChan <- factory
-	}
-}
-
-// createTransportFactory creates a new TransportFactory for the provided
-// connection.
-func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportFactory, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	readChanSize := 100
-
-	stringMux := stringmux.New(stringmux.Params{
-		Log:            t.params.Log,
-		Conn:           conn,
-		MTU:            uint32(servertransport.ReceiveMTU), // TODO not sure if this is ok
-		ReadChanSize:   readChanSize,
-		ReadBufferSize: 0,
-	})
-
-	factory := NewTransportFactory(t.params.Log, &t.wg, stringMux)
-	t.factories[stringMux] = factory
-
-	t.wg.Add(1)
-
-	go func() {
-		defer t.wg.Done()
-		<-stringMux.CloseChannel()
-
-		t.mu.Lock()
-		defer t.mu.Unlock()
-
-		delete(t.factories, stringMux)
-	}()
-
-	return factory, nil
-}
-
-func (t *TransportManager) AcceptTransportFactory() (*TransportFactory, error) {
-	factory, ok := <-t.factoriesChan
-	if !ok {
-		return nil, errors.Annotate(io.ErrClosedPipe, "TransportManager is tearing down")
-	}
-	return factory, nil
-}
-
-func (t *TransportManager) GetTransportFactory(raddr net.Addr) (*TransportFactory, error) {
-	conn, err := t.udpMux.GetConn(raddr)
-	if err != nil {
-		return nil, errors.Annotatef(err, "getting conn for raddr: %s", raddr)
-	}
-
-	return t.createTransportFactory(conn)
-}
-
-func (t *TransportManager) Close() error {
-	err := t.close()
-
-	t.wg.Wait()
-
-	return err
-}
-
-func (t *TransportManager) CloseChannel() <-chan struct{} {
-	return t.closeChan
-}
-
-func (t *TransportManager) close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	err := t.udpMux.Close()
-
-	t.closeOnce.Do(func() {
-		close(t.factoriesChan)
-
-		for stringMux, factory := range t.factories {
-			_ = stringMux.Close()
-
-			factory.Close()
-
-			delete(t.factories, stringMux)
-		}
-
-		close(t.closeChan)
-	})
-
-	return errors.Trace(err)
-}
-
-type TransportFactory struct {
+type Factory struct {
 	log               logger.Logger
 	stringMux         *stringmux.StringMux
-	transportsChan    chan *StreamTransport
-	transports        map[string]*StreamTransport
-	pendingTransports map[string]*TransportRequest
+	transportsChan    chan *Transport
+	transports        map[string]*Transport
+	pendingTransports map[string]*Request
 	mu                sync.Mutex
 	wg                *sync.WaitGroup
 }
 
-func NewTransportFactory(
+func NewFactory(
 	log logger.Logger,
 	wg *sync.WaitGroup,
 	stringMux *stringmux.StringMux,
-) *TransportFactory {
-	return &TransportFactory{
+) *Factory {
+	return &Factory{
 		log:               log.WithNamespaceAppended("transport_factory"),
 		stringMux:         stringMux,
-		transportsChan:    make(chan *StreamTransport),
-		transports:        map[string]*StreamTransport{},
-		pendingTransports: map[string]*TransportRequest{},
+		transportsChan:    make(chan *Transport),
+		transports:        map[string]*Transport{},
+		pendingTransports: map[string]*Request{},
 		wg:                wg,
 	}
 }
 
-func (t *TransportFactory) addPendingTransport(req *TransportRequest) error {
+func (t *Factory) addPendingTransport(req *Request) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -248,10 +53,11 @@ func (t *TransportFactory) addPendingTransport(req *TransportRequest) error {
 	}
 
 	t.pendingTransports[streamID] = req
+
 	return nil
 }
 
-func (t *TransportFactory) removePendingPromiseWhenDone(req *TransportRequest) {
+func (t *Factory) removePendingPromiseWhenDone(req *Request) {
 	t.wg.Add(1)
 
 	go func() {
@@ -266,21 +72,22 @@ func (t *TransportFactory) removePendingPromiseWhenDone(req *TransportRequest) {
 	}()
 }
 
-// AcceptTransport returns a TransportRequest. This promise can be either
+// AcceptTransport returns a Request. This promise can be either
 // canceled by using the Cancel method, or it can be Waited for by using the
 // Wait method. The Wait() method must be called and the error must be checked
 // and handled.
-func (t *TransportFactory) AcceptTransport() *TransportRequest {
+func (t *Factory) AcceptTransport() *Request {
 	conn, err := t.stringMux.AcceptConn()
 	if err != nil {
-		req := NewTransportRequest(context.Background(), "")
+		req := NewRequest(context.Background(), "")
 		req.set(nil, errors.Annotate(err, "accept transport"))
+
 		return req
 	}
 
 	streamID := conn.StreamID()
 
-	req := NewTransportRequest(context.Background(), streamID)
+	req := NewRequest(context.Background(), streamID)
 
 	if err := t.addPendingTransport(req); err != nil {
 		req.set(nil, errors.Annotatef(err, "accept: promise or transport already exists: %s", streamID))
@@ -295,7 +102,7 @@ func (t *TransportFactory) AcceptTransport() *TransportRequest {
 	return req
 }
 
-func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stringmux.Conn, server bool) {
+func (t *Factory) createTransportAsync(req *Request, conn stringmux.Conn, server bool) {
 	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
@@ -364,7 +171,7 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	}()
 }
 
-func (t *TransportFactory) getOrAcceptStringMux(
+func (t *Factory) getOrAcceptStringMux(
 	localMux *stringmux.StringMux,
 	reqStreamIDs map[string]struct{},
 ) (map[string]stringmux.Conn, error) {
@@ -413,6 +220,7 @@ func (t *TransportFactory) getOrAcceptStringMux(
 	var errConn error
 
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 
@@ -424,6 +232,7 @@ func (t *TransportFactory) getOrAcceptStringMux(
 					errConn = errors.Trace(err)
 					close(localWaitCh)
 				})
+
 				return
 			}
 
@@ -444,14 +253,14 @@ func (t *TransportFactory) getOrAcceptStringMux(
 	return conns, errors.Trace(errConn)
 }
 
-func (t *TransportFactory) createTransport(
+func (t *Factory) createTransport(
 	raddr net.Addr,
 	streamID string,
 	localMux *stringmux.StringMux,
 	mediaConn net.Conn,
 	sctpConn net.Conn,
 	server bool,
-) (*StreamTransport, error) {
+) (*Transport, error) {
 	sctpConfig := sctp.Config{
 		NetConn:              sctpConn,
 		LoggerFactory:        pionlogger.NewFactory(t.log),
@@ -489,12 +298,13 @@ func (t *TransportFactory) createTransport(
 	if err != nil {
 		metadataStream.Close()
 		association.Close()
+
 		return nil, errors.Annotatef(err, "creating data sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
 	transport := servertransport.NewTransport(t.log, mediaConn, dataStream, metadataStream)
 
-	streamTransport := &StreamTransport{
+	streamTransport := &Transport{
 		Transport:   transport,
 		StreamID:    streamID,
 		association: association,
@@ -506,6 +316,7 @@ func (t *TransportFactory) createTransport(
 	t.mu.Unlock()
 
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 		<-transport.CloseChannel()
@@ -519,7 +330,7 @@ func (t *TransportFactory) createTransport(
 	return streamTransport, nil
 }
 
-func (t *TransportFactory) CloseTransport(streamID string) {
+func (t *Factory) CloseTransport(streamID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -543,12 +354,12 @@ func (t *TransportFactory) CloseTransport(streamID string) {
 	}
 }
 
-// NewTransport returns a TransportRequest. This promise can be either canceled
+// NewTransport returns a Request. This promise can be either canceled
 // by using the Cancel method, or it can be Waited for by using the Wait
 // method. The Wait() method must be called and the error must be checked and
 // handled.
-func (t *TransportFactory) NewTransport(streamID string) *TransportRequest {
-	req := NewTransportRequest(context.Background(), streamID)
+func (t *Factory) NewTransport(streamID string) *Request {
+	req := NewRequest(context.Background(), streamID)
 
 	if err := t.addPendingTransport(req); err != nil {
 		req.set(nil, errors.Annotatef(err, "new: promise or transport already exists: %s", streamID))
@@ -570,7 +381,7 @@ func (t *TransportFactory) NewTransport(streamID string) *TransportRequest {
 	return req
 }
 
-func (t *TransportFactory) Close() error {
+func (t *Factory) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -580,82 +391,4 @@ func (t *TransportFactory) Close() error {
 	}
 
 	return nil
-}
-
-type TransportRequest struct {
-	cancel func()
-
-	context      context.Context
-	streamID     string
-	responseChan chan TransportResponse
-	torndown     chan struct{}
-	setChan      chan TransportResponse
-}
-
-type TransportResponse struct {
-	Transport *StreamTransport
-	Err       error
-}
-
-func NewTransportRequest(ctx context.Context, streamID string) *TransportRequest {
-	ctx, cancel := context.WithCancel(ctx)
-
-	t := &TransportRequest{
-		context:      ctx,
-		cancel:       cancel,
-		streamID:     streamID,
-		responseChan: make(chan TransportResponse, 1),
-		torndown:     make(chan struct{}),
-		setChan:      make(chan TransportResponse),
-	}
-
-	go t.start(ctx)
-
-	return t
-}
-
-func (t *TransportRequest) Context() context.Context {
-	return t.context
-}
-
-func (t *TransportRequest) Cancel() {
-	t.cancel()
-}
-
-func (t *TransportRequest) StreamID() string {
-	return t.streamID
-}
-
-func (t *TransportRequest) start(ctx context.Context) {
-	defer close(t.torndown)
-
-	select {
-	case <-ctx.Done():
-		t.responseChan <- TransportResponse{
-			Err:       errors.Trace(ctx.Err()),
-			Transport: nil,
-		}
-	case res := <-t.setChan:
-		t.responseChan <- res
-	}
-}
-
-func (t *TransportRequest) set(streamTransport *StreamTransport, err error) {
-	res := TransportResponse{
-		Transport: streamTransport,
-		Err:       err,
-	}
-
-	select {
-	case t.setChan <- res:
-	case <-t.torndown:
-	}
-}
-
-func (t *TransportRequest) Response() <-chan TransportResponse {
-	return t.responseChan
-}
-
-func (t *TransportRequest) Done() <-chan struct{} {
-	return t.torndown
 }

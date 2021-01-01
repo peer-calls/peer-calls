@@ -1,4 +1,4 @@
-package server_test
+package udptransport_test
 
 import (
 	"net"
@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/server/udptransport"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -26,9 +26,9 @@ func listenUDP(laddr *net.UDPAddr) *net.UDPConn {
 	return conn
 }
 
-func waitForResponse(req *server.TransportRequest, timeout time.Duration) (*server.StreamTransport, error) {
+func waitForResponse(req *udptransport.Request, timeout time.Duration) (*udptransport.Transport, error) {
 	var (
-		transport *server.StreamTransport
+		transport *udptransport.Transport
 		err       error
 	)
 
@@ -43,10 +43,10 @@ func waitForResponse(req *server.TransportRequest, timeout time.Duration) (*serv
 		err = errors.Errorf("timed out waiting for transport")
 	}
 
-	return transport, err
+	return transport, errors.Trace(err)
 }
 
-func TestTransportManager_RTP(t *testing.T) {
+func TestManager_RTP(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
@@ -55,24 +55,26 @@ func TestTransportManager_RTP(t *testing.T) {
 	udpConn1 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
+		Zone: "",
 	})
 	defer udpConn1.Close()
 
 	udpConn2 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
+		Zone: "",
 	})
 	defer udpConn2.Close()
 
-	var f1, f2 *server.TransportFactory
+	var f1, f2 *udptransport.Factory
 
-	tm1 := server.NewTransportManager(server.TransportManagerParams{
+	tm1 := udptransport.NewManager(udptransport.ManagerParams{
 		Conn: udpConn1,
 		Log:  log,
 	})
 	defer tm1.Close()
 
-	tm2 := server.NewTransportManager(server.TransportManagerParams{
+	tm2 := udptransport.NewManager(udptransport.ManagerParams{
 		Conn: udpConn2,
 		Log:  log,
 	})
@@ -80,7 +82,7 @@ func TestTransportManager_RTP(t *testing.T) {
 
 	sample := media.Sample{Data: []byte{0x00, 0x01, 0x02}, Samples: 1}
 
-	var vp8Packetizer = rtp.NewPacketizer(
+	vp8Packetizer := rtp.NewPacketizer(
 		1200,
 		96,
 		12345678,
@@ -101,15 +103,17 @@ func TestTransportManager_RTP(t *testing.T) {
 	copy(rtpPacketBytesCopy, rtpPacketBytes)
 
 	var wg sync.WaitGroup
+
 	wg.Add(2)
 
 	var transport1, transport2 transport.Transport
 
 	go func() {
 		defer wg.Done()
+
 		var err error
 
-		f1, err = tm1.AcceptTransportFactory()
+		f1, err = tm1.AcceptFactory()
 		require.NoError(t, err)
 
 		req := f1.AcceptTransport()
@@ -129,8 +133,10 @@ func TestTransportManager_RTP(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
+
 		var err error
-		f2, err = tm2.GetTransportFactory(udpConn1.LocalAddr())
+
+		f2, err = tm2.GetFactory(udpConn1.LocalAddr())
 		require.NoError(t, err)
 
 		req := f2.NewTransport("test-stream")
@@ -154,7 +160,7 @@ func TestTransportManager_RTP(t *testing.T) {
 	assert.NoError(t, transport2.Close())
 }
 
-func TestTransportManager_NewTransport_Cancel(t *testing.T) {
+func TestManager_NewTransport_Cancel(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
@@ -163,22 +169,24 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 	udpConn1 := listenUDP(&net.UDPAddr{
 		IP:   net.IP{127, 0, 0, 1},
 		Port: 0,
+		Zone: "",
 	})
 	defer udpConn1.Close()
 
-	tm1 := server.NewTransportManager(server.TransportManagerParams{
+	tm1 := udptransport.NewManager(udptransport.ManagerParams{
 		Conn: udpConn1,
 		Log:  log,
 	})
 	defer tm1.Close()
 
 	var err error
-	f2, err := tm1.GetTransportFactory(udpConn1.LocalAddr())
+	f2, err := tm1.GetFactory(udpConn1.LocalAddr())
 	require.NoError(t, err)
 
 	req := f2.NewTransport("test-stream")
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 
 	go func() {
@@ -188,7 +196,7 @@ func TestTransportManager_NewTransport_Cancel(t *testing.T) {
 		_, _ = transport, err
 		// Do not assert here because a test might fail if a transport is created
 		// before Cancel is called. Rare, but happens.
-		// require.Equal(t, server.ErrCanceled, err)
+		// require.Equal(t, udptransport.ErrCanceled, err)
 		// require.Nil(t, transport)
 	}()
 
