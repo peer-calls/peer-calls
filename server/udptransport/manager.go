@@ -28,8 +28,23 @@ import (
 //     - packets with 's' prefix are for SCTP component which is used for
 //       DataTransport and MetadataTransport.
 //
-// Due to the issues with sctp connection closure, it might be wise to create
-// long-lived SCTP connection per factory and demultiplex packets separately.
+// TODO Due to the issues with sctp connection closure, it might be wise to
+// create long-lived SCTP connection per factory and demultiplex packets
+// separately. To clarify, the steps modified so that:
+//
+// 1. stringmux conns with 'm' and 's' prefixes are created in (2). sctp
+//    association for 's' is created when the factory is created.
+// 2. The stringmux package will be used twice to determine:
+//    - Which SCTP stream packet should go to which (room) DataTransport and
+//      MetadataTransport.
+//    - Which Media packet should go to which MediaTransport
+//
+// The above should allow for the use of a single, long-lived SCTP association
+// between two Peer Calls nodes.
+//
+// NOTE: I'm not sure about the performance issues this might have, but it's
+// the apparent solution to issues with caused by terminating SCTP associations
+// without a abort or shutdown signals.
 type Manager struct {
 	params *ManagerParams
 
