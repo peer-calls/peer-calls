@@ -55,11 +55,13 @@ type TransportManagerParams struct {
 func NewTransportManager(params TransportManagerParams) *TransportManager {
 	params.Log = params.Log.WithNamespaceAppended("transport_manager")
 
+	readChanSize := 100
+
 	udpMux := udpmux.New(udpmux.Params{
 		Conn:           params.Conn,
 		MTU:            uint32(servertransport.ReceiveMTU),
 		Log:            params.Log,
-		ReadChanSize:   100,
+		ReadChanSize:   readChanSize,
 		ReadBufferSize: 0,
 	})
 
@@ -99,6 +101,7 @@ func (t *TransportManager) start() {
 		conn, err := t.udpMux.AcceptConn()
 		if err != nil {
 			t.params.Log.Error("Accept UDPMux conn", errors.Trace(err), nil)
+
 			return
 		}
 
@@ -111,6 +114,7 @@ func (t *TransportManager) start() {
 		factory, err := t.createTransportFactory(conn)
 		if err != nil {
 			t.params.Log.Error("Create Transport Factory", errors.Trace(err), nil)
+
 			return
 		}
 
@@ -118,17 +122,19 @@ func (t *TransportManager) start() {
 	}
 }
 
-// createTransportFactory creates a new TransportFactory for the
-// provided connection.
+// createTransportFactory creates a new TransportFactory for the provided
+// connection.
 func (t *TransportManager) createTransportFactory(conn udpmux.Conn) (*TransportFactory, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	readChanSize := 100
 
 	stringMux := stringmux.New(stringmux.Params{
 		Log:            t.params.Log,
 		Conn:           conn,
 		MTU:            uint32(servertransport.ReceiveMTU), // TODO not sure if this is ok
-		ReadChanSize:   100,
+		ReadChanSize:   readChanSize,
 		ReadBufferSize: 0,
 	})
 
@@ -199,7 +205,7 @@ func (t *TransportManager) close() error {
 		close(t.closeChan)
 	})
 
-	return err
+	return errors.Trace(err)
 }
 
 type TransportFactory struct {
@@ -266,7 +272,6 @@ func (t *TransportFactory) removePendingPromiseWhenDone(req *TransportRequest) {
 // and handled.
 func (t *TransportFactory) AcceptTransport() *TransportRequest {
 	conn, err := t.stringMux.AcceptConn()
-
 	if err != nil {
 		req := NewTransportRequest(context.Background(), "")
 		req.set(nil, errors.Annotate(err, "accept transport"))
@@ -279,6 +284,7 @@ func (t *TransportFactory) AcceptTransport() *TransportRequest {
 
 	if err := t.addPendingTransport(req); err != nil {
 		req.set(nil, errors.Annotatef(err, "accept: promise or transport already exists: %s", streamID))
+
 		return req
 	}
 
@@ -293,13 +299,16 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	raddr := conn.RemoteAddr()
 	streamID := conn.StreamID()
 
+	readChanSize := 100
+
 	// This can be optimized in the future since a StringMux has a minimal
 	// overhead of 3 bytes, and only a single bit is needed.
 	localMux := stringmux.New(stringmux.Params{
-		Conn:         conn,
-		Log:          t.log,
-		MTU:          uint32(servertransport.ReceiveMTU),
-		ReadChanSize: 100,
+		Conn:           conn,
+		Log:            t.log,
+		MTU:            uint32(servertransport.ReceiveMTU),
+		ReadChanSize:   readChanSize,
+		ReadBufferSize: 0,
 	})
 
 	// transportCreated will be closed as soon as the goroutine from which
@@ -328,10 +337,10 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 		"s": {},
 		"m": {},
 	})
-
 	if err != nil {
 		localMux.Close()
 		req.set(nil, errors.Annotatef(err, "creating 's' and 'r' conns for raddr: %s %s", raddr, streamID))
+
 		return
 	}
 
@@ -339,6 +348,7 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	mediaConn := result["m"]
 
 	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 		defer close(transportCreated)
@@ -354,12 +364,16 @@ func (t *TransportFactory) createTransportAsync(req *TransportRequest, conn stri
 	}()
 }
 
-func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, reqStreamIDs map[string]struct{}) (conns map[string]stringmux.Conn, errConn error) {
+func (t *TransportFactory) getOrAcceptStringMux(
+	localMux *stringmux.StringMux,
+	reqStreamIDs map[string]struct{},
+) (map[string]stringmux.Conn, error) {
 	var localMu sync.Mutex
+
 	localWaitCh := make(chan struct{})
 	localWaitChOnceClose := sync.Once{}
 
-	conns = make(map[string]stringmux.Conn, len(reqStreamIDs))
+	conns := make(map[string]stringmux.Conn, len(reqStreamIDs))
 
 	handleConn := func(conn stringmux.Conn) {
 		localMu.Lock()
@@ -396,6 +410,8 @@ func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, r
 		}
 	}
 
+	var errConn error
+
 	t.wg.Add(1)
 	go func() {
 		defer t.wg.Done()
@@ -405,7 +421,7 @@ func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, r
 			if err != nil {
 				localWaitChOnceClose.Do(func() {
 					// existing connections should be closed here so no need to close.
-					errConn = err
+					errConn = errors.Trace(err)
 					close(localWaitCh)
 				})
 				return
@@ -424,7 +440,8 @@ func (t *TransportFactory) getOrAcceptStringMux(localMux *stringmux.StringMux, r
 	if len(reqStreamIDs) > 0 {
 		<-localWaitCh
 	}
-	return
+
+	return conns, errors.Trace(errConn)
 }
 
 func (t *TransportFactory) createTransport(
@@ -464,6 +481,7 @@ func (t *TransportFactory) createTransport(
 	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		association.Close()
+
 		return nil, errors.Annotatef(err, "creating metadata sctp stream for raddr: %s %s", raddr, streamID)
 	}
 
@@ -534,6 +552,7 @@ func (t *TransportFactory) NewTransport(streamID string) *TransportRequest {
 
 	if err := t.addPendingTransport(req); err != nil {
 		req.set(nil, errors.Annotatef(err, "new: promise or transport already exists: %s", streamID))
+
 		return req
 	}
 
@@ -542,6 +561,7 @@ func (t *TransportFactory) NewTransport(streamID string) *TransportRequest {
 	conn, err := t.stringMux.GetConn(streamID)
 	if err != nil {
 		req.set(nil, errors.Annotatef(err, "retrieving transport conn: %s", streamID))
+
 		return req
 	}
 
