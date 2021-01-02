@@ -262,6 +262,14 @@ func (m *StringMux) Close() error {
 	return nil
 }
 
+func (m *StringMux) LocalAddr() net.Addr {
+	return m.params.Conn.LocalAddr()
+}
+
+func (m *StringMux) RemoteAddr() net.Addr {
+	return m.params.Conn.RemoteAddr()
+}
+
 func (m *StringMux) Done() <-chan struct{} {
 	return m.torndownChan
 }
