@@ -16,7 +16,7 @@ type streamConn struct {
 	raddr net.Addr
 }
 
-func newstreamConn(stream *sctp.Stream, laddr net.Addr, raddr net.Addr) *streamConn {
+func newStreamConn(stream *sctp.Stream, laddr net.Addr, raddr net.Addr) *streamConn {
 	return &streamConn{
 		Stream: stream,
 		laddr:  laddr,

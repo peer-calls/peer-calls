@@ -17,7 +17,7 @@ type Manager struct {
 	newFactoryRequests chan newFactoryRequest
 	factoriesRequests  chan factoriesRequest
 
-	factories chan *Factory
+	factoriesChannel chan *Factory
 
 	teardown chan struct{}
 	torndown chan struct{}
@@ -40,7 +40,7 @@ func NewManager(params ManagerParams) *Manager {
 		newFactoryRequests: make(chan newFactoryRequest),
 		factoriesRequests:  make(chan factoriesRequest),
 
-		factories: make(chan *Factory),
+		factoriesChannel: make(chan *Factory),
 
 		teardown: make(chan struct{}),
 		torndown: make(chan struct{}),
@@ -54,7 +54,7 @@ func NewManager(params ManagerParams) *Manager {
 // FactoriesChannel contains factories created from incoming connections.
 // Users must read from this channel to prevent deadlocks.
 func (m *Manager) FactoriesChannel() <-chan *Factory {
-	return m.factories
+	return m.factoriesChannel
 }
 
 func (m *Manager) start() {
@@ -68,20 +68,24 @@ func (m *Manager) start() {
 		ReadBufferSize: 0,
 	})
 
+	// factories indexes Factory by raddr string.
 	factories := map[string]*Factory{}
 
+	removeFactoriesChan := make(chan string)
+
 	defer func() {
-		for _, f := range factories {
+		for raddrStr, f := range factories {
+			delete(factories, raddrStr)
 			f.Close()
 		}
 
 		udpMux.Close()
 
-		close(m.factories)
+		close(m.factoriesChannel)
 		close(m.torndown)
 	}()
 
-	createFactory := func(conn net.Conn) *Factory {
+	createFactory := func(conn net.Conn) (*Factory, error) {
 		log := m.params.Log.WithCtx(logger.Ctx{
 			"remote_addr": conn.RemoteAddr(),
 		})
@@ -94,18 +98,39 @@ func (m *Manager) start() {
 			ReadBufferSize: 0,
 		})
 
-		factory := NewFactory(FactoryParams{
-			Log: log,
-			Mux: stringMux,
+		factory, err := NewFactory(FactoryParams{
+			Log:       log,
+			StringMux: stringMux,
 		})
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 
-		factories[conn.RemoteAddr().String()] = factory
+		return factory, nil
+	}
 
-		return factory
+	addFactory := func(raddrStr string, f *Factory) {
+		factories[raddrStr] = f
+
+		go func() {
+			// Remove factory automatically after it tears down.
+			select {
+			case <-f.Done():
+			case <-m.torndown:
+				return
+			}
+
+			select {
+			case removeFactoriesChan <- raddrStr:
+			case <-m.torndown:
+			}
+		}()
 	}
 
 	handleNewFactoryRequest := func(raddr net.Addr) (*Factory, error) {
-		if _, ok := factories[raddr.String()]; ok {
+		raddrStr := raddr.String()
+
+		if _, ok := factories[raddrStr]; ok {
 			return nil, errors.Errorf("factory already exists: %s", raddr)
 		}
 
@@ -114,9 +139,40 @@ func (m *Manager) start() {
 			return nil, errors.Trace(err)
 		}
 
-		factory := createFactory(conn)
+		factory, err := createFactory(conn)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+
+		addFactory(raddrStr, factory)
 
 		return factory, nil
+	}
+
+	handleConn := func(conn net.Conn) {
+		raddrStr := conn.RemoteAddr().String()
+
+		log := m.params.Log.WithCtx(logger.Ctx{
+			"remote_addr": raddrStr,
+		})
+
+		factory, err := createFactory(conn)
+		if err != nil {
+			log.Error("Create factory", errors.Trace(err), nil)
+
+			return
+		}
+
+		select {
+		case m.factoriesChannel <- factory:
+			log.Debug("Accept factory", nil)
+
+			addFactory(raddrStr, factory)
+		default:
+			log.Debug("Drop factory", nil)
+
+			factory.Close()
+		}
 	}
 
 	for {
@@ -128,9 +184,7 @@ func (m *Manager) start() {
 				return
 			}
 
-			factory := createFactory(conn)
-
-			m.factories <- factory
+			handleConn(conn)
 		case req := <-m.newFactoryRequests:
 			factory, err := handleNewFactoryRequest(req.raddr)
 			req.res <- newFactoryResponse{
@@ -147,6 +201,8 @@ func (m *Manager) start() {
 
 			req.res <- res
 			close(req.res)
+		case raddr := <-removeFactoriesChan:
+			delete(factories, raddr)
 		case <-m.teardown:
 			return
 		}
