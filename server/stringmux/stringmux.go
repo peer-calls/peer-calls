@@ -119,8 +119,17 @@ func (m *StringMux) start() {
 		conn, ok := conns[streamID]
 		if !ok {
 			conn = createConn(streamID)
-			conns[streamID] = conn
-			m.newConnChan <- conn
+
+			select {
+			case m.newConnChan <- conn:
+				conn.logger.Debug("Accepted remote conn", nil)
+
+				conns[streamID] = conn
+			default:
+				conn.logger.Debug("Dropped remote conn", nil)
+
+				return
+			}
 		}
 
 		select {

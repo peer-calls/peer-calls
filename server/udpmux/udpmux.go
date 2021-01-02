@@ -164,8 +164,17 @@ func (m *UDPMux) startLoop() {
 		conn, ok := conns[raddrStr]
 		if !ok {
 			conn = createConn(pkt.raddr)
-			conns[raddrStr] = conn
-			m.newConnChan <- conn
+
+			select {
+			case m.newConnChan <- conn:
+				conn.logger.Debug("Accepted remote conn", nil)
+
+				conns[raddrStr] = conn
+			default:
+				conn.logger.Debug("Dropped remote conn", nil)
+
+				return
+			}
 		}
 
 		select {
