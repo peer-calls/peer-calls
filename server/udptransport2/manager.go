@@ -14,7 +14,7 @@ type Manager struct {
 	params *ManagerParams
 
 	newFactoryRequests chan newFactoryRequest
-	factoriesRequests  chan factoriesRequest
+	factoriesRequests  chan listFactoriesRequest
 
 	factoriesChannel chan *Factory
 
@@ -39,7 +39,7 @@ func NewManager(params ManagerParams) *Manager {
 		params: &params,
 
 		newFactoryRequests: make(chan newFactoryRequest),
-		factoriesRequests:  make(chan factoriesRequest),
+		factoriesRequests:  make(chan listFactoriesRequest),
 
 		factoriesChannel: make(chan *Factory),
 
@@ -98,7 +98,6 @@ func (m *Manager) start() {
 		factory, err := NewFactory(FactoryParams{
 			Log:  log,
 			Conn: conn,
-			// StringMux: stringMux,
 		})
 		if err != nil {
 			return nil, errors.Trace(err)
@@ -264,7 +263,7 @@ func (m *Manager) GetFactory(raddr net.Addr) (*Factory, error) {
 }
 
 func (m *Manager) Factories() []*Factory {
-	req := factoriesRequest{
+	req := listFactoriesRequest{
 		res: make(chan []*Factory, 1),
 	}
 
@@ -296,6 +295,6 @@ type newFactoryResponse struct {
 	err     error
 }
 
-type factoriesRequest struct {
+type listFactoriesRequest struct {
 	res chan []*Factory
 }
