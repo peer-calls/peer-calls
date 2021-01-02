@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	e "errors"
+
 	"github.com/juju/errors"
 )
 
@@ -54,4 +56,8 @@ func (m *MultiErr) Err() error {
 	}
 
 	return errors.Errorf("There were multiple errors:\n%s", sb.String())
+}
+
+func Is(err, target error) bool {
+	return e.Is(errors.Cause(err), target)
 }
