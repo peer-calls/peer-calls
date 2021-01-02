@@ -281,7 +281,37 @@ func (f *Factory) start() {
 		close(req.res)
 	}
 
-	handleMetadataConn := func(metadataConn stringmux.Conn) {
+	acceptOrGet := func(t *Transport) bool {
+		streamID := t.StreamID
+
+		for {
+			select {
+			case f.transportsChannel <- t:
+				addTransport(streamID, t)
+
+				return true
+			case req := <-f.transportRequests:
+				if req.streamID != streamID {
+					handleTransportRequest(req)
+
+					continue
+				}
+
+				req.res <- transportResponse{
+					transport: t,
+					err:       nil,
+				}
+
+				close(req.res)
+
+				return true
+			case <-f.teardown:
+				return false
+			}
+		}
+	}
+
+	handleMetadataConn := func(metadataConn stringmux.Conn) bool {
 		f.params.Log.Trace("Handle metadata conn start", nil)
 		defer f.params.Log.Trace("Handle metadata conn done", nil)
 
@@ -289,18 +319,14 @@ func (f *Factory) start() {
 		if err != nil {
 			f.params.Log.Error("Create transport", errors.Trace(err), nil)
 
-			return
+			return true
 		}
 
-		// Block until transport is accepted, or until Close is called.
-		select {
-		case f.transportsChannel <- transport:
-			addTransport(metadataConn.StreamID(), transport)
-		case <-f.teardown:
-			transport.Close()
-
-			return
+		if !acceptOrGet(transport) {
+			return false
 		}
+
+		return true
 	}
 
 	for {
@@ -333,7 +359,9 @@ func (f *Factory) start() {
 			// created. Media won't be sent until someone subscribes after seeing the
 			// metadata published.
 
-			handleMetadataConn(metadataConn)
+			if !handleMetadataConn(metadataConn) {
+				return
+			}
 		case <-f.teardown:
 			return
 		}
