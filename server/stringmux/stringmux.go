@@ -113,29 +113,55 @@ func (m *StringMux) start() {
 		req.connChan <- conn
 	}
 
-	handlePacket := func(pkt remotePacket) {
+	acceptOrGet := func(conn *conn) bool {
+		streamID := conn.StreamID()
+
+		for {
+			select {
+			case m.newConnChan <- conn:
+				conn.logger.Debug("Accepted remote conn", nil)
+
+				conns[streamID] = conn
+
+				return true
+			case req := <-m.getConnRequestChan:
+				if req.streamID != streamID {
+					// Handle request for another connection.
+					getNewConn(req)
+
+					// But retry to advertise this conn.
+					continue
+				}
+
+				req.connChan <- conn
+				conns[streamID] = conn
+
+				return true
+			case <-m.teardownChan:
+				return false
+			}
+		}
+	}
+
+	handlePacket := func(pkt remotePacket) bool {
 		streamID := pkt.streamID
 
 		conn, ok := conns[streamID]
 		if !ok {
 			conn = createConn(streamID)
 
-			select {
-			case m.newConnChan <- conn:
-				conn.logger.Debug("Accepted remote conn", nil)
-
-				conns[streamID] = conn
-			default:
-				conn.logger.Debug("Dropped remote conn", nil)
-
-				return
+			if !acceptOrGet(conn) {
+				return false
 			}
 		}
 
 		select {
 		case conn.readChan <- pkt.bytes:
-		default:
-			conn.logger.Warn("Dropped packet", nil)
+			return true
+		case <-conn.torndown:
+			return true
+		case <-m.teardownChan:
+			return false
 		}
 	}
 
@@ -162,7 +188,9 @@ func (m *StringMux) start() {
 		case req := <-m.getConnRequestChan:
 			getNewConn(req)
 		case pkt := <-m.remotePacketsChan:
-			handlePacket(pkt)
+			if ok := handlePacket(pkt); !ok {
+				return
+			}
 		case req := <-m.closeConnRequestChan:
 			handleClose(req)
 		case <-m.teardownChan:
@@ -253,9 +281,9 @@ func (m *StringMux) Close() error {
 	case <-m.torndownChan:
 	}
 
-	for range m.newConnChan {
-		// Empty the newConnChan in case there is a new connection blocking on send.
-	}
+	// for range m.newConnChan {
+	// 	// Empty the newConnChan in case there is a new connection blocking on send.
+	// }
 
 	<-m.torndownChan
 

@@ -158,30 +158,57 @@ func (m *UDPMux) startLoop() {
 		req.connChan <- conn
 	}
 
-	handlePacket := func(pkt remotePacket) {
+	acceptOrGet := func(conn *conn) bool {
+		raddrStr := conn.RemoteAddr().String()
+
+		for {
+			select {
+			case m.newConnChan <- conn:
+				conn.logger.Debug("Accepted remote conn", nil)
+
+				conns[raddrStr] = conn
+
+				return true
+			case req := <-m.getConnRequestChan:
+				if req.raddr.String() != raddrStr {
+					// Handle request for another connection.
+					getNewConn(req)
+
+					// But retry to advertise this conn.
+					continue
+				}
+
+				req.connChan <- conn
+
+				conns[raddrStr] = conn
+
+				return true
+			case <-m.teardownChan:
+				return false
+			}
+		}
+	}
+
+	handlePacket := func(pkt remotePacket) bool {
 		raddrStr := pkt.raddr.String()
 
 		conn, ok := conns[raddrStr]
 		if !ok {
 			conn = createConn(pkt.raddr)
 
-			select {
-			case m.newConnChan <- conn:
-				conn.logger.Debug("Accepted remote conn", nil)
-
-				conns[raddrStr] = conn
-			default:
-				conn.logger.Debug("Dropped remote conn", nil)
-
-				return
+			if !acceptOrGet(conn) {
+				return false
 			}
 		}
 
 		select {
 		case conn.readChan <- pkt.bytes:
-		default:
-			conn.logger.Warn("Dropped packet", nil)
+		case <-conn.torndown:
+		case <-m.teardownChan:
+			return false
 		}
+
+		return true
 	}
 
 	handleClose := func(req closeConnRequest) {
@@ -207,7 +234,9 @@ func (m *UDPMux) startLoop() {
 		case req := <-m.getConnRequestChan:
 			getNewConn(req)
 		case pkt := <-m.remotePacketsChan:
-			handlePacket(pkt)
+			if ok := handlePacket(pkt); !ok {
+				return
+			}
 		case req := <-m.closeConnRequestChan:
 			handleClose(req)
 		case <-m.teardownChan:

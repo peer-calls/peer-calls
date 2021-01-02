@@ -7,7 +7,6 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
-	"github.com/peer-calls/peer-calls/server/stringmux"
 	"github.com/peer-calls/peer-calls/server/udpmux"
 )
 
@@ -33,6 +32,8 @@ func NewManager(params ManagerParams) *Manager {
 	params.Log = params.Log.WithCtx(logger.Ctx{
 		"local_addr": params.Conn.LocalAddr(),
 	})
+
+	params.Log.Trace("NewManager", nil)
 
 	m := &Manager{
 		params: &params,
@@ -74,6 +75,8 @@ func (m *Manager) start() {
 	removeFactoriesChan := make(chan string)
 
 	defer func() {
+		m.params.Log.Trace("Tearing down", nil)
+
 		for raddrStr, f := range factories {
 			delete(factories, raddrStr)
 			f.Close()
@@ -90,17 +93,12 @@ func (m *Manager) start() {
 			"remote_addr": conn.RemoteAddr(),
 		})
 
-		stringMux := stringmux.New(stringmux.Params{
-			Log:            m.params.Log,
-			Conn:           conn,
-			MTU:            uint32(servertransport.ReceiveMTU), // TODO not sure if this is ok
-			ReadChanSize:   readChanSize,
-			ReadBufferSize: 0,
-		})
-
+		// TODO do not block in creating new factories because creating an SCTP
+		// Association takes time.
 		factory, err := NewFactory(FactoryParams{
-			Log:       log,
-			StringMux: stringMux,
+			Log:  log,
+			Conn: conn,
+			// StringMux: stringMux,
 		})
 		if err != nil {
 			return nil, errors.Trace(err)
@@ -127,7 +125,7 @@ func (m *Manager) start() {
 		}()
 	}
 
-	handleNewFactoryRequest := func(raddr net.Addr) (*Factory, error) {
+	_handleNewFactoryRequest := func(raddr net.Addr) (*Factory, error) {
 		raddrStr := raddr.String()
 
 		if _, ok := factories[raddrStr]; ok {
@@ -149,30 +147,73 @@ func (m *Manager) start() {
 		return factory, nil
 	}
 
-	handleConn := func(conn net.Conn) {
+	handleNewFactoryRequest := func(req newFactoryRequest) {
+		m.params.Log.Trace("New factory request start", nil)
+
+		factory, err := _handleNewFactoryRequest(req.raddr)
+		req.res <- newFactoryResponse{
+			factory: factory,
+			err:     errors.Trace(err),
+		}
+
+		m.params.Log.Trace("New factory request done", nil)
+	}
+
+	acceptOrGet := func(raddrStr string, factory *Factory) bool {
+		for {
+			select {
+			case m.factoriesChannel <- factory:
+				m.params.Log.Debug("Accept factory", nil)
+
+				addFactory(raddrStr, factory)
+
+				return true
+			case req := <-m.newFactoryRequests:
+				if req.raddr.String() != raddrStr {
+					handleNewFactoryRequest(req)
+
+					continue
+				}
+
+				addFactory(raddrStr, factory)
+
+				m.params.Log.Debug("Accept (get) factory", nil)
+
+				req.res <- newFactoryResponse{
+					factory: factory,
+					err:     nil,
+				}
+
+				return true
+			case <-m.teardown:
+				return false
+			}
+		}
+	}
+
+	handleConn := func(conn net.Conn) bool {
 		raddrStr := conn.RemoteAddr().String()
 
 		log := m.params.Log.WithCtx(logger.Ctx{
 			"remote_addr": raddrStr,
 		})
 
+		log.Trace("Handle conn start", nil)
+
 		factory, err := createFactory(conn)
 		if err != nil {
 			log.Error("Create factory", errors.Trace(err), nil)
 
-			return
+			return true
 		}
 
-		select {
-		case m.factoriesChannel <- factory:
-			log.Debug("Accept factory", nil)
-
-			addFactory(raddrStr, factory)
-		default:
-			log.Debug("Drop factory", nil)
-
-			factory.Close()
+		if !acceptOrGet(raddrStr, factory) {
+			return false
 		}
+
+		log.Trace("Handle conn done", nil)
+
+		return true
 	}
 
 	for {
@@ -184,14 +225,11 @@ func (m *Manager) start() {
 				return
 			}
 
-			handleConn(conn)
-		case req := <-m.newFactoryRequests:
-			factory, err := handleNewFactoryRequest(req.raddr)
-			req.res <- newFactoryResponse{
-				factory: factory,
-				err:     err,
+			if !handleConn(conn) {
+				return
 			}
-			close(req.res)
+		case req := <-m.newFactoryRequests:
+			handleNewFactoryRequest(req)
 		case req := <-m.factoriesRequests:
 			res := make([]*Factory, 0, len(factories))
 

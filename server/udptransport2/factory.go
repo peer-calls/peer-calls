@@ -7,15 +7,18 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
+	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
-	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/sctp"
 )
 
 type Factory struct {
 	params *FactoryParams
 
-	transportsChannel chan transport.Transport
+	stringMux *stringmux.StringMux
+
+	transportsChannel chan *Transport
+	transportRequests chan transportRequest
 
 	teardown chan struct{}
 	torndown chan struct{}
@@ -24,17 +27,33 @@ type Factory struct {
 }
 
 type FactoryParams struct {
-	Log       logger.Logger
-	StringMux *stringmux.StringMux
+	Log  logger.Logger
+	Conn net.Conn
+	// StringMux *stringmux.StringMux
 }
 
 func NewFactory(params FactoryParams) (*Factory, error) {
-	params.Log = params.Log.WithNamespaceAppended("udptransport_factory")
+	params.Log = params.Log.WithNamespaceAppended("factory")
+
+	params.Log.Trace("NewFactory", nil)
+
+	readChanSize := 100
+
+	stringMux := stringmux.New(stringmux.Params{
+		Log:            params.Log,
+		Conn:           params.Conn,
+		MTU:            uint32(servertransport.ReceiveMTU), // TODO not sure if this is ok
+		ReadChanSize:   readChanSize,
+		ReadBufferSize: 0,
+	})
 
 	f := &Factory{
 		params: &params,
 
-		transportsChannel: make(chan transport.Transport),
+		stringMux: stringMux,
+
+		transportsChannel: make(chan *Transport),
+		transportRequests: make(chan transportRequest),
 
 		teardown: make(chan struct{}),
 		torndown: make(chan struct{}),
@@ -55,10 +74,12 @@ func NewFactory(params FactoryParams) (*Factory, error) {
 }
 
 func (f *Factory) init() (*factoryStreams, error) {
+	f.params.Log.Trace("init start", nil)
+
 	closers := make([]io.Closer, 0, 5)
 
 	close := func() {
-		for i := len(closers) - 1; i >= 0; i++ {
+		for i := len(closers) - 1; i >= 0; i-- {
 			closers[i].Close()
 		}
 	}
@@ -69,22 +90,25 @@ func (f *Factory) init() (*factoryStreams, error) {
 		}
 	}()
 
-	mediaStream, err := f.params.StringMux.GetConn("m")
+	// FIXME stringmux never accepts anything therefore it could cause a deadlock
+	// if it receives a connection with another StreamID.
+
+	mediaConn, err := f.stringMux.GetConn("m")
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	closers = append(closers, mediaStream)
+	closers = append(closers, mediaConn)
 
-	sctpStream, err := f.params.StringMux.GetConn("s")
+	sctpConn, err := f.stringMux.GetConn("s")
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	closers = append(closers, sctpStream)
+	closers = append(closers, sctpConn)
 
 	association, err := sctp.Client(sctp.Config{
-		NetConn:              sctpStream,
+		NetConn:              sctpConn,
 		LoggerFactory:        pionlogger.NewFactory(f.params.Log),
 		MaxMessageSize:       0,
 		MaxReceiveBufferSize: 0,
@@ -109,16 +133,49 @@ func (f *Factory) init() (*factoryStreams, error) {
 
 	closers = append(closers, dataStream)
 
-	laddr := f.params.StringMux.LocalAddr()
-	raddr := f.params.StringMux.RemoteAddr()
+	laddr := f.params.Conn.LocalAddr()
+	raddr := f.params.Conn.RemoteAddr()
+
+	dataConn := newStreamConn(dataStream, laddr, raddr)
+	metadataConn := newStreamConn(metadataStream, laddr, raddr)
+
+	readBufferSize := 100
+
+	f.params.Log.Trace("init done", nil)
 
 	streams := &factoryStreams{
-		close: close,
+		close: nil,
 
-		dataStream:     newStreamConn(dataStream, laddr, raddr),
-		metadataStream: newStreamConn(metadataStream, laddr, raddr),
-		mediaStream:    mediaStream,
+		data: stringmux.New(stringmux.Params{
+			Log:            f.params.Log.WithNamespaceAppended("data"),
+			Conn:           dataConn,
+			MTU:            uint32(servertransport.ReceiveMTU),
+			ReadBufferSize: readBufferSize,
+			ReadChanSize:   0,
+		}),
+
+		metadata: stringmux.New(stringmux.Params{
+			Log:            f.params.Log.WithNamespaceAppended("metadata"),
+			Conn:           metadataConn,
+			MTU:            uint32(servertransport.ReceiveMTU),
+			ReadBufferSize: readBufferSize,
+			ReadChanSize:   0,
+		}),
+
+		media: stringmux.New(stringmux.Params{
+			Log:            f.params.Log.WithNamespaceAppended("media"),
+			Conn:           mediaConn,
+			MTU:            uint32(servertransport.ReceiveMTU),
+			ReadBufferSize: readBufferSize,
+			ReadChanSize:   0,
+		}),
 	}
+
+	closers = append(closers, streams.data)
+	closers = append(closers, streams.metadata)
+	closers = append(closers, streams.media)
+
+	streams.close = close
 
 	// Do not close everything on defer.
 	close = nil
@@ -127,25 +184,188 @@ func (f *Factory) init() (*factoryStreams, error) {
 }
 
 func (f *Factory) start() {
+	transports := map[string]*Transport{}
+
+	removeTransportsChan := make(chan string)
+
 	defer func() {
 		close(f.transportsChannel)
+
+		for streamID, transport := range transports {
+			transport.Close()
+
+			delete(transports, streamID)
+		}
+
+		f.streams.close()
+
+		f.stringMux.Close()
 
 		close(f.torndown)
 	}()
 
+	// TODO getOrAccept transprot
+
+	createTransport := func(metadataConn stringmux.Conn) (*Transport, error) {
+		f.params.Log.Trace("create transport start", nil)
+		defer f.params.Log.Trace("create transport done", nil)
+
+		streamID := metadataConn.StreamID()
+
+		dataConn, err := f.streams.data.GetConn(streamID)
+		if err != nil {
+			metadataConn.Close()
+
+			return nil, errors.Trace(err)
+		}
+
+		mediaConn, err := f.streams.media.GetConn(streamID)
+		if err != nil {
+			metadataConn.Close()
+			dataConn.Close()
+
+			return nil, errors.Trace(err)
+		}
+
+		serverTransport := servertransport.NewTransport(f.params.Log, mediaConn, dataConn, metadataConn)
+
+		transport := &Transport{
+			Transport: serverTransport,
+			StreamID:  streamID,
+		}
+
+		return transport, nil
+	}
+
+	addTransport := func(streamID string, transport *Transport) {
+		transports[streamID] = transport
+
+		go func() {
+			select {
+			case <-transport.Done():
+			case <-f.torndown:
+				return
+			}
+
+			select {
+			case removeTransportsChan <- streamID:
+			case <-f.torndown:
+			}
+		}()
+	}
+
+	_handleTransportRequest := func(streamID string) (*Transport, error) {
+		metadataConn, err := f.streams.metadata.GetConn(streamID)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+
+		transport, err := createTransport(metadataConn)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+
+		addTransport(streamID, transport)
+
+		return transport, nil
+	}
+
+	handleTransportRequest := func(req transportRequest) {
+		transport, err := _handleTransportRequest(req.streamID)
+
+		req.res <- transportResponse{
+			transport: transport,
+			err:       err,
+		}
+
+		close(req.res)
+	}
+
+	handleMetadataConn := func(metadataConn stringmux.Conn) {
+		f.params.Log.Trace("Handle metadata conn start", nil)
+		defer f.params.Log.Trace("Handle metadata conn done", nil)
+
+		transport, err := createTransport(metadataConn)
+		if err != nil {
+			f.params.Log.Error("Create transport", errors.Trace(err), nil)
+
+			return
+		}
+
+		// Block until transport is accepted, or until Close is called.
+		select {
+		case f.transportsChannel <- transport:
+			addTransport(metadataConn.StreamID(), transport)
+		case <-f.teardown:
+			transport.Close()
+
+			return
+		}
+	}
+
 	for {
 		select {
+		case streamID := <-removeTransportsChan:
+			delete(transports, streamID)
+		case req := <-f.transportRequests:
+			handleTransportRequest(req)
+		// case c, ok := <-f.streams.data.Conns():
+		// 	if !ok {
+		// 		return
+		// 	}
+
+		// 	c.Close()
+		// case c, ok := <-f.streams.media.Conns():
+		// 	if !ok {
+		// 		return
+		// 	}
+
+		// 	c.Close()
+		case metadataConn, ok := <-f.streams.metadata.Conns():
+			if !ok {
+				f.params.Log.Warn("Metadata stringmux closed", nil)
+
+				return
+			}
+
+			// Only interested about metadata for now. The data channel only contains
+			// messages which the peers won't see anyway until the transport is
+			// created. Media won't be sent until someone subscribes after seeing the
+			// metadata published.
+
+			handleMetadataConn(metadataConn)
 		case <-f.teardown:
 			return
 		}
 	}
 }
 
-func (f *Factory) TransportsChannel() <-chan transport.Transport {
+func (f *Factory) TransportsChannel() <-chan *Transport {
 	return f.transportsChannel
 }
 
-func (f *Factory) NewTransport(streamID string) {
+func (f *Factory) NewTransport(streamID string) (*Transport, error) {
+	f.params.Log.Trace("NewTransport start", logger.Ctx{
+		"stream_id": streamID,
+	})
+
+	defer f.params.Log.Trace("NewTransport done", logger.Ctx{
+		"stream_id": streamID,
+	})
+
+	req := transportRequest{
+		streamID: streamID,
+		res:      make(chan transportResponse, 1),
+	}
+
+	select {
+	case f.transportRequests <- req:
+		res := <-req.res
+
+		return res.transport, errors.Trace(res.err)
+	case <-f.torndown:
+		return nil, errors.Trace(io.ErrClosedPipe)
+	}
 }
 
 func (f *Factory) Done() <-chan struct{} {
@@ -163,12 +383,17 @@ func (f *Factory) Close() {
 type factoryStreams struct {
 	close func()
 
-	association *sctp.Association
+	data     *stringmux.StringMux
+	metadata *stringmux.StringMux
+	media    *stringmux.StringMux
+}
 
-	dataStream net.Conn
+type transportRequest struct {
+	streamID string
+	res      chan transportResponse
+}
 
-	metadataStream net.Conn
-	// mediaStream is used to pass RTP/RTCP packets. It is multiplexed by
-	// stringmux per room.
-	mediaStream net.Conn
+type transportResponse struct {
+	transport *Transport
+	err       error
 }
