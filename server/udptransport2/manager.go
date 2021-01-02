@@ -13,8 +13,8 @@ import (
 type Manager struct {
 	params *ManagerParams
 
-	newFactoryRequests chan newFactoryRequest
-	factoriesRequests  chan listFactoriesRequest
+	newFactoryRequests    chan newFactoryRequest
+	listFactoriesRequests chan listFactoriesRequest
 
 	factoriesChannel chan *Factory
 
@@ -38,8 +38,8 @@ func NewManager(params ManagerParams) *Manager {
 	m := &Manager{
 		params: &params,
 
-		newFactoryRequests: make(chan newFactoryRequest),
-		factoriesRequests:  make(chan listFactoriesRequest),
+		newFactoryRequests:    make(chan newFactoryRequest),
+		listFactoriesRequests: make(chan listFactoriesRequest),
 
 		factoriesChannel: make(chan *Factory),
 
@@ -72,7 +72,11 @@ func (m *Manager) start() {
 	// factories indexes Factory by raddr string.
 	factories := map[string]*Factory{}
 
+	// // pendingFactories indexes Factory by raddr string.
+	pendingFactoryRequests := map[string]newFactoryRequest{}
+
 	removeFactoriesChan := make(chan string)
+	createdFactoriesChan := make(chan newFactoryResponse)
 
 	defer func() {
 		m.params.Log.Trace("Tearing down", nil)
@@ -82,28 +86,37 @@ func (m *Manager) start() {
 			f.Close()
 		}
 
+		for _, req := range pendingFactoryRequests {
+			req.res <- newFactoryResponse{
+				err:     errors.Trace(io.ErrClosedPipe),
+				factory: nil,
+				raddr:   req.raddr.String(),
+			}
+		}
+
 		udpMux.Close()
 
 		close(m.factoriesChannel)
 		close(m.torndown)
 	}()
 
-	createFactory := func(conn net.Conn) (*Factory, error) {
-		log := m.params.Log.WithCtx(logger.Ctx{
-			"remote_addr": conn.RemoteAddr(),
-		})
+	createFactoryAsync := func(conn net.Conn) {
+		go func() {
+			log := m.params.Log.WithCtx(logger.Ctx{
+				"remote_addr": conn.RemoteAddr(),
+			})
 
-		// TODO do not block in creating new factories because creating an SCTP
-		// Association takes time.
-		factory, err := NewFactory(FactoryParams{
-			Log:  log,
-			Conn: conn,
-		})
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
+			factory, err := NewFactory(FactoryParams{
+				Log:  log,
+				Conn: conn,
+			})
 
-		return factory, nil
+			createdFactoriesChan <- newFactoryResponse{
+				raddr:   conn.RemoteAddr().String(),
+				factory: factory,
+				err:     errors.Trace(err),
+			}
+		}()
 	}
 
 	addFactory := func(raddrStr string, f *Factory) {
@@ -124,67 +137,100 @@ func (m *Manager) start() {
 		}()
 	}
 
-	_handleNewFactoryRequest := func(raddr net.Addr) (*Factory, error) {
-		raddrStr := raddr.String()
+	_handleNewFactoryRequest := func(req newFactoryRequest) error {
+		raddrStr := req.raddr.String()
 
 		if _, ok := factories[raddrStr]; ok {
-			return nil, errors.Errorf("factory already exists: %s", raddr)
+			return errors.Errorf("factory already exists: %s", req.raddr)
 		}
 
-		conn, err := udpMux.GetConn(raddr)
+		if _, ok := pendingFactoryRequests[raddrStr]; ok {
+			return errors.Errorf("pending factory already exists: %s", req.raddr)
+		}
+
+		conn, err := udpMux.GetConn(req.raddr)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return errors.Trace(err)
 		}
 
-		factory, err := createFactory(conn)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
+		pendingFactoryRequests[raddrStr] = req
 
-		addFactory(raddrStr, factory)
+		createFactoryAsync(conn)
 
-		return factory, nil
+		return nil
 	}
 
 	handleNewFactoryRequest := func(req newFactoryRequest) {
-		m.params.Log.Trace("New factory request start", nil)
-
-		factory, err := _handleNewFactoryRequest(req.raddr)
-		req.res <- newFactoryResponse{
-			factory: factory,
-			err:     errors.Trace(err),
+		if err := _handleNewFactoryRequest(req); err != nil {
+			req.res <- newFactoryResponse{
+				raddr:   req.raddr.String(),
+				factory: nil,
+				err:     errors.Trace(err),
+			}
 		}
-
-		m.params.Log.Trace("New factory request done", nil)
 	}
 
-	acceptOrGet := func(raddrStr string, factory *Factory) bool {
+	handleNewFactoryResponse := func(res newFactoryResponse) bool {
+		log := m.params.Log.WithCtx(logger.Ctx{
+			"remote_addr": res.raddr,
+		})
+
+		log.Trace("Handle new factory response", nil)
+
+		if req, ok := pendingFactoryRequests[res.raddr]; ok {
+			delete(pendingFactoryRequests, res.raddr)
+
+			if res.factory != nil {
+				addFactory(res.raddr, res.factory)
+			}
+
+			req.res <- res
+
+			return true
+		}
+
+		factoriesChannel := m.factoriesChannel
+
+		if res.err != nil {
+			// Do not send a response with error to factories channel.
+			factoriesChannel = nil
+		}
+
 		for {
 			select {
-			case m.factoriesChannel <- factory:
+			case factoriesChannel <- res.factory:
 				m.params.Log.Debug("Accept factory", nil)
 
-				addFactory(raddrStr, factory)
+				if res.factory != nil {
+					addFactory(res.raddr, res.factory)
+				}
 
 				return true
 			case req := <-m.newFactoryRequests:
-				if req.raddr.String() != raddrStr {
+				if req.raddr.String() != res.raddr {
 					handleNewFactoryRequest(req)
 
 					continue
 				}
 
-				addFactory(raddrStr, factory)
+				if res.factory != nil {
+					addFactory(res.raddr, res.factory)
+				}
 
 				m.params.Log.Debug("Accept (get) factory", nil)
 
 				req.res <- newFactoryResponse{
-					factory: factory,
-					err:     nil,
+					raddr:   res.raddr,
+					factory: res.factory,
+					err:     res.err,
 				}
 
 				return true
 			case <-m.teardown:
+				if res.factory != nil {
+					res.factory.Close()
+				}
+
 				return false
 			}
 		}
@@ -197,20 +243,9 @@ func (m *Manager) start() {
 			"remote_addr": raddrStr,
 		})
 
-		log.Trace("Handle conn start", nil)
+		log.Trace("Handle conn", nil)
 
-		factory, err := createFactory(conn)
-		if err != nil {
-			log.Error("Create factory", errors.Trace(err), nil)
-
-			return true
-		}
-
-		if !acceptOrGet(raddrStr, factory) {
-			return false
-		}
-
-		log.Trace("Handle conn done", nil)
+		createFactoryAsync(conn)
 
 		return true
 	}
@@ -229,7 +264,11 @@ func (m *Manager) start() {
 			}
 		case req := <-m.newFactoryRequests:
 			handleNewFactoryRequest(req)
-		case req := <-m.factoriesRequests:
+		case res := <-createdFactoriesChan:
+			if !handleNewFactoryResponse(res) {
+				return
+			}
+		case req := <-m.listFactoriesRequests:
 			res := make([]*Factory, 0, len(factories))
 
 			for _, f := range factories {
@@ -268,7 +307,7 @@ func (m *Manager) Factories() []*Factory {
 	}
 
 	select {
-	case m.factoriesRequests <- req:
+	case m.listFactoriesRequests <- req:
 		res := <-req.res
 
 		return res
@@ -291,6 +330,7 @@ type newFactoryRequest struct {
 }
 
 type newFactoryResponse struct {
+	raddr   string
 	factory *Factory
 	err     error
 }

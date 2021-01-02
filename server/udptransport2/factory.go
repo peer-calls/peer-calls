@@ -207,8 +207,7 @@ func (f *Factory) start() {
 	// TODO getOrAccept transprot
 
 	createTransport := func(metadataConn stringmux.Conn) (*Transport, error) {
-		f.params.Log.Trace("create transport start", nil)
-		defer f.params.Log.Trace("create transport done", nil)
+		f.params.Log.Trace("Create transport", nil)
 
 		streamID := metadataConn.StreamID()
 
@@ -312,9 +311,6 @@ func (f *Factory) start() {
 	}
 
 	handleMetadataConn := func(metadataConn stringmux.Conn) bool {
-		f.params.Log.Trace("Handle metadata conn start", nil)
-		defer f.params.Log.Trace("Handle metadata conn done", nil)
-
 		transport, err := createTransport(metadataConn)
 		if err != nil {
 			f.params.Log.Error("Create transport", errors.Trace(err), nil)

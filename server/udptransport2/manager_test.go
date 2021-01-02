@@ -1,6 +1,7 @@
 package udptransport2_test
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -93,8 +94,10 @@ func TestManager_RTP(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
+		fmt.Println("waiting for factory")
 		f1 = <-tm1.FactoriesChannel()
 
+		fmt.Println("waiting for transport")
 		transport1 = <-f1.TransportsChannel()
 
 		assert.Equal(t, "test-stream", transport1.StreamID)
@@ -114,7 +117,9 @@ func TestManager_RTP(t *testing.T) {
 
 		var err error
 
+		fmt.Println("calling get factory", udpConn1.LocalAddr())
 		f2, err = tm2.GetFactory(udpConn1.LocalAddr())
+		fmt.Println("got factory")
 		require.NoError(t, err)
 
 		transport2, err = f2.NewTransport("test-stream")
