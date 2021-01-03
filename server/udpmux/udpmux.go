@@ -233,7 +233,11 @@ func (m *UDPMux) startLoop() {
 		select {
 		case req := <-m.getConnRequestChan:
 			getNewConn(req)
-		case pkt := <-m.remotePacketsChan:
+		case pkt, ok := <-m.remotePacketsChan:
+			if !ok {
+				return
+			}
+
 			if ok := handlePacket(pkt); !ok {
 				return
 			}
@@ -248,6 +252,8 @@ func (m *UDPMux) startLoop() {
 func (m *UDPMux) startReading(ctx context.Context) {
 	buf := make([]byte, m.params.MTU)
 	done := ctx.Done()
+
+	defer close(m.remotePacketsChan)
 
 	for {
 		i, raddr, err := m.params.Conn.ReadFrom(buf)

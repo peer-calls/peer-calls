@@ -187,7 +187,11 @@ func (m *StringMux) start() {
 		select {
 		case req := <-m.getConnRequestChan:
 			getNewConn(req)
-		case pkt := <-m.remotePacketsChan:
+		case pkt, ok := <-m.remotePacketsChan:
+			if !ok {
+				return
+			}
+
 			if ok := handlePacket(pkt); !ok {
 				return
 			}
@@ -202,6 +206,8 @@ func (m *StringMux) start() {
 func (m *StringMux) startReading(ctx context.Context) {
 	buf := make([]byte, m.params.MTU)
 	done := ctx.Done()
+
+	defer close(m.remotePacketsChan)
 
 	for {
 		i, err := m.params.Conn.Read(buf)
