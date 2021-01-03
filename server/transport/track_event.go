@@ -14,7 +14,3 @@ type TrackEvent struct {
 	TrackInfo TrackInfo
 	Type      TrackEventType
 }
-
-type TrackSub struct {
-	SSRC uint32
-}

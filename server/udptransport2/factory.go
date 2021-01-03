@@ -385,6 +385,7 @@ func (f *Factory) NewTransport(streamID string) (*Transport, error) {
 	select {
 	case f.newTransportRequests <- req:
 		transport, err := (<-req.res).Result()
+
 		return transport, errors.Trace(err)
 	case <-f.torndown:
 		return nil, errors.Trace(io.ErrClosedPipe)

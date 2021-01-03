@@ -8,43 +8,141 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
 
 type MetadataTransport struct {
-	clientID      string
-	conn          io.ReadWriteCloser
-	log           logger.Logger
+	clientID string
+	conn     io.ReadWriteCloser
+	log      logger.Logger
+
+	localTracks  map[uint32]transport.TrackInfo
+	remoteTracks map[uint32]transport.TrackInfo
+	mu           *sync.RWMutex
+
 	trackEventsCh chan transport.TrackEvent
-	localTracks   map[uint32]transport.TrackInfo
-	remoteTracks  map[uint32]transport.TrackInfo
-	mu            *sync.RWMutex
+	writeCh       chan metadataEvent
+
+	closeWriteLoop  chan struct{}
+	writeLoopClosed chan struct{}
+	readLoopClosed  chan struct{}
 }
 
 var _ transport.MetadataTransport = &MetadataTransport{}
 
 func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID string) *MetadataTransport {
-	log = log.WithNamespaceAppended("server_metadata_transport")
+	log = log.WithNamespaceAppended("metadata_transport")
 
-	transport := &MetadataTransport{
-		clientID:      clientID,
-		log:           log,
-		conn:          conn,
-		localTracks:   map[uint32]transport.TrackInfo{},
-		remoteTracks:  map[uint32]transport.TrackInfo{},
+	t := &MetadataTransport{
+		clientID:     clientID,
+		log:          log,
+		conn:         conn,
+		localTracks:  map[uint32]transport.TrackInfo{},
+		remoteTracks: map[uint32]transport.TrackInfo{},
+		mu:           &sync.RWMutex{},
+
 		trackEventsCh: make(chan transport.TrackEvent),
-		mu:            &sync.RWMutex{},
+		writeCh:       make(chan metadataEvent),
+
+		closeWriteLoop:  make(chan struct{}),
+		writeLoopClosed: make(chan struct{}),
+		readLoopClosed:  make(chan struct{}),
 	}
 
-	go transport.start()
+	log.Trace("NewMetadataTransport", nil)
 
-	return transport
+	go t.startReadLoop()
+	go t.startWriteLoop()
+
+	return t
 }
 
-func (t *MetadataTransport) start() {
-	defer close(t.trackEventsCh)
+func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack {
+	return &ServerTrack{
+		UserTrack: trackInfo.Track,
+		onSub: func() error {
+			t.log.Info("Sub", logger.Ctx{
+				"ssrc":      trackInfo.Track.SSRC(),
+				"client_id": t.clientID,
+			})
+
+			err := t.sendTrackEvent(transport.TrackEvent{
+				TrackInfo: transport.TrackInfo{
+					Track: trackInfo.Track,
+					Kind:  trackInfo.Kind,
+					Mid:   trackInfo.Mid,
+				},
+				ClientID: t.clientID,
+				Type:     transport.TrackEventTypeSub,
+			})
+
+			return errors.Trace(err)
+		},
+		onUnsub: func() error {
+			t.log.Info("Unsub", logger.Ctx{
+				"ssrc":      trackInfo.Track.SSRC(),
+				"client_id": t.clientID,
+			})
+
+			err := t.sendTrackEvent(transport.TrackEvent{
+				TrackInfo: transport.TrackInfo{
+					Track: trackInfo.Track,
+					Kind:  trackInfo.Kind,
+					Mid:   trackInfo.Mid,
+				},
+				ClientID: t.clientID,
+				Type:     transport.TrackEventTypeSub,
+			})
+
+			return errors.Trace(err)
+		},
+	}
+}
+
+func (t *MetadataTransport) startWriteLoop() {
+	defer func() {
+		close(t.writeLoopClosed)
+	}()
+
+	write := func(event metadataEvent) error {
+		b, err := json.Marshal(event)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		_, err = t.conn.Write(b)
+
+		return errors.Trace(err)
+	}
+
+	err := write(metadataEvent{
+		Type:       metadataEventTypeInit,
+		TrackEvent: nil,
+	})
+	if err != nil {
+		t.log.Error("Send init event", errors.Trace(err), nil)
+	}
+
+	for {
+		select {
+		case event := <-t.writeCh:
+			if err := write(event); err != nil {
+				t.log.Error("Write", errors.Trace(err), nil)
+
+				continue
+			}
+		case <-t.closeWriteLoop:
+			return
+		}
+	}
+}
+
+func (t *MetadataTransport) startReadLoop() {
+	defer func() {
+		close(t.trackEventsCh)
+		close(t.readLoopClosed)
+	}()
 
 	buf := make([]byte, ReceiveMTU)
 
@@ -56,89 +154,62 @@ func (t *MetadataTransport) start() {
 			return
 		}
 
-		// hack because JSON does not know how to unmarshal to Track interface
-		var eventJSON struct {
-			TrackInfo struct {
-				Track sfu.UserTrack
-				Kind  webrtc.RTPCodecType
-				Mid   string
-			}
-			Type transport.TrackEventType
-		}
+		var event metadataEvent
 
-		err = json.Unmarshal(buf[:i], &eventJSON)
+		err = json.Unmarshal(buf[:i], &event)
 		if err != nil {
 			t.log.Error("Unmarshal remote data", err, nil)
 
 			return
 		}
 
-		track := &ServerTrack{
-			UserTrack: eventJSON.TrackInfo.Track,
-			onSub: func() error {
-				t.log.Info("Sub", logger.Ctx{
-					"ssrc":      eventJSON.TrackInfo.Track.SSRC(),
-					"client_id": t.clientID,
-				})
+		t.log.Info(fmt.Sprintf("Got metadata event: %s", event.Type), nil)
 
-				err = t.sendTrackEvent(transport.TrackEvent{
-					TrackInfo: transport.TrackInfo{
-						Track: eventJSON.TrackInfo.Track,
-						Kind:  eventJSON.TrackInfo.Kind,
-						Mid:   eventJSON.TrackInfo.Mid,
-					},
-					ClientID: t.clientID,
-					Type:     transport.TrackEventTypeSub,
-				})
+		switch event.Type {
+		case metadataEventTypeTrackEvent:
 
-				return errors.Trace(err)
-			},
-			onUnsub: func() error {
-				t.log.Info("Unsub", logger.Ctx{
-					"ssrc":      eventJSON.TrackInfo.Track.SSRC(),
-					"client_id": t.clientID,
-				})
+			trackEvent := event.TrackEvent.trackEvent(t.clientID)
+			trackEvent.TrackInfo.Track = t.newServerTrack(event.TrackEvent.TrackInfo)
 
-				err = t.sendTrackEvent(transport.TrackEvent{
-					TrackInfo: transport.TrackInfo{
-						Track: eventJSON.TrackInfo.Track,
-						Kind:  eventJSON.TrackInfo.Kind,
-						Mid:   eventJSON.TrackInfo.Mid,
-					},
-					ClientID: t.clientID,
-					Type:     transport.TrackEventTypeSub,
-				})
+			skipEvent := false
 
-				return errors.Trace(err)
-			},
+			switch trackEvent.Type {
+			case transport.TrackEventTypeAdd:
+				ssrc := trackEvent.TrackInfo.Track.SSRC()
+				t.mu.Lock()
+				// Skip event in case of a refresh event, and track information has
+				// already been received.
+				_, skipEvent = t.remoteTracks[ssrc]
+				t.remoteTracks[ssrc] = trackEvent.TrackInfo
+				t.mu.Unlock()
+			case transport.TrackEventTypeRemove:
+				t.mu.Lock()
+				delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
+				t.mu.Unlock()
+			case transport.TrackEventTypeSub:
+			case transport.TrackEventTypeUnsub:
+			}
+
+			if !skipEvent {
+				select {
+				case t.trackEventsCh <- trackEvent:
+				case <-t.writeLoopClosed:
+				}
+			}
+		case metadataEventTypeInit:
+			for _, localTrack := range t.LocalTracks() {
+				err := t.sendTrackEvent(transport.TrackEvent{
+					ClientID:  t.clientID,
+					TrackInfo: localTrack,
+					Type:      transport.TrackEventTypeAdd,
+				})
+				if err != nil {
+					t.log.Error("Send track event (refresh)", errors.Trace(err), nil)
+
+					return
+				}
+			}
 		}
-
-		trackEvent := transport.TrackEvent{
-			TrackInfo: transport.TrackInfo{
-				Track: track,
-				Kind:  eventJSON.TrackInfo.Kind,
-				Mid:   eventJSON.TrackInfo.Mid,
-			},
-			Type:     eventJSON.Type,
-			ClientID: t.clientID,
-		}
-
-		switch trackEvent.Type {
-		case transport.TrackEventTypeAdd:
-			t.mu.Lock()
-			t.remoteTracks[trackEvent.TrackInfo.Track.SSRC()] = trackEvent.TrackInfo
-			t.mu.Unlock()
-		case transport.TrackEventTypeRemove:
-			t.mu.Lock()
-			delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
-			t.mu.Unlock()
-		case transport.TrackEventTypeSub:
-		case transport.TrackEventTypeUnsub:
-		}
-
-		t.log.Info(fmt.Sprintf("Got track event: %+v", trackEvent), nil)
-
-		t.trackEventsCh <- trackEvent
 	}
 }
 
@@ -190,18 +261,29 @@ func (t *MetadataTransport) AddTrack(track transport.Track) error {
 		ClientID:  t.clientID,
 	}
 
-	return t.sendTrackEvent(trackEvent)
+	err := t.sendTrackEvent(trackEvent)
+
+	return errors.Trace(err)
 }
 
 func (t *MetadataTransport) sendTrackEvent(trackEvent transport.TrackEvent) error {
-	b, err := json.Marshal(trackEvent)
-	if err != nil {
-		return errors.Annotatef(err, "sendTrackEvent: marshal")
-	}
+	json := newTrackEventJSON(trackEvent)
 
-	_, err = t.conn.Write(b)
+	err := t.sendMetadataEvent(metadataEvent{
+		Type:       metadataEventTypeTrackEvent,
+		TrackEvent: &json,
+	})
 
 	return errors.Annotatef(err, "sendTrackEvent: write")
+}
+
+func (t *MetadataTransport) sendMetadataEvent(event metadataEvent) error {
+	select {
+	case t.writeCh <- event:
+		return nil
+	case <-t.writeLoopClosed:
+		return errors.Annotatef(io.ErrClosedPipe, "sendMetadataEvent: write")
+	}
 }
 
 func (t *MetadataTransport) getCodecType(payloadType uint8) webrtc.RTPCodecType {
@@ -232,9 +314,21 @@ func (t *MetadataTransport) RemoveTrack(ssrc uint32) error {
 		ClientID:  t.clientID,
 	}
 
+	// TODO RemoveTrack should not be a slow operation.
+
 	return t.sendTrackEvent(trackEvent)
 }
 
 func (t *MetadataTransport) Close() error {
-	return t.conn.Close()
+	err := t.conn.Close()
+
+	select {
+	case t.closeWriteLoop <- struct{}{}:
+		<-t.writeLoopClosed
+	case <-t.writeLoopClosed:
+	}
+
+	<-t.readLoopClosed
+
+	return errors.Trace(err)
 }
