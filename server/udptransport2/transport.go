@@ -4,5 +4,9 @@ import "github.com/peer-calls/peer-calls/server/servertransport"
 
 type Transport struct {
 	*servertransport.Transport
-	StreamID string
+	streamID string
+}
+
+func (t Transport) StreamID() string {
+	return t.streamID
 }

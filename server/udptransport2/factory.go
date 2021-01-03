@@ -17,8 +17,8 @@ type Factory struct {
 
 	stringMux *stringmux.StringMux
 
-	transportsChannel chan *Transport
-	transportRequests chan transportRequest
+	transportsChannel    chan *Transport
+	newTransportRequests chan transportRequest
 
 	teardown chan struct{}
 	torndown chan struct{}
@@ -52,8 +52,8 @@ func NewFactory(params FactoryParams) (*Factory, error) {
 
 		stringMux: stringMux,
 
-		transportsChannel: make(chan *Transport),
-		transportRequests: make(chan transportRequest),
+		transportsChannel:    make(chan *Transport),
+		newTransportRequests: make(chan transportRequest),
 
 		teardown: make(chan struct{}),
 		torndown: make(chan struct{}),
@@ -230,7 +230,7 @@ func (f *Factory) start() {
 
 		transport := &Transport{
 			Transport: serverTransport,
-			StreamID:  streamID,
+			streamID:  streamID,
 		}
 
 		return transport, nil
@@ -281,7 +281,7 @@ func (f *Factory) start() {
 	}
 
 	acceptOrGet := func(t *Transport) bool {
-		streamID := t.StreamID
+		streamID := t.StreamID()
 
 		for {
 			select {
@@ -289,7 +289,7 @@ func (f *Factory) start() {
 				addTransport(streamID, t)
 
 				return true
-			case req := <-f.transportRequests:
+			case req := <-f.newTransportRequests:
 				if req.streamID != streamID {
 					handleTransportRequest(req)
 
@@ -329,7 +329,7 @@ func (f *Factory) start() {
 		select {
 		case streamID := <-removeTransportsChan:
 			delete(transports, streamID)
-		case req := <-f.transportRequests:
+		case req := <-f.newTransportRequests:
 			handleTransportRequest(req)
 		// case c, ok := <-f.streams.data.Conns():
 		// 	if !ok {
@@ -383,10 +383,9 @@ func (f *Factory) NewTransport(streamID string) (*Transport, error) {
 	}
 
 	select {
-	case f.transportRequests <- req:
-		res := <-req.res
-
-		return res.transport, errors.Trace(res.err)
+	case f.newTransportRequests <- req:
+		transport, err := (<-req.res).Result()
+		return transport, errors.Trace(err)
 	case <-f.torndown:
 		return nil, errors.Trace(io.ErrClosedPipe)
 	}
@@ -420,4 +419,8 @@ type transportRequest struct {
 type transportResponse struct {
 	transport *Transport
 	err       error
+}
+
+func (t transportResponse) Result() (*Transport, error) {
+	return t.transport, errors.Trace(t.err)
 }

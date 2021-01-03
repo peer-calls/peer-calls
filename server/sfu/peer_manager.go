@@ -478,15 +478,30 @@ func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
 	}
 }
 
-func (t *PeerManager) Size() int {
+// WebRTCSize returns the total size of WebRTCTransports.
+func (t *PeerManager) WebRTCSize() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return len(t.webrtcTransports) + len(t.serverTransports)
+	return len(t.webrtcTransports)
 }
 
 func (t *PeerManager) Close() <-chan struct{} {
 	ch := make(chan struct{}, 1)
+
+	t.mu.Lock()
+
+	for clientID, serverTransport := range t.serverTransports {
+		t.log.Info("Closing server transport", logger.Ctx{
+			"client_id": serverTransport.ClientID(),
+		})
+
+		serverTransport.Close()
+
+		delete(t.serverTransports, clientID)
+	}
+
+	t.mu.Unlock()
 
 	go func() {
 		t.wg.Wait()

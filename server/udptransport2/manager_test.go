@@ -100,7 +100,7 @@ func TestManager_RTP(t *testing.T) {
 		fmt.Println("waiting for transport")
 		transport1 = <-f1.TransportsChannel()
 
-		assert.Equal(t, "test-stream", transport1.StreamID)
+		assert.Equal(t, "test-stream", transport1.StreamID())
 
 		select {
 		case event := <-transport1.TrackEventsChannel():
@@ -118,7 +118,7 @@ func TestManager_RTP(t *testing.T) {
 		var err error
 
 		fmt.Println("calling get factory", udpConn1.LocalAddr())
-		f2, err = tm2.GetFactory(udpConn1.LocalAddr())
+		f2, err = (<-tm2.GetFactory(udpConn1.LocalAddr())).Result()
 		fmt.Println("got factory")
 		require.NoError(t, err)
 

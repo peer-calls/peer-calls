@@ -66,7 +66,7 @@ func (m *TracksManager) Add(room string, transport transport.Transport) (<-chan 
 
 		// TODO tell the difference between server and webrtc transports since
 		// server transports should not be counted, and they should be removed.
-		if peerManager.Size() == 0 {
+		if peerManager.WebRTCSize() == 0 {
 			peerManager.Close()
 			// TODO write to RoomEventsChan
 			delete(m.peerManagers, room)
