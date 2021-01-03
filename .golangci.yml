@@ -12,6 +12,7 @@ linters:
     - godox
     # - lll
     - maligned
+    - paralleltest
 
 linters-settings:
   errcheck:
