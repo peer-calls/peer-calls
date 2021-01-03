@@ -11,6 +11,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/logformatter"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 )
@@ -74,7 +75,7 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 			}),
 		).
 		WithConfig(logger.NewConfigFromString(os.Getenv("PEERCALLS_LOG"))). // FIXME use wildcards here
-		WithFormatter(server.NewLogFormatter()).
+		WithFormatter(logformatter.New()).
 		WithNamespaceAppended("main")
 
 	ch := make(chan error, 1)

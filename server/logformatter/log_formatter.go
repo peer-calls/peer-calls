@@ -1,4 +1,4 @@
-package server
+package logformatter
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 type LogFormatter struct {
 }
 
-func NewLogFormatter() *LogFormatter {
+func New() *LogFormatter {
 	return &LogFormatter{}
 }
 
