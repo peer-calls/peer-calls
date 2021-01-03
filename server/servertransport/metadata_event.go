@@ -14,6 +14,9 @@ type metadataEvent struct {
 
 	// TrackEvent will be set only when Type is metadataEventTypeTrackEvent.
 	TrackEvent *trackEventJSON `json:"trackEvent"`
+
+	// InitEvent will be set only when Type is metadataEventTypeInitEvent.
+	InitEvent *initEventJSON `json:"initEvent"`
 }
 
 type metadataEventType int
@@ -22,18 +25,22 @@ const (
 	// TrackEvent contains the information about tracks.
 	metadataEventTypeTrackEvent metadataEventType = iota + 1
 	// GetTracks event will return all tracks.
-	metadataEventTypeInit
+	metadataEventTypeInitEvent
 )
 
 func (m metadataEventType) String() string {
 	switch m {
 	case metadataEventTypeTrackEvent:
 		return "TrackEvent"
-	case metadataEventTypeInit:
+	case metadataEventTypeInitEvent:
 		return "Init"
 	default:
 		return fmt.Sprintf("Unknown(%d)", m)
 	}
+}
+
+type initEventJSON struct {
+	ClientID string
 }
 
 // trackEventJSON is used instead of TrackEvent because JSON cannot deserialize

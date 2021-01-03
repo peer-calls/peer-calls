@@ -2,7 +2,6 @@ package servertransport
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"sync"
 
@@ -103,9 +102,15 @@ func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack
 func (t *MetadataTransport) startWriteLoop() {
 	defer func() {
 		close(t.writeLoopClosed)
+
+		t.log.Trace("Write closed", nil)
 	}()
 
 	write := func(event metadataEvent) error {
+		t.log.Trace("Write event", logger.Ctx{
+			"metadata_event": event.Type,
+		})
+
 		b, err := json.Marshal(event)
 		if err != nil {
 			return errors.Trace(err)
@@ -117,7 +122,10 @@ func (t *MetadataTransport) startWriteLoop() {
 	}
 
 	err := write(metadataEvent{
-		Type:       metadataEventTypeInit,
+		Type: metadataEventTypeInitEvent,
+		InitEvent: &initEventJSON{
+			ClientID: t.clientID,
+		},
 		TrackEvent: nil,
 	})
 	if err != nil {
@@ -142,6 +150,8 @@ func (t *MetadataTransport) startReadLoop() {
 	defer func() {
 		close(t.trackEventsCh)
 		close(t.readLoopClosed)
+
+		t.log.Trace("Read closed", nil)
 	}()
 
 	buf := make([]byte, ReceiveMTU)
@@ -149,7 +159,7 @@ func (t *MetadataTransport) startReadLoop() {
 	for {
 		i, err := t.conn.Read(buf)
 		if err != nil {
-			t.log.Error("Read remote data", errors.Trace(err), nil)
+			t.log.Error("Read", errors.Trace(err), nil)
 
 			return
 		}
@@ -158,12 +168,14 @@ func (t *MetadataTransport) startReadLoop() {
 
 		err = json.Unmarshal(buf[:i], &event)
 		if err != nil {
-			t.log.Error("Unmarshal remote data", err, nil)
+			t.log.Error("Unmarshal", err, nil)
 
 			return
 		}
 
-		t.log.Info(fmt.Sprintf("Got metadata event: %s", event.Type), nil)
+		t.log.Trace("Read event", logger.Ctx{
+			"metadata_event": event.Type,
+		})
 
 		switch event.Type {
 		case metadataEventTypeTrackEvent:
@@ -196,7 +208,7 @@ func (t *MetadataTransport) startReadLoop() {
 				case <-t.writeLoopClosed:
 				}
 			}
-		case metadataEventTypeInit:
+		case metadataEventTypeInitEvent:
 			for _, localTrack := range t.LocalTracks() {
 				err := t.sendTrackEvent(transport.TrackEvent{
 					ClientID:  t.clientID,
@@ -272,6 +284,7 @@ func (t *MetadataTransport) sendTrackEvent(trackEvent transport.TrackEvent) erro
 	err := t.sendMetadataEvent(metadataEvent{
 		Type:       metadataEventTypeTrackEvent,
 		TrackEvent: &json,
+		InitEvent:  nil,
 	})
 
 	return errors.Annotatef(err, "sendTrackEvent: write")
