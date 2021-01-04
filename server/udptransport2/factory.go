@@ -12,6 +12,12 @@ import (
 	"github.com/pion/sctp"
 )
 
+const (
+	streamIndexControl uint16 = iota
+	streamIndexMetadata
+	streamIndexData
+)
+
 type Factory struct {
 	params *FactoryParams
 
@@ -119,14 +125,21 @@ func (f *Factory) init() (*factoryStreams, error) {
 
 	closers = append(closers, association)
 
-	metadataStream, err := association.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
+	controlStream, err := association.OpenStream(streamIndexControl, sctp.PayloadTypeWebRTCBinary)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	closers = append(closers, controlStream)
+
+	metadataStream, err := association.OpenStream(streamIndexMetadata, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	closers = append(closers, metadataStream)
 
-	dataStream, err := association.OpenStream(1, sctp.PayloadTypeWebRTCBinary)
+	dataStream, err := association.OpenStream(streamIndexData, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -145,6 +158,8 @@ func (f *Factory) init() (*factoryStreams, error) {
 
 	streams := &factoryStreams{
 		close: nil,
+
+		control: newControl(f.params.Log, controlStream),
 
 		data: stringmux.New(stringmux.Params{
 			Log:            f.params.Log.WithNamespaceAppended("data"),
@@ -171,6 +186,7 @@ func (f *Factory) init() (*factoryStreams, error) {
 		}),
 	}
 
+	closers = append(closers, streams.control)
 	closers = append(closers, streams.data)
 	closers = append(closers, streams.metadata)
 	closers = append(closers, streams.media)
@@ -406,6 +422,8 @@ func (f *Factory) Close() {
 
 type factoryStreams struct {
 	close func()
+
+	control *control
 
 	data     *stringmux.StringMux
 	metadata *stringmux.StringMux
