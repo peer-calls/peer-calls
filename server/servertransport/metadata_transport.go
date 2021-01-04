@@ -121,17 +121,6 @@ func (t *MetadataTransport) startWriteLoop() {
 		return errors.Trace(err)
 	}
 
-	err := write(metadataEvent{
-		Type: metadataEventTypeInitEvent,
-		InitEvent: &initEventJSON{
-			ClientID: t.clientID,
-		},
-		TrackEvent: nil,
-	})
-	if err != nil {
-		t.log.Error("Send init event", errors.Trace(err), nil)
-	}
-
 	for {
 		select {
 		case event := <-t.writeCh:
@@ -178,10 +167,10 @@ func (t *MetadataTransport) startReadLoop() {
 		})
 
 		switch event.Type {
-		case metadataEventTypeTrackEvent:
+		case metadataEventTypeTrack:
 
-			trackEvent := event.TrackEvent.trackEvent(t.clientID)
-			trackEvent.TrackInfo.Track = t.newServerTrack(event.TrackEvent.TrackInfo)
+			trackEvent := event.Track.trackEvent(t.clientID)
+			trackEvent.TrackInfo.Track = t.newServerTrack(event.Track.TrackInfo)
 
 			skipEvent := false
 
@@ -206,19 +195,6 @@ func (t *MetadataTransport) startReadLoop() {
 				select {
 				case t.trackEventsCh <- trackEvent:
 				case <-t.writeLoopClosed:
-				}
-			}
-		case metadataEventTypeInitEvent:
-			for _, localTrack := range t.LocalTracks() {
-				err := t.sendTrackEvent(transport.TrackEvent{
-					ClientID:  t.clientID,
-					TrackInfo: localTrack,
-					Type:      transport.TrackEventTypeAdd,
-				})
-				if err != nil {
-					t.log.Error("Send track event (refresh)", errors.Trace(err), nil)
-
-					return
 				}
 			}
 		}
@@ -282,9 +258,8 @@ func (t *MetadataTransport) sendTrackEvent(trackEvent transport.TrackEvent) erro
 	json := newTrackEventJSON(trackEvent)
 
 	err := t.sendMetadataEvent(metadataEvent{
-		Type:       metadataEventTypeTrackEvent,
-		TrackEvent: &json,
-		InitEvent:  nil,
+		Type:  metadataEventTypeTrack,
+		Track: &json,
 	})
 
 	return errors.Annotatef(err, "sendTrackEvent: write")

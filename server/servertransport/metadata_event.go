@@ -12,28 +12,22 @@ type metadataEvent struct {
 	// Type must always be set
 	Type metadataEventType `json:"type"`
 
-	// TrackEvent will be set only when Type is metadataEventTypeTrackEvent.
-	TrackEvent *trackEventJSON `json:"trackEvent"`
-
-	// InitEvent will be set only when Type is metadataEventTypeInitEvent.
-	InitEvent *initEventJSON `json:"initEvent"`
+	// Track will be set only when Type is metadataEventTypeTrackEvent.
+	Track *trackEventJSON `json:"trackEvent"`
 }
 
 type metadataEventType int
 
 const (
-	// TrackEvent contains the information about tracks.
-	metadataEventTypeTrackEvent metadataEventType = iota + 1
-	// GetTracks event will return all tracks.
-	metadataEventTypeInitEvent
+	// Track event contains the information about tracks.
+	metadataEventTypeTrack metadataEventType = iota + 1
+	// Init will cause the remote side to be added to the room.
 )
 
 func (m metadataEventType) String() string {
 	switch m {
-	case metadataEventTypeTrackEvent:
+	case metadataEventTypeTrack:
 		return "TrackEvent"
-	case metadataEventTypeInitEvent:
-		return "Init"
 	default:
 		return fmt.Sprintf("Unknown(%d)", m)
 	}
@@ -84,3 +78,5 @@ type trackInfoJSON struct {
 	Kind  webrtc.RTPCodecType
 	Mid   string
 }
+
+type byeEventJSON struct{}
