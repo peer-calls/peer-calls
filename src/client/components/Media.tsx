@@ -127,7 +127,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
           </label>
           <input
             required
-            className={classnames({error: !nickname,'d-none':hideNicknameInput})}
+            className={classnames({error:!nickname,'d-none':hideNicknameInput})}
             name='nickname'
             type='text'
             placeholder='Name'
