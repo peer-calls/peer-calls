@@ -36,6 +36,11 @@ func ReadConfigFiles(filenames []string, c *Config) (err error) {
 
 func InitConfig(c *Config) {
 	c.BindPort = 3000
+	c.JwtHeaders = JwtHeaders{
+		CookieName:      "auth",
+		CookieTokenName: "token",
+		NicknameClaim:   "nickname",
+	}
 	c.Network.Type = NetworkTypeMesh
 	c.Store.Type = StoreTypeMemory
 	c.ICEServers = []ICEServer{{
@@ -80,6 +85,10 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
 	setEnvUint16(&c.Network.SFU.UDP.PortMin, prefix+"NETWORK_SFU_UDP_PORT_MIN")
 	setEnvUint16(&c.Network.SFU.UDP.PortMax, prefix+"NETWORK_SFU_UDP_PORT_MAX")
+
+	setEnvString(&c.JwtHeaders.CookieName, prefix+"JWT_HEADERS_COOKIE_NAME")
+	setEnvString(&c.JwtHeaders.CookieTokenName, prefix+"JWT_HEADERS_COOKIE_TOKEN_NAME")
+	setEnvString(&c.JwtHeaders.NicknameClaim, prefix+"JWT_HEADERS_NICKNAME_CLAIM")
 
 	var ice ICEServer
 

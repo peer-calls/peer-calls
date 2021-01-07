@@ -3,6 +3,7 @@ module github.com/peer-calls/peer-calls
 go 1.14
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/gobuffalo/packd v0.3.0
@@ -17,6 +18,7 @@ require (
 	github.com/pion/webrtc/v3 v3.0.0-beta.2
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.6.1
+	github.com/valyala/fastjson v1.6.3
 	go.uber.org/goleak v1.0.0
 	gopkg.in/yaml.v2 v2.3.0
 	nhooyr.io/websocket v1.8.4

@@ -42,7 +42,7 @@ func configure(loggerFactory server.LoggerFactory, args []string) (net.Listener,
 	newAdapter := server.NewAdapterFactory(loggerFactory, c.Store)
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	tracks := server.NewMemoryTracksManager(loggerFactory, c.Network.SFU.JitterBuffer)
-	mux := server.NewMux(loggerFactory, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
+	mux := server.NewMux(loggerFactory, c.BaseURL, c.JwtHeaders, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
 	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "listen")

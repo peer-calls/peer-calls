@@ -8,6 +8,7 @@ export const valueOf = (id: string) => {
 }
 
 export interface ClientConfig {
+  hideNicknameInput: boolean
   baseUrl: string
   nickname: string
   callId: string

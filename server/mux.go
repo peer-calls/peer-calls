@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+
 	"net/http"
 	"net/url"
 	"path"
@@ -31,11 +32,12 @@ func buildManifest(baseURL string) []byte {
 }
 
 type Mux struct {
-	BaseURL    string
-	handler    *chi.Mux
-	iceServers []ICEServer
-	network    NetworkConfig
-	version    string
+	BaseURL          string
+	nicknameResolver NicknameResolver
+	handler          *chi.Mux
+	iceServers       []ICEServer
+	network          NetworkConfig
+	version          string
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +64,7 @@ type RoomManager interface {
 func NewMux(
 	loggerFactory LoggerFactory,
 	baseURL string,
+	JwtHeadersConfig JwtHeaders,
 	version string,
 	network NetworkConfig,
 	iceServers []ICEServer,
@@ -75,11 +78,12 @@ func NewMux(
 
 	handler := chi.NewRouter()
 	mux := &Mux{
-		BaseURL:    baseURL,
-		handler:    handler,
-		iceServers: iceServers,
-		network:    network,
-		version:    version,
+		BaseURL:          baseURL,
+		nicknameResolver: NewJwtNicknameResolver(JwtHeadersConfig),
+		handler:          handler,
+		iceServers:       iceServers,
+		network:          network,
+		version:          version,
 	}
 
 	var root string
@@ -195,14 +199,16 @@ func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, inter
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := NewUUIDBase62()
 	iceServers := GetICEAuthServers(mux.iceServers)
+	nickname, ok := mux.nicknameResolver.Nickname(r)
 
 	config := ClientConfig{
-		BaseURL:    mux.BaseURL,
-		Nickname:   r.Header.Get("X-Forwarded-User"),
-		CallID:     callID,
-		UserID:     userID,
-		ICEServers: iceServers,
-		Network:    mux.network.Type,
+		HideNicknameInput: ok,
+		BaseURL:           mux.BaseURL,
+		Nickname:          nickname,
+		CallID:            callID,
+		UserID:            userID,
+		ICEServers:        iceServers,
+		Network:           mux.network.Type,
 	}
 
 	configJSON, _ := json.Marshal(config)

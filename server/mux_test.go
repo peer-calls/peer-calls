@@ -62,7 +62,7 @@ func Test_routeIndex(t *testing.T) {
 	trk := newMockTracksManager()
 	prom := server.PrometheusConfig{"test1234"}
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom)
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -76,7 +76,7 @@ func Test_routeIndex_noBaseURL(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -90,7 +90,7 @@ func Test_routeNewCall_name(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("POST", "/test/call", reader)
@@ -106,7 +106,7 @@ func Test_routeNewCall_random(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test/call", nil)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -118,6 +118,41 @@ func Test_routeNewCall_random(t *testing.T) {
 	require.Regexp(t, "/test/call/"+uuid, w.Header().Get("Location"))
 }
 
+func Test_routeCallWithJWT(t *testing.T) {
+	mrm := NewMockRoomManager()
+	trk := newMockTracksManager()
+	defer mrm.close()
+	iceServers := []server.ICEServer{{
+		URLs: []string{"stun:"},
+	}}
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{
+		CookieName:      "auth",
+		CookieTokenName: "token",
+		NicknameClaim:   "email",
+	}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/test/call/abc", nil)
+	setSampleCookie(r)
+
+	mux.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	re := regexp.MustCompile(`id="config".*value="(.*?)"`)
+	result := re.FindStringSubmatch(w.Body.String())
+
+	var config server.ClientConfig
+	err := json.Unmarshal([]byte(html.UnescapeString(result[1])), &config)
+	require.NoError(t, err)
+
+	assert.Equal(t, "/test", config.BaseURL)
+	assert.Equal(t, true, config.HideNicknameInput)
+	assert.Equal(t, "test@mail.service.co", config.Nickname)
+	assert.Equal(t, "abc", config.CallID)
+	assert.NotEmpty(t, config.UserID)
+	assert.NotEmpty(t, config.ICEServers)
+	assert.Equal(t, server.NetworkTypeMesh, config.Network)
+}
+
 func Test_routeCall(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
@@ -125,7 +160,7 @@ func Test_routeCall(t *testing.T) {
 	iceServers := []server.ICEServer{{
 		URLs: []string{"stun:"},
 	}}
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test/call/abc", nil)
 	mux.ServeHTTP(w, r)
@@ -139,6 +174,7 @@ func Test_routeCall(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "/test", config.BaseURL)
+	assert.Equal(t, false, config.HideNicknameInput)
 	assert.Equal(t, "", config.Nickname)
 	assert.Equal(t, "abc", config.CallID)
 	assert.NotEmpty(t, config.UserID)
@@ -150,7 +186,7 @@ func Test_manifest(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("GET", "/test/manifest.json", reader)
@@ -165,7 +201,7 @@ func Test_Metrics(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(loggerFactory, "/test", server.JwtHeaders{}, "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 
 	for _, testCase := range []struct {
 		statusCode    int
