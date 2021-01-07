@@ -73,6 +73,7 @@ window.navigator.mediaDevices.getUserMedia = async () => {
 export const valueOf = jest.fn()
 
 export const config: ClientConfig = {
+  hideNicknameInput:false,
   baseUrl: '',
   callId: 'call1234',
   userId: 'user1234',

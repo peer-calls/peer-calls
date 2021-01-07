@@ -71,11 +71,18 @@ type Config struct {
 	BaseURL    string           `yaml:"base_url"`
 	BindHost   string           `yaml:"bind_host"`
 	BindPort   int              `yaml:"bind_port"`
+	JwtHeaders JwtHeaders       `yaml:"jwt_headers"`
 	ICEServers []ICEServer      `yaml:"ice_servers"`
 	TLS        TLSConfig        `yaml:"tls"`
 	Store      StoreConfig      `yaml:"store"`
 	Network    NetworkConfig    `yaml:"network"`
 	Prometheus PrometheusConfig `yaml:"prometheus"`
+}
+
+type JwtHeaders struct {
+	CookieName      string `yaml:"cookie_name"`
+	CookieTokenName string `yaml:"cookie_token_name"`
+	NicknameClaim   string `yaml:"nickname_claim"`
 }
 
 type ICEAuthServer struct {
@@ -85,10 +92,11 @@ type ICEAuthServer struct {
 }
 
 type ClientConfig struct {
-	BaseURL    string          `json:"baseUrl"`
-	Nickname   string          `json:"nickname"`
-	CallID     string          `json:"callId"`
-	UserID     string          `json:"userId"`
-	ICEServers []ICEAuthServer `json:"iceServers"`
-	Network    NetworkType     `json:"network"`
+	HideNicknameInput bool            `json:"hideNicknameInput"`
+	BaseURL           string          `json:"baseUrl"`
+	Nickname          string          `json:"nickname"`
+	CallID            string          `json:"callId"`
+	UserID            string          `json:"userId"`
+	ICEServers        []ICEAuthServer `json:"iceServers"`
+	Network           NetworkType     `json:"network"`
 }

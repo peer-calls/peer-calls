@@ -13,7 +13,7 @@ import { Alert, Alerts } from './Alerts'
 import { Message } from './Message'
 import { Unsupported } from './Unsupported'
 
-const { network } = config
+const { network,hideNicknameInput } = config
 
 export type MediaProps = MediaState & {
   joinEnabled: boolean
@@ -127,7 +127,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
           </label>
           <input
             required
-            className={classnames({error: !nickname})}
+            className={classnames({error:!nickname,'d-none':hideNicknameInput})}
             name='nickname'
             type='text'
             placeholder='Name'

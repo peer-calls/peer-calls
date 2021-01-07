@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+
 	"net/http"
 	"net/url"
 	"path"
@@ -31,11 +32,12 @@ func buildManifest(baseURL string) []byte {
 }
 
 type Mux struct {
-	BaseURL    string
-	handler    *chi.Mux
-	iceServers []ICEServer
-	network    NetworkConfig
-	version    string
+	BaseURL          string
+	nicknameResolver NicknameResolver
+	handler          *chi.Mux
+	iceServers       []ICEServer
+	network          NetworkConfig
+	version          string
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +64,7 @@ type RoomManager interface {
 func NewMux(
 	loggerFactory LoggerFactory,
 	baseURL string,
+	jwtHeadersConfig JwtHeaders,
 	version string,
 	network NetworkConfig,
 	iceServers []ICEServer,
@@ -74,12 +77,15 @@ func NewMux(
 	renderer := NewRenderer(loggerFactory, templates, baseURL, version)
 
 	handler := chi.NewRouter()
+
+	nicknameResolver := NewJwtNicknameResolver(jwtHeadersConfig)
 	mux := &Mux{
-		BaseURL:    baseURL,
-		handler:    handler,
-		iceServers: iceServers,
-		network:    network,
-		version:    version,
+		BaseURL:          baseURL,
+		handler:          handler,
+		iceServers:       iceServers,
+		network:          network,
+		version:          version,
+		nicknameResolver: nicknameResolver,
 	}
 
 	var root string
@@ -95,6 +101,7 @@ func NewMux(
 		NewWSS(loggerFactory, rooms),
 		iceServers,
 		tracks,
+		nicknameResolver,
 	)
 
 	manifest := buildManifest(baseURL)
@@ -144,6 +151,7 @@ func newWebSocketHandler(
 	wss *WSS,
 	iceServers []ICEServer,
 	tracks TracksManager,
+	nicknameResolver NicknameResolver,
 ) http.Handler {
 	log := loggerFactory.GetLogger("mux")
 
@@ -151,13 +159,13 @@ func newWebSocketHandler(
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
 
-		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks, nicknameResolver)
 	case NetworkTypeMesh:
 		fallthrough
 	default:
 		log.Println("Using network type mesh")
 
-		return NewMeshHandler(loggerFactory, wss)
+		return NewMeshHandler(loggerFactory, wss, nicknameResolver)
 	}
 }
 
@@ -195,14 +203,16 @@ func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, inter
 	callID := url.PathEscape(path.Base(r.URL.Path))
 	userID := NewUUIDBase62()
 	iceServers := GetICEAuthServers(mux.iceServers)
+	nickname, ok := mux.nicknameResolver.Nickname(r)
 
 	config := ClientConfig{
-		BaseURL:    mux.BaseURL,
-		Nickname:   r.Header.Get("X-Forwarded-User"),
-		CallID:     callID,
-		UserID:     userID,
-		ICEServers: iceServers,
-		Network:    mux.network.Type,
+		HideNicknameInput: ok,
+		BaseURL:           mux.BaseURL,
+		Nickname:          nickname,
+		CallID:            callID,
+		UserID:            userID,
+		ICEServers:        iceServers,
+		Network:           mux.network.Type,
 	}
 
 	configJSON, _ := json.Marshal(config)

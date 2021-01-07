@@ -26,19 +26,21 @@ func NewSFUHandler(
 	iceServers []ICEServer,
 	sfuConfig NetworkConfigSFU,
 	tracksManager TracksManager,
+	nicknameResolver NicknameResolver,
 ) *SFU {
 	log := loggerFactory.GetLogger("sfu")
 
 	webRTCTransportFactory := NewWebRTCTransportFactory(loggerFactory, iceServers, sfuConfig)
 
-	return &SFU{loggerFactory, log, wss, tracksManager, webRTCTransportFactory}
+	return &SFU{loggerFactory, log, wss, tracksManager, nicknameResolver, webRTCTransportFactory}
 }
 
 type SFU struct {
-	loggerFactory LoggerFactory
-	log           Logger
-	wss           *WSS
-	tracksManager TracksManager
+	loggerFactory    LoggerFactory
+	log              Logger
+	wss              *WSS
+	tracksManager    TracksManager
+	nicknameResolver NicknameResolver
 
 	webRTCTransportFactory *WebRTCTransportFactory
 }
@@ -50,7 +52,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	nickname, _ := sfu.nicknameResolver.Nickname(r)
 	socketHandler := NewSocketHandler(
 		sfu.loggerFactory,
 		sfu.tracksManager,
@@ -58,6 +60,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sub.ClientID,
 		sub.Room,
 		sub.Adapter,
+		nickname,
 	)
 
 	for message := range sub.Messages {
@@ -79,6 +82,7 @@ type SocketHandler struct {
 	adapter                Adapter
 	clientID               string
 	room                   string
+	nickname               string
 
 	mu sync.Mutex
 }
@@ -90,6 +94,7 @@ func NewSocketHandler(
 	clientID string,
 	room string,
 	adapter Adapter,
+	nickname string,
 ) *SocketHandler {
 	return &SocketHandler{
 		loggerFactory:          loggerFactory,
@@ -99,6 +104,7 @@ func NewSocketHandler(
 		clientID:               clientID,
 		room:                   room,
 		adapter:                adapter,
+		nickname:               nickname,
 	}
 }
 
@@ -174,8 +180,10 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	if !ok {
 		return errors.Errorf("ready message payload is of wrong type: %T", message.Payload)
 	}
-
-	adapter.SetMetadata(clientID, payload["nickname"].(string))
+	if sh.nickname == "" {
+		sh.nickname = payload["nickname"].(string)
+	}
+	adapter.SetMetadata(clientID, sh.nickname)
 
 	clients, err := getReadyClients(adapter)
 	if err != nil {
