@@ -25,6 +25,7 @@ func setupSFUServer(rooms server.RoomManager, jitterBufferEnabled bool) (s *http
 		[]server.ICEServer{},
 		server.NetworkConfigSFU{},
 		server.NewMemoryTracksManager(loggerFactory, jitterBufferEnabled),
+		server.NewJwtNicknameResolver(server.JwtHeaders{}),
 	)
 	s = httptest.NewServer(handler)
 	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/"

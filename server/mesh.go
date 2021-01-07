@@ -11,7 +11,7 @@ type ReadyMessage struct {
 	Room   string `json:"room"`
 }
 
-func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
+func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS, nicknameResolver NicknameResolver) http.Handler {
 	log := loggerFactory.GetLogger("mesh")
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,11 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			case "ready":
 				// FIXME check for errors
 				payload, _ := msg.Payload.(map[string]interface{})
-				adapter.SetMetadata(clientID, payload["nickname"].(string))
+				nickname, ok := nicknameResolver.Nickname(r)
+				if !ok {
+					nickname = payload["nickname"].(string)
+				}
+				adapter.SetMetadata(clientID, nickname)
 
 				clients, readyClientsErr := getReadyClients(adapter)
 				if readyClientsErr != nil {

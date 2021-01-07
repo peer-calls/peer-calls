@@ -64,7 +64,7 @@ type RoomManager interface {
 func NewMux(
 	loggerFactory LoggerFactory,
 	baseURL string,
-	JwtHeadersConfig JwtHeaders,
+	jwtHeadersConfig JwtHeaders,
 	version string,
 	network NetworkConfig,
 	iceServers []ICEServer,
@@ -77,13 +77,15 @@ func NewMux(
 	renderer := NewRenderer(loggerFactory, templates, baseURL, version)
 
 	handler := chi.NewRouter()
+
+	nicknameResolver := NewJwtNicknameResolver(jwtHeadersConfig)
 	mux := &Mux{
 		BaseURL:          baseURL,
-		nicknameResolver: NewJwtNicknameResolver(JwtHeadersConfig),
 		handler:          handler,
 		iceServers:       iceServers,
 		network:          network,
 		version:          version,
+		nicknameResolver: nicknameResolver,
 	}
 
 	var root string
@@ -99,6 +101,7 @@ func NewMux(
 		NewWSS(loggerFactory, rooms),
 		iceServers,
 		tracks,
+		nicknameResolver,
 	)
 
 	manifest := buildManifest(baseURL)
@@ -148,6 +151,7 @@ func newWebSocketHandler(
 	wss *WSS,
 	iceServers []ICEServer,
 	tracks TracksManager,
+	nicknameResolver NicknameResolver,
 ) http.Handler {
 	log := loggerFactory.GetLogger("mux")
 
@@ -155,13 +159,13 @@ func newWebSocketHandler(
 	case NetworkTypeSFU:
 		log.Println("Using network type sfu")
 
-		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks, nicknameResolver)
 	case NetworkTypeMesh:
 		fallthrough
 	default:
 		log.Println("Using network type mesh")
 
-		return NewMeshHandler(loggerFactory, wss)
+		return NewMeshHandler(loggerFactory, wss, nicknameResolver)
 	}
 }
 
