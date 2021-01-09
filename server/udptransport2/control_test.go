@@ -45,7 +45,7 @@ func TestControl(t *testing.T) {
 	c2 := newControl(log, conn2)
 
 	send := controlEvent{
-		Type:     controlEventTypeInit,
+		Type:     controlEventTypeCreate,
 		StreamID: "a",
 	}
 
