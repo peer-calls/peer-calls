@@ -242,7 +242,7 @@ func (f *Factory) start() {
 			return nil, errors.Trace(err)
 		}
 
-		serverTransport := servertransport.NewTransport(f.params.Log, mediaConn, dataConn, metadataConn)
+		serverTransport := servertransport.New(f.params.Log, mediaConn, dataConn, metadataConn)
 
 		transport := &Transport{
 			Transport: serverTransport,

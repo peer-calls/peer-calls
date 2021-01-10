@@ -51,7 +51,7 @@ type Transport struct {
 	closeOnce sync.Once
 }
 
-func NewTransport(
+func New(
 	log logger.Logger,
 	mediaConn io.ReadWriteCloser,
 	dataConn io.ReadWriteCloser,
