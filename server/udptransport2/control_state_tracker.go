@@ -121,7 +121,9 @@ func (t *controlStateTracker) handlePendingEvent() remoteControlEventType {
 // When the state was changed and the event processed, the user must call the
 // handlePendingEvents to see if there are any localc events that were waiting
 // to be handled.
-func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (remoteControlEventType, error) {
+func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (remoteControlEventType, bool, error) {
+	prevState := t.state
+
 	switch event {
 	case remoteControlEventTypeCreate:
 		if t.state != controlStateClosed && t.state != controlStateAdded {
@@ -131,7 +133,7 @@ func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (r
 
 		t.state = controlStateAdded
 
-		return remoteControlEventTypeCreateAck, nil
+		return remoteControlEventTypeCreateAck, t.state != prevState, nil
 
 	case remoteControlEventTypeCreateAck:
 		if t.state != controlStateCreated {
@@ -141,7 +143,7 @@ func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (r
 
 		t.state = controlStateAdded
 
-		return remoteControlEventTypeNone, nil
+		return remoteControlEventTypeNone, t.state != prevState, nil
 	case remoteControlEventTypeClose:
 		if t.state != controlStateAdded && t.state != controlStateClosed {
 			// Unexpected event.
@@ -150,7 +152,7 @@ func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (r
 
 		t.state = controlStateClosed
 
-		return remoteControlEventTypeCloseAck, nil
+		return remoteControlEventTypeCloseAck, t.state != prevState, nil
 	case remoteControlEventTypeCloseAck:
 		if t.state != controlStateWriteClosed {
 			// Unexpected event.
@@ -159,11 +161,11 @@ func (t *controlStateTracker) handleRemoteEvent(event remoteControlEventType) (r
 
 		t.state = controlStateClosed
 
-		return remoteControlEventTypeNone, nil
+		return remoteControlEventTypeNone, t.state != prevState, nil
 	case remoteControlEventTypeNone:
 	}
 
-	return remoteControlEventTypeNone, errors.Annotatef(errUnexpectedEvent, "state: %s, event: %s", t.state, event)
+	return remoteControlEventTypeNone, false, errors.Annotatef(errUnexpectedEvent, "state: %s, event: %s", t.state, event)
 }
 
 type localControlEventType int

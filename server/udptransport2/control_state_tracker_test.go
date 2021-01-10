@@ -19,6 +19,7 @@ func TestControlStateTracker(t *testing.T) {
 	type remote struct {
 		event   remoteControlEventType
 		want    remoteControlEventType
+		wantOK  bool
 		wantErr error
 	}
 
@@ -43,12 +44,12 @@ func TestControlStateTracker(t *testing.T) {
 		},
 		{
 			descr:     "close, error",
-			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeNone, errUnexpectedEvent},
+			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeNone, false, errUnexpectedEvent},
 			wantState: controlStateCreated,
 		},
 		{
 			descr:     "close_ack, error",
-			remote:    &remote{remoteControlEventTypeCloseAck, remoteControlEventTypeNone, errUnexpectedEvent},
+			remote:    &remote{remoteControlEventTypeCloseAck, remoteControlEventTypeNone, false, errUnexpectedEvent},
 			wantState: controlStateCreated,
 		},
 		{
@@ -72,7 +73,7 @@ func TestControlStateTracker(t *testing.T) {
 		},
 		{
 			descr:       "create_ack, but immediately handle pending want_close",
-			remote:      &remote{remoteControlEventTypeCreateAck, remoteControlEventTypeNone, nil},
+			remote:      &remote{remoteControlEventTypeCreateAck, remoteControlEventTypeNone, true, nil},
 			wantState:   controlStateWriteClosed,
 			wantPending: remoteControlEventTypeClose,
 		},
@@ -89,12 +90,12 @@ func TestControlStateTracker(t *testing.T) {
 		},
 		{
 			descr:     "invalid remote create, error",
-			remote:    &remote{remoteControlEventTypeCreate, remoteControlEventTypeNone, errUnexpectedEvent},
+			remote:    &remote{remoteControlEventTypeCreate, remoteControlEventTypeNone, false, errUnexpectedEvent},
 			wantState: controlStateWriteClosed,
 		},
 		{
 			descr:     "close_ack, change state to closed, no pending events",
-			remote:    &remote{remoteControlEventTypeCloseAck, remoteControlEventTypeNone, nil},
+			remote:    &remote{remoteControlEventTypeCloseAck, remoteControlEventTypeNone, true, nil},
 			wantState: controlStateClosed,
 		},
 		{
@@ -104,17 +105,17 @@ func TestControlStateTracker(t *testing.T) {
 		},
 		{
 			descr:     "create_ack, error",
-			remote:    &remote{remoteControlEventTypeCreateAck, remoteControlEventTypeNone, errUnexpectedEvent},
+			remote:    &remote{remoteControlEventTypeCreateAck, remoteControlEventTypeNone, false, errUnexpectedEvent},
 			wantState: controlStateClosed,
 		},
 		{
 			descr:     "close, send close_ack",
-			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeCloseAck, nil},
+			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeCloseAck, false, nil},
 			wantState: controlStateClosed,
 		},
 		{
 			descr:     "create",
-			remote:    &remote{remoteControlEventTypeCreate, remoteControlEventTypeCreateAck, nil},
+			remote:    &remote{remoteControlEventTypeCreate, remoteControlEventTypeCreateAck, true, nil},
 			wantState: controlStateAdded,
 		},
 		{
@@ -124,12 +125,12 @@ func TestControlStateTracker(t *testing.T) {
 		},
 		{
 			descr:     "unknown remote event, error",
-			remote:    &remote{remoteControlEventType(-1), remoteControlEventTypeNone, errUnexpectedEvent},
+			remote:    &remote{remoteControlEventType(-1), remoteControlEventTypeNone, false, errUnexpectedEvent},
 			wantState: controlStateAdded,
 		},
 		{
 			descr:     "close",
-			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeCloseAck, nil},
+			remote:    &remote{remoteControlEventTypeClose, remoteControlEventTypeCloseAck, true, nil},
 			wantState: controlStateClosed,
 		},
 	}
@@ -144,9 +145,10 @@ func TestControlStateTracker(t *testing.T) {
 		}
 
 		if tc.remote != nil {
-			got, err := cst.handleRemoteEvent(tc.remote.event)
+			got, gotOK, err := cst.handleRemoteEvent(tc.remote.event)
 
 			assert.Equal(t, tc.remote.want.String(), got.String(), "tc.remote.want: %s", descr)
+			assert.Equal(t, tc.remote.wantOK, gotOK, "tc.remote.wantOK: %s", descr)
 			assert.Equal(t, tc.remote.wantErr, errors.Cause(err), "tc.remote.wantErr: %s", descr)
 		}
 
