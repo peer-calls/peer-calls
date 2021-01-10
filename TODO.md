@@ -75,3 +75,28 @@ connections. For example:
 
 Perhaps udpmux/stringmux connections shouldn't be created automatically as soon
 as the first packet is received.
+
+I believe this is addresesd by the control_state_tracker, we'd only need to
+reimplement NodeManager to make use of the ControlTranpsort after a Factory
+is created. Or actually factory can be reimplemented to accept only two types
+of requests: WantCreate wand WantClose, which is called every time a room is
+created and removed, respectively.
+
+Consequently, the factory should have the internal state tracker and figure out
+when to create transports and send them to transports channel. NewTransport
+method will be replaced with Create(roomID string) and a new method will be
+added, called Close(roomID string). These methods will initate the handshake
+via the control transport and once the transport is deemed to be ready and
+added to the room, it will be added by the node manager.
+
+forget this: ~One caveat: currently the rooms are closed when the last peer
+leaves, that means the room transport events would be left unhandled.~
+
+Transports created because a packet was received should be destroyed - and it
+should be considered a bug if that happens.
+
+TODO Figure out when a transport factory is dead (e.g. a connection broke and
+we need to recreate the factory. This can be implemented with pings in the
+control channel, and could actually be done internally in factory.  I don't
+think this is an immediate problem that needs to be handled right now, but
+something to think about in the future.

@@ -23,8 +23,8 @@ type Factory struct {
 
 	stringMux *stringmux.StringMux
 
-	transportsChannel    chan *Transport
-	newTransportRequests chan transportRequest
+	transportsChannel  chan *Transport
+	localControlEvents chan localControlEvent
 
 	teardown chan struct{}
 	torndown chan struct{}
@@ -35,11 +35,13 @@ type Factory struct {
 type FactoryParams struct {
 	Log  logger.Logger
 	Conn net.Conn
-	// StringMux *stringmux.StringMux
 }
 
 func NewFactory(params FactoryParams) (*Factory, error) {
-	params.Log = params.Log.WithNamespaceAppended("factory")
+	params.Log = params.Log.WithNamespaceAppended("factory").WithCtx(logger.Ctx{
+		"local_addr":  params.Conn.LocalAddr(),
+		"remote_addr": params.Conn.RemoteAddr(),
+	})
 
 	params.Log.Trace("NewFactory", nil)
 
@@ -58,8 +60,8 @@ func NewFactory(params FactoryParams) (*Factory, error) {
 
 		stringMux: stringMux,
 
-		transportsChannel:    make(chan *Transport),
-		newTransportRequests: make(chan transportRequest),
+		transportsChannel:  make(chan *Transport),
+		localControlEvents: make(chan localControlEvent),
 
 		teardown: make(chan struct{}),
 		torndown: make(chan struct{}),
@@ -159,7 +161,7 @@ func (f *Factory) init() (*factoryStreams, error) {
 	streams := &factoryStreams{
 		close: nil,
 
-		control: newControl(f.params.Log, controlStream),
+		control: newControlTransport(f.params.Log, controlStream),
 
 		data: stringmux.New(stringmux.Params{
 			Log:            f.params.Log.WithNamespaceAppended("data"),
@@ -200,15 +202,20 @@ func (f *Factory) init() (*factoryStreams, error) {
 }
 
 func (f *Factory) start() {
-	transports := map[string]*Transport{}
+	type transportWithTracker struct {
+		transport *Transport
+		tracker   *controlStateTracker
+	}
 
-	removeTransportsChan := make(chan string)
+	transports := map[string]*transportWithTracker{}
 
 	defer func() {
 		close(f.transportsChannel)
 
-		for streamID, transport := range transports {
-			transport.Close()
+		for streamID, t := range transports {
+			if t.transport != nil {
+				t.transport.Close()
+			}
 
 			delete(transports, streamID)
 		}
@@ -220,12 +227,17 @@ func (f *Factory) start() {
 		close(f.torndown)
 	}()
 
-	// TODO getOrAccept transprot
+	createTransport := func(streamID string) (*Transport, error) {
+		log := f.params.Log.WithCtx(logger.Ctx{
+			"stream_id": streamID,
+		})
 
-	createTransport := func(metadataConn stringmux.Conn) (*Transport, error) {
-		f.params.Log.Trace("Create transport", nil)
+		log.Trace("Create transport", nil)
 
-		streamID := metadataConn.StreamID()
+		metadataConn, err := f.streams.metadata.GetConn(streamID)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 
 		dataConn, err := f.streams.data.GetConn(streamID)
 		if err != nil {
@@ -247,126 +259,200 @@ func (f *Factory) start() {
 		return transport, nil
 	}
 
-	addTransport := func(streamID string, transport *Transport) {
-		transports[streamID] = transport
+	handleRemoteEvent := func(event remoteControlEvent) bool {
+		streamID := event.StreamID
 
-		go func() {
-			select {
-			case <-transport.Done():
-			case <-f.torndown:
-				return
+		log := f.params.Log.WithCtx(logger.Ctx{
+			"stream_id":            streamID,
+			"remote_control_event": event.Type,
+		})
+
+		log.Trace("Handle remote event", nil)
+
+		t, ok := transports[streamID]
+		if !ok {
+			t = &transportWithTracker{
+				transport: nil,
+				tracker:   &controlStateTracker{},
 			}
+			transports[event.StreamID] = t
+		}
 
-			select {
-			case removeTransportsChan <- streamID:
-			case <-f.torndown:
-			}
-		}()
-	}
-
-	_handleTransportRequest := func(streamID string) (*Transport, error) {
-		metadataConn, err := f.streams.metadata.GetConn(streamID)
+		responseEvent, stateChanged, err := t.tracker.handleRemoteEvent(event.Type)
 		if err != nil {
-			return nil, errors.Trace(err)
+			log.Error("Invalid state change", errors.Trace(err), nil)
+
+			// Something weird is going on, teardown.
+			return false
 		}
 
-		transport, err := createTransport(metadataConn)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-
-		addTransport(streamID, transport)
-
-		return transport, nil
-	}
-
-	handleTransportRequest := func(req transportRequest) {
-		transport, err := _handleTransportRequest(req.streamID)
-
-		req.res <- transportResponse{
-			transport: transport,
-			err:       err,
-		}
-
-		close(req.res)
-	}
-
-	acceptOrGet := func(t *Transport) bool {
-		streamID := t.StreamID()
-
-		for {
-			select {
-			case f.transportsChannel <- t:
-				addTransport(streamID, t)
-
-				return true
-			case req := <-f.newTransportRequests:
-				if req.streamID != streamID {
-					handleTransportRequest(req)
-
-					continue
+		if stateChanged {
+			switch event.Type {
+			case remoteControlEventTypeCreate:
+				transport, err := createTransport(streamID)
+				if err != nil {
+					log.Error("Create transport", errors.Trace(err), nil)
 				}
 
-				req.res <- transportResponse{
-					transport: t,
-					err:       nil,
+				t.transport = transport
+
+				select {
+				case f.transportsChannel <- transport:
+				case <-f.teardown:
+					return false
+				}
+			case remoteControlEventTypeCreateAck:
+				if t.transport == nil {
+					log.Error("Got create_ack but transport was nil", nil, nil)
+
+					return false
 				}
 
-				close(req.res)
+				select {
+				case f.transportsChannel <- t.transport:
+				case <-f.teardown:
+					return false
+				}
+			case remoteControlEventTypeClose:
+				if t.transport == nil {
+					log.Error("Got create_ack but transport was nil", nil, nil)
 
-				return true
-			case <-f.teardown:
+					return false
+				}
+
+				// Call CloseWrite first to ensure no more packets are sent, because
+				// Close might propagate later, in case someone is listening to Done()
+				// event.
+				t.transport.CloseWrite()
+				t.transport.Close()
+				delete(transports, streamID)
+			case remoteControlEventTypeCloseAck:
+				if t.transport == nil {
+					log.Error("Got create_ack but transport was nil", nil, nil)
+
+					return false
+				}
+
+				t.transport.Close()
+				delete(transports, streamID)
+			case remoteControlEventTypeNone:
+			}
+		}
+
+		if responseEvent != remoteControlEventTypeNone {
+			err := f.streams.control.Send(remoteControlEvent{
+				StreamID: streamID,
+				Type:     responseEvent,
+			})
+			if err != nil {
+				log.Error("Send control event response", errors.Trace(err), nil)
+
 				return false
 			}
 		}
+
+		return true
 	}
 
-	handleMetadataConn := func(metadataConn stringmux.Conn) bool {
-		transport, err := createTransport(metadataConn)
-		if err != nil {
-			f.params.Log.Error("Create transport", errors.Trace(err), nil)
+	handleLocalEvent := func(event localControlEvent) bool {
+		streamID := event.streamID
 
-			return true
+		log := f.params.Log.WithCtx(logger.Ctx{
+			"stream_id":           streamID,
+			"local_control_event": event.typ,
+		})
+
+		log.Trace("Handle local event", nil)
+
+		t, ok := transports[streamID]
+		if !ok {
+			t = &transportWithTracker{
+				transport: nil,
+				tracker:   &controlStateTracker{},
+			}
+			transports[streamID] = t
 		}
 
-		if !acceptOrGet(transport) {
+		remoteEvent := t.tracker.handleLocalEvent(event.typ)
+
+		// nolint:exhaustive
+		switch remoteEvent {
+		case remoteControlEventTypeCreate:
+			transport, err := createTransport(streamID)
+			if err != nil {
+				log.Error("Create transport", errors.Trace(err), nil)
+
+				// Major error, teardown.
+				return false
+			}
+
+			t.transport = transport
+		case remoteControlEventTypeClose:
+			if t.transport == nil {
+				log.Error("Want close but transport is nil", nil, nil)
+
+				return false
+			}
+
+			t.transport.CloseWrite()
+		}
+
+		if remoteEvent != remoteControlEventTypeNone {
+			err := f.streams.control.Send(remoteControlEvent{
+				StreamID: streamID,
+				Type:     remoteEvent,
+			})
+			if err != nil {
+				log.Error("Send remote control event", errors.Trace(err), nil)
+
+				return false
+			}
+		}
+
+		return true
+	}
+
+	handleUnexpectedConn := func(conn stringmux.Conn, typ string, ok bool) bool {
+		if !ok {
+			f.params.Log.Warn("stream closed", logger.Ctx{
+				"conn_type": typ,
+			})
+
 			return false
 		}
+
+		f.params.Log.Warn("Unexpected conn", logger.Ctx{
+			"conn_type": typ,
+			"stream_id": conn.StreamID(),
+		})
 
 		return true
 	}
 
 	for {
 		select {
-		case streamID := <-removeTransportsChan:
-			delete(transports, streamID)
-		case req := <-f.newTransportRequests:
-			handleTransportRequest(req)
-		// case c, ok := <-f.streams.data.Conns():
-		// 	if !ok {
-		// 		return
-		// 	}
-
-		// 	c.Close()
-		// case c, ok := <-f.streams.media.Conns():
-		// 	if !ok {
-		// 		return
-		// 	}
-
-		// 	c.Close()
-		case metadataConn, ok := <-f.streams.metadata.Conns():
+		case event, ok := <-f.streams.control.Events():
 			if !ok {
-				f.params.Log.Warn("Metadata stringmux closed", nil)
-
 				return
 			}
 
-			// Only interested about metadata for now. The data channel only contains
-			// messages which the peers won't see anyway until the transport is
-			// created. Media won't be sent until someone subscribes after seeing the
-			// metadata published.
-
-			if !handleMetadataConn(metadataConn) {
+			if !handleRemoteEvent(event) {
+				return
+			}
+		case event := <-f.localControlEvents:
+			if !handleLocalEvent(event) {
+				return
+			}
+		case c, ok := <-f.streams.data.Conns():
+			if !handleUnexpectedConn(c, "data", ok) {
+				return
+			}
+		case c, ok := <-f.streams.media.Conns():
+			if !handleUnexpectedConn(c, "media", ok) {
+				return
+			}
+		case c, ok := <-f.streams.metadata.Conns():
+			if !handleUnexpectedConn(c, "metadata", ok) {
 				return
 			}
 		case <-f.teardown:
@@ -379,27 +465,39 @@ func (f *Factory) TransportsChannel() <-chan *Transport {
 	return f.transportsChannel
 }
 
-func (f *Factory) NewTransport(streamID string) (*Transport, error) {
-	f.params.Log.Trace("NewTransport start", logger.Ctx{
+func (f *Factory) CreateTransport(streamID string) error {
+	f.params.Log.Trace("CreateTransport", logger.Ctx{
 		"stream_id": streamID,
 	})
 
-	defer f.params.Log.Trace("NewTransport done", logger.Ctx{
-		"stream_id": streamID,
-	})
-
-	req := transportRequest{
+	event := localControlEvent{
+		typ:      localControlEventTypeWantCreate,
 		streamID: streamID,
-		res:      make(chan transportResponse, 1),
 	}
 
 	select {
-	case f.newTransportRequests <- req:
-		transport, err := (<-req.res).Result()
-
-		return transport, errors.Trace(err)
+	case f.localControlEvents <- event:
+		return nil
 	case <-f.torndown:
-		return nil, errors.Trace(io.ErrClosedPipe)
+		return errors.Annotatef(io.ErrClosedPipe, "create transport: %s", streamID)
+	}
+}
+
+func (f *Factory) CloseTransport(streamID string) error {
+	f.params.Log.Trace("CloseTransport", logger.Ctx{
+		"stream_id": streamID,
+	})
+
+	event := localControlEvent{
+		typ:      localControlEventTypeWantClose,
+		streamID: streamID,
+	}
+
+	select {
+	case f.localControlEvents <- event:
+		return nil
+	case <-f.torndown:
+		return errors.Annotatef(io.ErrClosedPipe, "close transport: %s", streamID)
 	}
 }
 
@@ -418,23 +516,9 @@ func (f *Factory) Close() {
 type factoryStreams struct {
 	close func()
 
-	control *control
+	control *controlTransport
 
 	data     *stringmux.StringMux
 	metadata *stringmux.StringMux
 	media    *stringmux.StringMux
-}
-
-type transportRequest struct {
-	streamID string
-	res      chan transportResponse
-}
-
-type transportResponse struct {
-	transport *Transport
-	err       error
-}
-
-func (t transportResponse) Result() (*Transport, error) {
-	return t.transport, errors.Trace(t.err)
 }

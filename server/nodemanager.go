@@ -67,6 +67,9 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 			}
 
 			nm.handleTransportFactory(factory)
+
+			// TODO attempt reconnect once the factory is Done (after ticker is
+			// implemented.
 		}()
 	}
 
@@ -182,17 +185,9 @@ func (nm *NodeManager) startRoomEventLoop() {
 			// someone has joined on this node and the room was just created).
 			// Transports initiated by other nodes will be accepted.
 			for _, factory := range nm.transportManager.Factories() {
-				log.Info("Creating new transport", nil)
-
-				transport, err := factory.NewTransport(roomEvent.RoomName)
+				err := factory.CreateTransport(roomEvent.RoomName)
 				if err != nil {
 					log.Error("Create transport", errors.Trace(err), nil)
-
-					continue
-				}
-
-				if err := nm.handleTransport(transport); err != nil {
-					log.Error("Handle new transport", errors.Trace(err), nil)
 
 					continue
 				}
@@ -214,6 +209,14 @@ func (nm *NodeManager) startRoomEventLoop() {
 			//    Server transport on node 1 did not know about the termination.
 			//
 			// There needs to be a way to get a list of all tracks after a reconnect.
+			for _, factory := range nm.transportManager.Factories() {
+				err := factory.CloseTransport(roomEvent.RoomName)
+				if err != nil {
+					log.Error("Close transport", errors.Trace(err), nil)
+
+					continue
+				}
+			}
 		}
 	}
 }

@@ -98,7 +98,12 @@ func TestManager_RTP(t *testing.T) {
 		f1 = <-tm1.FactoriesChannel()
 
 		fmt.Println("waiting for transport")
-		transport1 = <-f1.TransportsChannel()
+
+		select {
+		case transport1 = <-f1.TransportsChannel():
+		case <-time.After(time.Second):
+			require.Fail(t, "Timed out waiting for transport1")
+		}
 
 		assert.Equal(t, "test-stream", transport1.StreamID())
 
@@ -122,8 +127,14 @@ func TestManager_RTP(t *testing.T) {
 		fmt.Println("got factory")
 		require.NoError(t, err)
 
-		transport2, err = f2.NewTransport("test-stream")
+		err = f2.CreateTransport("test-stream")
 		require.NoError(t, err)
+
+		select {
+		case transport2 = <-f2.TransportsChannel():
+		case <-time.After(time.Second):
+			require.Fail(t, "Timed out waiting for transport2")
+		}
 
 		err = transport2.AddTrack(track)
 		require.NoError(t, err, "failed to add track")

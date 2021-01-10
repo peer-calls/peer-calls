@@ -13,7 +13,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func TestControl(t *testing.T) {
+func TestControlTransport(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{
@@ -41,10 +41,10 @@ func TestControl(t *testing.T) {
 
 	log := test.NewLogger()
 
-	c1 := newControl(log, conn1)
-	c2 := newControl(log, conn2)
+	c1 := newControlTransport(log, conn1)
+	c2 := newControlTransport(log, conn2)
 
-	send := controlEvent{
+	send := remoteControlEvent{
 		Type:     remoteControlEventTypeCreate,
 		StreamID: "a",
 	}
@@ -52,7 +52,7 @@ func TestControl(t *testing.T) {
 	err = c1.Send(send)
 	require.NoError(t, err)
 
-	var recv controlEvent
+	var recv remoteControlEvent
 
 	select {
 	case recv = <-c2.Events():

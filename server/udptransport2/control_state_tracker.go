@@ -271,9 +271,14 @@ func (c remoteControlEventType) String() string {
 	}
 }
 
-type controlEvent struct {
+type remoteControlEvent struct {
 	Type     remoteControlEventType `json:"type"`
 	StreamID string                 `json:"streamId"`
+}
+
+type localControlEvent struct {
+	typ      localControlEventType
+	streamID string
 }
 
 type controlState int

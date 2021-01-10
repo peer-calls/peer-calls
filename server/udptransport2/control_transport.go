@@ -8,26 +8,29 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
-type control struct {
+type controlTransport struct {
 	stream io.ReadWriteCloser
 
 	log logger.Logger
 
-	readEventsCh  chan controlEvent
-	writeEventsCh chan controlEvent
+	readEventsCh  chan remoteControlEvent
+	writeEventsCh chan remoteControlEvent
 
 	readLoopDone  chan struct{}
 	teardown      chan struct{}
 	writeLoopDone chan struct{}
 }
 
-func newControl(log logger.Logger, stream io.ReadWriteCloser) *control {
-	c := &control{
+func newControlTransport(
+	log logger.Logger,
+	stream io.ReadWriteCloser,
+) *controlTransport {
+	c := &controlTransport{
 		stream: stream,
 		log:    log.WithNamespaceAppended("control"),
 
-		readEventsCh:  make(chan controlEvent),
-		writeEventsCh: make(chan controlEvent),
+		readEventsCh:  make(chan remoteControlEvent),
+		writeEventsCh: make(chan remoteControlEvent),
 
 		readLoopDone:  make(chan struct{}),
 		writeLoopDone: make(chan struct{}),
@@ -40,7 +43,7 @@ func newControl(log logger.Logger, stream io.ReadWriteCloser) *control {
 	return c
 }
 
-func (c *control) startReadLoop() {
+func (c *controlTransport) startReadLoop() {
 	defer func() {
 		close(c.readLoopDone)
 	}()
@@ -55,7 +58,7 @@ func (c *control) startReadLoop() {
 			return
 		}
 
-		var event controlEvent
+		var event remoteControlEvent
 
 		err = json.Unmarshal(buf[:i], &event)
 		if err != nil {
@@ -72,12 +75,12 @@ func (c *control) startReadLoop() {
 	}
 }
 
-func (c *control) startWriteLoop() {
+func (c *controlTransport) startWriteLoop() {
 	defer func() {
 		close(c.writeLoopDone)
 	}()
 
-	handleWrite := func(event controlEvent) bool {
+	handleWrite := func(event remoteControlEvent) bool {
 		b, err := json.Marshal(event)
 		if err != nil {
 			c.log.Error("Marshal", errors.Trace(err), nil)
@@ -107,11 +110,11 @@ func (c *control) startWriteLoop() {
 	}
 }
 
-func (c *control) Events() <-chan controlEvent {
+func (c *controlTransport) Events() <-chan remoteControlEvent {
 	return c.readEventsCh
 }
 
-func (c *control) Send(event controlEvent) error {
+func (c *controlTransport) Send(event remoteControlEvent) error {
 	select {
 	case c.writeEventsCh <- event:
 		return nil
@@ -120,7 +123,7 @@ func (c *control) Send(event controlEvent) error {
 	}
 }
 
-func (c *control) Close() error {
+func (c *controlTransport) Close() error {
 	err := c.stream.Close()
 
 	select {
