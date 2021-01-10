@@ -12,18 +12,18 @@ import (
 //
 // The initial state is closed.
 //
-// +--------+                                close_ack
-// | closed |<------------------------\<--------------------\
-// +--------+                          |                    |
-//   |    |  want_create  +---------+  |             +--------------+
-//   |    \-------------->| created |  | close_ack   | write_closed |
-//   |                    +---------+  |             +--------------+
-//   |                             |   |                    |
-//   |                  create_ack |   |                    |
-//   |                             v   |                    |
-//   |           create           +---------+   want_close  |
-//   \--------------------------->|  added  |---------------/
-//                                +---------+
+//     +--------+                                close_ack
+//     | closed |<------------------------\<--------------------\
+//     +--------+                          |                    |
+//       |    |  want_create  +---------+  |             +--------------+
+//       |    \-------------->| created |  | close_ack   | write_closed |
+//       |                    +---------+  |             +--------------+
+//       |                             |   |                    |
+//       |                  create_ack |   |                    |
+//       |                             v   |                    |
+//       |           create           +---------+   want_close  |
+//       \--------------------------->|  added  |---------------/
+//                                    +---------+
 //
 // Local events (want_create and want_close) received during the waiting for
 // acknowledgement (states created and write_closed) are stored and should be
