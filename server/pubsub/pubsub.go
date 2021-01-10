@@ -279,6 +279,7 @@ func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
 // Close closes the subscription channel. The caller must ensure that no
 // other methods are called after close has been called.
 func (p *PubSub) Close() {
+	fmt.Println("PUBSUB.Close")
 	close(p.eventsChan)
 	<-p.events.torndown
 }

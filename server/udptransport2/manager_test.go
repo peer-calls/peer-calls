@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server/clock"
-	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/peer-calls/peer-calls/server/udptransport2"
@@ -86,7 +85,7 @@ func TestManager_RTP(t *testing.T) {
 	})
 	defer tm2.Close()
 
-	track := sfu.NewUserTrack(
+	track := transport.NewUserTrack(
 		transport.NewSimpleTrack(8, 1, "a", "aa"),
 		"user1",
 		"test-stream",

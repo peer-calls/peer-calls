@@ -487,7 +487,6 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 			}
 
 			if event.Ping {
-				f.params.Log.Trace("Recv ping", nil)
 				lastRecvPingTime = f.params.Clock.Now()
 			}
 

@@ -20,7 +20,6 @@ type metadataEventType int
 const (
 	// Track event contains the information about tracks.
 	metadataEventTypeTrack metadataEventType = iota + 1
-	// Init will cause the remote side to be added to the room.
 )
 
 func (m metadataEventType) String() string {

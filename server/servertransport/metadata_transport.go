@@ -168,7 +168,6 @@ func (t *MetadataTransport) startReadLoop() {
 
 		switch event.Type {
 		case metadataEventTypeTrack:
-
 			trackEvent := event.Track.trackEvent(t.clientID)
 			trackEvent.TrackInfo.Track = t.newServerTrack(event.Track.TrackInfo)
 

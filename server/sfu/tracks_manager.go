@@ -26,7 +26,7 @@ func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManage
 	}
 }
 
-func (m *TracksManager) Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -47,29 +47,29 @@ func (m *TracksManager) Add(room string, transport transport.Transport) (<-chan 
 	}
 
 	log = log.WithCtx(logger.Ctx{
-		"client_id": transport.ClientID(),
+		"client_id": tr.ClientID(),
 	})
 
 	log.Info("Add peer", nil)
 
-	pubTrackEventsCh, err := peerManager.Add(transport)
+	pubTrackEventsCh, err := peerManager.Add(tr)
 	if err != nil {
 		return nil, errors.Annotatef(err, "add transport")
 	}
 
 	go func() {
-		<-transport.Done()
+		<-tr.Done()
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		peerManager.Remove(transport.ClientID())
+		peerManager.Remove(tr.ClientID())
 
-		// TODO tell the difference between server and webrtc transports since
-		// server transports should not be counted, and they should be removed.
-		if peerManager.WebRTCSize() == 0 {
-			peerManager.Close()
-			// TODO write to RoomEventsChan
-			delete(m.peerManagers, room)
+		if tr.Type() == transport.TypeWebRTC {
+			if peerManager.WebRTCSize() == 0 {
+				peerManager.Close()
+				// TODO write to RoomEventsChan
+				delete(m.peerManagers, room)
+			}
 		}
 	}()
 

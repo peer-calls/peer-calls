@@ -189,20 +189,20 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			case transport.TrackEventTypeSub:
 				if err := t.Sub(SubParams{
 					Room:        t.room,
-					PubClientID: trackEvent.ClientID,
+					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
 					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
 					SubClientID: tr.ClientID(),
 				}); err != nil {
-					log.Error("sub failed", err, nil)
+					log.Error("sub failed", errors.Trace(err), nil)
 				}
 			case transport.TrackEventTypeUnsub:
 				if err := t.Unsub(SubParams{
 					Room:        t.room,
-					PubClientID: trackEvent.ClientID,
+					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
 					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
 					SubClientID: tr.ClientID(),
 				}); err != nil {
-					log.Error("sub failed", err, nil)
+					log.Error("sub failed", errors.Trace(err), nil)
 				}
 			}
 		}
