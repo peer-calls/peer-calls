@@ -1,12 +1,45 @@
 package udptransport2
 
-import "github.com/peer-calls/peer-calls/server/servertransport"
+import (
+	"sync"
+
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/servertransport"
+	"github.com/peer-calls/peer-calls/server/stringmux"
+)
 
 type Transport struct {
 	*servertransport.Transport
-	streamID string
+	closeWriteOnce sync.Once
+	streamID       string
+	closeWrite     func()
 }
 
-func (t Transport) StreamID() string {
+func NewTransport(
+	log logger.Logger,
+	streamID string,
+	mediaConn stringmux.Conn,
+	dataConn stringmux.Conn,
+	metadataConn stringmux.Conn,
+) *Transport {
+	closeWrite := func() {
+		mediaConn.CloseWrite()
+		dataConn.CloseWrite()
+		metadataConn.CloseWrite()
+	}
+
+	return &Transport{
+		streamID:       streamID,
+		Transport:      servertransport.New(log, mediaConn, dataConn, metadataConn),
+		closeWriteOnce: sync.Once{},
+		closeWrite:     closeWrite,
+	}
+}
+
+func (t *Transport) CloseWrite() {
+	t.closeWriteOnce.Do(t.closeWrite)
+}
+
+func (t *Transport) StreamID() string {
 	return t.streamID
 }

@@ -94,6 +94,7 @@ func (m *StringMux) start() {
 			readChan:             make(chan []byte, m.params.ReadChanSize),
 			closeConnRequestChan: m.closeConnRequestChan,
 			torndown:             make(chan struct{}),
+			writeClosed:          make(chan struct{}),
 		}
 	}
 

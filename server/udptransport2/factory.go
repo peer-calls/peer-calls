@@ -242,12 +242,7 @@ func (f *Factory) start() {
 			return nil, errors.Trace(err)
 		}
 
-		serverTransport := servertransport.New(f.params.Log, mediaConn, dataConn, metadataConn)
-
-		transport := &Transport{
-			Transport: serverTransport,
-			streamID:  streamID,
-		}
+		transport := NewTransport(f.params.Log, streamID, mediaConn, dataConn, metadataConn)
 
 		return transport, nil
 	}

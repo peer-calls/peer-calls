@@ -35,14 +35,14 @@ func TestStringMuxNew(t *testing.T) {
 
 	sm1 := stringmux.New(stringmux.Params{
 		Conn:         conn1,
-		Log:       test.NewLogger(),
+		Log:          test.NewLogger(),
 		ReadChanSize: 8,
 	})
 	defer sm1.Close()
 
 	sm2 := stringmux.New(stringmux.Params{
 		Conn:         conn2,
-		Log:       test.NewLogger(),
+		Log:          test.NewLogger(),
 		ReadChanSize: 8,
 	})
 	defer sm2.Close()
@@ -70,6 +70,11 @@ func TestStringMuxNew(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4, i)
 	assert.Equal(t, []byte("ping"), b[:i])
+
+	c2.CloseWrite()
+	i, err = c2.Write([]byte{1, 2, 3})
+	assert.Equal(t, 0, i, "should not write any bytes")
+	assert.Equal(t, io.ErrClosedPipe, errors.Cause(err), "ErrClosedPipe because write closed")
 }
 
 func TestStringMux_Close_GetConn(t *testing.T) {
@@ -80,8 +85,8 @@ func TestStringMux_Close_GetConn(t *testing.T) {
 	require.NoError(t, err)
 
 	sm1 := stringmux.New(stringmux.Params{
-		Conn:   conn1,
-		Log: test.NewLogger(),
+		Conn: conn1,
+		Log:  test.NewLogger(),
 	})
 
 	sm1.Close()
