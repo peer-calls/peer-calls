@@ -3,8 +3,10 @@ package udptransport2
 import (
 	"io"
 	"net"
+	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/udpmux"
@@ -23,8 +25,11 @@ type Manager struct {
 }
 
 type ManagerParams struct {
-	Conn net.PacketConn
-	Log  logger.Logger
+	Conn           net.PacketConn
+	Log            logger.Logger
+	Clock          clock.Clock
+	PingTimeout    time.Duration
+	DestroyTimeout time.Duration
 }
 
 func NewManager(params ManagerParams) *Manager {
@@ -109,8 +114,11 @@ func (m *Manager) start() {
 			})
 
 			factory, err := NewFactory(FactoryParams{
-				Log:  log,
-				Conn: conn,
+				Log:            log,
+				Conn:           conn,
+				Clock:          m.params.Clock,
+				PingTimeout:    m.params.PingTimeout,
+				DestroyTimeout: m.params.DestroyTimeout,
 			})
 
 			select {

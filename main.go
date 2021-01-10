@@ -71,6 +71,7 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 				"**:signaller:**": logger.LevelError,
 				"**:pion:**":      logger.LevelWarn,
 				"**:pubsub":       logger.LevelTrace,
+				"**:factory":      logger.LevelTrace,
 				"":                logger.LevelInfo,
 			}),
 		).

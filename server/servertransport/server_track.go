@@ -4,11 +4,11 @@ import (
 	"sync/atomic"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/transport"
 )
 
 type ServerTrack struct {
-	sfu.UserTrack
+	transport.UserTrack
 
 	subCount int64
 

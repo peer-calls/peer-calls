@@ -1,4 +1,4 @@
-package sfu
+package transport
 
 import (
 	"encoding/json"

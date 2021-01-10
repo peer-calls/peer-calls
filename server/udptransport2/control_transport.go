@@ -13,8 +13,8 @@ type controlTransport struct {
 
 	log logger.Logger
 
-	readEventsCh  chan remoteControlEvent
-	writeEventsCh chan remoteControlEvent
+	readEventsCh  chan controlEvent
+	writeEventsCh chan controlEvent
 
 	readLoopDone  chan struct{}
 	teardown      chan struct{}
@@ -29,8 +29,8 @@ func newControlTransport(
 		stream: stream,
 		log:    log.WithNamespaceAppended("control"),
 
-		readEventsCh:  make(chan remoteControlEvent),
-		writeEventsCh: make(chan remoteControlEvent),
+		readEventsCh:  make(chan controlEvent),
+		writeEventsCh: make(chan controlEvent),
 
 		readLoopDone:  make(chan struct{}),
 		writeLoopDone: make(chan struct{}),
@@ -58,7 +58,7 @@ func (c *controlTransport) startReadLoop() {
 			return
 		}
 
-		var event remoteControlEvent
+		var event controlEvent
 
 		err = json.Unmarshal(buf[:i], &event)
 		if err != nil {
@@ -80,7 +80,7 @@ func (c *controlTransport) startWriteLoop() {
 		close(c.writeLoopDone)
 	}()
 
-	handleWrite := func(event remoteControlEvent) bool {
+	handleWrite := func(event controlEvent) bool {
 		b, err := json.Marshal(event)
 		if err != nil {
 			c.log.Error("Marshal", errors.Trace(err), nil)
@@ -110,11 +110,11 @@ func (c *controlTransport) startWriteLoop() {
 	}
 }
 
-func (c *controlTransport) Events() <-chan remoteControlEvent {
+func (c *controlTransport) Events() <-chan controlEvent {
 	return c.readEventsCh
 }
 
-func (c *controlTransport) Send(event remoteControlEvent) error {
+func (c *controlTransport) Send(event controlEvent) error {
 	select {
 	case c.writeEventsCh <- event:
 		return nil
@@ -135,4 +135,9 @@ func (c *controlTransport) Close() error {
 	<-c.readLoopDone
 
 	return errors.Trace(err)
+}
+
+type controlEvent struct {
+	RemoteControlEvent *remoteControlEvent `json:"remoteControlEvent"`
+	Ping               bool                `json:"ping"`
 }

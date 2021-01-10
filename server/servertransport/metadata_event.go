@@ -3,7 +3,6 @@ package servertransport
 import (
 	"fmt"
 
-	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
@@ -47,7 +46,7 @@ type trackEventJSON struct {
 
 func newTrackEventJSON(trackEvent transport.TrackEvent) trackEventJSON {
 	// TODO watch out for possible panics.
-	track := trackEvent.TrackInfo.Track.(sfu.UserTrack)
+	track := trackEvent.TrackInfo.Track.(transport.UserTrack)
 
 	return trackEventJSON{
 		ClientID: trackEvent.ClientID,
@@ -74,7 +73,7 @@ func (t trackEventJSON) trackEvent(clientID string) transport.TrackEvent {
 }
 
 type trackInfoJSON struct {
-	Track sfu.UserTrack
+	Track transport.UserTrack
 	Kind  webrtc.RTPCodecType
 	Mid   string
 }

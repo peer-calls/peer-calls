@@ -9,7 +9,6 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
-	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
@@ -485,7 +484,7 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackInfo {
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
 	trackInfo := transport.TrackInfo{
-		Track: sfu.NewUserTrack(
+		Track: transport.NewUserTrack(
 			transport.NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
 			p.clientID,
 			p.roomID,

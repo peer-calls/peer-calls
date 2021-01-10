@@ -44,15 +44,18 @@ func TestControlTransport(t *testing.T) {
 	c1 := newControlTransport(log, conn1)
 	c2 := newControlTransport(log, conn2)
 
-	send := remoteControlEvent{
-		Type:     remoteControlEventTypeCreate,
-		StreamID: "a",
+	send := controlEvent{
+		RemoteControlEvent: &remoteControlEvent{
+			Type:     remoteControlEventTypeCreate,
+			StreamID: "a",
+		},
+		Ping: false,
 	}
 
 	err = c1.Send(send)
 	require.NoError(t, err)
 
-	var recv remoteControlEvent
+	var recv controlEvent
 
 	select {
 	case recv = <-c2.Events():

@@ -1,10 +1,13 @@
 package udptransport2
 
 import (
+	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
@@ -33,8 +36,22 @@ type Factory struct {
 }
 
 type FactoryParams struct {
-	Log  logger.Logger
+	Log logger.Logger
+	// Conn is the net.Conn to use for creating transports.
 	Conn net.Conn
+	// Clock is used for creating a ticker. A Clock interface is used to allow
+	// easier mocking.
+	Clock clock.Clock
+	// PingTimeout is the timeout after which a Ping event will be sent.
+	PingTimeout time.Duration
+	// DestroyTimeout is the time after which the factory will be destroyed. This
+	// is used because the current implementation of sctp.Association.Close
+	// leaves the other side hanging. I wrote an MR which implements the SCTP
+	// Association shutdown sequence, but it has not yet been merged:
+	// https://github.com/pion/sctp/pull/176.
+	//
+	// When set to zero, there will be no timeout.
+	DestroyTimeout time.Duration
 }
 
 func NewFactory(params FactoryParams) (*Factory, error) {
@@ -76,7 +93,9 @@ func NewFactory(params FactoryParams) (*Factory, error) {
 
 	f.streams = streams
 
-	go f.start()
+	pingTicker := f.params.Clock.NewTicker(f.params.PingTimeout)
+
+	go f.start(pingTicker)
 
 	return f, nil
 }
@@ -201,7 +220,7 @@ func (f *Factory) init() (*factoryStreams, error) {
 	return streams, nil
 }
 
-func (f *Factory) start() {
+func (f *Factory) start(pingTicker clock.Ticker) {
 	type transportWithTracker struct {
 		transport *Transport
 		tracker   *controlStateTracker
@@ -210,6 +229,8 @@ func (f *Factory) start() {
 	transports := map[string]*transportWithTracker{}
 
 	defer func() {
+		pingTicker.Stop()
+
 		close(f.transportsChannel)
 
 		for streamID, t := range transports {
@@ -340,9 +361,12 @@ func (f *Factory) start() {
 		}
 
 		if responseEvent != remoteControlEventTypeNone {
-			err := f.streams.control.Send(remoteControlEvent{
-				StreamID: streamID,
-				Type:     responseEvent,
+			err := f.streams.control.Send(controlEvent{
+				RemoteControlEvent: &remoteControlEvent{
+					StreamID: streamID,
+					Type:     responseEvent,
+				},
+				Ping: false,
 			})
 			if err != nil {
 				log.Error("Send control event response", errors.Trace(err), nil)
@@ -398,9 +422,12 @@ func (f *Factory) start() {
 		}
 
 		if remoteEvent != remoteControlEventTypeNone {
-			err := f.streams.control.Send(remoteControlEvent{
-				StreamID: streamID,
-				Type:     remoteEvent,
+			err := f.streams.control.Send(controlEvent{
+				RemoteControlEvent: &remoteControlEvent{
+					StreamID: streamID,
+					Type:     remoteEvent,
+				},
+				Ping: false,
 			})
 			if err != nil {
 				log.Error("Send remote control event", errors.Trace(err), nil)
@@ -429,14 +456,42 @@ func (f *Factory) start() {
 		return true
 	}
 
+	lastRecvPingTime := f.params.Clock.Now()
+
 	for {
 		select {
+		case <-pingTicker.C():
+			now := f.params.Clock.Now()
+
+			if d := f.params.DestroyTimeout; d > 0 && now.Sub(lastRecvPingTime) > d {
+				f.params.Log.Warn(
+					fmt.Sprintf("No ping within %s, last received at: %s Destroying factory.", d, lastRecvPingTime),
+					nil,
+				)
+
+				return
+			}
+
+			err := f.streams.control.Send(controlEvent{
+				RemoteControlEvent: nil,
+				Ping:               true,
+			})
+			if err != nil {
+				f.params.Log.Error("Send ping", errors.Trace(err), nil)
+
+				return
+			}
 		case event, ok := <-f.streams.control.Events():
 			if !ok {
 				return
 			}
 
-			if !handleRemoteEvent(event) {
+			if event.Ping {
+				f.params.Log.Trace("Recv ping", nil)
+				lastRecvPingTime = f.params.Clock.Now()
+			}
+
+			if rce := event.RemoteControlEvent; rce != nil && !handleRemoteEvent(*rce) {
 				return
 			}
 		case event := <-f.localControlEvents:

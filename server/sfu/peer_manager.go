@@ -1,12 +1,14 @@
 package sfu
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pubsub"
+	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
@@ -391,16 +393,24 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	transport, ok := t.getTransport(clientID)
+	tr, ok := t.getTransport(clientID)
 	if !ok {
 		return m, false
 	}
 
-	tracks := transport.LocalTracks()
+	tracks := tr.LocalTracks()
 	m = make([]TrackMetadata, 0, len(tracks))
 
 	for _, trackInfo := range tracks {
-		track := trackInfo.Track.(UserTrack)
+		track, ok := trackInfo.Track.(transport.UserTrack)
+		if !ok {
+			t, ok := trackInfo.Track.(*servertransport.ServerTrack)
+			if !ok {
+				panic(fmt.Sprintf("Unknown type of track: %T", trackInfo.Track))
+			}
+
+			track = t.UserTrack
+		}
 
 		trackMetadata := TrackMetadata{
 			Kind:     trackInfo.Kind.String(),

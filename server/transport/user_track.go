@@ -1,10 +1,9 @@
-package sfu
+package transport
 
 import (
 	"encoding/json"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/transport"
 )
 
 type UserTrack struct {
@@ -16,7 +15,7 @@ type UserTrack struct {
 	roomID      string
 }
 
-func NewUserTrack(track transport.Track, userID string, roomID string) UserTrack {
+func NewUserTrack(track Track, userID string, roomID string) UserTrack {
 	return UserTrack{
 		payloadType: track.PayloadType(),
 		ssrc:        track.SSRC(),
@@ -88,4 +87,4 @@ func (t *UserTrack) UnmarshalJSON(data []byte) error {
 	return errors.Annotatef(err, "unmarshal user track json")
 }
 
-var _ transport.Track = UserTrack{}
+var _ Track = UserTrack{}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -68,14 +69,20 @@ func TestManager_RTP(t *testing.T) {
 	var f1, f2 *udptransport2.Factory
 
 	tm1 := udptransport2.NewManager(udptransport2.ManagerParams{
-		Conn: udpConn1,
-		Log:  log,
+		Conn:           udpConn1,
+		Log:            log,
+		Clock:          clock.NewMock(),
+		PingTimeout:    3 * time.Second,
+		DestroyTimeout: 15 * time.Second,
 	})
 	defer tm1.Close()
 
 	tm2 := udptransport2.NewManager(udptransport2.ManagerParams{
-		Conn: udpConn2,
-		Log:  log,
+		Conn:           udpConn2,
+		Log:            log,
+		Clock:          clock.NewMock(),
+		PingTimeout:    3 * time.Second,
+		DestroyTimeout: 15 * time.Second,
 	})
 	defer tm2.Close()
 

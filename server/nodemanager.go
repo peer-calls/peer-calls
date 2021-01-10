@@ -3,10 +3,17 @@ package server
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/udptransport2"
+)
+
+const (
+	pingTimeout    = 3 * time.Second
+	destroyTimeout = 10 * time.Second
 )
 
 type NodeManager struct {
@@ -37,8 +44,11 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 	params.Log.Info("Listen on UDP", nil)
 
 	transportManager := udptransport2.NewManager(udptransport2.ManagerParams{
-		Conn: conn,
-		Log:  params.Log,
+		Conn:           conn,
+		Log:            params.Log,
+		Clock:          clock.New(),
+		PingTimeout:    pingTimeout,
+		DestroyTimeout: destroyTimeout,
 	})
 
 	nm := &NodeManager{
