@@ -26,6 +26,16 @@ func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManage
 	}
 }
 
+// Add adds a transport to the existing PeerManager. If the manager does not
+// exist, it is created.
+//
+// NOTE: rooms are created when the peer joins the room over the WebSocket
+// connection. The component in charge for this is the RoomManager.
+//
+// Add is called from two places:
+//  - When WebRTCTransports are created and peers join the room, or
+//  - When RoomManager event that a room was created: A server transport will
+//    be created for each configured node.
 func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -42,8 +52,6 @@ func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.
 		)
 		peerManager = NewPeerManager(room, m.log, jitterHandler)
 		m.peerManagers[room] = peerManager
-
-		// TODO Write to RoomEventsChan
 	}
 
 	log = log.WithCtx(logger.Ctx{
@@ -64,12 +72,9 @@ func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.
 
 		peerManager.Remove(tr.ClientID())
 
-		if tr.Type() == transport.TypeWebRTC {
-			if peerManager.WebRTCSize() == 0 {
-				peerManager.Close()
-				// TODO write to RoomEventsChan
-				delete(m.peerManagers, room)
-			}
+		if peerManager.Size() == 0 {
+			peerManager.Close()
+			delete(m.peerManagers, room)
 		}
 	}()
 

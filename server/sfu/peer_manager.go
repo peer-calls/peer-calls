@@ -488,12 +488,12 @@ func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
 	}
 }
 
-// WebRTCSize returns the total size of WebRTCTransports.
-func (t *PeerManager) WebRTCSize() int {
+// Size returns the total size of transports in the room.
+func (t *PeerManager) Size() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return len(t.webrtcTransports)
+	return len(t.webrtcTransports) + len(t.serverTransports)
 }
 
 func (t *PeerManager) Close() <-chan struct{} {
