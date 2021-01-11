@@ -38,7 +38,14 @@ func (t *ticker) Stop() {
 }
 
 func (t *ticker) Reset(d time.Duration) {
-	t.ticker.Reset(d)
+	ticker, ok := (interface{})(t.ticker).(interface {
+		Reset(time.Duration)
+	})
+	if !ok {
+		panic("Ticker.Reset not implemented in this Go version.")
+	}
+
+	ticker.Reset(d)
 }
 
 func (t *ticker) C() <-chan time.Time {
