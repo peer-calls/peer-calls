@@ -314,7 +314,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			case *rtcp.ReceiverReport:
 			case *rtcp.SenderReport:
 			default:
-				t.log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
+				log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
 					"destination_ssrc": pkt.DestinationSSRC(),
 				})
 			}
@@ -322,7 +322,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			if err != nil {
 				// Log error and do not return early because the RTCP channel still
 				// needs to be emptied.
-				t.log.Error("Send RTCP to source peer", errors.Trace(err), nil)
+				log.Error("Send RTCP to source peer", errors.Trace(err), nil)
 			}
 		}
 	}()
@@ -349,7 +349,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		for _, pubTransport := range t.webrtcTransports {
 			for _, trackInfo := range pubTransport.RemoteTracks() {
 				if err := pubTransport.AddTrack(trackInfo.Track); err != nil {
-					t.log.Error("add track", errors.Trace(err), logger.Ctx{
+					log.Error("add track", errors.Trace(err), logger.Ctx{
 						"pub_client_id": pubTransport.ClientID(),
 						"sub_client_id": tr.ClientID(),
 						"ssrc":          trackInfo.Track.SSRC(),
@@ -451,27 +451,28 @@ func (t *PeerManager) Remove(clientID string) {
 }
 
 func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
-	logCtx := logger.Ctx{
-		"client_id": clientID,
-		"ssrc":      track.SSRC(),
-	}
+	ssrc := track.SSRC()
 
-	t.log.Trace("Remove track", logCtx)
+	t.log.Trace("Remove track", logger.Ctx{
+		"client_id": clientID,
+		"ssrc":      ssrc,
+	})
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.pubsub.Unpub(clientID, track.SSRC())
+	t.pubsub.Unpub(clientID, ssrc)
 
-	t.trackBitrateEstimators.Remove(track.SSRC())
+	t.trackBitrateEstimators.Remove(ssrc)
 
 	// Let the server transports know the track has been removed.
 	for subClientID, subTransport := range t.serverTransports {
 		if subClientID != clientID {
-			if err := subTransport.RemoveTrack(track.SSRC()); err != nil {
+			if err := subTransport.RemoveTrack(ssrc); err != nil {
 				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
+					"pub_client_id": clientID,
 					"sub_client_id": subClientID,
-					"ssrc":          track.SSRC(),
+					"ssrc":          ssrc,
 				})
 
 				continue
