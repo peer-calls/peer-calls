@@ -149,7 +149,7 @@ type WebRTCTransport struct {
 	log logger.Logger
 
 	clientID string
-	roomID   string
+	// roomID   string
 
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
@@ -200,6 +200,7 @@ func NewWebRTCTransport(
 ) (*WebRTCTransport, error) {
 	log = log.WithNamespaceAppended("webrtc_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
+		"room_id":   roomID,
 	})
 
 	closePeer := func(reason error) error {
