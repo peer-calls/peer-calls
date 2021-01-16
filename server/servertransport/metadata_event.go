@@ -36,7 +36,7 @@ type initEventJSON struct {
 }
 
 // trackEventJSON is used instead of TrackEvent because JSON cannot deserialize
-// to Track interface, so a UserTrack is used.
+// to Track interface, so a SimpleTrack is used.
 type trackEventJSON struct {
 	ClientID  string
 	TrackInfo trackInfoJSON
@@ -45,7 +45,7 @@ type trackEventJSON struct {
 
 func newTrackEventJSON(trackEvent transport.TrackEvent) trackEventJSON {
 	// TODO watch out for possible panics.
-	track := trackEvent.TrackInfo.Track.(transport.UserTrack)
+	track := trackEvent.TrackInfo.Track.(transport.SimpleTrack)
 
 	return trackEventJSON{
 		ClientID: trackEvent.ClientID,
@@ -72,7 +72,7 @@ func (t trackEventJSON) trackEvent(clientID string) transport.TrackEvent {
 }
 
 type trackInfoJSON struct {
-	Track transport.UserTrack
+	Track transport.SimpleTrack
 	Kind  webrtc.RTPCodecType
 	Mid   string
 }

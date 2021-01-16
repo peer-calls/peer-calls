@@ -484,10 +484,8 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackInfo {
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
 	trackInfo := transport.TrackInfo{
-		Track: transport.NewUserTrack(
-			transport.NewSimpleTrack(track.PayloadType(), track.SSRC(), track.ID(), track.Label()),
-			p.clientID,
-			p.roomID,
+		Track: transport.NewSimpleTrack(
+			p.clientID, track.PayloadType(), track.SSRC(), track.ID(), track.Label(),
 		),
 		Kind: track.Kind(),
 		Mid:  "",

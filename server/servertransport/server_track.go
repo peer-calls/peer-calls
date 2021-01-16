@@ -8,7 +8,7 @@ import (
 )
 
 type ServerTrack struct {
-	transport.UserTrack
+	transport.SimpleTrack
 
 	subCount int64
 

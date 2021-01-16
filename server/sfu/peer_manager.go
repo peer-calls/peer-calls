@@ -1,7 +1,6 @@
 package sfu
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/juju/errors"
@@ -402,15 +401,7 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	m = make([]TrackMetadata, 0, len(tracks))
 
 	for _, trackInfo := range tracks {
-		track, ok := trackInfo.Track.(transport.UserTrack)
-		if !ok {
-			t, ok := trackInfo.Track.(*servertransport.ServerTrack)
-			if !ok {
-				panic(fmt.Sprintf("Unknown type of track: %T", trackInfo.Track))
-			}
-
-			track = t.UserTrack
-		}
+		track := trackInfo.Track
 
 		trackMetadata := TrackMetadata{
 			Kind:     trackInfo.Kind.String(),

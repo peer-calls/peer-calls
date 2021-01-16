@@ -1,28 +1,23 @@
-package transport_test
+package transport
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTrack(t *testing.T) {
-	t.Parallel()
-
-	t1 := transport.NewSimpleTrack(3, 123, "a", "b")
+func TestSimpleTrack(t *testing.T) {
+	t1 := NewSimpleTrack("xyz", 3, 123, "a", "b")
 
 	b, err := json.Marshal(t1)
-	fmt.Println(string(b))
 	assert.NoError(t, err)
 
-	t2 := transport.SimpleTrack{}
+	t2 := SimpleTrack{}
 	err = json.Unmarshal(b, &t2)
 	assert.NoError(t, err)
-	assert.Equal(t, t1, t2)
 
+	assert.Equal(t, "xyz", t2.UserID())
 	assert.Equal(t, uint8(3), t2.PayloadType())
 	assert.Equal(t, uint32(123), t2.SSRC())
 	assert.Equal(t, "a", t2.ID())

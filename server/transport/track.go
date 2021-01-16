@@ -5,4 +5,5 @@ type Track interface {
 	SSRC() uint32
 	ID() string
 	Label() string
+	UserID() string
 }

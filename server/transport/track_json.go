@@ -5,4 +5,5 @@ type TrackJSON struct {
 	SSRC        uint32 `json:"ssrc"`
 	ID          string `json:"id"`
 	Label       string `json:"label"`
+	UserID      string `json:"userId"`
 }

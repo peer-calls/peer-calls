@@ -59,7 +59,7 @@ func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID s
 
 func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack {
 	return &ServerTrack{
-		UserTrack: trackInfo.Track,
+		SimpleTrack: trackInfo.Track,
 		onSub: func() error {
 			t.log.Info("Sub", logger.Ctx{
 				"ssrc":      trackInfo.Track.SSRC(),

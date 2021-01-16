@@ -85,11 +85,7 @@ func TestManager_RTP(t *testing.T) {
 	})
 	defer tm2.Close()
 
-	track := transport.NewUserTrack(
-		transport.NewSimpleTrack(8, 1, "a", "aa"),
-		"user1",
-		"test-stream",
-	)
+	track := transport.NewSimpleTrack("user1", 8, 1, "a", "aa")
 
 	var wg sync.WaitGroup
 
