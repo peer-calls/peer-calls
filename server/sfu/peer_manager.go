@@ -1,6 +1,7 @@
 package sfu
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/juju/errors"
@@ -313,7 +314,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			case *rtcp.ReceiverReport:
 			case *rtcp.SenderReport:
 			default:
-				t.log.Error("Unhandled RTCP Packet", nil, logger.Ctx{
+				t.log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
 					"destination_ssrc": pkt.DestinationSSRC(),
 				})
 			}
