@@ -50,7 +50,7 @@ func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.
 			log,
 			m.jitterBufferEnabled,
 		)
-		peerManager = NewPeerManager(room, m.log, jitterHandler)
+		peerManager = NewPeerManager(room, log, jitterHandler)
 		m.peerManagers[room] = peerManager
 	}
 
