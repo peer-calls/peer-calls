@@ -39,7 +39,7 @@ type MediaTransport interface {
 	WriteRTCP([]rtcp.Packet) error
 	WriteRTP(*rtp.Packet) (int, error)
 	RTPChannel() <-chan *rtp.Packet
-	RTCPChannel() <-chan rtcp.Packet
+	RTCPChannel() <-chan []rtcp.Packet
 }
 
 type DataTransport interface {

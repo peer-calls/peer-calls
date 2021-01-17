@@ -14,7 +14,7 @@ import (
 type MediaTransport struct {
 	conn   io.ReadWriteCloser
 	rtpCh  chan *rtp.Packet
-	rtcpCh chan rtcp.Packet // TODO change to []rtcp.Packet
+	rtcpCh chan []rtcp.Packet
 	log    logger.Logger
 
 	stats struct {
@@ -36,7 +36,7 @@ func NewMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *MediaTranspo
 	t := MediaTransport{
 		conn:   conn,
 		rtpCh:  make(chan *rtp.Packet),
-		rtcpCh: make(chan rtcp.Packet),
+		rtcpCh: make(chan []rtcp.Packet),
 		log:    log.WithNamespaceAppended("server_media_transport"),
 	}
 
@@ -121,10 +121,7 @@ func (t *MediaTransport) handleRTCP(buf []byte) error {
 		return errors.Annotatef(err, "unmarshal RTCP")
 	}
 
-	// TODO we should probably keep RTCP packets together.
-	for _, pkt := range pkts {
-		t.rtcpCh <- pkt
-	}
+	t.rtcpCh <- pkts
 
 	return nil
 }
@@ -167,7 +164,7 @@ func (t *MediaTransport) RTPChannel() <-chan *rtp.Packet {
 	return t.rtpCh
 }
 
-func (t *MediaTransport) RTCPChannel() <-chan rtcp.Packet {
+func (t *MediaTransport) RTCPChannel() <-chan []rtcp.Packet {
 	return t.rtcpCh
 }
 

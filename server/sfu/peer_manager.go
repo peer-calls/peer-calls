@@ -301,28 +301,30 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			return errors.Annotatef(errs.Err(), "nack")
 		}
 
-		for pkt := range tr.RTCPChannel() {
-			var err error
-			switch packet := pkt.(type) {
-			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				err = errors.Trace(handleREMB(packet))
-			case *rtcp.PictureLossIndication:
-				err = errors.Trace(handlePLI(packet))
-			case *rtcp.TransportLayerNack:
-				err = errors.Trace(handleNack(packet))
-			case *rtcp.SourceDescription:
-			case *rtcp.ReceiverReport:
-			case *rtcp.SenderReport:
-			default:
-				log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
-					"destination_ssrc": pkt.DestinationSSRC(),
-				})
-			}
+		for pkts := range tr.RTCPChannel() {
+			for _, pkt := range pkts {
+				var err error
+				switch packet := pkt.(type) {
+				case *rtcp.ReceiverEstimatedMaximumBitrate:
+					err = errors.Trace(handleREMB(packet))
+				case *rtcp.PictureLossIndication:
+					err = errors.Trace(handlePLI(packet))
+				case *rtcp.TransportLayerNack:
+					err = errors.Trace(handleNack(packet))
+				case *rtcp.SourceDescription:
+				case *rtcp.ReceiverReport:
+				case *rtcp.SenderReport:
+				default:
+					log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
+						"destination_ssrc": pkt.DestinationSSRC(),
+					})
+				}
 
-			if err != nil {
-				// Log error and do not return early because the RTCP channel still
-				// needs to be emptied.
-				log.Error("Send RTCP to source peer", errors.Trace(err), nil)
+				if err != nil {
+					// Log error and do not return early because the RTCP channel still
+					// needs to be emptied.
+					log.Error("Send RTCP to source peer", errors.Trace(err), nil)
+				}
 			}
 		}
 	}()

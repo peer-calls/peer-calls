@@ -157,7 +157,7 @@ type WebRTCTransport struct {
 
 	trackEventsCh chan transport.TrackEvent
 	rtpCh         chan *rtp.Packet
-	rtcpCh        chan rtcp.Packet
+	rtcpCh        chan []rtcp.Packet
 
 	localTracks  map[uint32]localTrack
 	remoteTracks map[uint32]remoteTrack
@@ -260,7 +260,7 @@ func NewWebRTCTransport(
 
 		trackEventsCh: make(chan transport.TrackEvent),
 		rtpCh:         make(chan *rtp.Packet),
-		rtcpCh:        make(chan rtcp.Packet),
+		rtcpCh:        make(chan []rtcp.Packet),
 
 		localTracks:  map[uint32]localTrack{},
 		remoteTracks: map[uint32]remoteTrack{},
@@ -404,13 +404,17 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 				return
 			}
 
-			for _, rtcpPacket := range rtcpPackets {
-				p.log.Trace("ReadRTCP", logger.Ctx{
-					"packet": rtcpPacket,
-				})
-				prometheusRTCPPacketsReceived.Inc()
-				p.rtcpCh <- rtcpPacket
+			if p.log.IsLevelEnabled(logger.LevelTrace) {
+				for _, rtcpPacket := range rtcpPackets {
+					p.log.Trace("ReadRTCP", logger.Ctx{
+						"packet": rtcpPacket,
+					})
+				}
 			}
+
+			prometheusRTCPPacketsReceived.Add(float64(len(rtcpPackets)))
+
+			p.rtcpCh <- rtcpPackets
 		}
 	}()
 
@@ -576,7 +580,7 @@ func (p *WebRTCTransport) RTPChannel() <-chan *rtp.Packet {
 	return p.rtpCh
 }
 
-func (p *WebRTCTransport) RTCPChannel() <-chan rtcp.Packet {
+func (p *WebRTCTransport) RTCPChannel() <-chan []rtcp.Packet {
 	return p.rtcpCh
 }
 

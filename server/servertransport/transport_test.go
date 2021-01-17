@@ -161,9 +161,10 @@ func TestServerMediaTransport_RTCP(t *testing.T) {
 	sentBytes, err := senderReport.Marshal()
 	require.NoError(t, err)
 
-	recvPkt := <-t2.RTCPChannel()
+	recvPkts := <-t2.RTCPChannel()
+	assert.Equal(t, 1, len(recvPkts))
 
-	recvBytes, err := recvPkt.Marshal()
+	recvBytes, err := recvPkts[0].Marshal()
 	require.NoError(t, err)
 
 	assert.Equal(t, sentBytes, recvBytes)
