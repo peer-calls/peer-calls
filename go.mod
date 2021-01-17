@@ -20,7 +20,6 @@ require (
 	github.com/pion/sctp v1.7.10
 	github.com/pion/webrtc/v3 v3.0.0-beta.2
 	github.com/prometheus/client_golang v1.6.0
-	github.com/prometheus/common v0.9.1
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/goleak v1.0.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect

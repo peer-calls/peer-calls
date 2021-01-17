@@ -76,6 +76,7 @@ func (n *NackHandler) HandleNack(nack *rtcp.TransportLayerNack) ([]*rtp.Packet, 
 			})
 
 			// JitterBuffer had the missing packet, add it to the list
+			// FIXME https://github.com/peer-calls/peer-calls/issues/185
 			rtpPackets = append(rtpPackets, rtpPacket)
 		}
 

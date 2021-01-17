@@ -100,3 +100,109 @@ we need to recreate the factory. This can be implemented with pings in the
 control channel, and could actually be done internally in factory.  I don't
 think this is an immediate problem that needs to be handled right now, but
 something to think about in the future.
+
+# Sender and Receiver reports
+
+Sender and receiver reports should be taken into account, and the SFU should
+produce these reports.
+
+For example, imagine a sfu with 3 peers in the same room, each is sending a
+video and an audio track. Peer A is interested in both tracks from other peers,
+while peer B is only intersted in audio tracks and peer C only in video tracks.
+
+
++--------+   SSRC 1 audio           +-------------+
+| Peer A |------------------------->| SFU peer A' |---------------\
+|        |                          |             |               |
+|        |   SSRC 2 video           |             |               |
+|        |------------------------->|             |-------------- | -\
+|        |                          |             |               |  |
+|        |   SSRC 3 audio           |             |               |  |
+|        |<-------------------------|             |--\            |  |
+|        |                          |             |  |            |  |
+|        |   SSRC 4 video           |             |  |            |  |
+|        |<-------------------------|             |<-| -\         |  |
+|        |                          |             |  |  |         |  |
+|        |   SSRC 5 audio           |             |  |  |         |  |
+|        |<-------------------------|             |<-|--|--\      |  |
+|        |                          |             |  |  |  |      |  |
+|        |   SSRC 6 video           |             |  |  |  |      |  |
+|        |<-------------------------|             |<-|--|--| -\   |  |
++--------+                          +-------------+  |  |  |  |   |  |
+                                                     |  |  |  |   |  |
++--------+   SSRC 3 audio           +-------------+  |  |  |  |   |  |
+| Peer B |------------------------->| SFU peer B' |--/  |  |  |   |  |
+|        |                          |             |     |  |  |   |  |
+|        |   SSRC 4 video           |             |     |  |  |   |  |
+|        |------------------------->|             |-----+  |  |   |  |
+|        |                          |             |     |  |  |   |  |
+|        |   SSRC 1 audio           |             |     |  |  |   |  |
+|        |<-------------------------|             |<-------|--|---/  |
+|        |                          |             |     |  |  |      |
+|        |   SSRC 5 video           |             |     |  |  |      |
+|        |<-------------------------|             |<-------+  |      |
++--------+                          +-------------+     |  |  |      |
+                                                        |  |  |      |
++--------+   SSRC 5 audio           +-------------+     |  |  |      |
+| Peer C |------------------------->| SFU peer C' |--------/  |      |
+|        |                          |             |     |     |      |
+|        |   SSRC 6 video           |             |     |     |      |
+|        |------------------------->|             |-----------/      |
+|        |                          |             |     |            |
+|        |   SSRC 2 video           |             |     |            |
+|        |<-------------------------|             |------------------/
+|        |                          |             |     |
+|        |   SSRC 4 video           |             |     |
+|        |<-------------------------|             |<----/
++--------+                          +-------------+
+
+In the scenario above:
+
+- Peer A should send sender reports for SSRCs 1 and 2, and reception reports
+  for SSRCs 3, 4, 5, and 6.
+- Peer B should send sender reports for SSRCs 3 and 4, and reception reports
+  for SSRCs 1 and 5.
+- Peer C should send sender reports for SSRCs 5 and 6, and reception reports
+  for SSRCs 2 and 4.
+
+In the screen above, the peers are usually web browsers and they already send
+this information.
+
+On the SFU side,
+
+Peer A' should:
+
+1. Send reports to peer A: sender reports for SSRCs 3, 4, 5, and 6 to Peer
+   A, and reception reports for SSRCs 1 and 2.
+
+Peer B' should:
+
+1. Send reports to peer B: sender reports for SSRCs 1 and 5, and reception
+   reports for SSRcs 3 and 4.
+
+Peer C' should:
+
+1. Send reports to peer C: sender reports for SSRCs 2 and 4, and reception
+   reports for SSRcs 5 and 6.
+
+
+One might think the following: It does not make sense to send any kinds of
+reports between SFU peers because they are already on the same node. This is
+true, however not completely. There is no reason for peers A', B' and C' to
+send RTCP packets to each other, but the SFU should send
+
+But,
+this is not true. Peer B should be able to adjust the send rate[1] if the SFU
+notices that packets for SSRC 4 aren't being delivered on time to its
+subcsribers* (to Peer A and C). Instead, the reception reports for SSRC 4
+should be forwarded to the originating node (SFU peer B'), which should decide
+which stats to use before sending a report to Peer B'.
+
+When there are no track subscribers on the SFU, the SFU might just calculate
+the reception reports on its own. But when subscribers exist, the reception
+reports from these subscribers should be used (combined).
+
+[1]: *Of course, it wouldn't make sense to lower the bitrate for all peers that
+are capable of receiving all packets on time, and there's a single peer with a
+bad connection. More on this later (this can probably be solved by Simulcast,
+at least partially).

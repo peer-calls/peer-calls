@@ -313,7 +313,17 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 					err = errors.Trace(handleNack(packet))
 				case *rtcp.SourceDescription:
 				case *rtcp.ReceiverReport:
+					// ReceiverReport is sent by remote side when it sent no packets
+					// (since the last report?).
+					//
+					// The reception reports in this packet are about local tracks being
+					// sent to the remote side of this transport.
 				case *rtcp.SenderReport:
+					// The sender report is about tracks currently being received from
+					// the remote side of this transport.
+					//
+					// The reception reports in this packet are about local tracks being
+					// sent to the remote side of this transport.
 				default:
 					log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
 						"destination_ssrc": pkt.DestinationSSRC(),
