@@ -100,7 +100,7 @@ func NewWebRTCTransportFactory(
 	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
 
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(mediaEngine),
+		webrtc.WithMediaEngine(&mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
 	)
 
@@ -108,7 +108,19 @@ func NewWebRTCTransportFactory(
 }
 
 func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
-	mediaEngine.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+	err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:     "audio/opus",
+			ClockRate:    48000,
+			Channels:     0,
+			SDPFmtpLine:  "",
+			RTCPFeedback: nil,
+		},
+		PayloadType: 111,
+	}, webrtc.RTPCodecTypeAudio)
+	if err != nil {
+		panic(err) // TODO handle gracefully
+	}
 
 	rtcpfb := []webrtc.RTCPFeedback{
 		{
@@ -137,9 +149,19 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 		})
 	}
 
-	// s.mediaEngine.RegisterCodec(webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, IOSH264Fmtp))
-	// s.mediaEngine.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
-	mediaEngine.RegisterCodec(webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, ""))
+	err = mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType:     "video/VP8",
+			ClockRate:    90000,
+			Channels:     0,
+			SDPFmtpLine:  "",
+			RTCPFeedback: rtcpfb,
+		},
+		PayloadType: 96,
+	}, webrtc.RTPCodecTypeVideo)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type WebRTCTransport struct {
@@ -156,11 +178,11 @@ type WebRTCTransport struct {
 	dataTransceiver *DataTransceiver
 
 	trackEventsCh chan transport.TrackEvent
-	rtpCh         chan *rtp.Packet
-	rtcpCh        chan []rtcp.Packet
+	rtpCh         chan transport.RTPPacket
+	rtcpCh        chan transport.RTCPPacket
 
-	localTracks  map[uint32]localTrack
-	remoteTracks map[uint32]remoteTrack
+	localTracks  map[transport.TrackID]localTrack
+	remoteTracks map[transport.TrackID]remoteTrack
 }
 
 var _ transport.Transport = &WebRTCTransport{}
@@ -259,11 +281,11 @@ func NewWebRTCTransport(
 		dataTransceiver: dataTransceiver,
 
 		trackEventsCh: make(chan transport.TrackEvent),
-		rtpCh:         make(chan *rtp.Packet),
-		rtcpCh:        make(chan []rtcp.Packet),
+		rtpCh:         make(chan transport RTPPacket),
+		rtcpCh:        make(chan transport.RTCPPacket),
 
-		localTracks:  map[uint32]localTrack{},
-		remoteTracks: map[uint32]remoteTrack{},
+		localTracks:  map[transport.TrackID]localTrack{},
+		remoteTracks: map[transport.TrackID]remoteTrack{},
 	}
 	peerConnection.OnTrack(transport.handleTrack)
 
@@ -284,14 +306,14 @@ type localTrack struct {
 	trackInfo   transport.TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	sender      *webrtc.RTPSender
-	track       *webrtc.Track
+	track       *webrtc.TrackLocalStaticRTP
 }
 
 type remoteTrack struct {
 	trackInfo   transport.TrackInfo
 	transceiver *webrtc.RTPTransceiver
 	receiver    *webrtc.RTPReceiver
-	track       *webrtc.Track
+	track       *webrtc.TrackRemote
 }
 
 func (p *WebRTCTransport) Close() error {
@@ -323,20 +345,20 @@ func (p *WebRTCTransport) Done() <-chan struct{} {
 	return p.signaller.Done()
 }
 
-func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
+func (p *WebRTCTransport) WriteRTP(packet transport.RTPPacket) (bytes int, err error) {
 	p.log.Trace("WriteRTP", logger.Ctx{
 		"packet": packet,
 	})
 
 	p.mu.RLock()
-	pta, ok := p.localTracks[packet.SSRC]
+	pta, ok := p.localTracks[packet.TrackID]
 	p.mu.RUnlock()
 
 	if !ok {
-		return 0, errors.Errorf("track %d not found", packet.SSRC)
+		return 0, errors.Errorf("track %s not found", packet.TrackID)
 	}
 
-	err = pta.track.WriteRTP(packet)
+	err = pta.track.WriteRTP(packet.Packet)
 	if errIs(err, io.ErrClosedPipe) {
 		// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 		return 0, nil
@@ -347,23 +369,23 @@ func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
 	}
 
 	prometheusRTPPacketsSent.Inc()
-	prometheusRTPPacketsSentBytes.Add(float64(packet.MarshalSize()))
+	prometheusRTPPacketsSentBytes.Add(float64(packet.Packet.MarshalSize()))
 
-	return packet.MarshalSize(), nil
+	return packet.Packet.MarshalSize(), nil
 }
 
-func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
+func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 	p.mu.Lock()
 
-	pta, ok := p.localTracks[ssrc]
+	pta, ok := p.localTracks[trackID]
 	if ok {
-		delete(p.localTracks, ssrc)
+		delete(p.localTracks, trackID)
 	}
 
 	p.mu.Unlock()
 
 	if !ok {
-		return errors.Errorf("track %d not found", ssrc)
+		return errors.Errorf("track %s not found", trackID)
 	}
 
 	err := p.peerConnection.RemoveTrack(pta.sender)
@@ -377,7 +399,8 @@ func (p *WebRTCTransport) RemoveTrack(ssrc uint32) error {
 }
 
 func (p *WebRTCTransport) AddTrack(t transport.Track) error {
-	track, err := p.peerConnection.NewTrack(t.PayloadType(), t.SSRC(), t.ID(), t.Label())
+	track, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, t.ID(), t.StreamID())
+
 	if err != nil {
 		return errors.Annotate(err, "new track")
 	}
@@ -399,7 +422,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 		defer p.wg.Done()
 
 		for {
-			rtcpPackets, err := sender.ReadRTCP()
+			rtcpPackets, _, err := sender.ReadRTCP()
 			if err != nil {
 				return
 			}
@@ -430,12 +453,11 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 
 	trackInfo := transport.TrackInfo{
 		Track: t,
-		Kind:  track.Kind(),
 		Mid:   "",
 	}
 
 	p.mu.Lock()
-	p.localTracks[t.SSRC()] = localTrack{trackInfo, transceiver, sender, track}
+	p.localTracks[t.UniqueID()] = localTrack{trackInfo, transceiver, sender, track}
 	p.mu.Unlock()
 
 	return nil
@@ -445,14 +467,14 @@ func (p *WebRTCTransport) addRemoteTrack(rti remoteTrack) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.remoteTracks[rti.trackInfo.Track.SSRC()] = rti
+	p.remoteTracks[rti.trackInfo.Track.UniqueID()] = rti
 }
 
-func (p *WebRTCTransport) removeRemoteTrack(ssrc uint32) {
+func (p *WebRTCTransport) removeRemoteTrack(trackID transport.TrackID) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	delete(p.remoteTracks, ssrc)
+	delete(p.remoteTracks, trackID)
 }
 
 // RemoteTracks returns info about receiving tracks
@@ -487,17 +509,20 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackInfo {
 	return list
 }
 
-func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
+func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+	mimeType := track.Codec().MimeType
+	_ = mimeType // FIXME
+
 	trackInfo := transport.TrackInfo{
 		Track: transport.NewSimpleTrack(
-			p.clientID, track.PayloadType(), track.SSRC(), track.ID(), track.Label(),
+			p.clientID, mimeType, track.ID(), track.StreamID(),
 		),
-		Kind: track.Kind(),
-		Mid:  "",
+		Mid: "",
 	}
 
 	log := p.log.WithCtx(logger.Ctx{
-		"ssrc": trackInfo.Track.SSRC(),
+		"track_id":  trackInfo.Track.ID(),
+		"stream_id": trackInfo.Track.StreamID(),
 	})
 
 	log.Info("Remote track", nil)
@@ -530,7 +555,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 
 	go func() {
 		defer func() {
-			p.removeRemoteTrack(trackInfo.Track.SSRC())
+			p.removeRemoteTrack(trackInfo.Track.UniqueID())
 			p.trackEventsCh <- transport.TrackEvent{
 				TrackInfo: trackInfo,
 				Type:      transport.TrackEventTypeRemove,
@@ -544,7 +569,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.Track, receiver *webrtc.RTPR
 		}()
 
 		for {
-			pkt, err := track.ReadRTP()
+			pkt, _, err := track.ReadRTP()
 			if err != nil {
 				log.Error("Read RTP", errors.Trace(err), nil)
 

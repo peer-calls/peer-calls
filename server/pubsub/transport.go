@@ -10,7 +10,7 @@ type Transport interface {
 	ClientID() string
 
 	AddTrack(track transport.Track) error
-	RemoveTrack(ssrc uint32) error
+	RemoveTrack(trackID transport.TrackID) error
 }
 
 // Assert that Transport is compatible with the transport.Transport.

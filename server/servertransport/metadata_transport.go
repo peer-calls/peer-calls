@@ -16,8 +16,8 @@ type MetadataTransport struct {
 	conn     io.ReadWriteCloser
 	log      logger.Logger
 
-	localTracks  map[uint32]transport.TrackInfo
-	remoteTracks map[uint32]transport.TrackInfo
+	localTracks  map[transport.TrackID]transport.TrackInfo
+	remoteTracks map[transport.TrackID]transport.TrackInfo
 	mu           *sync.RWMutex
 
 	trackEventsCh chan transport.TrackEvent
@@ -37,8 +37,8 @@ func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID s
 		clientID:     clientID,
 		log:          log,
 		conn:         conn,
-		localTracks:  map[uint32]transport.TrackInfo{},
-		remoteTracks: map[uint32]transport.TrackInfo{},
+		localTracks:  map[transport.TrackID]transport.TrackInfo{},
+		remoteTracks: map[transport.TrackID]transport.TrackInfo{},
 		mu:           &sync.RWMutex{},
 
 		trackEventsCh: make(chan transport.TrackEvent),
@@ -62,14 +62,13 @@ func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack
 		SimpleTrack: trackInfo.Track,
 		onSub: func() error {
 			t.log.Info("Sub", logger.Ctx{
-				"ssrc":      trackInfo.Track.SSRC(),
+				"track_id":  trackInfo.Track.UniqueID(),
 				"client_id": t.clientID,
 			})
 
 			err := t.sendTrackEvent(transport.TrackEvent{
 				TrackInfo: transport.TrackInfo{
 					Track: trackInfo.Track,
-					Kind:  trackInfo.Kind,
 					Mid:   trackInfo.Mid,
 				},
 				ClientID: t.clientID,
@@ -80,14 +79,13 @@ func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack
 		},
 		onUnsub: func() error {
 			t.log.Info("Unsub", logger.Ctx{
-				"ssrc":      trackInfo.Track.SSRC(),
 				"client_id": t.clientID,
+				"track_id":  trackInfo.Track.UniqueID(),
 			})
 
 			err := t.sendTrackEvent(transport.TrackEvent{
 				TrackInfo: transport.TrackInfo{
 					Track: trackInfo.Track,
-					Kind:  trackInfo.Kind,
 					Mid:   trackInfo.Mid,
 				},
 				ClientID: t.clientID,
@@ -175,16 +173,16 @@ func (t *MetadataTransport) startReadLoop() {
 
 			switch trackEvent.Type {
 			case transport.TrackEventTypeAdd:
-				ssrc := trackEvent.TrackInfo.Track.SSRC()
+				trackID := trackEvent.TrackInfo.Track.UniqueID()
 				t.mu.Lock()
 				// Skip event in case of a refresh event, and track information has
 				// already been received.
-				_, skipEvent = t.remoteTracks[ssrc]
-				t.remoteTracks[ssrc] = trackEvent.TrackInfo
+				_, skipEvent = t.remoteTracks[trackID]
+				t.remoteTracks[trackID] = trackEvent.TrackInfo
 				t.mu.Unlock()
 			case transport.TrackEventTypeRemove:
 				t.mu.Lock()
-				delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
+				delete(t.remoteTracks, trackEvent.TrackInfo.Track.UniqueID())
 				t.mu.Unlock()
 			case transport.TrackEventTypeSub:
 			case transport.TrackEventTypeUnsub:
@@ -236,11 +234,10 @@ func (t *MetadataTransport) AddTrack(track transport.Track) error {
 
 	trackInfo := transport.TrackInfo{
 		Track: track,
-		Kind:  t.getCodecType(track.PayloadType()),
 		Mid:   "",
 	}
 
-	t.localTracks[track.SSRC()] = trackInfo
+	t.localTracks[track.UniqueID()] = trackInfo
 
 	trackEvent := transport.TrackEvent{
 		TrackInfo: trackInfo,
@@ -274,25 +271,27 @@ func (t *MetadataTransport) sendMetadataEvent(event metadataEvent) error {
 }
 
 func (t *MetadataTransport) getCodecType(payloadType uint8) webrtc.RTPCodecType {
-	// TODO These values are dynamic and are only valid when they are set in
-	// media engine _and_ when we initiate peer connections.
-	if payloadType == webrtc.DefaultPayloadTypeVP8 {
-		return webrtc.RTPCodecTypeVideo
-	}
+	// // TODO These values are dynamic and are only valid when they are set in
+	// // media engine _and_ when we initiate peer connections.
+	// if payloadType == webrtc.DefaultPayloadTypeVP {
+	// 	return webrtc.RTPCodecTypeVideo
+	// }
+
+	// FIXME
 
 	return webrtc.RTPCodecTypeAudio
 }
 
-func (t *MetadataTransport) RemoveTrack(ssrc uint32) error {
+func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	t.mu.Lock()
 
-	trackInfo, ok := t.localTracks[ssrc]
-	delete(t.localTracks, ssrc)
+	trackInfo, ok := t.localTracks[trackID]
+	delete(t.localTracks, trackID)
 
 	t.mu.Unlock()
 
 	if !ok {
-		return errors.Errorf("remove track: not found: %d", ssrc)
+		return errors.Errorf("remove track: not found: %s", trackID)
 	}
 
 	trackEvent := transport.TrackEvent{

@@ -1,22 +1,17 @@
 package pubsub
 
+import "github.com/peer-calls/peer-calls/server/transport"
+
 type PubTrack struct {
-	ClientID string `json:"clientId"`
-	UserID   string `json:"userId"`
-	SSRC     uint32 `json:"ssrc"`
+	ClientID string            `json:"clientId"`
+	UserID   string            `json:"userId"`
+	TrackID  transport.TrackID `json:"trackId"`
 }
 
 func newPubTrack(pb *pub) PubTrack {
-	var userID string
-
-	userTrack, ok := pb.track.(userIdentifiable)
-	if ok {
-		userID = userTrack.UserID()
-	}
-
 	return PubTrack{
-		SSRC:     pb.track.SSRC(),
 		ClientID: pb.clientID,
-		UserID:   userID,
+		TrackID:  pb.track.UniqueID(),
+		UserID:   pb.track.UserID(),
 	}
 }

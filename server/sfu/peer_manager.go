@@ -2,6 +2,7 @@ package sfu
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/juju/errors"
@@ -51,7 +52,7 @@ func (t *PeerManager) addTrack(clientID string, track transport.Track) {
 
 	log := t.log.WithCtx(logger.Ctx{
 		"client_id": clientID,
-		"ssrc":      track.SSRC(),
+		"track_id":  track.UniqueID(),
 	})
 
 	log.Trace("Add track", logger.Ctx{
@@ -190,7 +191,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 				if err := t.Sub(SubParams{
 					Room:        t.room,
 					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
-					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
+					TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
 					SubClientID: tr.ClientID(),
 				}); err != nil {
 					log.Error("sub failed", errors.Trace(err), nil)
@@ -199,7 +200,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 				if err := t.Unsub(SubParams{
 					Room:        t.room,
 					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
-					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
+					TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
 					SubClientID: tr.ClientID(),
 				}); err != nil {
 					log.Error("sub failed", errors.Trace(err), nil)
@@ -360,11 +361,12 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 		for _, pubTransport := range t.webrtcTransports {
 			for _, trackInfo := range pubTransport.RemoteTracks() {
+				// FIXME should this be tr.AddTrack???
 				if err := pubTransport.AddTrack(trackInfo.Track); err != nil {
 					log.Error("add track", errors.Trace(err), logger.Ctx{
 						"pub_client_id": pubTransport.ClientID(),
 						"sub_client_id": tr.ClientID(),
-						"ssrc":          trackInfo.Track.SSRC(),
+						"track_id":      trackInfo.Track.UniqueID(),
 					})
 				}
 			}
@@ -386,7 +388,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
 
-	err := t.pubsub.Sub(params.PubClientID, params.SSRC, transport)
+	err := t.pubsub.Sub(params.PubClientID, params.TrackID, transport)
 
 	return errors.Trace(err)
 }
@@ -395,7 +397,7 @@ func (t *PeerManager) Unsub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	err := t.pubsub.Unsub(params.PubClientID, params.SSRC, params.SubClientID)
+	err := t.pubsub.Unsub(params.PubClientID, params.TrackID, params.SubClientID)
 
 	return errors.Trace(err)
 }
@@ -416,15 +418,26 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	for _, trackInfo := range tracks {
 		track := trackInfo.Track
 
+		var kind webrtc.RTPCodecType
+
+		switch {
+		case strings.HasPrefix(track.MimeType(), "audio/"):
+			kind = webrtc.RTPCodecTypeAudio
+		case strings.HasPrefix(track.MimeType(), "video/"):
+			kind = webrtc.RTPCodecTypeVideo
+		default:
+			kind = webrtc.RTPCodecType(0)
+		}
+
 		trackMetadata := TrackMetadata{
-			Kind:     trackInfo.Kind.String(),
 			Mid:      trackInfo.Mid,
-			StreamID: track.Label(),
+			StreamID: track.StreamID(),
 			UserID:   track.UserID(),
+			Kind:     kind.String(),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{
-			"ssrc":      track.SSRC(),
+			"track_id":  track.UniqueID(),
 			"client_id": clientID,
 		})
 
@@ -463,28 +476,28 @@ func (t *PeerManager) Remove(clientID string) {
 }
 
 func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
-	ssrc := track.SSRC()
+	trackID := track.UniqueID()
 
 	t.log.Trace("Remove track", logger.Ctx{
 		"client_id": clientID,
-		"ssrc":      ssrc,
+		"track_id":  trackID,
 	})
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.pubsub.Unpub(clientID, ssrc)
+	t.pubsub.Unpub(clientID, trackID)
 
 	t.trackBitrateEstimators.Remove(ssrc)
 
 	// Let the server transports know the track has been removed.
 	for subClientID, subTransport := range t.serverTransports {
 		if subClientID != clientID {
-			if err := subTransport.RemoveTrack(ssrc); err != nil {
+			if err := subTransport.RemoveTrack(trackID); err != nil {
 				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
 					"pub_client_id": clientID,
 					"sub_client_id": subClientID,
-					"ssrc":          ssrc,
+					"track_id":      trackID,
 				})
 
 				continue

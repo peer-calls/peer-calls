@@ -15,15 +15,14 @@ require (
 	github.com/juju/testing v0.0.0-20201030020617-7189b3728523 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/pion/logging v0.2.2
-	github.com/pion/rtcp v1.2.3
-	github.com/pion/rtp v1.6.0
-	github.com/pion/sctp v1.7.10
-	github.com/pion/webrtc/v3 v3.0.0-beta.2
+	github.com/pion/rtcp v1.2.6
+	github.com/pion/rtp v1.6.2
+	github.com/pion/sctp v1.7.11
+	github.com/pion/webrtc/v3 v3.0.4
 	github.com/prometheus/client_golang v1.6.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/goleak v1.0.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/net v0.0.0-20201031054903-ff519b6c9102 // indirect
 	golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3 // indirect
 	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/tools v0.0.0-20201201161351-ac6f37ff4c2a // indirect

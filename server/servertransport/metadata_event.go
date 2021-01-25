@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/peer-calls/peer-calls/server/transport"
-	"github.com/pion/webrtc/v3"
 )
 
 type metadataEvent struct {
@@ -51,7 +50,6 @@ func newTrackEventJSON(trackEvent transport.TrackEvent) trackEventJSON {
 		ClientID: trackEvent.ClientID,
 		TrackInfo: trackInfoJSON{
 			Track: track,
-			Kind:  trackEvent.TrackInfo.Kind,
 			Mid:   trackEvent.TrackInfo.Mid,
 		},
 		Type: trackEvent.Type,
@@ -64,7 +62,6 @@ func (t trackEventJSON) trackEvent(clientID string) transport.TrackEvent {
 		ClientID: clientID,
 		TrackInfo: transport.TrackInfo{
 			Track: t.TrackInfo.Track,
-			Kind:  t.TrackInfo.Kind,
 			Mid:   t.TrackInfo.Mid,
 		},
 		Type: t.Type,
@@ -73,7 +70,6 @@ func (t trackEventJSON) trackEvent(clientID string) transport.TrackEvent {
 
 type trackInfoJSON struct {
 	Track transport.SimpleTrack
-	Kind  webrtc.RTPCodecType
 	Mid   string
 }
 

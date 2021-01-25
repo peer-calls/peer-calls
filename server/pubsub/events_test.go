@@ -52,7 +52,7 @@ func TestEvents(t *testing.T) {
 		PubTrack: PubTrack{
 			ClientID: "a",
 			UserID:   "b",
-			SSRC:     1,
+			TrackID:  "A:track1",
 		},
 		Type: transport.TrackEventTypeAdd,
 	}

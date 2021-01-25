@@ -58,7 +58,7 @@ func (p *pub) unsub(subClientID string) error {
 		errs.Add(t.Unsub())
 	}
 
-	errs.Add(transport.RemoveTrack(p.track.SSRC()))
+	errs.Add(transport.RemoveTrack(p.track.UniqueID()))
 
 	return errors.Trace(errs.Err())
 }

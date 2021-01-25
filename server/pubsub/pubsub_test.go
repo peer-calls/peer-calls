@@ -28,7 +28,7 @@ func TestPubSub(t *testing.T) {
 
 	type track struct {
 		clientID string
-		ssrc     uint32
+		trackID  transport.TrackID
 	}
 
 	type pub struct {
@@ -38,7 +38,7 @@ func TestPubSub(t *testing.T) {
 
 	type sub struct {
 		clientID  string
-		ssrc      uint32
+		trackID   transport.TrackID
 		transport pubsub.Transport
 	}
 
@@ -53,7 +53,7 @@ func TestPubSub(t *testing.T) {
 
 		wantErr    error
 		wantSubs   map[track][]string
-		wantTracks map[*transportMock]map[uint32]transport.Track
+		wantTracks map[*transportMock]map[transport.TrackID]transport.Track
 	}
 
 	testCases := []testCase{
@@ -61,14 +61,14 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe, get error because track does not exist",
 			sub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t3,
 			},
 			wantErr: pubsub.ErrTrackNotFound,
 			wantSubs: map[track][]string{
-				{"a", 1}: nil,
+				{"a", "A:track1"}: nil,
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {},
 				t3: {},
@@ -78,13 +78,13 @@ func TestPubSub(t *testing.T) {
 			descr: "publish first track, still no subscribers",
 			pub: &pub{
 				clientID: t1.ClientID(),
-				track:    transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+				track:    transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 			},
 			wantErr: nil,
 			wantSubs: map[track][]string{
-				{"a", 1}: nil,
+				{"a", "A:track1"}: nil,
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {},
 				t3: {},
@@ -94,14 +94,14 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to own track, error",
 			sub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t1,
 			},
 			wantErr: pubsub.ErrSubscribeToOwnTrack,
 			wantSubs: map[track][]string{
-				{"a", 1}: nil,
+				{"a", "A:track1"}: nil,
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {},
 				t3: {},
@@ -111,16 +111,16 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to track, success",
 			sub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t2,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t2.ClientID()},
+				{"a", "A:track1"}: {t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 				t3: {},
 			},
@@ -129,17 +129,17 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to track (again), error",
 			sub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t2,
 			},
 			wantErr: errTrackAlreadyAdded,
 			wantSubs: map[track][]string{
-				{"a", 1}: {t2.ClientID()},
+				{"a", "A:track1"}: {t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 				t3: {},
 			},
@@ -148,18 +148,18 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to track from another transport, success",
 			sub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t3,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t2.ClientID(), t3.ClientID()},
+				{"a", "A:track1"}: {t2.ClientID(), t3.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t2: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -167,20 +167,20 @@ func TestPubSub(t *testing.T) {
 			descr: "unsubscribe from non existing track, error",
 			unsub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      2,
+				trackID:   "A:track2",
 				transport: t3,
 			},
 			wantErr: pubsub.ErrTrackNotFound,
 			wantSubs: map[track][]string{
-				{"a", 1}: {t2.ClientID(), t3.ClientID()},
+				{"a", "A:track1"}: {t2.ClientID(), t3.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -188,17 +188,17 @@ func TestPubSub(t *testing.T) {
 			descr: "unsubscribe from subscribed track, success",
 			unsub: &sub{
 				clientID:  t1.ClientID(),
-				ssrc:      1,
+				trackID:   "A:track1",
 				transport: t2,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -206,41 +206,41 @@ func TestPubSub(t *testing.T) {
 			descr: "publish track from t3",
 			pub: &pub{
 				clientID: t3.ClientID(),
-				track:    transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
+				track:    transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: nil,
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: nil,
 			},
 		},
 		{
 			descr: "publish another track from t3",
 			pub: &pub{
 				clientID: t3.ClientID(),
-				track:    transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+				track:    transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: nil,
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: nil,
 			},
 		},
 		{
 			descr: "subscribe to track 3, success",
 			sub: &sub{
 				clientID:  t3.ClientID(),
-				ssrc:      3,
+				trackID:   "C:track3",
 				transport: t2,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: {t2.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: {t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t2: {
-					3: transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
+					"C:track3": transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -248,21 +248,21 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to track 4, success",
 			sub: &sub{
 				clientID:  t3.ClientID(),
-				ssrc:      4,
+				trackID:   "D:track4",
 				transport: t2,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: {t2.ClientID()},
-				{"c", 4}: {t2.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: {t2.ClientID()},
+				{"c", "D:track4"}: {t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t2: {
-					3: transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"C:track3": transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -270,24 +270,24 @@ func TestPubSub(t *testing.T) {
 			descr: "subscribe to track 4 from t1, success",
 			sub: &sub{
 				clientID:  t3.ClientID(),
-				ssrc:      4,
+				trackID:   "D:track4",
 				transport: t1,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: {t2.ClientID()},
-				{"c", 4}: {t1.ClientID(), t2.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: {t2.ClientID()},
+				{"c", "D:track4"}: {t1.ClientID(), t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t2: {
-					3: transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"C:track3": transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -295,23 +295,23 @@ func TestPubSub(t *testing.T) {
 			descr: "pub track 5 from t2, success",
 			pub: &pub{
 				clientID: t2.ClientID(),
-				track:    transport.NewSimpleTrack("t2", 8, 5, "E", "EE"),
+				track:    transport.NewSimpleTrack("track5", "E", "audio/opus", "EE"),
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"c", 3}: {t2.ClientID()},
-				{"c", 4}: {t1.ClientID(), t2.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"c", "C:track3"}: {t2.ClientID()},
+				{"c", "D:track4"}: {t1.ClientID(), t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t2: {
-					3: transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"C:track3": transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -319,26 +319,26 @@ func TestPubSub(t *testing.T) {
 			descr: "sub to track 5 from t1, success",
 			sub: &sub{
 				clientID:  t2.ClientID(),
-				ssrc:      5,
+				trackID:   "E:track5",
 				transport: t1,
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: {t3.ClientID()},
-				{"b", 5}: {t1.ClientID()},
-				{"c", 3}: {t2.ClientID()},
-				{"c", 4}: {t1.ClientID(), t2.ClientID()},
+				{"a", "A:track1"}: {t3.ClientID()},
+				{"b", "E:track5"}: {t1.ClientID()},
+				{"c", "C:track3"}: {t2.ClientID()},
+				{"c", "D:track4"}: {t1.ClientID(), t2.ClientID()},
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
-					5: transport.NewSimpleTrack("t2", 8, 5, "E", "EE"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
+					"E:track5": transport.NewSimpleTrack("track5", "E", "audio/opus", "EE"),
 				},
 				t2: {
-					3: transport.NewSimpleTrack("t3", 8, 3, "C", "CC"),
-					4: transport.NewSimpleTrack("t3", 8, 4, "D", "DD"),
+					"C:track3": transport.NewSimpleTrack("track3", "C", "audio/opus", "CC"),
+					"D:track4": transport.NewSimpleTrack("track4", "D", "audio/opus", "DD"),
 				},
 				t3: {
-					1: transport.NewSimpleTrack("t1", 8, 1, "A", "AA"),
+					"A:track1": transport.NewSimpleTrack("track1", "A", "audio/opus", "AA"),
 				},
 			},
 		},
@@ -346,14 +346,14 @@ func TestPubSub(t *testing.T) {
 			descr:     "terminate t3, unpublish and unsubscribe, but keep other tracks",
 			terminate: t3.ClientID(),
 			wantSubs: map[track][]string{
-				{"a", 1}: nil,
-				{"b", 5}: {t1.ClientID()},
-				{"c", 3}: nil,
-				{"c", 4}: nil,
+				{"a", "A:track1"}: nil,
+				{"b", "E:track5"}: {t1.ClientID()},
+				{"c", "C:track3"}: nil,
+				{"c", "D:track4"}: nil,
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {
-					5: transport.NewSimpleTrack("t2", 8, 5, "E", "EE"),
+					"E:track5": transport.NewSimpleTrack("track5", "E", "audio/opus", "EE"),
 				},
 				t2: {},
 				t3: {},
@@ -363,15 +363,15 @@ func TestPubSub(t *testing.T) {
 			descr: "unpub track 5, unsubscribe from t2",
 			unpub: &track{
 				clientID: t2.ClientID(),
-				ssrc:     5,
+				trackID:  "E:track5",
 			},
 			wantSubs: map[track][]string{
-				{"a", 1}: nil,
-				{"b", 5}: nil,
-				{"c", 3}: nil,
-				{"c", 4}: nil,
+				{"a", "A:track1"}: nil,
+				{"b", "E:track5"}: nil,
+				{"c", "C:track3"}: nil,
+				{"c", "D:track4"}: nil,
 			},
-			wantTracks: map[*transportMock]map[uint32]transport.Track{
+			wantTracks: map[*transportMock]map[transport.TrackID]transport.Track{
 				t1: {},
 				t2: {},
 				t3: {},
@@ -388,11 +388,11 @@ func TestPubSub(t *testing.T) {
 		case tc.pub != nil:
 			ps.Pub(tc.pub.clientID, tc.pub.track)
 		case tc.unpub != nil:
-			ps.Unpub(tc.unpub.clientID, tc.unpub.ssrc)
+			ps.Unpub(tc.unpub.clientID, tc.unpub.trackID)
 		case tc.sub != nil:
-			err = ps.Sub(tc.sub.clientID, tc.sub.ssrc, tc.sub.transport)
+			err = ps.Sub(tc.sub.clientID, tc.sub.trackID, tc.sub.transport)
 		case tc.unsub != nil:
-			err = ps.Unsub(tc.unsub.clientID, tc.unsub.ssrc, tc.unsub.transport.ClientID())
+			err = ps.Unsub(tc.unsub.clientID, tc.unsub.trackID, tc.unsub.transport.ClientID())
 		case tc.terminate != "":
 			ps.Terminate(tc.terminate)
 		}
@@ -407,7 +407,7 @@ func TestPubSub(t *testing.T) {
 			for k := range tc.wantSubs {
 				gotSubs[k] = []string(nil)
 
-				for _, subscriber := range ps.Subscribers(k.clientID, k.ssrc) {
+				for _, subscriber := range ps.Subscribers(k.clientID, k.trackID) {
 					gotSubs[k] = append(gotSubs[k], subscriber.ClientID())
 				}
 
@@ -417,8 +417,8 @@ func TestPubSub(t *testing.T) {
 
 		assert.Equal(t, tc.wantSubs, gotSubs, "wantSubs: %s", descr)
 
-		gotTracks := map[string]map[uint32]transport.Track{}
-		wantTracks := map[string]map[uint32]transport.Track{}
+		gotTracks := map[string]map[transport.TrackID]transport.Track{}
+		wantTracks := map[string]map[transport.TrackID]transport.Track{}
 
 		for k, v := range tc.wantTracks {
 			gotTracks[k.ClientID()] = k.addedTracks
@@ -427,19 +427,17 @@ func TestPubSub(t *testing.T) {
 
 		assert.Equal(t, wantTracks, gotTracks, "wantTracks: %s", descr)
 	}
-
-	ps.Subscribers("clientID", 9)
 }
 
 type transportMock struct {
 	clientID    string
-	addedTracks map[uint32]transport.Track
+	addedTracks map[transport.TrackID]transport.Track
 }
 
 func newTransportMock(clientID string) *transportMock {
 	return &transportMock{
 		clientID:    clientID,
-		addedTracks: map[uint32]transport.Track{},
+		addedTracks: map[transport.TrackID]transport.Track{},
 	}
 }
 
@@ -453,21 +451,21 @@ var (
 )
 
 func (t *transportMock) AddTrack(track transport.Track) error {
-	if _, ok := t.addedTracks[track.SSRC()]; ok {
-		return errors.Annotatef(errTrackAlreadyAdded, "%d", track.SSRC())
+	if _, ok := t.addedTracks[track.UniqueID()]; ok {
+		return errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
 	}
 
-	t.addedTracks[track.SSRC()] = track
+	t.addedTracks[track.UniqueID()] = track
 
 	return nil
 }
 
-func (t *transportMock) RemoveTrack(ssrc uint32) error {
-	if _, ok := t.addedTracks[ssrc]; !ok {
-		return errors.Annotatef(errTrackNotFound, "%d", ssrc)
+func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
+	if _, ok := t.addedTracks[trackID]; !ok {
+		return errors.Annotatef(errTrackNotFound, "%s", trackID)
 	}
 
-	delete(t.addedTracks, ssrc)
+	delete(t.addedTracks, trackID)
 
 	return nil
 }

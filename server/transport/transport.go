@@ -27,7 +27,7 @@ type MetadataTransport interface {
 	LocalTracks() []TrackInfo
 	RemoteTracks() []TrackInfo
 	AddTrack(track Track) error
-	RemoveTrack(ssrc uint32) error
+	RemoveTrack(trackID TrackID) error
 }
 
 type Closable interface {
