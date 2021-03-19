@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
@@ -25,6 +26,7 @@ type WebRTCTrackLocal struct {
 	mu           sync.RWMutex
 	bindings     []trackBinding
 	codec        webrtc.RTPCodecCapability
+	kind         webrtc.RTPCodecType
 	id, streamID string
 }
 
@@ -32,9 +34,20 @@ var _ webrtc.TrackLocal = &WebRTCTrackLocal{}
 
 // NewWebRTCTrackLocal returns a WebRTCTrackLocal.
 func NewWebRTCTrackLocal(c webrtc.RTPCodecCapability, id, streamID string) (*WebRTCTrackLocal, error) {
+	var kind webrtc.RTPCodecType
+
+	switch {
+	case strings.HasPrefix(c.MimeType, "audio/"):
+		kind = webrtc.RTPCodecTypeAudio
+	case strings.HasPrefix(c.MimeType, "video/"):
+		kind = webrtc.RTPCodecTypeVideo
+	default:
+	}
+
 	return &WebRTCTrackLocal{
 		codec:    c,
 		bindings: []trackBinding{},
+		kind:     kind,
 		id:       id,
 		streamID: streamID,
 	}, nil
@@ -93,14 +106,7 @@ func (s *WebRTCTrackLocal) StreamID() string { return s.streamID }
 
 // Kind controls if this TrackLocal is audio or video
 func (s *WebRTCTrackLocal) Kind() webrtc.RTPCodecType {
-	switch {
-	case strings.HasPrefix(s.codec.MimeType, "audio/"):
-		return webrtc.RTPCodecTypeAudio
-	case strings.HasPrefix(s.codec.MimeType, "video/"):
-		return webrtc.RTPCodecTypeVideo
-	default:
-		return webrtc.RTPCodecType(0)
-	}
+	return s.kind
 }
 
 // Codec gets the Codec of the track
@@ -116,7 +122,7 @@ func (s *WebRTCTrackLocal) WriteRTP(p *rtp.Packet) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var errs MultiErrorHandler
+	var errs multierr.MultiErr
 	outboundPacket := *p
 
 	for _, b := range s.bindings {

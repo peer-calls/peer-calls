@@ -178,8 +178,8 @@ type WebRTCTransport struct {
 	dataTransceiver *DataTransceiver
 
 	trackEventsCh chan transport.TrackEvent
-	rtpCh         chan transport.RTPPacket
-	rtcpCh        chan transport.RTCPPacket
+	rtpCh         chan *rtp.Packet
+	rtcpCh        chan []rtcp.Packet
 
 	localTracks  map[transport.TrackID]localTrack
 	remoteTracks map[transport.TrackID]remoteTrack
@@ -281,8 +281,8 @@ func NewWebRTCTransport(
 		dataTransceiver: dataTransceiver,
 
 		trackEventsCh: make(chan transport.TrackEvent),
-		rtpCh:         make(chan transport RTPPacket),
-		rtcpCh:        make(chan transport.RTCPPacket),
+		rtpCh:         make(chan *rtp.Packet),
+		rtcpCh:        make(chan []rtcp.Packet),
 
 		localTracks:  map[transport.TrackID]localTrack{},
 		remoteTracks: map[transport.TrackID]remoteTrack{},
@@ -345,7 +345,7 @@ func (p *WebRTCTransport) Done() <-chan struct{} {
 	return p.signaller.Done()
 }
 
-func (p *WebRTCTransport) WriteRTP(packet transport.RTPPacket) (bytes int, err error) {
+func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
 	p.log.Trace("WriteRTP", logger.Ctx{
 		"packet": packet,
 	})
@@ -358,7 +358,7 @@ func (p *WebRTCTransport) WriteRTP(packet transport.RTPPacket) (bytes int, err e
 		return 0, errors.Errorf("track %s not found", packet.TrackID)
 	}
 
-	err = pta.track.WriteRTP(packet.Packet)
+	err = pta.track.WriteRTP(packet)
 	if errIs(err, io.ErrClosedPipe) {
 		// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 		return 0, nil
@@ -369,9 +369,9 @@ func (p *WebRTCTransport) WriteRTP(packet transport.RTPPacket) (bytes int, err e
 	}
 
 	prometheusRTPPacketsSent.Inc()
-	prometheusRTPPacketsSentBytes.Add(float64(packet.Packet.MarshalSize()))
+	prometheusRTPPacketsSentBytes.Add(float64(packet.MarshalSize()))
 
-	return packet.Packet.MarshalSize(), nil
+	return packet.MarshalSize(), nil
 }
 
 func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
