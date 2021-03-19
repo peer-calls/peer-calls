@@ -67,7 +67,7 @@ func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack
 			})
 
 			err := t.sendTrackEvent(transport.TrackEvent{
-				TrackInfo: transport.TrackInfo{
+				TrackWithMID: transport.TrackInfo{
 					Track: trackInfo.Track,
 					Mid:   trackInfo.Mid,
 				},
@@ -84,7 +84,7 @@ func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack
 			})
 
 			err := t.sendTrackEvent(transport.TrackEvent{
-				TrackInfo: transport.TrackInfo{
+				TrackWithMID: transport.TrackInfo{
 					Track: trackInfo.Track,
 					Mid:   trackInfo.Mid,
 				},
@@ -167,22 +167,22 @@ func (t *MetadataTransport) startReadLoop() {
 		switch event.Type {
 		case metadataEventTypeTrack:
 			trackEvent := event.Track.trackEvent(t.clientID)
-			trackEvent.TrackInfo.Track = t.newServerTrack(event.Track.TrackInfo)
+			trackEvent.TrackWithMID.Track = t.newServerTrack(event.Track.TrackInfo)
 
 			skipEvent := false
 
 			switch trackEvent.Type {
 			case transport.TrackEventTypeAdd:
-				trackID := trackEvent.TrackInfo.Track.UniqueID()
+				trackID := trackEvent.TrackWithMID.Track.UniqueID()
 				t.mu.Lock()
 				// Skip event in case of a refresh event, and track information has
 				// already been received.
 				_, skipEvent = t.remoteTracks[trackID]
-				t.remoteTracks[trackID] = trackEvent.TrackInfo
+				t.remoteTracks[trackID] = trackEvent.TrackWithMID
 				t.mu.Unlock()
 			case transport.TrackEventTypeRemove:
 				t.mu.Lock()
-				delete(t.remoteTracks, trackEvent.TrackInfo.Track.UniqueID())
+				delete(t.remoteTracks, trackEvent.TrackWithMID.Track.UniqueID())
 				t.mu.Unlock()
 			case transport.TrackEventTypeSub:
 			case transport.TrackEventTypeUnsub:
@@ -240,7 +240,7 @@ func (t *MetadataTransport) AddTrack(track transport.Track) error {
 	t.localTracks[track.UniqueID()] = trackInfo
 
 	trackEvent := transport.TrackEvent{
-		TrackInfo: trackInfo,
+		TrackWithMID: trackInfo,
 		Type:      transport.TrackEventTypeAdd,
 		ClientID:  t.clientID,
 	}
@@ -295,7 +295,7 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	}
 
 	trackEvent := transport.TrackEvent{
-		TrackInfo: trackInfo,
+		TrackWithMID: trackInfo,
 		Type:      transport.TrackEventTypeRemove,
 		ClientID:  t.clientID,
 	}

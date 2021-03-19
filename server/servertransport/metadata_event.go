@@ -44,13 +44,13 @@ type trackEventJSON struct {
 
 func newTrackEventJSON(trackEvent transport.TrackEvent) trackEventJSON {
 	// TODO watch out for possible panics.
-	track := trackEvent.TrackInfo.Track.(transport.SimpleTrack)
+	track := trackEvent.TrackWithMID.Track.(transport.SimpleTrack)
 
 	return trackEventJSON{
 		ClientID: trackEvent.ClientID,
 		TrackInfo: trackInfoJSON{
 			Track: track,
-			Mid:   trackEvent.TrackInfo.Mid,
+			Mid:   trackEvent.TrackWithMID.Mid,
 		},
 		Type: trackEvent.Type,
 	}
@@ -60,7 +60,7 @@ func newTrackEventJSON(trackEvent transport.TrackEvent) trackEventJSON {
 func (t trackEventJSON) trackEvent(clientID string) transport.TrackEvent {
 	return transport.TrackEvent{
 		ClientID: clientID,
-		TrackInfo: transport.TrackInfo{
+		TrackWithMID: transport.TrackInfo{
 			Track: t.TrackInfo.Track,
 			Mid:   t.TrackInfo.Mid,
 		},

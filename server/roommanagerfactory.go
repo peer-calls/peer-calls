@@ -42,30 +42,32 @@ func (rmf *RoomManagerFactory) createChannelRoomManager(
 	c NetworkConfig,
 	rooms RoomManager,
 ) (*ChannelRoomManager, *NodeManager, error) {
-	listenAddr, err := ParseUDPAddr(c.SFU.Transport.ListenAddr)
-	if err != nil {
-		return nil, nil, errors.Annotatef(err, "parse UDP addr")
-	}
+	// FIXME pion3 enable when server transport is refactored
+	return nil, nil, errors.Errorf("not implemented")
+	// listenAddr, err := ParseUDPAddr(c.SFU.Transport.ListenAddr)
+	// if err != nil {
+	// 	return nil, nil, errors.Annotatef(err, "parse UDP addr")
+	// }
 
-	nodes, err := ParseUDPAddrs(c.SFU.Transport.Nodes)
-	if err != nil {
-		return nil, nil, errors.Annotatef(err, "parse UDP addrs")
-	}
+	// nodes, err := ParseUDPAddrs(c.SFU.Transport.Nodes)
+	// if err != nil {
+	// 	return nil, nil, errors.Annotatef(err, "parse UDP addrs")
+	// }
 
-	channelRoomManager := NewChannelRoomManager(rooms)
+	// channelRoomManager := NewChannelRoomManager(rooms)
 
-	nodeManager, err := NewNodeManager(NodeManagerParams{
-		Log:           rmf.params.Log,
-		ListenAddr:    listenAddr,
-		Nodes:         nodes,
-		RoomManager:   channelRoomManager,
-		TracksManager: rmf.params.TracksManager,
-	})
-	if err != nil {
-		channelRoomManager.Close()
+	// nodeManager, err := NewNodeManager(NodeManagerParams{
+	// 	Log:           rmf.params.Log,
+	// 	ListenAddr:    listenAddr,
+	// 	Nodes:         nodes,
+	// 	RoomManager:   channelRoomManager,
+	// 	TracksManager: rmf.params.TracksManager,
+	// })
+	// if err != nil {
+	// 	channelRoomManager.Close()
 
-		return nil, nil, errors.Annotatef(err, "new node manager")
-	}
+	// 	return nil, nil, errors.Annotatef(err, "new node manager")
+	// }
 
-	return channelRoomManager, nodeManager, nil
+	// return channelRoomManager, nodeManager, nil
 }

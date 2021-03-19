@@ -1,17 +1,14 @@
 package server
 
 import (
-	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -177,15 +174,15 @@ type WebRTCTransport struct {
 	signaller       *Signaller
 	dataTransceiver *DataTransceiver
 
-	trackEventsCh chan transport.TrackEvent
-	rtpCh         chan *rtp.Packet
-	rtcpCh        chan []rtcp.Packet
+	remoteTracksChannel chan transport.TrackRemote
 
-	localTracks  map[transport.TrackID]localTrack
-	remoteTracks map[transport.TrackID]remoteTrack
+	// trackEventsCh chan transport.TrackEvent
+	// rtpCh         chan *rtp.Packet
+	// rtcpCh        chan []rtcp.Packet
+
+	localTracks map[transport.TrackID]localTrack
+	// remoteTracks map[transport.TrackID]remoteTrack
 }
-
-var _ transport.Transport = &WebRTCTransport{}
 
 func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}
@@ -280,12 +277,14 @@ func NewWebRTCTransport(
 		peerConnection:  peerConnection,
 		dataTransceiver: dataTransceiver,
 
-		trackEventsCh: make(chan transport.TrackEvent),
-		rtpCh:         make(chan *rtp.Packet),
-		rtcpCh:        make(chan []rtcp.Packet),
+		// trackEventsCh: make(chan transport.TrackEvent),
+		// rtpCh:         make(chan *rtp.Packet),
+		// rtcpCh:        make(chan []rtcp.Packet),
 
-		localTracks:  map[transport.TrackID]localTrack{},
-		remoteTracks: map[transport.TrackID]remoteTrack{},
+		// localTracks:  map[transport.TrackID]localTrack{},
+		// remoteTracks: map[transport.TrackID]remoteTrack{},
+
+		remoteTracksChannel: make(chan transport.TrackRemote),
 	}
 	peerConnection.OnTrack(transport.handleTrack)
 
@@ -295,22 +294,23 @@ func NewWebRTCTransport(
 		// do not close channels before all writing goroutines exit
 		transport.wg.Wait()
 		transport.dataTransceiver.Close()
-		close(transport.rtpCh)
-		close(transport.rtcpCh)
-		close(transport.trackEventsCh)
+		close(transport.remoteTracksChannel)
+		// close(transport.rtpCh)
+		// close(transport.rtcpCh)
+		// close(transport.trackEventsCh)
 	}()
 	return transport, nil
 }
 
 type localTrack struct {
-	trackInfo   transport.TrackInfo
+	trackInfo   transport.TrackWithMID
 	transceiver *webrtc.RTPTransceiver
 	sender      *webrtc.RTPSender
 	track       *webrtc.TrackLocalStaticRTP
 }
 
 type remoteTrack struct {
-	trackInfo   transport.TrackInfo
+	trackInfo   transport.TrackWithMID
 	transceiver *webrtc.RTPTransceiver
 	receiver    *webrtc.RTPReceiver
 	track       *webrtc.TrackRemote
@@ -345,34 +345,38 @@ func (p *WebRTCTransport) Done() <-chan struct{} {
 	return p.signaller.Done()
 }
 
-func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
-	p.log.Trace("WriteRTP", logger.Ctx{
-		"packet": packet,
-	})
-
-	p.mu.RLock()
-	pta, ok := p.localTracks[packet.TrackID]
-	p.mu.RUnlock()
-
-	if !ok {
-		return 0, errors.Errorf("track %s not found", packet.TrackID)
-	}
-
-	err = pta.track.WriteRTP(packet)
-	if errIs(err, io.ErrClosedPipe) {
-		// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
-		return 0, nil
-	}
-
-	if err != nil {
-		return 0, errors.Annotate(err, "write rtp")
-	}
-
-	prometheusRTPPacketsSent.Inc()
-	prometheusRTPPacketsSentBytes.Add(float64(packet.MarshalSize()))
-
-	return packet.MarshalSize(), nil
+func (p *WebRTCTransport) RemoteTracksChannel() <-chan transport.TrackRemote {
+	return p.remoteTracksChannel
 }
+
+// func (p *WebRTCTransport) WriteRTP(packet *rtp.Packet) (bytes int, err error) {
+// 	p.log.Trace("WriteRTP", logger.Ctx{
+// 		"packet": packet,
+// 	})
+
+// 	p.mu.RLock()
+// 	pta, ok := p.localTracks[packet.TrackID]
+// 	p.mu.RUnlock()
+
+// 	if !ok {
+// 		return 0, errors.Errorf("track %s not found", packet.TrackID)
+// 	}
+
+// 	err = pta.track.WriteRTP(packet)
+// 	if errIs(err, io.ErrClosedPipe) {
+// 		// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
+// 		return 0, nil
+// 	}
+
+// 	if err != nil {
+// 		return 0, errors.Annotate(err, "write rtp")
+// 	}
+
+// 	prometheusRTPPacketsSent.Inc()
+// 	prometheusRTPPacketsSentBytes.Add(float64(packet.MarshalSize()))
+
+// 	return packet.MarshalSize(), nil
+// }
 
 func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 	p.mu.Lock()
@@ -393,21 +397,25 @@ func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 		return errors.Annotate(err, "remove track")
 	}
 
+	// TODO I don't think this would be necessary if we used
+	// on negotiation needed callback.
 	p.signaller.Negotiate()
 
 	return nil
 }
 
-func (p *WebRTCTransport) AddTrack(t transport.Track) error {
+var _ transport.Transport = &WebRTCTransport{}
+
+func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, error) {
 	track, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, t.ID(), t.StreamID())
 
 	if err != nil {
-		return errors.Annotate(err, "new track")
+		return nil, errors.Annotate(err, "new track")
 	}
 
 	sender, err := p.peerConnection.AddTrack(track)
 	if err != nil {
-		return errors.Annotate(err, "add track")
+		return nil, errors.Annotate(err, "add track")
 	}
 
 	if p.signaller.Initiator() {
@@ -418,28 +426,28 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 
 	p.wg.Add(1)
 
-	go func() {
-		defer p.wg.Done()
+	// go func() {
+	// 	defer p.wg.Done()
 
-		for {
-			rtcpPackets, _, err := sender.ReadRTCP()
-			if err != nil {
-				return
-			}
+	// 	for {
+	// 		rtcpPackets, _, err := sender.ReadRTCP()
+	// 		if err != nil {
+	// 			return
+	// 		}
 
-			if p.log.IsLevelEnabled(logger.LevelTrace) {
-				for _, rtcpPacket := range rtcpPackets {
-					p.log.Trace("ReadRTCP", logger.Ctx{
-						"packet": rtcpPacket,
-					})
-				}
-			}
+	// 		if p.log.IsLevelEnabled(logger.LevelTrace) {
+	// 			for _, rtcpPacket := range rtcpPackets {
+	// 				p.log.Trace("ReadRTCP", logger.Ctx{
+	// 					"packet": rtcpPacket,
+	// 				})
+	// 			}
+	// 		}
 
-			prometheusRTCPPacketsReceived.Add(float64(len(rtcpPackets)))
+	// 		prometheusRTCPPacketsReceived.Add(float64(len(rtcpPackets)))
 
-			p.rtcpCh <- rtcpPackets
-		}
-	}()
+	// 		p.rtcpCh <- rtcpPackets
+	// 	}
+	// }()
 
 	var transceiver *webrtc.RTPTransceiver
 
@@ -451,140 +459,144 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) error {
 		}
 	}
 
-	trackInfo := transport.TrackInfo{
-		Track: t,
-		Mid:   "",
-	}
+	mid := transceiver.Mid()
+	_ = mid
+
+	trackInfo := transport.NewTrackWithMID(t, mid)
 
 	p.mu.Lock()
 	p.localTracks[t.UniqueID()] = localTrack{trackInfo, transceiver, sender, track}
 	p.mu.Unlock()
 
-	return nil
-}
-
-func (p *WebRTCTransport) addRemoteTrack(rti remoteTrack) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.remoteTracks[rti.trackInfo.Track.UniqueID()] = rti
-}
-
-func (p *WebRTCTransport) removeRemoteTrack(trackID transport.TrackID) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	delete(p.remoteTracks, trackID)
-}
-
-// RemoteTracks returns info about receiving tracks
-func (p *WebRTCTransport) RemoteTracks() []transport.TrackInfo {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	list := make([]transport.TrackInfo, 0, len(p.remoteTracks))
-
-	for _, rti := range p.remoteTracks {
-		trackInfo := rti.trackInfo
-		trackInfo.Mid = rti.transceiver.Mid()
-		list = append(list, trackInfo)
+	tt := Track{
+		TrackLocalStaticRTP: track,
+		track:               t,
 	}
 
-	return list
+	return tt, nil
 }
 
+// func (p *WebRTCTransport) addRemoteTrack(rti remoteTrack) {
+// 	p.mu.Lock()
+// 	defer p.mu.Unlock()
+
+// 	p.remoteTracks[rti.trackInfo.Track.UniqueID()] = rti
+// }
+
+// func (p *WebRTCTransport) removeRemoteTrack(trackID transport.TrackID) {
+// 	p.mu.Lock()
+// 	defer p.mu.Unlock()
+
+// 	delete(p.remoteTracks, trackID)
+// }
+
+// // RemoteTracks returns info about receiving tracks
+// func (p *WebRTCTransport) RemoteTracks() []transport.TrackInfo {
+// 	p.mu.Lock()
+// 	defer p.mu.Unlock()
+
+// 	list := make([]transport.TrackInfo, 0, len(p.remoteTracks))
+
+// 	for _, rti := range p.remoteTracks {
+// 		trackInfo := rti.trackInfo
+// 		trackInfo.Mid = rti.transceiver.Mid()
+// 		list = append(list, trackInfo)
+// 	}
+
+// 	return list
+// }
+
 // LocalTracks returns info about sending tracks
-func (p *WebRTCTransport) LocalTracks() []transport.TrackInfo {
+func (p *WebRTCTransport) LocalTracks() []transport.TrackWithMID {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	list := make([]transport.TrackInfo, 0, len(p.localTracks))
+	list := make([]transport.TrackWithMID, 0, len(p.localTracks))
 
 	for _, lti := range p.localTracks {
-		trackInfo := lti.trackInfo
-		trackInfo.Mid = lti.transceiver.Mid()
-		list = append(list, trackInfo)
+		// It is important to reread the Mid in case transceiver got reassigned.
+		list = append(list, transport.NewTrackWithMID(lti.trackInfo, lti.transceiver.Mid()))
 	}
 
 	return list
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-	mimeType := track.Codec().MimeType
-	_ = mimeType // FIXME
+	// mimeType := track.Codec().MimeType
+	// _ = mimeType // FIXME
 
-	trackInfo := transport.TrackInfo{
-		Track: transport.NewSimpleTrack(
-			p.clientID, mimeType, track.ID(), track.StreamID(),
-		),
-		Mid: "",
-	}
+	// trackInfo := transport.TrackInfo{
+	// 	Track: transport.NewSimpleTrack(
+	// 		p.clientID, mimeType, track.ID(), track.StreamID(),
+	// 	),
+	// 	Mid: "",
+	// }
 
-	log := p.log.WithCtx(logger.Ctx{
-		"track_id":  trackInfo.Track.ID(),
-		"stream_id": trackInfo.Track.StreamID(),
-	})
+	// log := p.log.WithCtx(logger.Ctx{
+	// 	"track_id":  trackInfo.Track.ID(),
+	// 	"stream_id": trackInfo.Track.StreamID(),
+	// })
 
-	log.Info("Remote track", nil)
+	// log.Info("Remote track", nil)
 
-	start := time.Now()
+	// start := time.Now()
 
-	prometheusWebRTCTracksTotal.Inc()
-	prometheusWebRTCTracksActive.Inc()
+	// prometheusWebRTCTracksTotal.Inc()
+	// prometheusWebRTCTracksActive.Inc()
 
-	var transceiver *webrtc.RTPTransceiver
+	// var transceiver *webrtc.RTPTransceiver
 
-	for _, tr := range p.peerConnection.GetTransceivers() {
-		if tr.Receiver() == receiver {
-			transceiver = tr
+	// for _, tr := range p.peerConnection.GetTransceivers() {
+	// 	if tr.Receiver() == receiver {
+	// 		transceiver = tr
 
-			break
-		}
-	}
+	// 		break
+	// 	}
+	// }
 
-	rti := remoteTrack{trackInfo, transceiver, receiver, track}
+	// rti := remoteTrack{trackInfo, transceiver, receiver, track}
 
-	p.addRemoteTrack(rti)
-	p.trackEventsCh <- transport.TrackEvent{
-		TrackInfo: trackInfo,
-		Type:      transport.TrackEventTypeAdd,
-		ClientID:  p.clientID,
-	}
+	// p.addRemoteTrack(rti)
+	// p.trackEventsCh <- transport.TrackEvent{
+	// 	TrackInfo: trackInfo,
+	// 	Type:      transport.TrackEventTypeAdd,
+	// 	ClientID:  p.clientID,
+	// }
 
-	p.wg.Add(1)
+	// p.wg.Add(1)
 
-	go func() {
-		defer func() {
-			p.removeRemoteTrack(trackInfo.Track.UniqueID())
-			p.trackEventsCh <- transport.TrackEvent{
-				TrackInfo: trackInfo,
-				Type:      transport.TrackEventTypeRemove,
-				ClientID:  p.clientID,
-			}
+	// go func() {
+	// 	defer func() {
+	// 		p.removeRemoteTrack(trackInfo.Track.UniqueID())
+	// 		p.trackEventsCh <- transport.TrackEvent{
+	// 			TrackInfo: trackInfo,
+	// 			Type:      transport.TrackEventTypeRemove,
+	// 			ClientID:  p.clientID,
+	// 		}
 
-			p.wg.Done()
+	// 		p.wg.Done()
 
-			prometheusWebRTCTracksActive.Dec()
-			prometheusWebRTCTracksDuration.Observe(time.Since(start).Seconds())
-		}()
+	// 		prometheusWebRTCTracksActive.Dec()
+	// 		prometheusWebRTCTracksDuration.Observe(time.Since(start).Seconds())
+	// 	}()
 
-		for {
-			pkt, _, err := track.ReadRTP()
-			if err != nil {
-				log.Error("Read RTP", errors.Trace(err), nil)
+	// 	for {
+	// 		pkt, _, err := track.ReadRTP()
+	// 		if err != nil {
+	// 			log.Error("Read RTP", errors.Trace(err), nil)
 
-				return
-			}
+	// 			return
+	// 		}
 
-			prometheusRTPPacketsReceived.Inc()
-			prometheusRTPPacketsReceivedBytes.Add(float64(pkt.MarshalSize()))
+	// 		prometheusRTPPacketsReceived.Inc()
+	// 		prometheusRTPPacketsReceivedBytes.Add(float64(pkt.MarshalSize()))
 
-			log.Trace("ReadRTP", logger.Ctx{
-				"packet": pkt,
-			})
-			p.rtpCh <- pkt
-		}
-	}()
+	// 		log.Trace("ReadRTP", logger.Ctx{
+	// 			"packet": pkt,
+	// 		})
+	// 		p.rtpCh <- pkt
+	// 	}
+	// }()
 }
 
 func (p *WebRTCTransport) Signal(payload map[string]interface{}) error {
@@ -597,17 +609,17 @@ func (p *WebRTCTransport) SignalChannel() <-chan Payload {
 	return p.signaller.SignalChannel()
 }
 
-func (p *WebRTCTransport) TrackEventsChannel() <-chan transport.TrackEvent {
-	return p.trackEventsCh
-}
+// func (p *WebRTCTransport) TrackEventsChannel() <-chan transport.TrackEvent {
+// 	return p.trackEventsCh
+// }
 
-func (p *WebRTCTransport) RTPChannel() <-chan *rtp.Packet {
-	return p.rtpCh
-}
+// func (p *WebRTCTransport) RTPChannel() <-chan *rtp.Packet {
+// 	return p.rtpCh
+// }
 
-func (p *WebRTCTransport) RTCPChannel() <-chan []rtcp.Packet {
-	return p.rtcpCh
-}
+// func (p *WebRTCTransport) RTCPChannel() <-chan []rtcp.Packet {
+// 	return p.rtcpCh
+// }
 
 func (p *WebRTCTransport) MessagesChannel() <-chan webrtc.DataChannelMessage {
 	return p.dataTransceiver.MessagesChannel()
@@ -615,4 +627,13 @@ func (p *WebRTCTransport) MessagesChannel() <-chan webrtc.DataChannelMessage {
 
 func (p *WebRTCTransport) Send(message webrtc.DataChannelMessage) <-chan error {
 	return p.dataTransceiver.Send(message)
+}
+
+type Track struct {
+	*webrtc.TrackLocalStaticRTP
+	track transport.Track
+}
+
+func (t Track) Track() transport.Track {
+	return t.track
 }

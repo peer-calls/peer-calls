@@ -59,7 +59,8 @@ func (t *TrackReader) startReadLoop() {
 		t.mu.Lock()
 
 		for key, trackLocal := range t.subs {
-			if _, err := trackLocal.WriteRTP(packet); err == io.ErrClosedPipe {
+			_ = packet.MarshalSize()
+			if err := trackLocal.WriteRTP(packet); err == io.ErrClosedPipe {
 				delete(t.subs, key)
 			}
 		}

@@ -10,7 +10,7 @@ const (
 )
 
 type TrackEvent struct {
-	ClientID  string
-	TrackInfo TrackInfo
-	Type      TrackEventType
+	ClientID     string
+	TrackWithMID TrackWithMID
+	Type         TrackEventType
 }

@@ -111,8 +111,8 @@ func TestManager_RTP(t *testing.T) {
 
 		select {
 		case event := <-transport1.TrackEventsChannel():
-			assert.Equal(t, uint8(8), event.TrackInfo.Track.PayloadType())
-			assert.Equal(t, uint32(1), event.TrackInfo.Track.SSRC())
+			assert.Equal(t, uint8(8), event.TrackWithMID.Track.PayloadType())
+			assert.Equal(t, uint32(1), event.TrackWithMID.Track.SSRC())
 			assert.Equal(t, transport.TrackEventTypeAdd, event.Type)
 		case <-time.After(time.Second):
 			assert.Fail(t, "Timed out waiting for rtp.Packet")

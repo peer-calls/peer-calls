@@ -82,11 +82,11 @@ class SocketHandler {
     })(dispatch, getState))
   }
   handlePub = (pubTrack: SocketEvent['pubTrack']) => {
-    const { ssrc, pubClientId, type } = pubTrack
+    const { trackId, pubClientId, type } = pubTrack
 
     if (type == TrackEventType.Add) {
       this.socket.emit(constants.SOCKET_EVENT_SUB_TRACK, {
-        ssrc,
+        trackId,
         type: TrackEventType.Sub,
         pubClientId,
       })

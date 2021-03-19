@@ -1,7 +1,15 @@
 package transport
 
-type TrackInfo struct {
-	Track Track
+type TrackWithMID struct {
+	Track
 	// Kind  webrtc.RTPCodecType
-	Mid string
+	mid string
+}
+
+func NewTrackWithMID(track Track, mid string) TrackWithMID {
+	return TrackWithMID{track, mid}
+}
+
+func (t TrackWithMID) MID() string {
+	return t.mid
 }
