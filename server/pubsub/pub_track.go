@@ -8,10 +8,10 @@ type PubTrack struct {
 	TrackID  transport.TrackID `json:"trackId"`
 }
 
-func newPubTrack(pb *pub) PubTrack {
+func newPubTrack(pubClientID string, track transport.Track) PubTrack {
 	return PubTrack{
-		ClientID: pb.clientID,
-		TrackID:  pb.track.UniqueID(),
-		UserID:   pb.track.UserID(),
+		ClientID: pubClientID,
+		TrackID:  track.UniqueID(),
+		UserID:   track.UserID(),
 	}
 }

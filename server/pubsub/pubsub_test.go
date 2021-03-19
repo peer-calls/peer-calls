@@ -9,6 +9,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/rtp"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -16,7 +17,7 @@ import (
 func TestPubSub(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	ps := pubsub.New(logger.New())
+	ps := pubsub.New(logger.NewFromEnv("LOG"))
 
 	defer ps.Close()
 
@@ -386,7 +387,7 @@ func TestPubSub(t *testing.T) {
 
 		switch {
 		case tc.pub != nil:
-			ps.Pub(tc.pub.clientID, tc.pub.track)
+			ps.Pub(tc.pub.clientID, newReaderMock(tc.pub.track))
 		case tc.unpub != nil:
 			ps.Unpub(tc.unpub.clientID, tc.unpub.trackID)
 		case tc.sub != nil:
@@ -407,9 +408,7 @@ func TestPubSub(t *testing.T) {
 			for k := range tc.wantSubs {
 				gotSubs[k] = []string(nil)
 
-				for _, subscriber := range ps.Subscribers(k.clientID, k.trackID) {
-					gotSubs[k] = append(gotSubs[k], subscriber.ClientID())
-				}
+				gotSubs[k] = append(gotSubs[k], ps.Subscribers(k.clientID, k.trackID)...)
 
 				sort.Strings(gotSubs[k])
 			}
@@ -450,14 +449,14 @@ var (
 	errTrackNotFound     = errors.Errorf("track not found")
 )
 
-func (t *transportMock) AddTrack(track transport.Track) error {
+func (t *transportMock) AddTrack(track transport.Track) (transport.TrackLocal, error) {
 	if _, ok := t.addedTracks[track.UniqueID()]; ok {
-		return errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
+		return nil, errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
 	}
 
 	t.addedTracks[track.UniqueID()] = track
 
-	return nil
+	return trackLocalMock{t.clientID, track}, nil
 }
 
 func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
@@ -471,3 +470,72 @@ func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
 }
 
 var _ pubsub.Transport = &transportMock{}
+
+type trackLocalMock struct {
+	clientID string
+	track    transport.Track
+}
+
+func (t trackLocalMock) Track() transport.Track {
+	return t.track
+}
+
+func (t trackLocalMock) Write(b []byte) (int, error) {
+	return 0, nil
+}
+
+func (t trackLocalMock) WriteRTP(b *rtp.Packet) error {
+	return nil
+}
+
+var _ transport.TrackLocal = trackLocalMock{}
+
+type readerMock struct {
+	track transport.Track
+	subs  map[string]transport.Track
+}
+
+func newReaderMock(track transport.Track) *readerMock {
+	return &readerMock{
+		track: track,
+		subs:  map[string]transport.Track{},
+	}
+}
+
+func (r *readerMock) Track() transport.Track {
+	return r.track
+}
+
+func (r *readerMock) Sub(subClientID string, trackLocal transport.TrackLocal) error {
+	if _, ok := r.subs[subClientID]; ok {
+		return errors.Errorf("client is already subscribed to track: %s: %+v", subClientID, trackLocal.Track())
+	}
+
+	r.subs[subClientID] = trackLocal.Track()
+
+	return nil
+}
+
+func (r *readerMock) Unsub(subClientID string) error {
+	if _, ok := r.subs[subClientID]; !ok {
+		return errors.Errorf("client sub not found: %s: %+v", subClientID, r.track)
+	}
+
+	delete(r.subs, subClientID)
+
+	return nil
+}
+
+func (r *readerMock) Subs() []string {
+	subs := make([]string, len(r.subs))
+
+	i := -1
+	for k := range r.subs {
+		i++
+		subs[i] = k
+	}
+
+	return subs
+}
+
+var _ pubsub.Reader = &readerMock{}

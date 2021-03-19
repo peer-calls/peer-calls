@@ -5,6 +5,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
 )
 
@@ -18,17 +19,22 @@ type PubSub struct {
 
 	events *events
 
-	// pubs is a map of pubs indexed by clientID of transport that published the
-	// track and the track SSRC.
-	pubs map[clientTrack]*pub
+	// readers is a map of readers indexed by clientID of transport that
+	// published the track and the track SSRC.
+	readers map[clientTrack]Reader
 
-	// pubsByPubClientID is a map of a set of pubs that have been created by a
+	// readersByPubClientID is a map of a set of pubs that have been created by a
 	// particular transport (indexes by clientID).
-	pubsByPubClientID map[string]pubSet
+	readersByPubClientID map[string]readerSet
 
-	// subsBySubClientID is a map of a set of pubs that the transport has
+	// subsBySubClientID is a map of a set of readers that the transport has
 	// subscribed to.
-	subsBySubClientID map[string]map[transport.TrackID]*pub
+	subsBySubClientID map[string]subscriber
+}
+
+type subscriber struct {
+	transport      Transport
+	readersByTrack map[transport.TrackID]Reader
 }
 
 // New returns a new instance of PubSub.
@@ -36,17 +42,19 @@ func New(log logger.Logger) *PubSub {
 	eventsChan := make(chan PubTrackEvent)
 
 	return &PubSub{
-		log:               log.WithNamespaceAppended("pubsub"),
-		eventsChan:        eventsChan,
-		events:            newEvents(eventsChan, 0),
-		pubs:              map[clientTrack]*pub{},
-		pubsByPubClientID: map[string]pubSet{},
-		subsBySubClientID: map[string]map[transport.TrackID]*pub{},
+		log:                  log.WithNamespaceAppended("pubsub"),
+		eventsChan:           eventsChan,
+		events:               newEvents(eventsChan, 0),
+		readers:              map[clientTrack]Reader{},
+		readersByPubClientID: map[string]readerSet{},
+		subsBySubClientID:    map[string]subscriber{},
 	}
 }
 
 // Pub publishes a track.
-func (p *PubSub) Pub(pubClientID string, track transport.Track) {
+func (p *PubSub) Pub(pubClientID string, reader Reader) {
+	track := reader.Track()
+
 	p.log.Trace("Pub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  track.UniqueID(),
@@ -57,17 +65,15 @@ func (p *PubSub) Pub(pubClientID string, track transport.Track) {
 		TrackID:  track.UniqueID(),
 	}
 
-	pb := newPub(pubClientID, track)
-
-	p.pubs[clientTrack] = pb
-	if _, ok := p.pubsByPubClientID[pubClientID]; !ok {
-		p.pubsByPubClientID[pubClientID] = pubSet{}
+	p.readers[clientTrack] = reader
+	if _, ok := p.readersByPubClientID[pubClientID]; !ok {
+		p.readersByPubClientID[pubClientID] = readerSet{}
 	}
 
-	p.pubsByPubClientID[pubClientID][pb] = struct{}{}
+	p.readersByPubClientID[pubClientID][reader] = struct{}{}
 
 	p.eventsChan <- PubTrackEvent{
-		PubTrack: newPubTrack(pb),
+		PubTrack: newPubTrack(pubClientID, track),
 		Type:     transport.TrackEventTypeAdd,
 	}
 }
@@ -84,21 +90,21 @@ func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
 		TrackID:  trackID,
 	}
 
-	if pb, ok := p.pubs[track]; ok {
-		for subClientID := range pb.subscribers() {
-			_ = p.unsub(subClientID, pb)
+	if reader, ok := p.readers[track]; ok {
+		for _, subClientID := range reader.Subs() {
+			_ = p.unsub(subClientID, reader)
 		}
 
-		delete(p.pubsByPubClientID[pubClientID], pb)
+		delete(p.readersByPubClientID[pubClientID], reader)
 
-		if len(p.pubsByPubClientID[pubClientID]) == 0 {
-			delete(p.pubsByPubClientID, pubClientID)
+		if len(p.readersByPubClientID[pubClientID]) == 0 {
+			delete(p.readersByPubClientID, pubClientID)
 		}
 
-		delete(p.pubs, track)
+		delete(p.readers, track)
 
 		p.eventsChan <- PubTrackEvent{
-			PubTrack: newPubTrack(pb),
+			PubTrack: newPubTrack(pubClientID, reader.Track()),
 			Type:     transport.TrackEventTypeRemove,
 		}
 	}
@@ -123,35 +129,46 @@ func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Tr
 
 	var err error
 
-	pb, ok := p.pubs[track]
+	reader, ok := p.readers[track]
 	if !ok {
 		err = errors.Annotatef(ErrTrackNotFound, "sub: track: %s, clientID: %s", track, transport.ClientID())
 	} else {
-		err = errors.Annotatef(p.sub(pb, transport), "sub: track: %s, clientID: %s", track, transport.ClientID())
+		err = errors.Annotatef(p.sub(reader, transport), "sub: track: %s, clientID: %s", track, transport.ClientID())
 	}
 
 	return errors.Trace(err)
 }
 
-func (p *PubSub) sub(pb *pub, tr Transport) error {
+func (p *PubSub) sub(reader Reader, tr Transport) error {
 	subClientID := tr.ClientID()
 
-	if err := pb.sub(subClientID, tr); err != nil {
+	track := reader.Track()
+
+	trackLocal, err := tr.AddTrack(track)
+	if err != nil {
+		return errors.Annotatef(err, "adding track to transport")
+	}
+
+	if err := reader.Sub(subClientID, trackLocal); err != nil {
+		// TODO what to do with the track now?
 		return errors.Trace(err)
 	}
 
 	if _, ok := p.subsBySubClientID[subClientID]; !ok {
-		p.subsBySubClientID[subClientID] = map[transport.TrackID]*pub{}
+		p.subsBySubClientID[subClientID] = subscriber{
+			transport:      tr,
+			readersByTrack: map[transport.TrackID]Reader{},
+		}
 	}
 
-	p.subsBySubClientID[subClientID][pb.track.UniqueID()] = pb
+	p.subsBySubClientID[subClientID].readersByTrack[track.UniqueID()] = reader
 
 	return nil
 }
 
 // Unsub unsubscribes from a published track.
 func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientID string) error {
-	p.log.Trace("Sub", logger.Ctx{
+	p.log.Trace("Unsub", logger.Ctx{
 		"client_id":     subClientID,
 		"track_id":      trackID,
 		"pub_client_id": pubClientID,
@@ -164,27 +181,42 @@ func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientI
 
 	var err error
 
-	pb, ok := p.pubs[clientTrack]
+	reader, ok := p.readers[clientTrack]
 	if !ok {
-		err = errors.Annotatef(ErrTrackNotFound, "unsub: track: %s, clientID: %s", clientTrack, subClientID)
-	} else {
-		err = errors.Annotatef(p.unsub(subClientID, pb), "unsub: track: %s, clientID: %s", clientTrack, subClientID)
+		return errors.Annotatef(ErrTrackNotFound, "unsub: track: %s, clientID: %s", clientTrack, subClientID)
+	}
+
+	if err := p.unsub(subClientID, reader); err != nil {
+		return errors.Annotatef(err, "unsub: track: %s, clientID: %s", clientTrack, subClientID)
 	}
 
 	return errors.Trace(err)
 }
 
 // unsub caller must hold the lock.
-func (p *PubSub) unsub(subClientID string, pb *pub) error {
-	err := pb.unsub(subClientID)
+func (p *PubSub) unsub(subClientID string, reader Reader) error {
+	var multiErr multierr.MultiErr
 
-	delete(p.subsBySubClientID[subClientID], pb.track.UniqueID())
+	trackID := reader.Track().UniqueID()
 
-	if len(p.subsBySubClientID[subClientID]) == 0 {
+	err := reader.Unsub(subClientID)
+	multiErr.Add(errors.Trace(err))
+
+	sub, ok := p.subsBySubClientID[subClientID]
+	if !ok {
+		return errors.Annotatef(ErrSubNotFound, "subscriber not found")
+	}
+
+	err = sub.transport.RemoveTrack(trackID)
+	multiErr.Add(errors.Trace(err))
+
+	delete(p.subsBySubClientID[subClientID].readersByTrack, trackID)
+
+	if len(p.subsBySubClientID[subClientID].readersByTrack) == 0 {
 		delete(p.subsBySubClientID, subClientID)
 	}
 
-	return errors.Trace(err)
+	return errors.Trace(multiErr.Err())
 }
 
 // Terminate unpublishes al tracks from from a particular client, as well as
@@ -194,58 +226,59 @@ func (p *PubSub) Terminate(clientID string) {
 		"client_id": clientID,
 	})
 
-	for pb := range p.pubsByPubClientID[clientID] {
-		p.Unpub(clientID, pb.track.UniqueID())
+	for reader := range p.readersByPubClientID[clientID] {
+		p.Unpub(clientID, reader.Track().UniqueID())
 	}
 
-	for _, pb := range p.subsBySubClientID[clientID] {
-		_ = p.unsub(clientID, pb)
+	for _, reader := range p.subsBySubClientID[clientID].readersByTrack {
+		_ = p.unsub(clientID, reader)
 	}
 }
 
-// Subscribers returns all transports subscribed to a specific clientID/track
+// Subscribers returns all subscribed subClientIDs to a specific clientID/track
 // pair.
-func (p *PubSub) Subscribers(pubClientID string, trackID transport.TrackID) []Transport {
+func (p *PubSub) Subscribers(pubClientID string, trackID transport.TrackID) []string {
 	clientTrack := clientTrack{
 		ClientID: pubClientID,
 		TrackID:  trackID,
 	}
 
-	var transports []Transport
+	var ret []string
 
-	if pb, ok := p.pubs[clientTrack]; ok {
-		subs := pb.subscribers()
+	if reader, ok := p.readers[clientTrack]; ok {
+		subs := reader.Subs()
 
 		if l := len(subs); l > 0 {
-			transports = make([]Transport, 0, l)
+			ret = make([]string, l)
 
-			for _, t := range subs {
-				transports = append(transports, t)
+			for i, t := range subs {
+				ret[i] = t
 			}
 		}
 	}
 
-	return transports
+	return ret
 }
 
-func (p *PubSub) PubClientID(subClientID string, trackID transport.TrackID) (string, bool) {
-	pb, ok := p.subsBySubClientID[subClientID][trackID]
-	if !ok {
-		return "", false
-	}
+// FIXME pion3 this was unused. figure out if it is useful.
+// func (p *PubSub) PubClientID(subClientID string, trackID transport.TrackID) (string, bool) {
+// 	reader, ok := p.subsBySubClientID[subClientID][trackID]
+// 	if !ok {
+// 		return "", false
+// 	}
 
-	return pb.clientID, true
-}
+// 	return reader.clientID, true
+// }
 
 // Tracks returns all published track information. The order is undefined.
 func (p *PubSub) Tracks() []PubTrack {
 	var ret []PubTrack
 
-	if l := len(p.pubs); l > 0 {
+	if l := len(p.readers); l > 0 {
 		ret = make([]PubTrack, 0, l)
 
-		for _, pub := range p.pubs {
-			ret = append(ret, newPubTrack(pub))
+		for key, reader := range p.readers {
+			ret = append(ret, newPubTrack(key.ClientID, reader.Track()))
 		}
 	}
 
@@ -283,7 +316,7 @@ func (p *PubSub) Close() {
 	<-p.events.torndown
 }
 
-type pubSet map[*pub]struct{}
+type readerSet map[Reader]struct{}
 
 type userIdentifiable interface {
 	UserID() string

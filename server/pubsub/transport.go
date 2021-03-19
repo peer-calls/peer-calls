@@ -9,7 +9,7 @@ import (
 type Transport interface {
 	ClientID() string
 
-	AddTrack(track transport.Track) error
+	AddTrack(track transport.Track) (transport.TrackLocal, error)
 	RemoveTrack(trackID transport.TrackID) error
 }
 
