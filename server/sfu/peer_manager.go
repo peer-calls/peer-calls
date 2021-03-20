@@ -145,6 +145,8 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.wg.Add(1)
 
+	t.wg.Add(1)
+
 	go func() {
 		defer t.wg.Done()
 
@@ -538,7 +540,7 @@ func (t *PeerManager) Close() <-chan struct{} {
 
 	go func() {
 		t.wg.Wait()
-		// t.pubsub.Close()
+		t.pubsub.Close()
 
 		close(ch)
 	}()

@@ -231,11 +231,11 @@ type NodeManager struct {
 //	}
 //}
 
-//func (nm *NodeManager) Close() error {
-//	nm.params.RoomManager.Close()
-//	nm.transportManager.Close()
+func (nm *NodeManager) Close() error {
+	//	nm.params.RoomManager.Close()
+	//	nm.transportManager.Close()
 
-//	nm.wg.Wait()
+	//	nm.wg.Wait()
 
-//	return nil
-//}
+	return nil
+}
