@@ -100,7 +100,7 @@ func startSignalling(
 						Type: server.MessageTypeSubTrack,
 						Payload: map[string]interface{}{
 							"type":        transport.TrackEventTypeSub,
-							"ssrc":        uint32(payload["ssrc"].(float64)),
+							"trackId":     payload["trackId"].(string),
 							"pubClientId": payload["pubClientId"].(string),
 						},
 						Room: msg.Room,
@@ -262,9 +262,13 @@ func TestSFU_OnTrack(t *testing.T) {
 	defer peerCtx1.close()
 	waitPeerConnected(t, ctx, peerCtx1.pc)
 
+	fmt.Println("PEER 1 CONNECTED")
+
 	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID2, clientID2)
 	defer peerCtx2.close()
 	waitPeerConnected(t, ctx, peerCtx2.pc)
+
+	fmt.Println("PEER 2 CONNECTED")
 
 	pc1 := peerCtx1.pc
 	pc2 := peerCtx2.pc
@@ -279,7 +283,8 @@ func TestSFU_OnTrack(t *testing.T) {
 		onTrackFiredDone()
 		for {
 			_, _, err := remoteTrack.ReadRTP()
-			if remoteTrack != nil {
+			fmt.Println("got rtp", err)
+			if err != nil {
 				log.Info("pc2 remote track ended", nil)
 				assert.Equal(t, io.EOF, err, "error reading track")
 				onTrackEOFDone()

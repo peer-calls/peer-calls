@@ -151,7 +151,7 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 	event := m.Payload.(map[string]interface{})
 
 	pubClientID := event["pubClientId"].(string)
-	trackID := transport.TrackID(event["trackI d"].(string))
+	trackID := transport.TrackID(event["trackId"].(string))
 	typ := transport.TrackEventType(event["type"].(float64))
 
 	var err error

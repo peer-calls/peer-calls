@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
@@ -281,7 +282,7 @@ func NewWebRTCTransport(
 		// rtpCh:         make(chan *rtp.Packet),
 		// rtcpCh:        make(chan []rtcp.Packet),
 
-		// localTracks:  map[transport.TrackID]localTrack{},
+		localTracks: map[transport.TrackID]localTrack{},
 		// remoteTracks: map[transport.TrackID]remoteTrack{},
 
 		remoteTracksChannel: make(chan transport.TrackRemote),
@@ -289,8 +290,10 @@ func NewWebRTCTransport(
 	peerConnection.OnTrack(transport.handleTrack)
 
 	go func() {
+		fmt.Println("WAITING FOR SIGNALLER DONE")
 		// wait for peer connection to be closed
 		<-signaller.Done()
+		fmt.Println("SIGNALLER DONE")
 		// do not close channels before all writing goroutines exit
 		transport.wg.Wait()
 		transport.dataTransceiver.Close()
@@ -424,7 +427,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, err
 		p.signaller.SendTransceiverRequest(track.Kind(), webrtc.RTPTransceiverDirectionRecvonly)
 	}
 
-	p.wg.Add(1)
+	// p.wg.Add(1)
 
 	// go func() {
 	// 	defer p.wg.Done()
@@ -468,7 +471,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, err
 	p.localTracks[t.UniqueID()] = localTrack{trackInfo, transceiver, sender, track}
 	p.mu.Unlock()
 
-	tt := Track{
+	tt := LocalTrack{
 		TrackLocalStaticRTP: track,
 		track:               t,
 	}
@@ -522,6 +525,16 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackWithMID {
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+	t := RemoteTrack{
+		track,
+		transport.NewSimpleTrack(track.ID(), track.StreamID(), track.Codec().MimeType, p.clientID),
+	}
+
+	select {
+	case p.remoteTracksChannel <- t:
+	case <-p.signaller.Done():
+	}
+
 	// mimeType := track.Codec().MimeType
 	// _ = mimeType // FIXME
 
@@ -629,11 +642,20 @@ func (p *WebRTCTransport) Send(message webrtc.DataChannelMessage) <-chan error {
 	return p.dataTransceiver.Send(message)
 }
 
-type Track struct {
+type LocalTrack struct {
 	*webrtc.TrackLocalStaticRTP
 	track transport.Track
 }
 
-func (t Track) Track() transport.Track {
+func (t LocalTrack) Track() transport.Track {
+	return t.track
+}
+
+type RemoteTrack struct {
+	*webrtc.TrackRemote
+	track transport.Track
+}
+
+func (t RemoteTrack) Track() transport.Track {
 	return t.track
 }

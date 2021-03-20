@@ -30,3 +30,5 @@ require (
 	gopkg.in/yaml.v2 v2.3.0
 	nhooyr.io/websocket v1.8.4
 )
+
+replace github.com/pion/webrtc/v3 => ../pion/webrtc

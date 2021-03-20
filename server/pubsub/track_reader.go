@@ -56,17 +56,23 @@ func (t *TrackReader) startReadLoop() {
 
 	for {
 		packet, _, err := t.trackRemote.ReadRTP()
-		if err == io.ErrClosedPipe {
+		if err != nil {
+			// TODO log if not io.EOF
 			return
 		}
 
 		t.mu.Lock()
 
+		// TODO risk for deadlock on panic, mutex won't get unlocked and we'd end
+		// up in defer which tries to acquire the lock again.
+
 		for key, trackLocal := range t.subs {
 			_ = packet.MarshalSize()
+
 			if err := trackLocal.WriteRTP(packet); err == io.ErrClosedPipe {
 				delete(t.subs, key)
 			}
+
 		}
 
 		t.mu.Unlock()
