@@ -60,6 +60,7 @@ type TrackLocal interface {
 type TrackRemote interface {
 	trackCommon
 	ReadRTP() (*rtp.Packet, interceptor.Attributes, error)
+	SSRC() webrtc.SSRC
 }
 
 // // TODO implement Publisher.

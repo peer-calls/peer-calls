@@ -118,7 +118,7 @@ func (n *Negotiator) Negotiate() (done <-chan struct{}) {
 	defer n.mu.Unlock()
 
 	if n.negotiationDone != nil {
-		n.log.Info("Negotiate: lready negotiating, queueing for later", nil)
+		n.log.Info("Negotiate: already negotiating, queueing for later", nil)
 		n.queuedNegotiation = true
 		return
 	}

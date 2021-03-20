@@ -66,6 +66,7 @@ func (s *SimpleTrack) UnmarshalJSON(data []byte) error {
 	s.streamID = j.StreamID
 	s.mimeType = j.MimeType
 	s.userID = j.UserID
+	s.uniqueID = TrackID(fmt.Sprintf("%s:%s", j.StreamID, j.ID))
 
 	return errors.Annotatef(err, "unmarshal simple track json")
 }

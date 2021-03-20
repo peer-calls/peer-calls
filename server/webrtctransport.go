@@ -422,8 +422,10 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, err
 	}
 
 	if p.signaller.Initiator() {
+		fmt.Println("add track, call negotiate")
 		p.signaller.Negotiate()
 	} else {
+		fmt.Println("add track, send transc req")
 		p.signaller.SendTransceiverRequest(track.Kind(), webrtc.RTPTransceiverDirectionRecvonly)
 	}
 

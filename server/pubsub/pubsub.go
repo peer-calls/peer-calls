@@ -149,6 +149,8 @@ func (p *PubSub) sub(reader Reader, tr Transport) error {
 		return errors.Annotatef(err, "adding track to transport")
 	}
 
+	fmt.Println("added track to sub", tr.ClientID(), track)
+
 	if err := reader.Sub(subClientID, trackLocal); err != nil {
 		// TODO what to do with the track now?
 		return errors.Trace(err)

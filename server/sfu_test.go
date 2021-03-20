@@ -318,8 +318,12 @@ func TestSFU_OnTrack(t *testing.T) {
 	log.Info("sending negotiate request (1)", nil)
 	wait(t, ctx, peerCtx1.signaller.Negotiate())
 
+	log.Info("waiting for track", nil)
+
 	<-onTrackFired.Done()
 	assert.Equal(t, context.Canceled, onTrackFired.Err(), "test timed out")
+
+	log.Info("got track", nil)
 
 	// trigger io.EOF when reading from track2
 	assert.NoError(t, pc1.RemoveTrack(sender))
