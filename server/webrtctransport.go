@@ -409,16 +409,16 @@ func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 
 var _ transport.Transport = &WebRTCTransport{}
 
-func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, error) {
+func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, transport.Sender, error) {
 	track, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, t.ID(), t.StreamID())
 
 	if err != nil {
-		return nil, errors.Annotate(err, "new track")
+		return nil, nil, errors.Annotate(err, "new track")
 	}
 
 	sender, err := p.peerConnection.AddTrack(track)
 	if err != nil {
-		return nil, errors.Annotate(err, "add track")
+		return nil, nil, errors.Annotate(err, "add track")
 	}
 
 	if p.signaller.Initiator() {
@@ -478,7 +478,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, err
 		track:               t,
 	}
 
-	return tt, nil
+	return tt, sender, nil
 }
 
 // func (p *WebRTCTransport) addRemoteTrack(rti remoteTrack) {

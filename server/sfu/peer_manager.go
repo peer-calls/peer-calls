@@ -1,6 +1,7 @@
 package sfu
 
 import (
+	"io"
 	"strings"
 	"sync"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -389,14 +391,95 @@ func (t *PeerManager) Sub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	transport, ok := t.getTransport(params.SubClientID)
+	tr, ok := t.getTransport(params.SubClientID)
 	if !ok {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
 
-	err := t.pubsub.Sub(params.PubClientID, params.TrackID, transport)
+	sender, err := t.pubsub.Sub(params.PubClientID, params.TrackID, tr)
 
-	return errors.Trace(err)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	t.wg.Add(1)
+
+	go func() {
+		defer t.wg.Done()
+
+		logCtx := logger.Ctx{
+			"pub_client_id": params.PubClientID,
+			"track_id":      params.TrackID,
+			"sub_client_id": params.SubClientID,
+		}
+
+		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
+			t.mu.Lock()
+
+			props, ok := t.pubsub.TrackPropsByTrackID(params.TrackID)
+
+			t.mu.Unlock()
+
+			return props, ok
+		}
+
+		handlePacket := func(packet rtcp.Packet) error {
+			// NOTE: REMB and NACK are now handled by pion/webrtc interceptors so we
+			// don't have to explicitly handle them here.
+			switch pkt := packet.(type) {
+			// PLI cannot be handled by interceptors since it's implementation
+			// specific. We need to find the source and send the PLI packet. We also
+			// need to make sure to set the correct SSRC before the packet is
+			// forwarded, since pion/webrtc/v3 no longer uses the same SSRCs between
+			// different peer connections.
+			case *rtcp.PictureLossIndication:
+				props, ok := getTrackProps(params.TrackID)
+				if !ok {
+					return errors.Annotatef(pubsub.ErrTrackNotFound, "got RTCP for track that was not found")
+				}
+
+				transport, ok := t.getTransport(props.ClientID)
+				if !ok {
+					return errors.Errorf("transport not found: %s", props.ClientID)
+				}
+
+				// Important: set the correct SSRC before sending the packet to source.
+				pkt.MediaSSRC = uint32(props.SSRC)
+				pkt.SenderSSRC = uint32(props.SSRC)
+
+				if err := transport.WriteRTCP([]rtcp.Packet{pkt}); err != nil {
+					return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
+				}
+
+				// TODO remove this log.
+				t.log.Info("Sent PLI back to source", logCtx)
+			default:
+			}
+
+			return nil
+		}
+
+		for {
+			packets, _, err := sender.ReadRTCP()
+
+			if err != nil {
+				if err != io.EOF {
+					t.log.Error("Read RTCP for sender", errors.Trace(err), logCtx)
+				}
+
+				return
+			}
+
+			for _, packet := range packets {
+				if err := handlePacket(packet); err != nil {
+					t.log.Error("Handling RTCP packet", errors.Trace(err), logCtx)
+				}
+
+			}
+		}
+	}()
+
+	return nil
 }
 
 func (t *PeerManager) Unsub(params SubParams) error {

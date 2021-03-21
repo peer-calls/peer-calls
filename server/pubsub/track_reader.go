@@ -6,6 +6,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/webrtc/v3"
 )
 
 type Reader interface {
@@ -13,6 +14,9 @@ type Reader interface {
 	Sub(subClientID string, trackLocal transport.TrackLocal) error
 	Unsub(subClientID string) error
 	Subs() []string
+
+	SSRC() webrtc.SSRC
+	RID() string
 }
 
 type TrackReader struct {
@@ -28,13 +32,13 @@ var _ Reader = &TrackReader{}
 
 func NewTrackReader(trackRemote transport.TrackRemote, onClose func()) *TrackReader {
 	t := &TrackReader{
+		onClose: onClose,
+
 		trackRemote: trackRemote,
 		subs:        map[string]transport.TrackLocal{},
-		onClose:     onClose,
 	}
 
 	go t.startReadLoop()
-	// go t.startFeedbackLoop()
 
 	return t
 }
@@ -44,21 +48,11 @@ func (t *TrackReader) Track() transport.Track {
 }
 
 func (t *TrackReader) startReadLoop() {
-	defer func() {
-		t.mu.Lock()
-
-		t.closed = true
-
-		go t.onClose()
-
-		t.mu.Unlock()
-	}()
-
 	for {
 		packet, _, err := t.trackRemote.ReadRTP()
 		if err != nil {
 			// TODO log if not io.EOF
-			return
+			break
 		}
 
 		t.mu.Lock()
@@ -77,27 +71,33 @@ func (t *TrackReader) startReadLoop() {
 
 		t.mu.Unlock()
 	}
-}
-
-func (t *TrackReader) Sub(subClientID string, trackLocal transport.TrackLocal) error {
-	var err error
 
 	t.mu.Lock()
 
-	_, alreadySubscribed := t.subs[subClientID]
+	t.closed = true
 
-	switch {
-	case t.closed:
-		err = errors.Trace(io.ErrClosedPipe)
-	case alreadySubscribed:
-		err = errors.Errorf("already subscribed")
-	default:
-		t.subs[subClientID] = trackLocal
-	}
+	go t.onClose()
 
 	t.mu.Unlock()
+}
 
-	return errors.Trace(err)
+func (t *TrackReader) Sub(subClientID string, trackLocal transport.TrackLocal) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	_, alreadySubscribed := t.subs[subClientID]
+
+	if t.closed {
+		return errors.Trace(io.ErrClosedPipe)
+	}
+
+	if alreadySubscribed {
+		return errors.Errorf("already subscribed")
+	}
+
+	t.subs[subClientID] = trackLocal
+
+	return nil
 }
 
 func (t *TrackReader) Unsub(subClientID string) error {
@@ -130,4 +130,12 @@ func (t *TrackReader) Subs() []string {
 	t.mu.Unlock()
 
 	return subs
+}
+
+func (t *TrackReader) SSRC() webrtc.SSRC {
+	return t.trackRemote.SSRC()
+}
+
+func (t *TrackReader) RID() string {
+	return t.trackRemote.RID()
 }

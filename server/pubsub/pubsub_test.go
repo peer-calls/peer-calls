@@ -10,6 +10,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v3"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -391,7 +392,7 @@ func TestPubSub(t *testing.T) {
 		case tc.unpub != nil:
 			ps.Unpub(tc.unpub.clientID, tc.unpub.trackID)
 		case tc.sub != nil:
-			err = ps.Sub(tc.sub.clientID, tc.sub.trackID, tc.sub.transport)
+			_, err = ps.Sub(tc.sub.clientID, tc.sub.trackID, tc.sub.transport)
 		case tc.unsub != nil:
 			err = ps.Unsub(tc.unsub.clientID, tc.unsub.trackID, tc.unsub.transport.ClientID())
 		case tc.terminate != "":
@@ -449,14 +450,14 @@ var (
 	errTrackNotFound     = errors.Errorf("track not found")
 )
 
-func (t *transportMock) AddTrack(track transport.Track) (transport.TrackLocal, error) {
+func (t *transportMock) AddTrack(track transport.Track) (transport.TrackLocal, transport.Sender, error) {
 	if _, ok := t.addedTracks[track.UniqueID()]; ok {
-		return nil, errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
+		return nil, nil, errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
 	}
 
 	t.addedTracks[track.UniqueID()] = track
 
-	return trackLocalMock{t.clientID, track}, nil
+	return trackLocalMock{t.clientID, track}, senderMock{}, nil
 }
 
 func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
@@ -470,6 +471,10 @@ func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
 }
 
 var _ pubsub.Transport = &transportMock{}
+
+type senderMock struct {
+	transport.Sender
+}
 
 type trackLocalMock struct {
 	clientID string
@@ -536,6 +541,14 @@ func (r *readerMock) Subs() []string {
 	}
 
 	return subs
+}
+
+func (r *readerMock) SSRC() webrtc.SSRC {
+	return webrtc.SSRC(0)
+}
+
+func (r *readerMock) RID() string {
+	return ""
 }
 
 var _ pubsub.Reader = &readerMock{}
