@@ -14,17 +14,19 @@ type SimpleTrack struct {
 	userID   string
 
 	uniqueID TrackID
+
+	codec Codec
 }
 
 var _ Track = SimpleTrack{}
 
-func NewSimpleTrack(id string, streamID string, mimeType string, userID string) SimpleTrack {
+func NewSimpleTrack(id string, streamID string, codec Codec, userID string) SimpleTrack {
 	return SimpleTrack{
 		id:       id,
 		streamID: streamID,
-		mimeType: mimeType,
 		userID:   userID,
 		uniqueID: TrackID(fmt.Sprintf("%s:%s", streamID, id)),
+		codec:    codec,
 	}
 }
 
@@ -48,12 +50,16 @@ func (s SimpleTrack) UniqueID() TrackID {
 	return s.uniqueID
 }
 
+func (s SimpleTrack) Codec() Codec {
+	return s.codec
+}
+
 func (s SimpleTrack) MarshalJSON() ([]byte, error) {
 	return json.Marshal(TrackJSON{
 		ID:       s.id,
 		StreamID: s.streamID,
-		MimeType: s.mimeType,
 		UserID:   s.userID,
+		Codec:    s.codec,
 	})
 }
 
@@ -64,7 +70,7 @@ func (s *SimpleTrack) UnmarshalJSON(data []byte) error {
 
 	s.id = j.ID
 	s.streamID = j.StreamID
-	s.mimeType = j.MimeType
+	s.codec = j.Codec
 	s.userID = j.UserID
 	s.uniqueID = TrackID(fmt.Sprintf("%s:%s", j.StreamID, j.ID))
 

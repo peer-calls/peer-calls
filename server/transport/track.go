@@ -4,8 +4,15 @@ type Track interface {
 	UniqueID() TrackID
 	ID() string
 	StreamID() string
-	MimeType() string
 	UserID() string
+	Codec() Codec
+}
+
+type Codec struct {
+	MimeType    string `json:"mimeType"`
+	ClockRate   uint32 `json:"clockRate"`
+	Channels    uint16 `json:"channels"`
+	SDPFmtpLine string `json:"sdpFmtpLine"`
 }
 
 type TrackID string

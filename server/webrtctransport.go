@@ -3,12 +3,14 @@ package server
 import (
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 )
@@ -41,7 +43,7 @@ func NewWebRTCTransportFactory(
 	if udp := sfuConfig.UDP; udp.PortMin > 0 && udp.PortMax > 0 {
 		logCtx := logger.Ctx{
 			"port_min": udp.PortMin,
-			"port_max": udp.PortMin,
+			"port_max": udp.PortMax,
 		}
 
 		if err := settingEngine.SetEphemeralUDPPortRange(udp.PortMin, udp.PortMax); err != nil {
@@ -97,21 +99,30 @@ func NewWebRTCTransportFactory(
 
 	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
 
+	interceptorRegistry := &interceptor.Registry{}
+
+	if err := webrtc.RegisterDefaultInterceptors(&mediaEngine, interceptorRegistry); err != nil {
+		log.Error("Registering default interceptors", errors.Trace(err), nil)
+	}
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(&mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
+		webrtc.WithInterceptorRegistry(interceptorRegistry),
 	)
 
 	return &WebRTCTransportFactory{log, iceServers, api}
 }
 
+var videoRTCPFeedback = []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
+
 func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: webrtc.RTPCodecCapability{
-			MimeType:     "audio/opus",
+			MimeType:     webrtc.MimeTypeOpus,
 			ClockRate:    48000,
-			Channels:     0,
-			SDPFmtpLine:  "",
+			Channels:     2,
+			SDPFmtpLine:  "minptime=10;useinbandfec=1",
 			RTCPFeedback: nil,
 		},
 		PayloadType: 111,
@@ -120,43 +131,45 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 		panic(err) // TODO handle gracefully
 	}
 
-	rtcpfb := []webrtc.RTCPFeedback{
-		{
-			Type: webrtc.TypeRTCPFBGoogREMB,
-		},
-		// webrtc.RTCPFeedback{
-		// 	Type:      webrtc.TypeRTCPFBCCM,
-		// 	Parameter: "fir",
-		// },
+	// rtcpfb := []webrtc.RTCPFeedback{
+	// 	{
+	// 		Type: webrtc.TypeRTCPFBGoogREMB,
+	// 	},
+	// 	// webrtc.RTCPFeedback{
+	// 	// 	Type:      webrtc.TypeRTCPFBCCM,
+	// 	// 	Parameter: "fir",
+	// 	// },
 
-		// https://tools.ietf.org/html/rfc4585#section-4.2
-		// "pli" indicates the use of Picture Loss Indication feedback as defined
-		// in Section 6.3.1.
-		{
-			Type:      webrtc.TypeRTCPFBNACK,
-			Parameter: "pli",
-		},
-	}
+	// 	// https://tools.ietf.org/html/rfc4585#section-4.2
+	// 	// "pli" indicates the use of Picture Loss Indication feedback as defined
+	// 	// in Section 6.3.1.
+	// 	{
+	// 		Type:      webrtc.TypeRTCPFBNACK,
+	// 		Parameter: "pli",
+	// 	},
+	// }
 
-	if jitterBufferEnabled {
-		// The feedback type "nack", without parameters, indicates use of the
-		// Generic NACK feedback format as defined in Section 6.2.1.
-		rtcpfb = append(rtcpfb, webrtc.RTCPFeedback{
-			Type:      webrtc.TypeRTCPFBNACK,
-			Parameter: "",
-		})
-	}
+	// if jitterBufferEnabled {
+	// 	// The feedback type "nack", without parameters, indicates use of the
+	// 	// Generic NACK feedback format as defined in Section 6.2.1.
+	// 	rtcpfb = append(rtcpfb, webrtc.RTCPFeedback{
+	// 		Type:      webrtc.TypeRTCPFBNACK,
+	// 		Parameter: "",
+	// 	})
+	// }
 
+	// videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
 	err = mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: webrtc.RTPCodecCapability{
-			MimeType:     "video/VP8",
+			MimeType:     webrtc.MimeTypeVP8,
 			ClockRate:    90000,
 			Channels:     0,
 			SDPFmtpLine:  "",
-			RTCPFeedback: rtcpfb,
+			RTCPFeedback: videoRTCPFeedback,
 		},
 		PayloadType: 96,
 	}, webrtc.RTPCodecTypeVideo)
+
 	if err != nil {
 		panic(err)
 	}
@@ -312,12 +325,12 @@ type localTrack struct {
 	track       *webrtc.TrackLocalStaticRTP
 }
 
-type remoteTrack struct {
-	trackInfo   transport.TrackWithMID
-	transceiver *webrtc.RTPTransceiver
-	receiver    *webrtc.RTPReceiver
-	track       *webrtc.TrackRemote
-}
+// type remoteTrack struct {
+// 	trackInfo   transport.TrackWithMID
+// 	transceiver *webrtc.RTPTransceiver
+// 	receiver    *webrtc.RTPReceiver
+// 	track       *webrtc.TrackRemote
+// }
 
 func (p *WebRTCTransport) Close() error {
 	return p.signaller.Close()
@@ -410,7 +423,23 @@ func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 var _ transport.Transport = &WebRTCTransport{}
 
 func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, transport.Sender, error) {
-	track, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: "video/vp8"}, t.ID(), t.StreamID())
+	codec := t.Codec()
+
+	var rtcpFeedback []webrtc.RTCPFeedback
+
+	if strings.HasPrefix(codec.MimeType, "video/") {
+		rtcpFeedback = videoRTCPFeedback
+	}
+
+	capability := webrtc.RTPCodecCapability{
+		MimeType:     codec.MimeType,
+		ClockRate:    codec.ClockRate,
+		Channels:     codec.Channels,
+		SDPFmtpLine:  codec.SDPFmtpLine,
+		RTCPFeedback: rtcpFeedback,
+	}
+
+	track, err := webrtc.NewTrackLocalStaticRTP(capability, t.ID(), t.StreamID())
 
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "new track")
@@ -527,10 +556,21 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackWithMID {
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-	t := RemoteTrack{
-		track,
-		transport.NewSimpleTrack(track.ID(), track.StreamID(), track.Codec().MimeType, p.clientID),
+	rtpCodecParameters := track.Codec()
+
+	codec := transport.Codec{
+		MimeType:    rtpCodecParameters.MimeType,
+		ClockRate:   rtpCodecParameters.ClockRate,
+		Channels:    rtpCodecParameters.Channels,
+		SDPFmtpLine: rtpCodecParameters.SDPFmtpLine,
 	}
+
+	t := RemoteTrack{
+		TrackRemote: track,
+		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.clientID),
+	}
+
+	fmt.Println("handleTrack", t.track)
 
 	select {
 	case p.remoteTracksChannel <- t:

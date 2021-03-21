@@ -180,6 +180,8 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		defer t.wg.Done()
 
 		for remoteTrack := range tr.RemoteTracksChannel() {
+			remoteTrack := remoteTrack
+
 			t.pubsub.Pub(tr.ClientID(), pubsub.NewTrackReader(remoteTrack, func() {
 				t.mu.Lock()
 
@@ -416,7 +418,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
 			t.mu.Lock()
 
-			props, ok := t.pubsub.TrackPropsByTrackID(params.TrackID)
+			props, ok := t.pubsub.TrackPropsByTrackID(trackID)
 
 			t.mu.Unlock()
 
@@ -509,10 +511,12 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 
 		var kind webrtc.RTPCodecType
 
+		codec := track.Codec()
+
 		switch {
-		case strings.HasPrefix(track.MimeType(), "audio/"):
+		case strings.HasPrefix(codec.MimeType, "audio/"):
 			kind = webrtc.RTPCodecTypeAudio
-		case strings.HasPrefix(track.MimeType(), "video/"):
+		case strings.HasPrefix(codec.MimeType, "video/"):
 			kind = webrtc.RTPCodecTypeVideo
 		default:
 			kind = webrtc.RTPCodecType(0)
