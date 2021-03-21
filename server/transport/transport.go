@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -16,18 +17,18 @@ const (
 type Transport interface {
 	ClientID() string
 	Type() Type
-	MediaTransport
-	DataTransport
-	MetadataTransport
-	Closable
-}
 
-type MetadataTransport interface {
-	TrackEventsChannel() <-chan TrackEvent
-	LocalTracks() []TrackInfo
-	RemoteTracks() []TrackInfo
-	AddTrack(track Track) error
-	RemoveTrack(ssrc uint32) error
+	DataTransport
+
+	RemoteTracksChannel() <-chan TrackRemote
+
+	LocalTracks() []TrackWithMID
+	AddTrack(Track) (TrackLocal, Sender, error)
+	RemoveTrack(TrackID) error
+
+	RTCPWriter
+
+	Closable
 }
 
 type Closable interface {
@@ -35,11 +36,29 @@ type Closable interface {
 	Done() <-chan struct{}
 }
 
-type MediaTransport interface {
+type trackCommon interface {
+	Track() Track
+}
+
+type TrackLocal interface {
+	trackCommon
+	Write([]byte) (int, error)
+	WriteRTP(*rtp.Packet) error
+}
+
+type TrackRemote interface {
+	trackCommon
+	ReadRTP() (*rtp.Packet, interceptor.Attributes, error)
+	SSRC() webrtc.SSRC
+	RID() string
+}
+
+type Sender interface {
+	ReadRTCP() ([]rtcp.Packet, interceptor.Attributes, error)
+}
+
+type RTCPWriter interface {
 	WriteRTCP([]rtcp.Packet) error
-	WriteRTP(*rtp.Packet) (int, error)
-	RTPChannel() <-chan *rtp.Packet
-	RTCPChannel() <-chan []rtcp.Packet
 }
 
 type DataTransport interface {

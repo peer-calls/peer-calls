@@ -1,10 +1,9 @@
 package multierr
 
 import (
+	e "errors"
 	"fmt"
 	"strings"
-
-	e "errors"
 
 	"github.com/juju/errors"
 )

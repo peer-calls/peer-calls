@@ -63,9 +63,11 @@ func New(
 	})
 	log.Info("NewTransport", nil)
 
+	mediaTransport := NewMediaTransport(log, mediaConn)
+
 	return &Transport{
-		MetadataTransport: NewMetadataTransport(log, metadataConn, clientID),
-		MediaTransport:    NewMediaTransport(log, mediaConn),
+		MetadataTransport: NewMetadataTransport(log, metadataConn, mediaTransport, clientID),
+		MediaTransport:    mediaTransport,
 		DataTransport:     NewDataTransport(log, dataConn),
 		clientID:          clientID,
 		closeChan:         make(chan struct{}),

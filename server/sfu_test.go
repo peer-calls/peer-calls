@@ -100,7 +100,7 @@ func startSignalling(
 						Type: server.MessageTypeSubTrack,
 						Payload: map[string]interface{}{
 							"type":        transport.TrackEventTypeSub,
-							"ssrc":        uint32(payload["ssrc"].(float64)),
+							"trackId":     payload["trackId"].(string),
 							"pubClientId": payload["pubClientId"].(string),
 						},
 						Room: msg.Room,
@@ -119,7 +119,10 @@ func startSignalling(
 			err := wsClient.Write(server.NewMessage("signal", roomName, signal))
 			// Sometimes there are late signals e created even after the test has
 			// finished successfully, so ignore the errors, but log them.
-			t.Log(fmt.Errorf("error sending signal to ws: %w", err))
+
+			if err != nil {
+				t.Log(fmt.Errorf("error sending signal to ws: %w", err))
+			}
 		}
 	}()
 }
@@ -163,7 +166,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	log := test.NewLogger()
 
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(mediaEngine),
+		webrtc.WithMediaEngine(&mediaEngine),
 		webrtc.WithSettingEngine(webrtc.SettingEngine{
 			LoggerFactory: pionlogger.NewFactory(log),
 		}),
@@ -203,11 +206,11 @@ func waitPeerConnected(t *testing.T, ctx context.Context, pc *webrtc.PeerConnect
 	wait(t, ctx, waitCh)
 }
 
-func sendVideoUntilDone(t *testing.T, done <-chan struct{}, track *webrtc.Track) {
+func sendVideoUntilDone(t *testing.T, done <-chan struct{}, track *webrtc.TrackLocalStaticSample) {
 	for {
 		select {
 		case <-time.After(20 * time.Millisecond):
-			assert.NoError(t, track.WriteSample(media.Sample{Data: []byte{0x00}, Samples: 1}))
+			assert.NoError(t, track.WriteSample(media.Sample{Data: []byte{0x00}}))
 		case <-done:
 			return
 		}
@@ -259,24 +262,29 @@ func TestSFU_OnTrack(t *testing.T) {
 	defer peerCtx1.close()
 	waitPeerConnected(t, ctx, peerCtx1.pc)
 
+	fmt.Println("PEER 1 CONNECTED")
+
 	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID2, clientID2)
 	defer peerCtx2.close()
 	waitPeerConnected(t, ctx, peerCtx2.pc)
+
+	fmt.Println("PEER 2 CONNECTED")
 
 	pc1 := peerCtx1.pc
 	pc2 := peerCtx2.pc
 
 	onTrackFired, onTrackFiredDone := context.WithCancel(ctx)
 	onTrackEOF, onTrackEOFDone := context.WithCancel(ctx)
-	pc2.OnTrack(func(remoteTrack *webrtc.Track, receiver *webrtc.RTPReceiver) {
+	pc2.OnTrack(func(remoteTrack *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log := log.WithCtx(logger.Ctx{"ssrc": remoteTrack.SSRC()})
 
 		log.Info("OnTrack", nil)
 
 		onTrackFiredDone()
 		for {
-			_, err := remoteTrack.ReadRTP()
-			if remoteTrack != nil {
+			_, _, err := remoteTrack.ReadRTP()
+			fmt.Println("got rtp", err)
+			if err != nil {
 				log.Info("pc2 remote track ended", nil)
 				assert.Equal(t, io.EOF, err, "error reading track")
 				onTrackEOFDone()
@@ -285,17 +293,21 @@ func TestSFU_OnTrack(t *testing.T) {
 		}
 	})
 
-	localTrack, err := pc1.NewTrack(webrtc.DefaultPayloadTypeVP8, 12345, "track-one", "stream-one")
+	localTrack, err := webrtc.NewTrackLocalStaticSample(
+		webrtc.RTPCodecCapability{MimeType: "video/VP8"}, "track-one", "stream-one",
+	)
 	require.NoError(t, err)
 
 	log.Info("AddTrack start", logger.Ctx{
-		"ssrc": localTrack.SSRC(),
+		"track_id":  localTrack.ID(),
+		"stream_id": localTrack.StreamID(),
 	})
 
 	sender, err := pc1.AddTrack(localTrack)
 
 	log.Info("AddTrack end", logger.Ctx{
-		"ssrc": localTrack.SSRC(),
+		"track_id":  localTrack.ID(),
+		"stream_id": localTrack.StreamID(),
 	})
 
 	require.NoError(t, err)
@@ -306,8 +318,12 @@ func TestSFU_OnTrack(t *testing.T) {
 	log.Info("sending negotiate request (1)", nil)
 	wait(t, ctx, peerCtx1.signaller.Negotiate())
 
+	log.Info("waiting for track", nil)
+
 	<-onTrackFired.Done()
 	assert.Equal(t, context.Canceled, onTrackFired.Err(), "test timed out")
+
+	log.Info("got track", nil)
 
 	// trigger io.EOF when reading from track2
 	assert.NoError(t, pc1.RemoveTrack(sender))

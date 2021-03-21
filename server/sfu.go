@@ -151,7 +151,7 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 	event := m.Payload.(map[string]interface{})
 
 	pubClientID := event["pubClientId"].(string)
-	ssrc := uint32(event["ssrc"].(float64))
+	trackID := transport.TrackID(event["trackId"].(string))
 	typ := transport.TrackEventType(event["type"].(float64))
 
 	var err error
@@ -161,14 +161,14 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 		err = sh.tracksManager.Sub(sfu.SubParams{
 			PubClientID: pubClientID,
 			Room:        sh.room,
-			SSRC:        ssrc,
+			TrackID:     trackID,
 			SubClientID: sh.clientID,
 		})
 	case transport.TrackEventTypeUnsub:
 		err = sh.tracksManager.Unsub(sfu.SubParams{
 			PubClientID: pubClientID,
 			Room:        sh.room,
-			SSRC:        ssrc,
+			TrackID:     trackID,
 			SubClientID: sh.clientID,
 		})
 	default:
@@ -256,7 +256,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 			err := sh.adapter.Emit(clientID, Message{
 				Type: MessageTypePubTrack,
 				Payload: map[string]interface{}{
-					"ssrc":        pubTrackEvent.PubTrack.SSRC,
+					"trackId":     pubTrackEvent.PubTrack.TrackID,
 					"pubClientId": pubTrackEvent.PubTrack.ClientID,
 					"userId":      pubTrackEvent.PubTrack.UserID,
 					"type":        pubTrackEvent.Type,

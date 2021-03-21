@@ -1,9 +1,15 @@
 package transport
 
-import "github.com/pion/webrtc/v3"
+type TrackWithMID struct {
+	Track
+	// Kind  webrtc.RTPCodecType
+	mid string
+}
 
-type TrackInfo struct {
-	Track Track
-	Kind  webrtc.RTPCodecType
-	Mid   string
+func NewTrackWithMID(track Track, mid string) TrackWithMID {
+	return TrackWithMID{Track: track, mid: mid}
+}
+
+func (t TrackWithMID) MID() string {
+	return t.mid
 }

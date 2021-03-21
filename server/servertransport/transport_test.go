@@ -7,12 +7,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/test"
-	"github.com/peer-calls/peer-calls/server/transport"
-	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
 	"github.com/pion/sctp"
-	"github.com/pion/webrtc/v3/pkg/media"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -78,97 +73,97 @@ func TestUDP(t *testing.T) {
 	assert.Equal(t, "pong", string(buf))
 }
 
-func TestServerMediaTransport_RTP(t *testing.T) {
-	conn1 := newUDPServer()
-	conn2 := newUDPClient(conn1.LocalAddr())
+// func TestServerMediaTransport_RTP(t *testing.T) {
+// 	conn1 := newUDPServer()
+// 	conn2 := newUDPClient(conn1.LocalAddr())
 
-	log := test.NewLogger()
+// 	log := test.NewLogger()
 
-	t1 := NewMediaTransport(log, conn1)
-	t2 := NewMediaTransport(log, conn2)
+// 	t1 := NewMediaTransport(log, conn1)
+// 	t2 := NewMediaTransport(log, conn2)
 
-	defer t1.Close()
-	defer t2.Close()
+// 	defer t1.Close()
+// 	defer t2.Close()
 
-	ssrc := uint32(123)
+// 	ssrc := uint32(123)
 
-	packetizer := rtp.NewPacketizer(
-		ReceiveMTU,
-		96,
-		ssrc,
-		&codecs.VP8Payloader{},
-		rtp.NewRandomSequencer(),
-		96000,
-	)
+// 	packetizer := rtp.NewPacketizer(
+// 		ReceiveMTU,
+// 		96,
+// 		ssrc,
+// 		&codecs.VP8Payloader{},
+// 		rtp.NewRandomSequencer(),
+// 		96000,
+// 	)
 
-	writeSample := func(transport transport.MediaTransport, s media.Sample) []*rtp.Packet {
-		pkts := packetizer.Packetize(s.Data, s.Samples)
+// 	writeSample := func(localTrack transport.TrackLocal, s media.Sample) []*rtp.Packet {
+// 		pkts := packetizer.Packetize(s.Data, 1)
 
-		for _, pkt := range pkts {
-			_, err := transport.WriteRTP(pkt)
-			assert.NoError(t, err)
-		}
+// 		for _, pkt := range pkts {
+// 			err := localTrack.WriteRTP(pkt)
+// 			assert.NoError(t, err)
+// 		}
 
-		return pkts
-	}
+// 		return pkts
+// 	}
 
-	sentPkts := writeSample(t1, media.Sample{Data: []byte{0x01}, Samples: 1})
-	require.Equal(t, 1, len(sentPkts))
+// 	sentPkts := writeSample(t1, media.Sample{Data: []byte{0x01}})
+// 	require.Equal(t, 1, len(sentPkts))
 
-	expected := map[uint16][]byte{}
+// 	expected := map[uint16][]byte{}
 
-	for _, pkt := range sentPkts {
-		b, err := pkt.Marshal()
-		require.NoError(t, err)
-		expected[pkt.SequenceNumber] = b
-	}
+// 	for _, pkt := range sentPkts {
+// 		b, err := pkt.Marshal()
+// 		require.NoError(t, err)
+// 		expected[pkt.SequenceNumber] = b
+// 	}
 
-	actual := map[uint16][]byte{}
+// 	actual := map[uint16][]byte{}
 
-	for i := 0; i < len(sentPkts); i++ {
-		pkt := <-t2.RTPChannel()
-		b, err := pkt.Marshal()
-		require.NoError(t, err)
-		actual[pkt.SequenceNumber] = b
-	}
+// 	for i := 0; i < len(sentPkts); i++ {
+// 		pkt := <-t2.RTPChannel()
+// 		b, err := pkt.Marshal()
+// 		require.NoError(t, err)
+// 		actual[pkt.SequenceNumber] = b
+// 	}
 
-	assert.Equal(t, expected, actual)
-}
+// 	assert.Equal(t, expected, actual)
+// }
 
-func TestServerMediaTransport_RTCP(t *testing.T) {
-	conn1 := newUDPServer()
-	conn2 := newUDPClient(conn1.LocalAddr())
+// func TestServerMediaTransport_RTCP(t *testing.T) {
+// 	conn1 := newUDPServer()
+// 	conn2 := newUDPClient(conn1.LocalAddr())
 
-	log := test.NewLogger()
+// 	log := test.NewLogger()
 
-	t1 := NewMediaTransport(log, conn1)
-	t2 := NewMediaTransport(log, conn2)
+// 	t1 := NewMediaTransport(log, conn1)
+// 	t2 := NewMediaTransport(log, conn2)
 
-	defer t1.Close()
-	defer t2.Close()
+// 	defer t1.Close()
+// 	defer t2.Close()
 
-	senderReport := rtcp.SenderReport{
-		SSRC: uint32(123),
-	}
+// 	senderReport := rtcp.SenderReport{
+// 		SSRC: uint32(123),
+// 	}
 
-	writeRTCP := func(transport transport.MediaTransport, pkts []rtcp.Packet) {
-		err := transport.WriteRTCP(pkts)
-		require.NoError(t, err)
-	}
+// 	writeRTCP := func(transport transport.RTCPWriter, pkts []rtcp.Packet) {
+// 		err := transport.WriteRTCP(pkts)
+// 		require.NoError(t, err)
+// 	}
 
-	writeRTCP(t1, []rtcp.Packet{&senderReport})
+// 	writeRTCP(t1, []rtcp.Packet{&senderReport})
 
-	sentBytes, err := senderReport.Marshal()
-	require.NoError(t, err)
+// 	sentBytes, err := senderReport.Marshal()
+// 	require.NoError(t, err)
 
-	recvPkts := <-t2.RTCPChannel()
-	assert.Equal(t, 1, len(recvPkts))
+// 	recvPkts := <-t2.RTCPChannel()
+// 	assert.Equal(t, 1, len(recvPkts))
 
-	recvBytes, err := recvPkts[0].Marshal()
-	require.NoError(t, err)
+// 	recvBytes, err := recvPkts[0].Marshal()
+// 	require.NoError(t, err)
 
-	assert.Equal(t, sentBytes, recvBytes)
-}
+// 	assert.Equal(t, sentBytes, recvBytes)
+// }
 
 func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	conn1 := newUDPServer()

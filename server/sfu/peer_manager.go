@@ -1,14 +1,16 @@
 package sfu
 
 import (
-	"fmt"
+	"io"
+	"strings"
 	"sync"
+
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pubsub"
-	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
@@ -19,8 +21,7 @@ type PeerManager struct {
 	mu  sync.RWMutex
 	wg  sync.WaitGroup
 
-	jitterHandler          JitterHandler
-	trackBitrateEstimators *TrackBitrateEstimators
+	jitterHandler JitterHandler
 
 	// webrtcTransports indexed by ClientID
 	webrtcTransports map[string]transport.Transport
@@ -28,57 +29,57 @@ type PeerManager struct {
 
 	room string
 
-	// pubsub keeps track of published tracks and its subscribers.
+	// // pubsub keeps track of published tracks and its subscribers.
 	pubsub *pubsub.PubSub
 }
 
 func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler) *PeerManager {
 	return &PeerManager{
-		log:                    log.WithNamespaceAppended("room_peers_manager"),
-		webrtcTransports:       map[string]transport.Transport{},
-		serverTransports:       map[string]transport.Transport{},
-		jitterHandler:          jitterHandler,
-		trackBitrateEstimators: NewTrackBitrateEstimators(),
-		room:                   room,
+		log:              log.WithNamespaceAppended("room_peers_manager"),
+		webrtcTransports: map[string]transport.Transport{},
+		serverTransports: map[string]transport.Transport{},
+		jitterHandler:    jitterHandler,
+		room:             room,
 
 		pubsub: pubsub.New(log),
 	}
 }
 
-func (t *PeerManager) addTrack(clientID string, track transport.Track) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+// func (t *PeerManager) addTrack(clientID string, track transport.TrackRemote) {
+// 	t.mu.Lock()
+// 	defer t.mu.Unlock()
 
-	log := t.log.WithCtx(logger.Ctx{
-		"client_id": clientID,
-		"ssrc":      track.SSRC(),
-	})
+// 	log := t.log.WithCtx(logger.Ctx{
+// 		"client_id": clientID,
+// 		"track_id":  track.Track().UniqueID(),
+// 	})
 
-	log.Trace("Add track", logger.Ctx{
-		"track": track,
-	})
+// 	log.Trace("Add track", logger.Ctx{
+// 		"track": track,
+// 	})
 
-	t.pubsub.Pub(clientID, track)
+// 	// t.pubsub.Pub(clientID, track)
 
-	// Let the server transports know of the new track.
-	for subClientID, subTransport := range t.serverTransports {
-		if subClientID != clientID {
-			// Note: pubsub.Sub is _not_ called here because the server transport
-			// does not want to receive RTP/RTCP data immmediatelly if there are
-			// no interested parties on the other end of the connection. This is done
-			// later, when Pub/Sub events are handled. These events are sent thorugh
-			// servertransport.MetadataTransport - see the goroutine reading from
-			// TrackEventsChannel for more info.
-			if err := subTransport.AddTrack(track); err != nil {
-				log.Error("Add track", errors.Trace(err), logger.Ctx{
-					"sub_client_id": subClientID,
-				})
+// 	// FIXME pion3 update
+// 	// // Let the server transports know of the new track.
+// 	// for subClientID, subTransport := range t.serverTransports {
+// 	// 	if subClientID != clientID {
+// 	// 		// Note: pubsub.Sub is _not_ called here because the server transport
+// 	// 		// does not want to receive RTP/RTCP data immmediatelly if there are
+// 	// 		// no interested parties on the other end of the connection. This is done
+// 	// 		// later, when Pub/Sub events are handled. These events are sent thorugh
+// 	// 		// servertransport.MetadataTransport - see the goroutine reading from
+// 	// 		// TrackEventsChannel for more info.
+// 	// 		if track_, err := subTransport.AddTrack(track.Track()); err != nil {
+// 	// 			log.Error("Add track", errors.Trace(err), logger.Ctx{
+// 	// 				"sub_client_id": subClientID,
+// 	// 			})
 
-				continue
-			}
-		}
-	}
-}
+// 	// 			continue
+// 	// 		}
+// 	// 	}
+// 	// }
+// }
 
 func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
 	t.mu.Lock()
@@ -106,22 +107,6 @@ func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) 
 	}
 }
 
-func (t *PeerManager) getTransportBySSRC(subClientID string, ssrc uint32) (
-	transport transport.Transport, ok bool,
-) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	clientID, ok := t.pubsub.PubClientID(subClientID, ssrc)
-	if !ok {
-		return nil, false
-	}
-
-	transport, ok = t.getTransport(clientID)
-
-	return transport, ok
-}
-
 func (t *PeerManager) getTransport(clientID string) (transport.Transport, bool) {
 	transport, ok := t.webrtcTransports[clientID]
 	if !ok {
@@ -132,9 +117,9 @@ func (t *PeerManager) getTransport(clientID string) (transport.Transport, bool) 
 }
 
 func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
-	log := t.log.WithCtx(logger.Ctx{
-		"client_id": tr.ClientID(),
-	})
+	// log := t.log.WithCtx(logger.Ctx{
+	// 	"client_id": tr.ClientID(),
+	// })
 
 	pubTrackEventSub, err := t.pubsub.SubscribeToEvents(tr.ClientID())
 	if err != nil {
@@ -160,7 +145,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 					PubTrack: pubsub.PubTrack{
 						ClientID: pubTrack.ClientID,
 						UserID:   pubTrack.UserID,
-						SSRC:     pubTrack.SSRC,
+						TrackID:  pubTrack.TrackID,
 					},
 					Type: transport.TrackEventTypeAdd,
 				}
@@ -179,165 +164,227 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 	go func() {
 		defer t.wg.Done()
 
-		for trackEvent := range tr.TrackEventsChannel() {
-			switch trackEvent.Type {
-			case transport.TrackEventTypeAdd:
-				t.addTrack(tr.ClientID(), trackEvent.TrackInfo.Track)
-			case transport.TrackEventTypeRemove:
-				t.removeTrack(tr.ClientID(), trackEvent.TrackInfo.Track)
-				// The following events are generated only by server transport.
-			case transport.TrackEventTypeSub:
-				if err := t.Sub(SubParams{
-					Room:        t.room,
-					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
-					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
-					SubClientID: tr.ClientID(),
-				}); err != nil {
-					log.Error("sub failed", errors.Trace(err), nil)
-				}
-			case transport.TrackEventTypeUnsub:
-				if err := t.Unsub(SubParams{
-					Room:        t.room,
-					PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
-					SSRC:        trackEvent.TrackInfo.Track.SSRC(),
-					SubClientID: tr.ClientID(),
-				}); err != nil {
-					log.Error("sub failed", errors.Trace(err), nil)
-				}
-			}
-		}
-	}()
+		for remoteTrack := range tr.RemoteTracksChannel() {
+			remoteTrack := remoteTrack
+			trackID := remoteTrack.Track().UniqueID()
 
-	t.wg.Add(1)
+			done := make(chan struct{})
 
-	go func() {
-		defer t.wg.Done()
+			t.pubsub.Pub(tr.ClientID(), pubsub.NewTrackReader(remoteTrack, func() {
+				t.mu.Lock()
 
-		for packet := range tr.RTPChannel() {
-			rtcpPacket := t.jitterHandler.HandleRTP(packet)
-			if rtcpPacket != nil {
-				err := tr.WriteRTCP([]rtcp.Packet{rtcpPacket})
-				if err != nil {
-					log.Error("WriteRTCP", errors.Trace(err), nil)
-				}
-			}
+				close(done)
 
-			t.mu.Lock()
+				t.pubsub.Unpub(tr.ClientID(), trackID)
 
-			subTransports := t.pubsub.Subscribers(tr.ClientID(), packet.SSRC)
+				t.mu.Unlock()
+			}))
 
-			t.mu.Unlock()
+			t.wg.Add(1)
 
-			for subClientID, subTransport := range subTransports {
-				if _, err := subTransport.(transport.Transport).WriteRTP(packet); err != nil {
-					log.Error("WriteRTP", errors.Trace(err), logger.Ctx{
-						"pub_client_id": tr.ClientID(),
-						"sub_client_id": subClientID,
-						"ssrc":          packet.SSRC,
-					})
-				}
-			}
-		}
-	}()
+			ticker := time.NewTicker(time.Second)
 
-	t.wg.Add(1)
+			go func() {
+				defer func() {
+					t.wg.Done()
+					ticker.Stop()
+				}()
 
-	go func() {
-		defer t.wg.Done()
+				getBitrateEstimate := func() (uint64, bool) {
+					t.mu.Lock()
+					defer t.mu.Unlock()
 
-		handleREMB := func(packet *rtcp.ReceiverEstimatedMaximumBitrate) error {
-			errs := multierr.New()
+					estimator, ok := t.pubsub.BitrateEstimator(trackID)
 
-			bitrate := t.trackBitrateEstimators.Estimate(tr.ClientID(), packet.SSRCs, packet.Bitrate)
-			packet.Bitrate = bitrate
-
-			transportsSet := map[transport.Transport]struct{}{}
-
-			for _, ssrc := range packet.SSRCs {
-				sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), ssrc)
-				if ok {
-					transportsSet[sourceTransport] = struct{}{}
-				}
-			}
-
-			for sourceTransport := range transportsSet {
-				err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
-				errs.Add(errors.Trace(err))
-			}
-
-			return errors.Annotatef(errs.Err(), "remb")
-		}
-
-		handlePLI := func(packet *rtcp.PictureLossIndication) error {
-			sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), packet.MediaSSRC)
-			if !ok {
-				return errors.Errorf("no source transport for PictureLossIndication for track: %d", packet.MediaSSRC)
-			}
-
-			err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
-
-			return errors.Annotate(err, "write rtcp")
-		}
-
-		handleNack := func(packet *rtcp.TransportLayerNack) error {
-			errs := multierr.New()
-
-			foundRTPPackets, nack := t.jitterHandler.HandleNack(packet)
-			for _, rtpPacket := range foundRTPPackets {
-				if _, err := tr.WriteRTP(rtpPacket); err != nil {
-					errs.Add(errors.Annotate(err, "write rtp"))
-				}
-			}
-
-			if nack != nil {
-				sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), packet.MediaSSRC)
-				if ok {
-					if err := sourceTransport.WriteRTCP([]rtcp.Packet{nack}); err != nil {
-						errs.Add(errors.Annotate(err, "write rtcp"))
+					if !ok || estimator.Empty() {
+						return 0, false
 					}
+
+					return estimator.Min(), true
 				}
-			}
 
-			return errors.Annotatef(errs.Err(), "nack")
-		}
+				select {
+				case <-ticker.C:
+					bitrate, ok := getBitrateEstimate()
+					if !ok {
+						break
+					}
 
-		for pkts := range tr.RTCPChannel() {
-			for _, pkt := range pkts {
-				var err error
-				switch packet := pkt.(type) {
-				case *rtcp.ReceiverEstimatedMaximumBitrate:
-					err = errors.Trace(handleREMB(packet))
-				case *rtcp.PictureLossIndication:
-					err = errors.Trace(handlePLI(packet))
-				case *rtcp.TransportLayerNack:
-					err = errors.Trace(handleNack(packet))
-				case *rtcp.SourceDescription:
-				case *rtcp.ReceiverReport:
-					// ReceiverReport is sent by remote side when it sent no packets
-					// (since the last report?).
-					//
-					// The reception reports in this packet are about local tracks being
-					// sent to the remote side of this transport.
-				case *rtcp.SenderReport:
-					// The sender report is about tracks currently being received from
-					// the remote side of this transport.
-					//
-					// The reception reports in this packet are about local tracks being
-					// sent to the remote side of this transport.
-				default:
-					log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
-						"destination_ssrc": pkt.DestinationSSRC(),
+					ssrc := uint32(remoteTrack.SSRC())
+
+					// FIXME simulcast?
+
+					err := tr.WriteRTCP([]rtcp.Packet{
+						&rtcp.ReceiverEstimatedMaximumBitrate{
+							SenderSSRC: ssrc,
+							Bitrate:    bitrate,
+							SSRCs:      []uint32{ssrc},
+						},
 					})
-				}
+					_ = err // FIXME handle error
 
-				if err != nil {
-					// Log error and do not return early because the RTCP channel still
-					// needs to be emptied.
-					log.Error("Send RTCP to source peer", errors.Trace(err), nil)
+				case <-done:
 				}
-			}
+			}()
+			// switch trackEvent.Type {
+			// case transport.TrackEventTypeAdd:
+			// 	t.addTrack(tr.ClientID(), trackEvent.TrackInfo.Track)
+			// case transport.TrackEventTypeRemove:
+			// 	t.removeTrack(tr.ClientID(), trackEvent.TrackInfo.Track)
+			// The following events are generated only by server transport.
+			// FIXME pion3: disabled for now
+			// case transport.TrackEventTypeSub:
+			// 	if err := t.Sub(SubParams{
+			// 		Room:        t.room,
+			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
+			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
+			// 		SubClientID: tr.ClientID(),
+			// 	}); err != nil {
+			// 		log.Error("sub failed", errors.Trace(err), nil)
+			// 	}
+			// case transport.TrackEventTypeUnsub:
+			// 	if err := t.Unsub(SubParams{
+			// 		Room:        t.room,
+			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
+			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
+			// 		SubClientID: tr.ClientID(),
+			// 	}); err != nil {
+			// 		log.Error("sub failed", errors.Trace(err), nil)
+			// 	}
+			// }
 		}
 	}()
+
+	// t.wg.Add(1)
+	//
+	// go func() {
+	// 	defer t.wg.Done()
+	//
+	// 	for packet := range tr.RTPChannel() {
+	// 		rtcpPacket := t.jitterHandler.HandleRTP(packet)
+	// 		if rtcpPacket != nil {
+	// 			err := tr.WriteRTCP([]rtcp.Packet{rtcpPacket})
+	// 			if err != nil {
+	// 				log.Error("WriteRTCP", errors.Trace(err), nil)
+	// 			}
+	// 		}
+	//
+	// 		t.mu.Lock()
+	//
+	// 		subTransports := t.pubsub.Subscribers(tr.ClientID(), packet.SSRC)
+	//
+	// 		t.mu.Unlock()
+	//
+	// 		for subClientID, subTransport := range subTransports {
+	// 			if _, err := subTransport.(transport.Transport).WriteRTP(packet); err != nil {
+	// 				log.Error("WriteRTP", errors.Trace(err), logger.Ctx{
+	// 					"pub_client_id": tr.ClientID(),
+	// 					"sub_client_id": subClientID,
+	// 					"ssrc":          packet.SSRC,
+	// 				})
+	// 			}
+	// 		}
+	// 	}
+	// }()
+	//
+	// t.wg.Add(1)
+	//
+	// go func() {
+	//	defer t.wg.Done()
+	//
+	//	handleREMB := func(packet *rtcp.ReceiverEstimatedMaximumBitrate) error {
+	//		errs := multierr.New()
+	//
+	//		bitrate := t.trackBitrateEstimators.Estimate(tr.ClientID(), packet.SSRCs, packet.Bitrate)
+	//		packet.Bitrate = bitrate
+	//
+	//		transportsSet := map[transport.Transport]struct{}{}
+	//
+	//		for _, ssrc := range packet.SSRCs {
+	//			sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), ssrc)
+	//			if ok {
+	//				transportsSet[sourceTransport] = struct{}{}
+	//			}
+	//		}
+	//
+	//		for sourceTransport := range transportsSet {
+	//			err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
+	//			errs.Add(errors.Trace(err))
+	//		}
+	//
+	//		return errors.Annotatef(errs.Err(), "remb")
+	//	}
+	//
+	//	handlePLI := func(packet *rtcp.PictureLossIndication) error {
+	//		sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), packet.MediaSSRC)
+	//		if !ok {
+	//			return errors.Errorf("no source transport for PictureLossIndication for track: %d", packet.MediaSSRC)
+	//		}
+	//
+	//		err := sourceTransport.WriteRTCP([]rtcp.Packet{packet})
+	//
+	//		return errors.Annotate(err, "write rtcp")
+	//	}
+	//
+	//	handleNack := func(packet *rtcp.TransportLayerNack) error {
+	//		errs := multierr.New()
+	//
+	//		foundRTPPackets, nack := t.jitterHandler.HandleNack(packet)
+	//		for _, rtpPacket := range foundRTPPackets {
+	//			if _, err := tr.WriteRTP(rtpPacket); err != nil {
+	//				errs.Add(errors.Annotate(err, "write rtp"))
+	//			}
+	//		}
+	//
+	//		if nack != nil {
+	//			sourceTransport, ok := t.getTransportBySSRC(tr.ClientID(), packet.MediaSSRC)
+	//			if ok {
+	//				if err := sourceTransport.WriteRTCP([]rtcp.Packet{nack}); err != nil {
+	//					errs.Add(errors.Annotate(err, "write rtcp"))
+	//				}
+	//			}
+	//		}
+	//
+	//		return errors.Annotatef(errs.Err(), "nack")
+	//	}
+	//
+	//	for pkts := range tr.RTCPChannel() {
+	//		for _, pkt := range pkts {
+	//			var err error
+	//			switch packet := pkt.(type) {
+	//			case *rtcp.ReceiverEstimatedMaximumBitrate:
+	//				err = errors.Trace(handleREMB(packet))
+	//			case *rtcp.PictureLossIndication:
+	//				err = errors.Trace(handlePLI(packet))
+	//			case *rtcp.TransportLayerNack:
+	//				err = errors.Trace(handleNack(packet))
+	//			case *rtcp.SourceDescription:
+	//			case *rtcp.ReceiverReport:
+	//				// ReceiverReport is sent by remote side when it sent no packets
+	//				// (since the last report?).
+	//				//
+	//				// The reception reports in this packet are about local tracks being
+	//				// sent to the remote side of this transport.
+	//			case *rtcp.SenderReport:
+	//				// The sender report is about tracks currently being received from
+	//				// the remote side of this transport.
+	//				//
+	//				// The reception reports in this packet are about local tracks being
+	//				// sent to the remote side of this transport.
+	//			default:
+	//				log.Error(fmt.Sprintf("Unhandled RTCP Packet: %T", pkt), nil, logger.Ctx{
+	//					"destination_ssrc": pkt.DestinationSSRC(),
+	//				})
+	//			}
+	//
+	//			if err != nil {
+	//				// Log error and do not return early because the RTCP channel still
+	//				// needs to be emptied.
+	//				log.Error("Send RTCP to source peer", errors.Trace(err), nil)
+	//			}
+	//		}
+	//	}
+	//}()
 
 	t.wg.Add(1)
 
@@ -358,17 +405,19 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 	case transport.TypeServer:
 		t.serverTransports[tr.ClientID()] = tr
 
-		for _, pubTransport := range t.webrtcTransports {
-			for _, trackInfo := range pubTransport.RemoteTracks() {
-				if err := pubTransport.AddTrack(trackInfo.Track); err != nil {
-					log.Error("add track", errors.Trace(err), logger.Ctx{
-						"pub_client_id": pubTransport.ClientID(),
-						"sub_client_id": tr.ClientID(),
-						"ssrc":          trackInfo.Track.SSRC(),
-					})
-				}
-			}
-		}
+		// FIXME pion3 upgrade let the servers know of the new tracks.
+		// for _, pubTransport := range t.webrtcTransports {
+		// 	for _, trackInfo := range pubTransport.RemoteTracks() {
+		// 		// FIXME should this be tr.AddTrack???
+		// 		if err := pubTransport.AddTrack(trackInfo.Track); err != nil {
+		// 			log.Error("add track", errors.Trace(err), logger.Ctx{
+		// 				"pub_client_id": pubTransport.ClientID(),
+		// 				"sub_client_id": tr.ClientID(),
+		// 				"track_id":      trackInfo.Track.UniqueID(),
+		// 			})
+		// 		}
+		// 	}
+		// }
 
 	case transport.TypeWebRTC:
 		t.webrtcTransports[tr.ClientID()] = tr
@@ -381,21 +430,112 @@ func (t *PeerManager) Sub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	transport, ok := t.getTransport(params.SubClientID)
+	tr, ok := t.getTransport(params.SubClientID)
 	if !ok {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
 
-	err := t.pubsub.Sub(params.PubClientID, params.SSRC, transport)
+	sender, err := t.pubsub.Sub(params.PubClientID, params.TrackID, tr)
+	if err != nil {
+		return errors.Trace(err)
+	}
 
-	return errors.Trace(err)
+	t.wg.Add(1)
+
+	go func() {
+		defer t.wg.Done()
+
+		logCtx := logger.Ctx{
+			"pub_client_id": params.PubClientID,
+			"track_id":      params.TrackID,
+			"sub_client_id": params.SubClientID,
+		}
+
+		feedBitrateEstimate := func(trackID transport.TrackID, bitrate uint64) {
+			t.mu.Lock()
+
+			bitrateEstimator, ok := t.pubsub.BitrateEstimator(trackID)
+			if ok {
+				bitrateEstimator.Feed(params.SubClientID, bitrate)
+			}
+
+			t.mu.Unlock()
+		}
+
+		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
+			t.mu.Lock()
+
+			props, ok := t.pubsub.TrackPropsByTrackID(trackID)
+
+			t.mu.Unlock()
+
+			return props, ok
+		}
+
+		handlePacket := func(packet rtcp.Packet) error {
+			// NOTE: REMB and NACK are now handled by pion/webrtc interceptors so we
+			// don't have to explicitly handle them here.
+			switch pkt := packet.(type) {
+			// PLI cannot be handled by interceptors since it's implementation
+			// specific. We need to find the source and send the PLI packet. We also
+			// need to make sure to set the correct SSRC before the packet is
+			// forwarded, since pion/webrtc/v3 no longer uses the same SSRCs between
+			// different peer connections.
+			case *rtcp.PictureLossIndication:
+				props, ok := getTrackProps(params.TrackID)
+				if !ok {
+					return errors.Annotatef(pubsub.ErrTrackNotFound, "got RTCP for track that was not found")
+				}
+
+				transport, ok := t.getTransport(props.ClientID)
+				if !ok {
+					return errors.Errorf("transport not found: %s", props.ClientID)
+				}
+
+				// Important: set the correct SSRC before sending the packet to source.
+				pkt.MediaSSRC = uint32(props.SSRC)
+				pkt.SenderSSRC = uint32(props.SSRC)
+
+				if err := transport.WriteRTCP([]rtcp.Packet{pkt}); err != nil {
+					return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
+				}
+
+				// TODO remove this log.
+				t.log.Info("Sent PLI back to source", logCtx)
+			case *rtcp.ReceiverEstimatedMaximumBitrate:
+				feedBitrateEstimate(params.TrackID, pkt.Bitrate)
+			default:
+			}
+
+			return nil
+		}
+
+		for {
+			packets, _, err := sender.ReadRTCP()
+			if err != nil {
+				if !multierr.Is(err, io.EOF) {
+					t.log.Error("Read RTCP for sender", errors.Trace(err), logCtx)
+				}
+
+				return
+			}
+
+			for _, packet := range packets {
+				if err := handlePacket(packet); err != nil {
+					t.log.Error("Handling RTCP packet", errors.Trace(err), logCtx)
+				}
+			}
+		}
+	}()
+
+	return nil
 }
 
 func (t *PeerManager) Unsub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	err := t.pubsub.Unsub(params.PubClientID, params.SSRC, params.SubClientID)
+	err := t.pubsub.Unsub(params.PubClientID, params.TrackID, params.SubClientID)
 
 	return errors.Trace(err)
 }
@@ -416,15 +556,28 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	for _, trackInfo := range tracks {
 		track := trackInfo.Track
 
+		var kind webrtc.RTPCodecType
+
+		codec := track.Codec()
+
+		switch {
+		case strings.HasPrefix(codec.MimeType, "audio/"):
+			kind = webrtc.RTPCodecTypeAudio
+		case strings.HasPrefix(codec.MimeType, "video/"):
+			kind = webrtc.RTPCodecTypeVideo
+		default:
+			kind = webrtc.RTPCodecType(0)
+		}
+
 		trackMetadata := TrackMetadata{
-			Kind:     trackInfo.Kind.String(),
-			Mid:      trackInfo.Mid,
-			StreamID: track.Label(),
+			Mid:      trackInfo.MID(),
+			StreamID: track.StreamID(),
 			UserID:   track.UserID(),
+			Kind:     kind.String(),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{
-			"ssrc":      track.SSRC(),
+			"track_id":  track.UniqueID(),
 			"client_id": clientID,
 		})
 
@@ -449,49 +602,46 @@ func (t *PeerManager) Remove(clientID string) {
 		})
 	}
 
+	t.pubsub.Terminate(clientID)
+
 	if _, ok := t.serverTransports[clientID]; ok {
-		// WebRTC transports do not need to be explicitly terminated, only
-		// ServerTransports do. This is because a closed WebRTC tranports will
-		// still dispatch track remove events after the streams are closed.
-		t.pubsub.Terminate(clientID)
 		delete(t.serverTransports, clientID)
 	} else {
 		delete(t.webrtcTransports, clientID)
 	}
-
-	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
 }
 
-func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
-	ssrc := track.SSRC()
+// func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
+// 	trackID := track.UniqueID()
 
-	t.log.Trace("Remove track", logger.Ctx{
-		"client_id": clientID,
-		"ssrc":      ssrc,
-	})
+// 	t.log.Trace("Remove track", logger.Ctx{
+// 		"client_id": clientID,
+// 		"track_id":  trackID,
+// 	})
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
+// 	t.mu.Lock()
+// 	defer t.mu.Unlock()
 
-	t.pubsub.Unpub(clientID, ssrc)
+// 	t.pubsub.Unpub(clientID, trackID)
 
-	t.trackBitrateEstimators.Remove(ssrc)
+// 	// FIXME re-enable REMB
+// 	// t.trackBitrateEstimators.Remove(ssrc)
 
-	// Let the server transports know the track has been removed.
-	for subClientID, subTransport := range t.serverTransports {
-		if subClientID != clientID {
-			if err := subTransport.RemoveTrack(ssrc); err != nil {
-				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
-					"pub_client_id": clientID,
-					"sub_client_id": subClientID,
-					"ssrc":          ssrc,
-				})
+// 	// Let the server transports know the track has been removed.
+// 	for subClientID, subTransport := range t.serverTransports {
+// 		if subClientID != clientID {
+// 			if err := subTransport.RemoveTrack(trackID); err != nil {
+// 				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
+// 					"pub_client_id": clientID,
+// 					"sub_client_id": subClientID,
+// 					"track_id":      trackID,
+// 				})
 
-				continue
-			}
-		}
-	}
-}
+// 				continue
+// 			}
+// 		}
+// 	}
+// }
 
 // Size returns the total size of transports in the room.
 func (t *PeerManager) Size() int {

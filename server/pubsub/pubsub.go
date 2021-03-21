@@ -5,7 +5,9 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/webrtc/v3"
 )
 
 // PubSub keeps a record of all published tracks and subscriptions to them.
@@ -18,17 +20,28 @@ type PubSub struct {
 
 	events *events
 
-	// pubs is a map of pubs indexed by clientID of transport that published the
-	// track and the track SSRC.
-	pubs map[clientTrack]*pub
+	// publishers is a map of publishers indexed by clientID of transport that
+	// published the track and the track SSRC.
+	publishers map[transport.TrackID]publisher
 
-	// pubsByPubClientID is a map of a set of pubs that have been created by a
+	// publishersByPubClientID is a map of a set of pubs that have been created by a
 	// particular transport (indexes by clientID).
-	pubsByPubClientID map[string]pubSet
+	publishersByPubClientID map[string]readerSet
 
-	// subsBySubClientID is a map of a set of pubs that the transport has
+	// subsBySubClientID is a map of a set of publishers that the transport has
 	// subscribed to.
-	subsBySubClientID map[string]map[uint32]*pub
+	subsBySubClientID map[string]subscriber
+}
+
+type publisher struct {
+	clientID         string
+	reader           Reader
+	bitrateEstimator *BitrateEstimator
+}
+
+type subscriber struct {
+	transport         Transport
+	publishersByTrack map[transport.TrackID]publisher
 }
 
 // New returns a new instance of PubSub.
@@ -36,155 +49,182 @@ func New(log logger.Logger) *PubSub {
 	eventsChan := make(chan PubTrackEvent)
 
 	return &PubSub{
-		log:               log.WithNamespaceAppended("pubsub"),
-		eventsChan:        eventsChan,
-		events:            newEvents(eventsChan, 0),
-		pubs:              map[clientTrack]*pub{},
-		pubsByPubClientID: map[string]pubSet{},
-		subsBySubClientID: map[string]map[uint32]*pub{},
+		log:                     log.WithNamespaceAppended("pubsub"),
+		eventsChan:              eventsChan,
+		events:                  newEvents(eventsChan, 0),
+		publishers:              map[transport.TrackID]publisher{},
+		publishersByPubClientID: map[string]readerSet{},
+		subsBySubClientID:       map[string]subscriber{},
 	}
 }
 
 // Pub publishes a track.
-func (p *PubSub) Pub(pubClientID string, track transport.Track) {
+func (p *PubSub) Pub(pubClientID string, reader Reader) {
+	track := reader.Track()
+
 	p.log.Trace("Pub", logger.Ctx{
 		"client_id": pubClientID,
-		"ssrc":      track.SSRC(),
+		"track_id":  track.UniqueID(),
 	})
 
-	clientTrack := clientTrack{
-		ClientID: pubClientID,
-		SSRC:     track.SSRC(),
+	trackID := track.UniqueID()
+
+	p.publishers[trackID] = publisher{
+		clientID:         pubClientID,
+		reader:           reader,
+		bitrateEstimator: NewBitrateEstimator(),
 	}
 
-	pb := newPub(pubClientID, track)
-
-	p.pubs[clientTrack] = pb
-	if _, ok := p.pubsByPubClientID[pubClientID]; !ok {
-		p.pubsByPubClientID[pubClientID] = pubSet{}
+	if _, ok := p.publishersByPubClientID[pubClientID]; !ok {
+		p.publishersByPubClientID[pubClientID] = readerSet{}
 	}
 
-	p.pubsByPubClientID[pubClientID][pb] = struct{}{}
+	p.publishersByPubClientID[pubClientID][reader] = struct{}{}
 
 	p.eventsChan <- PubTrackEvent{
-		PubTrack: newPubTrack(pb),
+		PubTrack: newPubTrack(pubClientID, track),
 		Type:     transport.TrackEventTypeAdd,
 	}
 }
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
-func (p *PubSub) Unpub(pubClientID string, ssrc uint32) {
+func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
 	p.log.Trace("Unpub", logger.Ctx{
 		"client_id": pubClientID,
-		"ssrc":      ssrc,
+		"track_id":  trackID,
 	})
 
-	track := clientTrack{
-		ClientID: pubClientID,
-		SSRC:     ssrc,
-	}
-
-	if pb, ok := p.pubs[track]; ok {
-		for subClientID := range pb.subscribers() {
-			_ = p.unsub(subClientID, pb)
+	if pub, ok := p.publishers[trackID]; ok {
+		for _, subClientID := range pub.reader.Subs() {
+			_ = p.unsub(subClientID, pub)
 		}
 
-		delete(p.pubsByPubClientID[pubClientID], pb)
+		delete(p.publishersByPubClientID[pubClientID], pub.reader)
 
-		if len(p.pubsByPubClientID[pubClientID]) == 0 {
-			delete(p.pubsByPubClientID, pubClientID)
+		if len(p.publishersByPubClientID[pubClientID]) == 0 {
+			delete(p.publishersByPubClientID, pubClientID)
 		}
 
-		delete(p.pubs, track)
+		delete(p.publishers, trackID)
 
 		p.eventsChan <- PubTrackEvent{
-			PubTrack: newPubTrack(pb),
+			PubTrack: newPubTrack(pubClientID, pub.reader.Track()),
 			Type:     transport.TrackEventTypeRemove,
 		}
 	}
 }
 
 // Sub subscribes to a published track.
-func (p *PubSub) Sub(pubClientID string, ssrc uint32, transport Transport) error {
+func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Transport) (transport.Sender, error) {
 	p.log.Trace("Sub", logger.Ctx{
 		"client_id":     transport.ClientID(),
-		"ssrc":          ssrc,
+		"track_id":      trackID,
 		"pub_client_id": pubClientID,
 	})
 
-	track := clientTrack{
-		ClientID: pubClientID,
-		SSRC:     ssrc,
-	}
-
 	if pubClientID == transport.ClientID() {
-		return errors.Annotatef(ErrSubscribeToOwnTrack, "sub: track: %s, clientID: %s", track, transport.ClientID())
+		return nil, errors.Annotatef(ErrSubscribeToOwnTrack, "sub: trackID: %s, clientID: %s", trackID, transport.ClientID())
 	}
 
 	var err error
 
-	pb, ok := p.pubs[track]
+	pub, ok := p.publishers[trackID]
 	if !ok {
-		err = errors.Annotatef(ErrTrackNotFound, "sub: track: %s, clientID: %s", track, transport.ClientID())
-	} else {
-		err = errors.Annotatef(p.sub(pb, transport), "sub: track: %s, clientID: %s", track, transport.ClientID())
+		return nil, errors.Annotatef(ErrTrackNotFound, "sub: trackID: %s, clientID: %s", trackID, transport.ClientID())
 	}
 
-	return errors.Trace(err)
+	sender, err := p.sub(pub, transport)
+	if err != nil {
+		return nil, errors.Annotatef(err, "sub: trackID: %s, clientID: %s", trackID, transport.ClientID())
+	}
+
+	return sender, nil
 }
 
-func (p *PubSub) sub(pb *pub, transport Transport) error {
-	subClientID := transport.ClientID()
+func (p *PubSub) sub(pub publisher, tr Transport) (transport.Sender, error) {
+	subClientID := tr.ClientID()
 
-	if err := pb.sub(subClientID, transport); err != nil {
-		return errors.Trace(err)
+	track := pub.reader.Track()
+
+	trackLocal, sender, err := tr.AddTrack(track)
+	if err != nil {
+		return nil, errors.Annotatef(err, "adding track to transport")
+	}
+
+	if err := pub.reader.Sub(subClientID, trackLocal); err != nil {
+		// We don't care about the potential error at this point.
+		_ = tr.RemoveTrack(track.UniqueID())
+		// TODO what to do with the track now?
+		return nil, errors.Trace(err)
 	}
 
 	if _, ok := p.subsBySubClientID[subClientID]; !ok {
-		p.subsBySubClientID[subClientID] = map[uint32]*pub{}
+		p.subsBySubClientID[subClientID] = subscriber{
+			transport:         tr,
+			publishersByTrack: map[transport.TrackID]publisher{},
+		}
 	}
 
-	p.subsBySubClientID[subClientID][pb.track.SSRC()] = pb
+	p.subsBySubClientID[subClientID].publishersByTrack[track.UniqueID()] = pub
 
-	return nil
+	return sender, nil
 }
 
 // Unsub unsubscribes from a published track.
-func (p *PubSub) Unsub(pubClientID string, ssrc uint32, subClientID string) error {
-	p.log.Trace("Sub", logger.Ctx{
+func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientID string) error {
+	p.log.Trace("Unsub", logger.Ctx{
 		"client_id":     subClientID,
-		"ssrc":          ssrc,
+		"track_id":      trackID,
 		"pub_client_id": pubClientID,
 	})
 
-	clientTrack := clientTrack{
-		ClientID: pubClientID,
-		SSRC:     ssrc,
-	}
-
 	var err error
 
-	pb, ok := p.pubs[clientTrack]
+	pub, ok := p.publishers[trackID]
 	if !ok {
-		err = errors.Annotatef(ErrTrackNotFound, "unsub: track: %s, clientID: %s", clientTrack, subClientID)
-	} else {
-		err = errors.Annotatef(p.unsub(subClientID, pb), "unsub: track: %s, clientID: %s", clientTrack, subClientID)
+		return errors.Annotatef(ErrTrackNotFound, "unsub: trackID: %s, clientID: %s", trackID, subClientID)
+	}
+
+	if err := p.unsub(subClientID, pub); err != nil {
+		return errors.Annotatef(err, "unsub: trackiD: %s, clientID: %s", trackID, subClientID)
 	}
 
 	return errors.Trace(err)
 }
 
 // unsub caller must hold the lock.
-func (p *PubSub) unsub(subClientID string, pb *pub) error {
-	err := pb.unsub(subClientID)
+func (p *PubSub) unsub(subClientID string, pub publisher) error {
+	var multiErr multierr.MultiErr
 
-	delete(p.subsBySubClientID[subClientID], pb.track.SSRC())
+	trackID := pub.reader.Track().UniqueID()
 
-	if len(p.subsBySubClientID[subClientID]) == 0 {
+	pub.bitrateEstimator.RemoveClientBitrate(subClientID)
+
+	err := pub.reader.Unsub(subClientID)
+	multiErr.Add(errors.Trace(err))
+
+	sub, ok := p.subsBySubClientID[subClientID]
+	if !ok {
+		return errors.Annotatef(ErrSubNotFound, "subscriber not found")
+	}
+
+	err = sub.transport.RemoveTrack(trackID)
+	multiErr.Add(errors.Trace(err))
+
+	delete(p.subsBySubClientID[subClientID].publishersByTrack, trackID)
+
+	if len(p.subsBySubClientID[subClientID].publishersByTrack) == 0 {
 		delete(p.subsBySubClientID, subClientID)
 	}
 
-	return errors.Trace(err)
+	return errors.Trace(multiErr.Err())
+}
+
+// BitrateEstimator returns the instance of BitrateEstimatro for a track.
+func (p *PubSub) BitrateEstimator(trackID transport.TrackID) (*BitrateEstimator, bool) {
+	pub, ok := p.publishers[trackID]
+
+	return pub.bitrateEstimator, ok
 }
 
 // Terminate unpublishes al tracks from from a particular client, as well as
@@ -194,58 +234,63 @@ func (p *PubSub) Terminate(clientID string) {
 		"client_id": clientID,
 	})
 
-	for pb := range p.pubsByPubClientID[clientID] {
-		p.Unpub(clientID, pb.track.SSRC())
+	for reader := range p.publishersByPubClientID[clientID] {
+		p.Unpub(clientID, reader.Track().UniqueID())
 	}
 
-	for _, pb := range p.subsBySubClientID[clientID] {
-		_ = p.unsub(clientID, pb)
+	for _, reader := range p.subsBySubClientID[clientID].publishersByTrack {
+		_ = p.unsub(clientID, reader)
 	}
 }
 
-// Subscribers returns all transports subscribed to a specific clientID/track
+// Subscribers returns all subscribed subClientIDs to a specific clientID/track
 // pair.
-func (p *PubSub) Subscribers(pubClientID string, ssrc uint32) []Transport {
-	clientTrack := clientTrack{
-		ClientID: pubClientID,
-		SSRC:     ssrc,
-	}
+func (p *PubSub) Subscribers(pubClientID string, trackID transport.TrackID) []string {
+	var ret []string
 
-	var transports []Transport
-
-	if pb, ok := p.pubs[clientTrack]; ok {
-		subs := pb.subscribers()
+	if pub, ok := p.publishers[trackID]; ok {
+		subs := pub.reader.Subs()
 
 		if l := len(subs); l > 0 {
-			transports = make([]Transport, 0, l)
+			ret = make([]string, l)
 
-			for _, t := range subs {
-				transports = append(transports, t)
-			}
+			copy(ret, subs)
 		}
 	}
 
-	return transports
+	return ret
 }
 
-func (p *PubSub) PubClientID(subClientID string, ssrc uint32) (string, bool) {
-	pb, ok := p.subsBySubClientID[subClientID][ssrc]
+type TrackProps struct {
+	ClientID string
+	SSRC     webrtc.SSRC
+	RID      string
+}
+
+// ClientIDByTrackID returns the clientID from a published unique trackID.
+func (p *PubSub) TrackPropsByTrackID(trackID transport.TrackID) (TrackProps, bool) {
+	pub, ok := p.publishers[trackID]
+
 	if !ok {
-		return "", false
+		return TrackProps{}, false
 	}
 
-	return pb.clientID, true
+	return TrackProps{
+		ClientID: pub.clientID,
+		SSRC:     pub.reader.SSRC(),
+		RID:      pub.reader.RID(),
+	}, true
 }
 
 // Tracks returns all published track information. The order is undefined.
 func (p *PubSub) Tracks() []PubTrack {
 	var ret []PubTrack
 
-	if l := len(p.pubs); l > 0 {
+	if l := len(p.publishers); l > 0 {
 		ret = make([]PubTrack, 0, l)
 
-		for _, pub := range p.pubs {
-			ret = append(ret, newPubTrack(pub))
+		for _, pub := range p.publishers {
+			ret = append(ret, newPubTrack(pub.clientID, pub.reader.Track()))
 		}
 	}
 
@@ -279,13 +324,8 @@ func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
 // Close closes the subscription channel. The caller must ensure that no
 // other methods are called after close has been called.
 func (p *PubSub) Close() {
-	fmt.Println("PUBSUB.Close")
 	close(p.eventsChan)
 	<-p.events.torndown
 }
 
-type pubSet map[*pub]struct{}
-
-type userIdentifiable interface {
-	UserID() string
-}
+type readerSet map[Reader]struct{}

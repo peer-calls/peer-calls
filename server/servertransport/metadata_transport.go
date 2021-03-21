@@ -8,45 +8,68 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/randutil"
+	"github.com/pion/transport/packetio"
 	"github.com/pion/webrtc/v3"
 )
+
+// Use global random generator to properly seed by crypto grade random.
+var globalMathRandomGenerator = randutil.NewMathRandomGenerator() // nolint:gochecknoglobals
+
+// RandUint32 generates a mathmatical random uint32.
+func RandUint32() uint32 {
+	return globalMathRandomGenerator.Uint32()
+}
 
 type MetadataTransport struct {
 	clientID string
 	conn     io.ReadWriteCloser
 	log      logger.Logger
 
-	localTracks  map[uint32]transport.TrackInfo
-	remoteTracks map[uint32]transport.TrackInfo
+	localTracks  map[transport.TrackID]*trackLocal
+	remoteTracks map[transport.TrackID]*trackRemote
 	mu           *sync.RWMutex
 
-	trackEventsCh chan transport.TrackEvent
-	writeCh       chan metadataEvent
+	// trackEventsCh chan transport.TrackEvent
+	writeCh chan metadataEvent
+
+	mediaTransport *MediaTransport
 
 	closeWriteLoop  chan struct{}
 	writeLoopClosed chan struct{}
 	readLoopClosed  chan struct{}
+
+	remoteTracksChannel chan transport.TrackRemote
 }
 
-var _ transport.MetadataTransport = &MetadataTransport{}
+type BufferFactory func(ssrc uint32) *packetio.Buffer
 
-func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID string) *MetadataTransport {
+func NewMetadataTransport(
+	log logger.Logger,
+	conn io.ReadWriteCloser,
+	mediaTransport *MediaTransport,
+	clientID string,
+) *MetadataTransport {
 	log = log.WithNamespaceAppended("metadata_transport")
 
 	t := &MetadataTransport{
 		clientID:     clientID,
 		log:          log,
 		conn:         conn,
-		localTracks:  map[uint32]transport.TrackInfo{},
-		remoteTracks: map[uint32]transport.TrackInfo{},
+		localTracks:  map[transport.TrackID]*trackLocal{},
+		remoteTracks: map[transport.TrackID]*trackRemote{},
 		mu:           &sync.RWMutex{},
 
-		trackEventsCh: make(chan transport.TrackEvent),
-		writeCh:       make(chan metadataEvent),
+		// trackEventsCh: make(chan transport.TrackEvent),
+		writeCh: make(chan metadataEvent),
 
 		closeWriteLoop:  make(chan struct{}),
 		writeLoopClosed: make(chan struct{}),
 		readLoopClosed:  make(chan struct{}),
+
+		remoteTracksChannel: make(chan transport.TrackRemote),
+
+		mediaTransport: mediaTransport,
 	}
 
 	log.Trace("NewMetadataTransport", nil)
@@ -55,48 +78,6 @@ func NewMetadataTransport(log logger.Logger, conn io.ReadWriteCloser, clientID s
 	go t.startWriteLoop()
 
 	return t
-}
-
-func (t *MetadataTransport) newServerTrack(trackInfo trackInfoJSON) *ServerTrack {
-	return &ServerTrack{
-		SimpleTrack: trackInfo.Track,
-		onSub: func() error {
-			t.log.Info("Sub", logger.Ctx{
-				"ssrc":      trackInfo.Track.SSRC(),
-				"client_id": t.clientID,
-			})
-
-			err := t.sendTrackEvent(transport.TrackEvent{
-				TrackInfo: transport.TrackInfo{
-					Track: trackInfo.Track,
-					Kind:  trackInfo.Kind,
-					Mid:   trackInfo.Mid,
-				},
-				ClientID: t.clientID,
-				Type:     transport.TrackEventTypeSub,
-			})
-
-			return errors.Trace(err)
-		},
-		onUnsub: func() error {
-			t.log.Info("Unsub", logger.Ctx{
-				"ssrc":      trackInfo.Track.SSRC(),
-				"client_id": t.clientID,
-			})
-
-			err := t.sendTrackEvent(transport.TrackEvent{
-				TrackInfo: transport.TrackInfo{
-					Track: trackInfo.Track,
-					Kind:  trackInfo.Kind,
-					Mid:   trackInfo.Mid,
-				},
-				ClientID: t.clientID,
-				Type:     transport.TrackEventTypeSub,
-			})
-
-			return errors.Trace(err)
-		},
-	}
 }
 
 func (t *MetadataTransport) startWriteLoop() {
@@ -137,7 +118,7 @@ func (t *MetadataTransport) startWriteLoop() {
 
 func (t *MetadataTransport) startReadLoop() {
 	defer func() {
-		close(t.trackEventsCh)
+		// close(t.trackEventsCh)
 		close(t.readLoopClosed)
 
 		t.log.Trace("Read closed", nil)
@@ -168,97 +149,142 @@ func (t *MetadataTransport) startReadLoop() {
 
 		switch event.Type {
 		case metadataEventTypeTrack:
-			trackEvent := event.Track.trackEvent(t.clientID)
-			trackEvent.TrackInfo.Track = t.newServerTrack(event.Track.TrackInfo)
-
-			skipEvent := false
+			trackEvent := event.TrackEvent
+			track := trackEvent.Track
+			trackID := trackEvent.Track.UniqueID()
 
 			switch trackEvent.Type {
 			case transport.TrackEventTypeAdd:
-				ssrc := trackEvent.TrackInfo.Track.SSRC()
+				// TODO simulcast rid
+
 				t.mu.Lock()
-				// Skip event in case of a refresh event, and track information has
-				// already been received.
-				_, skipEvent = t.remoteTracks[ssrc]
-				t.remoteTracks[ssrc] = trackEvent.TrackInfo
+
+				var remoteTrack *trackRemote
+
+				_, ok := t.remoteTracks[trackID]
+				if !ok {
+					remoteTrack = newTrackRemote(
+						track,
+						trackEvent.SSRC,
+						"",
+						t.mediaTransport.getOrCreateRTPBuffer(trackEvent.SSRC),
+					)
+
+					t.remoteTracks[trackID] = remoteTrack
+				}
+
 				t.mu.Unlock()
+
+				if remoteTrack != nil {
+					// TODO potential deadlock.
+					t.remoteTracksChannel <- remoteTrack
+				}
 			case transport.TrackEventTypeRemove:
 				t.mu.Lock()
-				delete(t.remoteTracks, trackEvent.TrackInfo.Track.SSRC())
+
+				remoteTrack, ok := t.remoteTracks[trackID]
+				if ok {
+					t.mediaTransport.removeRTPBuffer(remoteTrack.SSRC())
+					delete(t.remoteTracks, trackID)
+				}
+
 				t.mu.Unlock()
 			case transport.TrackEventTypeSub:
-			case transport.TrackEventTypeUnsub:
-			}
+				t.mu.Lock()
 
-			if !skipEvent {
-				select {
-				case t.trackEventsCh <- trackEvent:
-				case <-t.writeLoopClosed:
+				localTrack, ok := t.localTracks[trackID]
+
+				t.mu.Unlock()
+
+				if !ok {
+					break
 				}
+
+				localTrack.subscribe()
+			case transport.TrackEventTypeUnsub:
+				t.mu.Lock()
+
+				localTrack, ok := t.localTracks[trackID]
+
+				t.mu.Unlock()
+
+				if !ok {
+					break
+				}
+
+				localTrack.unsubscribe()
 			}
 		}
 	}
 }
 
-func (t *MetadataTransport) TrackEventsChannel() <-chan transport.TrackEvent {
-	return t.trackEventsCh
+func (t *MetadataTransport) RemoteTracksChannel() <-chan transport.TrackRemote {
+	return t.remoteTracksChannel
 }
 
-func (t *MetadataTransport) LocalTracks() []transport.TrackInfo {
+// func (t *MetadataTransport) TrackEventsChannel() <-chan transport.TrackEvent {
+// 	return t.trackEventsCh
+// }
+
+func (t *MetadataTransport) LocalTracks() []transport.TrackWithMID {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	localTracks := make([]transport.TrackInfo, 0, len(t.localTracks))
+	localTracks := make([]transport.TrackWithMID, len(t.localTracks))
 
-	for _, trackInfo := range t.localTracks {
-		localTracks = append(localTracks, trackInfo)
+	i := -1
+	for _, localTrack := range t.localTracks {
+		i++
+		localTracks[i] = transport.NewTrackWithMID(localTrack.Track(), "")
 	}
 
 	return localTracks
 }
 
-func (t *MetadataTransport) RemoteTracks() []transport.TrackInfo {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+// func (t *MetadataTransport) RemoteTracks() []transport.Track {
+// 	t.mu.RLock()
+// 	defer t.mu.RUnlock()
 
-	remoteTracks := make([]transport.TrackInfo, 0, len(t.remoteTracks))
+// 	remoteTracks := make([]transport.Track, len(t.remoteTracks))
 
-	for _, trackInfo := range t.remoteTracks {
-		remoteTracks = append(remoteTracks, trackInfo)
-	}
+// 	i := -1
+// 	for _, track := range t.remoteTracks {
+// 		i++
+// 		remoteTracks[i] = track
+// 	}
 
-	return remoteTracks
-}
+// 	return remoteTracks
+// }
 
-func (t *MetadataTransport) AddTrack(track transport.Track) error {
+func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLocal, transport.Sender, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	trackInfo := transport.TrackInfo{
-		Track: track,
-		Kind:  t.getCodecType(track.PayloadType()),
-		Mid:   "",
+	ssrc := webrtc.SSRC(RandUint32())
+
+	// trackInfo := transport.NewTrackWithMID(track, "")
+
+	localTrack := newTrackLocal(track, t.mediaTransport.conn, ssrc)
+	sender := newSender(t.mediaTransport.getOrCreateRTCPBuffer(ssrc))
+
+	t.localTracks[track.UniqueID()] = localTrack
+
+	event := trackEvent{
+		ClientID: t.clientID,
+		SSRC:     ssrc,
+		Track:    track.SimpleTrack(),
+		Type:     transport.TrackEventTypeAdd,
 	}
 
-	t.localTracks[track.SSRC()] = trackInfo
+	err := t.sendTrackEvent(event)
 
-	trackEvent := transport.TrackEvent{
-		TrackInfo: trackInfo,
-		Type:      transport.TrackEventTypeAdd,
-		ClientID:  t.clientID,
-	}
-
-	err := t.sendTrackEvent(trackEvent)
-
-	return errors.Trace(err)
+	return localTrack, sender, errors.Trace(err)
 }
 
-func (t *MetadataTransport) sendTrackEvent(trackEvent transport.TrackEvent) error {
-	json := newTrackEventJSON(trackEvent)
-
+func (t *MetadataTransport) sendTrackEvent(event trackEvent) error {
 	err := t.sendMetadataEvent(metadataEvent{
-		Type:  metadataEventTypeTrack,
-		Track: &json,
+		Type:       metadataEventTypeTrack,
+		TrackEvent: event,
 	})
 
 	return errors.Annotatef(err, "sendTrackEvent: write")
@@ -273,37 +299,33 @@ func (t *MetadataTransport) sendMetadataEvent(event metadataEvent) error {
 	}
 }
 
-func (t *MetadataTransport) getCodecType(payloadType uint8) webrtc.RTPCodecType {
-	// TODO These values are dynamic and are only valid when they are set in
-	// media engine _and_ when we initiate peer connections.
-	if payloadType == webrtc.DefaultPayloadTypeVP8 {
-		return webrtc.RTPCodecTypeVideo
-	}
-
-	return webrtc.RTPCodecTypeAudio
-}
-
-func (t *MetadataTransport) RemoveTrack(ssrc uint32) error {
+func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	t.mu.Lock()
 
-	trackInfo, ok := t.localTracks[ssrc]
-	delete(t.localTracks, ssrc)
+	localTrack, ok := t.localTracks[trackID]
+	delete(t.localTracks, trackID)
 
 	t.mu.Unlock()
 
 	if !ok {
-		return errors.Errorf("remove track: not found: %d", ssrc)
+		return errors.Errorf("remove track: not found: %s", trackID)
 	}
 
-	trackEvent := transport.TrackEvent{
-		TrackInfo: trackInfo,
-		Type:      transport.TrackEventTypeRemove,
-		ClientID:  t.clientID,
+	// Ensure the RTCP buffer is closed. This will close the sender.
+	t.mediaTransport.removeRTCPBuffer(localTrack.ssrc)
+
+	event := trackEvent{
+		Track:    localTrack.Track().SimpleTrack(),
+		SSRC:     localTrack.ssrc,
+		Type:     transport.TrackEventTypeRemove,
+		ClientID: t.clientID,
 	}
 
 	// TODO RemoveTrack should not be a slow operation.
 
-	return t.sendTrackEvent(trackEvent)
+	err := t.sendTrackEvent(event)
+
+	return errors.Annotate(err, "send remove track event")
 }
 
 func (t *MetadataTransport) Close() error {

@@ -8,7 +8,15 @@ import (
 )
 
 func TestSimpleTrack(t *testing.T) {
-	t1 := NewSimpleTrack("xyz", 3, 123, "a", "b")
+	codec := Codec{
+		MimeType:    "audio/opus",
+		ClockRate:   48000,
+		Channels:    2,
+		SDPFmtpLine: "a=b",
+	}
+
+	t1 := NewSimpleTrack("a", "b", codec, "user-1")
+	assert.Equal(t, TrackID("b:a"), t1.UniqueID())
 
 	b, err := json.Marshal(t1)
 	assert.NoError(t, err)
@@ -17,9 +25,9 @@ func TestSimpleTrack(t *testing.T) {
 	err = json.Unmarshal(b, &t2)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "xyz", t2.UserID())
-	assert.Equal(t, uint8(3), t2.PayloadType())
-	assert.Equal(t, uint32(123), t2.SSRC())
 	assert.Equal(t, "a", t2.ID())
-	assert.Equal(t, "b", t2.Label())
+	assert.Equal(t, "b", t2.StreamID())
+	assert.Equal(t, TrackID("b:a"), t2.UniqueID())
+	assert.Equal(t, "user-1", t2.UserID())
+	assert.Equal(t, codec, t2.Codec())
 }

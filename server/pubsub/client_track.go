@@ -1,15 +1,13 @@
 package pubsub
 
-import "fmt"
+// type clientTrack struct {
+// 	// ClientID of the publisher.
+// 	ClientID string
 
-type clientTrack struct {
-	// ClientID of the publisher.
-	ClientID string
+// 	// TrackID is the unique ID of a published track.
+// 	TrackID transport.TrackID
+// }
 
-	// SSRC of the published track.
-	SSRC uint32
-}
-
-func (p clientTrack) String() string {
-	return fmt.Sprintf("%s:%d", p.ClientID, p.SSRC)
-}
+// func (p clientTrack) String() string {
+// 	return fmt.Sprintf("%s:%s", p.ClientID, p.TrackID)
+// }

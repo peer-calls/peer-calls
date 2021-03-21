@@ -38,13 +38,13 @@ export interface SocketEvent {
     userId: string
   }
   pubTrack: {
-    ssrc: number
+    trackId: number
     pubClientId: string
     userId: string
     type: TrackEventType.Add | TrackEventType.Remove
   }
   subTrack: {
-    ssrc: number
+    trackId: number
     pubClientId: string
     type: TrackEventType.Sub | TrackEventType.Unsub
   }
