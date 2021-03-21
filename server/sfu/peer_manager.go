@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 
+	"time"
+
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
@@ -19,8 +21,7 @@ type PeerManager struct {
 	mu  sync.RWMutex
 	wg  sync.WaitGroup
 
-	jitterHandler          JitterHandler
-	trackBitrateEstimators *TrackBitrateEstimators
+	jitterHandler JitterHandler
 
 	// webrtcTransports indexed by ClientID
 	webrtcTransports map[string]transport.Transport
@@ -34,12 +35,11 @@ type PeerManager struct {
 
 func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler) *PeerManager {
 	return &PeerManager{
-		log:                    log.WithNamespaceAppended("room_peers_manager"),
-		webrtcTransports:       map[string]transport.Transport{},
-		serverTransports:       map[string]transport.Transport{},
-		jitterHandler:          jitterHandler,
-		trackBitrateEstimators: NewTrackBitrateEstimators(),
-		room:                   room,
+		log:              log.WithNamespaceAppended("room_peers_manager"),
+		webrtcTransports: map[string]transport.Transport{},
+		serverTransports: map[string]transport.Transport{},
+		jitterHandler:    jitterHandler,
+		room:             room,
 
 		pubsub: pubsub.New(log),
 	}
@@ -182,14 +182,59 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 		for remoteTrack := range tr.RemoteTracksChannel() {
 			remoteTrack := remoteTrack
+			trackID := remoteTrack.Track().UniqueID()
+
+			done := make(chan struct{})
 
 			t.pubsub.Pub(tr.ClientID(), pubsub.NewTrackReader(remoteTrack, func() {
 				t.mu.Lock()
 
-				t.pubsub.Unpub(tr.ClientID(), remoteTrack.Track().UniqueID())
+				close(done)
+
+				t.pubsub.Unpub(tr.ClientID(), trackID)
 
 				t.mu.Unlock()
 			}))
+
+			t.wg.Add(1)
+
+			ticker := time.NewTicker(time.Second)
+
+			go func() {
+				defer func() {
+					t.wg.Done()
+					ticker.Stop()
+				}()
+
+				select {
+				case <-ticker.C:
+					t.mu.Lock()
+
+					estimator, ok := t.pubsub.BitrateEstimator(trackID)
+
+					t.mu.Unlock()
+
+					if !ok || estimator.Empty() {
+						break
+					}
+
+					bitrate := estimator.Min()
+					ssrc := uint32(remoteTrack.SSRC())
+
+					// FIXME simulcast?
+
+					err := tr.WriteRTCP([]rtcp.Packet{
+						&rtcp.ReceiverEstimatedMaximumBitrate{
+							SenderSSRC: ssrc,
+							Bitrate:    bitrate,
+							SSRCs:      []uint32{ssrc},
+						},
+					})
+					_ = err // FIXME handle error
+
+				case <-done:
+				}
+			}()
 			// switch trackEvent.Type {
 			// case transport.TrackEventTypeAdd:
 			// 	t.addTrack(tr.ClientID(), trackEvent.TrackInfo.Track)
@@ -415,6 +460,16 @@ func (t *PeerManager) Sub(params SubParams) error {
 			"sub_client_id": params.SubClientID,
 		}
 
+		getBitrateEstimator := func(trackID transport.TrackID) (*pubsub.BitrateEstimator, bool) {
+			t.mu.Lock()
+
+			bitrateEstimator, ok := t.pubsub.BitrateEstimator(trackID)
+
+			t.mu.Unlock()
+
+			return bitrateEstimator, ok
+		}
+
 		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
 			t.mu.Lock()
 
@@ -455,6 +510,13 @@ func (t *PeerManager) Sub(params SubParams) error {
 
 				// TODO remove this log.
 				t.log.Info("Sent PLI back to source", logCtx)
+			case *rtcp.ReceiverEstimatedMaximumBitrate:
+				bitrateEstimator, ok := getBitrateEstimator(params.TrackID)
+				if !ok {
+					return errors.Errorf("bitrate estimator not found: %s", params.TrackID)
+				}
+
+				bitrateEstimator.Feed(params.SubClientID, pkt.Bitrate)
 			default:
 			}
 
@@ -556,18 +618,10 @@ func (t *PeerManager) Remove(clientID string) {
 	t.pubsub.Terminate(clientID)
 
 	if _, ok := t.serverTransports[clientID]; ok {
-		// WebRTC transports do not need to be explicitly terminated, only
-		// ServerTransports do. This is because a closed WebRTC tranports will
-		// still dispatch track remove events after the streams are closed.
-
-		// FIXME maybe they do!
-		// t.pubsub.Terminate(clientID)
 		delete(t.serverTransports, clientID)
 	} else {
 		delete(t.webrtcTransports, clientID)
 	}
-
-	t.trackBitrateEstimators.RemoveReceiverEstimations(clientID)
 }
 
 // func (t *PeerManager) removeTrack(clientID string, track transport.Track) {

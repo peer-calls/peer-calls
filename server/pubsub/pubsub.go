@@ -34,13 +34,14 @@ type PubSub struct {
 }
 
 type publisher struct {
-	clientID string
-	reader   Reader
+	clientID         string
+	reader           Reader
+	bitrateEstimator *BitrateEstimator
 }
 
 type subscriber struct {
 	transport         Transport
-	publishersByTrack map[transport.TrackID]Reader
+	publishersByTrack map[transport.TrackID]publisher
 }
 
 // New returns a new instance of PubSub.
@@ -69,8 +70,9 @@ func (p *PubSub) Pub(pubClientID string, reader Reader) {
 	trackID := track.UniqueID()
 
 	p.publishers[trackID] = publisher{
-		clientID: pubClientID,
-		reader:   reader,
+		clientID:         pubClientID,
+		reader:           reader,
+		bitrateEstimator: NewBitrateEstimator(),
 	}
 
 	if _, ok := p.publishersByPubClientID[pubClientID]; !ok {
@@ -94,7 +96,7 @@ func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
 
 	if pub, ok := p.publishers[trackID]; ok {
 		for _, subClientID := range pub.reader.Subs() {
-			_ = p.unsub(subClientID, pub.reader)
+			_ = p.unsub(subClientID, pub)
 		}
 
 		delete(p.publishersByPubClientID[pubClientID], pub.reader)
@@ -131,7 +133,7 @@ func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Tr
 		return nil, errors.Annotatef(ErrTrackNotFound, "sub: trackID: %s, clientID: %s", trackID, transport.ClientID())
 	}
 
-	sender, err := p.sub(pub.reader, transport)
+	sender, err := p.sub(pub, transport)
 	if err != nil {
 		return nil, errors.Annotatef(err, "sub: trackID: %s, clientID: %s", trackID, transport.ClientID())
 	}
@@ -139,17 +141,17 @@ func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Tr
 	return sender, nil
 }
 
-func (p *PubSub) sub(reader Reader, tr Transport) (transport.Sender, error) {
+func (p *PubSub) sub(pub publisher, tr Transport) (transport.Sender, error) {
 	subClientID := tr.ClientID()
 
-	track := reader.Track()
+	track := pub.reader.Track()
 
 	trackLocal, sender, err := tr.AddTrack(track)
 	if err != nil {
 		return nil, errors.Annotatef(err, "adding track to transport")
 	}
 
-	if err := reader.Sub(subClientID, trackLocal); err != nil {
+	if err := pub.reader.Sub(subClientID, trackLocal); err != nil {
 		// We don't care about the potential error at this point.
 		_ = tr.RemoveTrack(track.UniqueID())
 		// TODO what to do with the track now?
@@ -159,11 +161,11 @@ func (p *PubSub) sub(reader Reader, tr Transport) (transport.Sender, error) {
 	if _, ok := p.subsBySubClientID[subClientID]; !ok {
 		p.subsBySubClientID[subClientID] = subscriber{
 			transport:         tr,
-			publishersByTrack: map[transport.TrackID]Reader{},
+			publishersByTrack: map[transport.TrackID]publisher{},
 		}
 	}
 
-	p.subsBySubClientID[subClientID].publishersByTrack[track.UniqueID()] = reader
+	p.subsBySubClientID[subClientID].publishersByTrack[track.UniqueID()] = pub
 
 	return sender, nil
 }
@@ -183,7 +185,7 @@ func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientI
 		return errors.Annotatef(ErrTrackNotFound, "unsub: trackID: %s, clientID: %s", trackID, subClientID)
 	}
 
-	if err := p.unsub(subClientID, pub.reader); err != nil {
+	if err := p.unsub(subClientID, pub); err != nil {
 		return errors.Annotatef(err, "unsub: trackiD: %s, clientID: %s", trackID, subClientID)
 	}
 
@@ -191,12 +193,14 @@ func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientI
 }
 
 // unsub caller must hold the lock.
-func (p *PubSub) unsub(subClientID string, reader Reader) error {
+func (p *PubSub) unsub(subClientID string, pub publisher) error {
 	var multiErr multierr.MultiErr
 
-	trackID := reader.Track().UniqueID()
+	trackID := pub.reader.Track().UniqueID()
 
-	err := reader.Unsub(subClientID)
+	pub.bitrateEstimator.RemoveClientBitrate(subClientID)
+
+	err := pub.reader.Unsub(subClientID)
 	multiErr.Add(errors.Trace(err))
 
 	sub, ok := p.subsBySubClientID[subClientID]
@@ -214,6 +218,13 @@ func (p *PubSub) unsub(subClientID string, reader Reader) error {
 	}
 
 	return errors.Trace(multiErr.Err())
+}
+
+// BitrateEstimator returns the instance of BitrateEstimatro for a track.
+func (p *PubSub) BitrateEstimator(trackID transport.TrackID) (*BitrateEstimator, bool) {
+	pub, ok := p.publishers[trackID]
+
+	return pub.bitrateEstimator, ok
 }
 
 // Terminate unpublishes al tracks from from a particular client, as well as

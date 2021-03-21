@@ -32,12 +32,6 @@ type Transport interface {
 	Closable
 }
 
-// type MetadataTransport interface {
-// 	// TrackEventsChannel() <-chan TrackEvent
-// 	// AddTrack(track Track) (TrackLocal, error)
-// 	// RemoveTrack(trackID TrackID) error
-// }
-
 type Closable interface {
 	Close() error
 	Done() <-chan struct{}
@@ -45,8 +39,6 @@ type Closable interface {
 
 type trackCommon interface {
 	Track() Track
-	// WriteRTCP([]rtcp.Packet) error
-	// ReadRTCP() ([]rtcp.Packet, interceptor.Attributes, error)
 }
 
 type TrackLocal interface {
