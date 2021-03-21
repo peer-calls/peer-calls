@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -303,10 +302,8 @@ func NewWebRTCTransport(
 	peerConnection.OnTrack(transport.handleTrack)
 
 	go func() {
-		fmt.Println("WAITING FOR SIGNALLER DONE")
 		// wait for peer connection to be closed
 		<-signaller.Done()
-		fmt.Println("SIGNALLER DONE")
 		// do not close channels before all writing goroutines exit
 		transport.wg.Wait()
 		transport.dataTransceiver.Close()
@@ -451,10 +448,8 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 	}
 
 	if p.signaller.Initiator() {
-		fmt.Println("add track, call negotiate")
 		p.signaller.Negotiate()
 	} else {
-		fmt.Println("add track, send transc req")
 		p.signaller.SendTransceiverRequest(track.Kind(), webrtc.RTPTransceiverDirectionRecvonly)
 	}
 
@@ -569,8 +564,6 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 		TrackRemote: track,
 		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.clientID),
 	}
-
-	fmt.Println("handleTrack", t.track)
 
 	select {
 	case p.remoteTracksChannel <- t:
