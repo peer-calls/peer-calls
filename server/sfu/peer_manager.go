@@ -555,11 +555,15 @@ func (t *PeerManager) Remove(clientID string) {
 		})
 	}
 
+	t.pubsub.Terminate(clientID)
+
 	if _, ok := t.serverTransports[clientID]; ok {
 		// WebRTC transports do not need to be explicitly terminated, only
 		// ServerTransports do. This is because a closed WebRTC tranports will
 		// still dispatch track remove events after the streams are closed.
-		t.pubsub.Terminate(clientID)
+
+		// FIXME maybe they do!
+		// t.pubsub.Terminate(clientID)
 		delete(t.serverTransports, clientID)
 	} else {
 		delete(t.webrtcTransports, clientID)

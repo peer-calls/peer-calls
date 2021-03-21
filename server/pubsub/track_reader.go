@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
@@ -63,8 +64,14 @@ func (t *TrackReader) startReadLoop() {
 		for key, trackLocal := range t.subs {
 			_ = packet.MarshalSize()
 
-			if err := trackLocal.WriteRTP(packet); err == io.ErrClosedPipe {
-				delete(t.subs, key)
+			if err := trackLocal.WriteRTP(packet); err != nil {
+				// FIXME we never seem to resolve this.
+				if err == io.ErrClosedPipe {
+					fmt.Println("closed pipe, removing", key)
+					delete(t.subs, key)
+				} else {
+					fmt.Println("writertp error", err)
+				}
 			}
 
 		}
