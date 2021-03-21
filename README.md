@@ -43,7 +43,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Support dynamic adding and removing of streams
 - [x] Support RTCP packet Picture Loss Indicator (PLI)
 - [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
-- [ ] Add handling of other RTCP packets besides NACK, PLI and REMB
+- [x] Add handling of other RTCP packets besides NACK, PLI and REMB
 - [x] Add JitterBuffer (experimental, currently without congestion control)
 - [ ] Support multiple Peer Calls nodes when using SFU
 - [x] Add support for passive ICE TCP candidates
@@ -142,6 +142,10 @@ docker run --rm -it -p 3000:3000 peer-calls
 
 ## Environment variables
 
+NOTE: the environment variables `PEERCALLS_NETWORK_SFU_TRANSPORT*` were
+experimental and have been disabled during the upgrade to `pion/webrtc` v3.
+
+They will be enabled once the server-to-server transport is fully implemented.
 
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
