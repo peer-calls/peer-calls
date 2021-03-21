@@ -30,6 +30,10 @@ func NewSimpleTrack(id string, streamID string, codec Codec, userID string) Simp
 	}
 }
 
+func (s SimpleTrack) SimpleTrack() SimpleTrack {
+	return s
+}
+
 func (s SimpleTrack) ID() string {
 	return s.id
 }

@@ -6,6 +6,7 @@ type Track interface {
 	StreamID() string
 	UserID() string
 	Codec() Codec
+	SimpleTrack() SimpleTrack
 }
 
 type Codec struct {

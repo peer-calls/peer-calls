@@ -7,7 +7,7 @@ type TrackWithMID struct {
 }
 
 func NewTrackWithMID(track Track, mid string) TrackWithMID {
-	return TrackWithMID{track, mid}
+	return TrackWithMID{Track: track, mid: mid}
 }
 
 func (t TrackWithMID) MID() string {

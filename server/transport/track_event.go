@@ -8,9 +8,3 @@ const (
 	TrackEventTypeSub
 	TrackEventTypeUnsub
 )
-
-type TrackEvent struct {
-	ClientID     string
-	TrackWithMID TrackWithMID
-	Type         TrackEventType
-}

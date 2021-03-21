@@ -181,7 +181,6 @@ type WebRTCTransport struct {
 	log logger.Logger
 
 	clientID string
-	// roomID   string
 
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
@@ -189,12 +188,7 @@ type WebRTCTransport struct {
 
 	remoteTracksChannel chan transport.TrackRemote
 
-	// trackEventsCh chan transport.TrackEvent
-	// rtpCh         chan *rtp.Packet
-	// rtcpCh        chan []rtcp.Packet
-
 	localTracks map[transport.TrackID]localTrack
-	// remoteTracks map[transport.TrackID]remoteTrack
 }
 
 func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {

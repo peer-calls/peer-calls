@@ -2,20 +2,26 @@ package servertransport
 
 import (
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
+	"github.com/pion/transport/packetio"
+	"github.com/pion/webrtc/v3"
 )
 
 type MediaTransport struct {
-	conn   io.ReadWriteCloser
-	rtpCh  chan *rtp.Packet
-	rtcpCh chan []rtcp.Packet
-	log    logger.Logger
+	conn io.ReadWriteCloser
+	log  logger.Logger
+
+	rtpBuffers  map[webrtc.SSRC]*packetio.Buffer
+	rtcpBuffers map[webrtc.SSRC]*packetio.Buffer
+
+	mu sync.Mutex
 
 	stats struct {
 		readBytes       int64
@@ -30,14 +36,22 @@ type MediaTransport struct {
 	}
 }
 
-var _ transport.MediaTransport = &MediaTransport{}
+const (
+	// limit RTP buffer to 1MB
+	rtpBufferLimit = 1000 * 1000
+	// limit RTCP buffer to 100KB
+	rtcpBufferLimit = 100 * 1000
+)
+
+// var _ transport.MediaTransport = &MediaTransport{}
 
 func NewMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *MediaTransport {
 	t := MediaTransport{
-		conn:   conn,
-		rtpCh:  make(chan *rtp.Packet),
-		rtcpCh: make(chan []rtcp.Packet),
-		log:    log.WithNamespaceAppended("server_media_transport"),
+		conn: conn,
+		log:  log.WithNamespaceAppended("server_media_transport"),
+
+		rtpBuffers:  map[webrtc.SSRC]*packetio.Buffer{},
+		rtcpBuffers: map[webrtc.SSRC]*packetio.Buffer{},
 	}
 
 	go t.start()
@@ -46,11 +60,6 @@ func NewMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *MediaTranspo
 }
 
 func (t *MediaTransport) start() {
-	defer func() {
-		close(t.rtcpCh)
-		close(t.rtpCh)
-	}()
-
 	buf := make([]byte, ReceiveMTU)
 
 	for {
@@ -102,6 +111,62 @@ func (t *MediaTransport) handle(buf []byte) error {
 	}
 }
 
+func (t *MediaTransport) getOrCreateRTPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
+	t.mu.Lock()
+
+	buffer, ok := t.rtpBuffers[ssrc]
+	if !ok {
+		buffer = packetio.NewBuffer()
+		buffer.SetLimitSize(rtpBufferLimit)
+
+		t.rtpBuffers[ssrc] = buffer
+	}
+
+	t.mu.Unlock()
+
+	return buffer
+}
+
+func (t *MediaTransport) getOrCreateRTCPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
+	t.mu.Lock()
+
+	buffer, ok := t.rtcpBuffers[ssrc]
+	if !ok {
+		buffer = packetio.NewBuffer()
+		buffer.SetLimitSize(rtcpBufferLimit)
+
+		t.rtcpBuffers[ssrc] = buffer
+	}
+
+	t.mu.Unlock()
+
+	return buffer
+}
+
+func (t *MediaTransport) removeRTCPBuffer(ssrc webrtc.SSRC) {
+	t.mu.Lock()
+
+	b, ok := t.rtcpBuffers[ssrc]
+	if ok {
+		b.Close()
+		delete(t.rtpBuffers, ssrc)
+	}
+
+	t.mu.Unlock()
+}
+
+func (t *MediaTransport) removeRTPBuffer(ssrc webrtc.SSRC) {
+	t.mu.Lock()
+
+	b, ok := t.rtpBuffers[ssrc]
+	if ok {
+		b.Close()
+		delete(t.rtcpBuffers, ssrc)
+	}
+
+	t.mu.Unlock()
+}
+
 func (t *MediaTransport) handleRTP(buf []byte) error {
 	pkt := &rtp.Packet{}
 
@@ -110,20 +175,33 @@ func (t *MediaTransport) handleRTP(buf []byte) error {
 		return errors.Annotatef(err, "unmarshal RTP")
 	}
 
-	t.rtpCh <- pkt
+	buffer := t.getOrCreateRTPBuffer(webrtc.SSRC(pkt.SSRC))
+
+	_, err = buffer.Write(buf)
+	if err != nil {
+		return errors.Trace(err)
+	}
 
 	return nil
 }
 
 func (t *MediaTransport) handleRTCP(buf []byte) error {
-	pkts, err := rtcp.Unmarshal(buf)
+	packets, err := rtcp.Unmarshal(buf)
 	if err != nil {
-		return errors.Annotatef(err, "unmarshal RTCP")
+		return errors.Trace(err)
 	}
 
-	t.rtcpCh <- pkts
+	var merr multierr.MultiErr
 
-	return nil
+	for _, ssrc := range destinationSSRC(packets) {
+		buffer := t.getOrCreateRTCPBuffer(webrtc.SSRC(ssrc))
+
+		if _, err := buffer.Write(buf); err != nil {
+			merr.Add(errors.Annotatef(err, "read RTCP to buffer"))
+		}
+	}
+
+	return errors.Trace(merr.Err())
 }
 
 func (t *MediaTransport) WriteRTCP(p []rtcp.Packet) error {
@@ -142,13 +220,11 @@ func (t *MediaTransport) WriteRTCP(p []rtcp.Packet) error {
 	return errors.Annotatef(err, "write RTCP")
 }
 
-func (t *MediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
+func (t *MediaTransport) writeRTP(p *rtp.Packet) (int, error) {
 	b, err := p.Marshal()
 	if err != nil {
 		return 0, errors.Annotatef(err, "marshal RTP")
 	}
-
-	// TODO skip writing rtp packet when no subscribers.
 
 	i, err := t.conn.Write(b)
 
@@ -160,14 +236,24 @@ func (t *MediaTransport) WriteRTP(p *rtp.Packet) (int, error) {
 	return i, errors.Annotatef(err, "write RTP")
 }
 
-func (t *MediaTransport) RTPChannel() <-chan *rtp.Packet {
-	return t.rtpCh
-}
-
-func (t *MediaTransport) RTCPChannel() <-chan []rtcp.Packet {
-	return t.rtcpCh
-}
-
 func (t *MediaTransport) Close() error {
 	return t.conn.Close()
+}
+
+// create a list of Destination SSRCs
+// that's a superset of all Destinations in the slice.
+func destinationSSRC(pkts []rtcp.Packet) []uint32 {
+	ssrcSet := make(map[uint32]struct{})
+	for _, p := range pkts {
+		for _, ssrc := range p.DestinationSSRC() {
+			ssrcSet[ssrc] = struct{}{}
+		}
+	}
+
+	out := make([]uint32, 0, len(ssrcSet))
+	for ssrc := range ssrcSet {
+		out = append(out, ssrc)
+	}
+
+	return out
 }

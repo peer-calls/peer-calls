@@ -107,22 +107,6 @@ func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) 
 	}
 }
 
-// func (t *PeerManager) getTransportBySSRC(subClientID string, ssrc uint32) (
-// 	transport transport.Transport, ok bool,
-// ) {
-// 	t.mu.Lock()
-// 	defer t.mu.Unlock()
-
-// 	clientID, ok := t.pubsub.PubClientID(subClientID, ssrc)
-// 	if !ok {
-// 		return nil, false
-// 	}
-
-// 	transport, ok = t.getTransport(clientID)
-
-// 	return transport, ok
-// }
-
 func (t *PeerManager) getTransport(clientID string) (transport.Transport, bool) {
 	transport, ok := t.webrtcTransports[clientID]
 	if !ok {

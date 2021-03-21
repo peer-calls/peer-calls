@@ -18,8 +18,7 @@ type Transport interface {
 	ClientID() string
 	Type() Type
 
-	MessagesChannel() <-chan webrtc.DataChannelMessage
-	Send(message webrtc.DataChannelMessage) <-chan error
+	DataTransport
 
 	RemoteTracksChannel() <-chan TrackRemote
 
@@ -27,7 +26,7 @@ type Transport interface {
 	AddTrack(Track) (TrackLocal, Sender, error)
 	RemoveTrack(TrackID) error
 
-	WriteRTCP([]rtcp.Packet) error
+	RTCPWriter
 
 	Closable
 }
@@ -56,4 +55,13 @@ type TrackRemote interface {
 
 type Sender interface {
 	ReadRTCP() ([]rtcp.Packet, interceptor.Attributes, error)
+}
+
+type RTCPWriter interface {
+	WriteRTCP([]rtcp.Packet) error
+}
+
+type DataTransport interface {
+	MessagesChannel() <-chan webrtc.DataChannelMessage
+	Send(message webrtc.DataChannelMessage) <-chan error
 }
