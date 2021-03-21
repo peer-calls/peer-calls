@@ -19,7 +19,7 @@ require (
 	github.com/pion/rtcp v1.2.6
 	github.com/pion/rtp v1.6.2
 	github.com/pion/sctp v1.7.11
-	github.com/pion/webrtc/v3 v3.0.16
+	github.com/pion/webrtc/v3 v3.0.18
 	github.com/prometheus/client_golang v1.6.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/goleak v1.0.0
@@ -30,5 +30,3 @@ require (
 	gopkg.in/yaml.v2 v2.3.0
 	nhooyr.io/websocket v1.8.4
 )
-
-replace github.com/pion/webrtc/v3 => ../pion/webrtc

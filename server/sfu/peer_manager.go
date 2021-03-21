@@ -206,19 +206,26 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 					ticker.Stop()
 				}()
 
-				select {
-				case <-ticker.C:
+				getBitrateEstimate := func() (uint64, bool) {
 					t.mu.Lock()
+					defer t.mu.Unlock()
 
 					estimator, ok := t.pubsub.BitrateEstimator(trackID)
 
-					t.mu.Unlock()
-
 					if !ok || estimator.Empty() {
+						return 0, false
+					}
+
+					return estimator.Min(), true
+				}
+
+				select {
+				case <-ticker.C:
+					bitrate, ok := getBitrateEstimate()
+					if !ok {
 						break
 					}
 
-					bitrate := estimator.Min()
 					ssrc := uint32(remoteTrack.SSRC())
 
 					// FIXME simulcast?
@@ -460,14 +467,15 @@ func (t *PeerManager) Sub(params SubParams) error {
 			"sub_client_id": params.SubClientID,
 		}
 
-		getBitrateEstimator := func(trackID transport.TrackID) (*pubsub.BitrateEstimator, bool) {
+		feedBitrateEstimate := func(trackID transport.TrackID, bitrate uint64) {
 			t.mu.Lock()
 
 			bitrateEstimator, ok := t.pubsub.BitrateEstimator(trackID)
+			if ok {
+				bitrateEstimator.Feed(params.SubClientID, bitrate)
+			}
 
 			t.mu.Unlock()
-
-			return bitrateEstimator, ok
 		}
 
 		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
@@ -511,12 +519,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 				// TODO remove this log.
 				t.log.Info("Sent PLI back to source", logCtx)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				bitrateEstimator, ok := getBitrateEstimator(params.TrackID)
-				if !ok {
-					return errors.Errorf("bitrate estimator not found: %s", params.TrackID)
-				}
-
-				bitrateEstimator.Feed(params.SubClientID, pkt.Bitrate)
+				feedBitrateEstimate(params.TrackID, pkt.Bitrate)
 			default:
 			}
 
