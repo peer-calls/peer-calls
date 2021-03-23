@@ -1,6 +1,7 @@
 package servertransport
 
 import (
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -14,9 +15,11 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-type MediaTransport struct {
+type MediaStream struct {
 	conn io.ReadWriteCloser
 	log  logger.Logger
+
+	bufferFactory BufferFactory
 
 	rtpBuffers  map[webrtc.SSRC]*packetio.Buffer
 	rtcpBuffers map[webrtc.SSRC]*packetio.Buffer
@@ -43,12 +46,26 @@ const (
 	rtcpBufferLimit = 100 * 1000
 )
 
-// var _ transport.MediaTransport = &MediaTransport{}
+type BufferFactory func(packetType packetio.BufferPacketType, ssrc uint32) *packetio.Buffer
 
-func NewMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *MediaTransport {
-	t := MediaTransport{
+func newBuffer(packetType packetio.BufferPacketType, ssrc uint32) *packetio.Buffer {
+	return packetio.NewBuffer()
+}
+
+func NewMediaStream(
+	log logger.Logger,
+	bufferFactory BufferFactory,
+	conn io.ReadWriteCloser,
+) *MediaStream {
+	if bufferFactory == nil {
+		bufferFactory = newBuffer
+	}
+
+	t := MediaStream{
 		conn: conn,
 		log:  log.WithNamespaceAppended("server_media_transport"),
+
+		bufferFactory: bufferFactory,
 
 		rtpBuffers:  map[webrtc.SSRC]*packetio.Buffer{},
 		rtcpBuffers: map[webrtc.SSRC]*packetio.Buffer{},
@@ -59,7 +76,7 @@ func NewMediaTransport(log logger.Logger, conn io.ReadWriteCloser) *MediaTranspo
 	return &t
 }
 
-func (t *MediaTransport) start() {
+func (t *MediaStream) start() {
 	buf := make([]byte, ReceiveMTU)
 
 	for {
@@ -88,7 +105,7 @@ func (t *MediaTransport) start() {
 	}
 }
 
-func (t *MediaTransport) handle(buf []byte) error {
+func (t *MediaStream) handle(buf []byte) error {
 	if len(buf) == 0 {
 		atomic.AddInt64(&t.stats.readNoData, 1)
 
@@ -111,7 +128,37 @@ func (t *MediaTransport) handle(buf []byte) error {
 	}
 }
 
-func (t *MediaTransport) getOrCreateRTPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
+func (t *MediaStream) GetOrCreateBuffer(
+	packetType packetio.BufferPacketType, ssrc webrtc.SSRC,
+) *packetio.Buffer {
+	switch packetType {
+	case packetio.RTPBufferPacket:
+		return t.getOrCreateRTPBuffer(ssrc)
+	case packetio.RTCPBufferPacket:
+		return t.getOrCreateRTCPBuffer(ssrc)
+	default:
+		panic(fmt.Sprintf("unfamiliar packet type: %d", packetType))
+	}
+}
+
+func (t *MediaStream) RemoveBuffer(
+	packetType packetio.BufferPacketType, ssrc webrtc.SSRC,
+) {
+	switch packetType {
+	case packetio.RTPBufferPacket:
+		t.removeRTPBuffer(ssrc)
+	case packetio.RTCPBufferPacket:
+		t.removeRTCPBuffer(ssrc)
+	default:
+		panic(fmt.Sprintf("unfamiliar packet type: %d", packetType))
+	}
+}
+
+func (t *MediaStream) Writer() io.Writer {
+	return t.conn
+}
+
+func (t *MediaStream) getOrCreateRTPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
 	t.mu.Lock()
 
 	buffer, ok := t.rtpBuffers[ssrc]
@@ -127,7 +174,7 @@ func (t *MediaTransport) getOrCreateRTPBuffer(ssrc webrtc.SSRC) *packetio.Buffer
 	return buffer
 }
 
-func (t *MediaTransport) getOrCreateRTCPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
+func (t *MediaStream) getOrCreateRTCPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
 	t.mu.Lock()
 
 	buffer, ok := t.rtcpBuffers[ssrc]
@@ -143,7 +190,7 @@ func (t *MediaTransport) getOrCreateRTCPBuffer(ssrc webrtc.SSRC) *packetio.Buffe
 	return buffer
 }
 
-func (t *MediaTransport) removeRTCPBuffer(ssrc webrtc.SSRC) {
+func (t *MediaStream) removeRTCPBuffer(ssrc webrtc.SSRC) {
 	t.mu.Lock()
 
 	b, ok := t.rtcpBuffers[ssrc]
@@ -155,7 +202,7 @@ func (t *MediaTransport) removeRTCPBuffer(ssrc webrtc.SSRC) {
 	t.mu.Unlock()
 }
 
-func (t *MediaTransport) removeRTPBuffer(ssrc webrtc.SSRC) {
+func (t *MediaStream) removeRTPBuffer(ssrc webrtc.SSRC) {
 	t.mu.Lock()
 
 	b, ok := t.rtpBuffers[ssrc]
@@ -167,7 +214,7 @@ func (t *MediaTransport) removeRTPBuffer(ssrc webrtc.SSRC) {
 	t.mu.Unlock()
 }
 
-func (t *MediaTransport) handleRTP(buf []byte) error {
+func (t *MediaStream) handleRTP(buf []byte) error {
 	pkt := &rtp.Packet{}
 
 	err := pkt.Unmarshal(buf)
@@ -185,7 +232,7 @@ func (t *MediaTransport) handleRTP(buf []byte) error {
 	return nil
 }
 
-func (t *MediaTransport) handleRTCP(buf []byte) error {
+func (t *MediaStream) handleRTCP(buf []byte) error {
 	packets, err := rtcp.Unmarshal(buf)
 	if err != nil {
 		return errors.Trace(err)
@@ -204,7 +251,7 @@ func (t *MediaTransport) handleRTCP(buf []byte) error {
 	return errors.Trace(merr.Err())
 }
 
-func (t *MediaTransport) WriteRTCP(p []rtcp.Packet) error {
+func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
 	b, err := rtcp.Marshal(p)
 	if err != nil {
 		return errors.Annotatef(err, "marshal RTCP")
@@ -220,7 +267,7 @@ func (t *MediaTransport) WriteRTCP(p []rtcp.Packet) error {
 	return errors.Annotatef(err, "write RTCP")
 }
 
-func (t *MediaTransport) writeRTP(p *rtp.Packet) (int, error) {
+func (t *MediaStream) writeRTP(p *rtp.Packet) (int, error) {
 	b, err := p.Marshal()
 	if err != nil {
 		return 0, errors.Annotatef(err, "marshal RTP")
@@ -236,7 +283,7 @@ func (t *MediaTransport) writeRTP(p *rtp.Packet) (int, error) {
 	return i, errors.Annotatef(err, "write RTP")
 }
 
-func (t *MediaTransport) Close() error {
+func (t *MediaStream) Close() error {
 	return t.conn.Close()
 }
 

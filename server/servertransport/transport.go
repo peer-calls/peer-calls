@@ -43,7 +43,7 @@ var (
 // TODO subject to change
 type Transport struct {
 	*MetadataTransport
-	*MediaTransport
+	*MediaStream
 	*DataTransport
 
 	clientID  string
@@ -63,11 +63,11 @@ func New(
 	})
 	log.Info("NewTransport", nil)
 
-	mediaTransport := NewMediaTransport(log, mediaConn)
+	mediaStream := NewMediaStream(log, nil, mediaConn)
 
 	return &Transport{
-		MetadataTransport: NewMetadataTransport(log, metadataConn, mediaTransport, clientID),
-		MediaTransport:    mediaTransport,
+		MetadataTransport: NewMetadataTransport(log, metadataConn, mediaStream, clientID),
+		MediaStream:       mediaStream,
 		DataTransport:     NewDataTransport(log, dataConn),
 		clientID:          clientID,
 		closeChan:         make(chan struct{}),
@@ -88,7 +88,7 @@ func (t *Transport) Close() (err error) {
 	errs := multierr.New()
 
 	errs.Add(t.DataTransport.Close())
-	errs.Add(t.MediaTransport.Close())
+	errs.Add(t.MediaStream.Close())
 	errs.Add(t.MetadataTransport.Close())
 
 	t.closeOnce.Do(func() {

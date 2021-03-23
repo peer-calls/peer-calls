@@ -33,7 +33,7 @@ type MetadataTransport struct {
 	// trackEventsCh chan transport.TrackEvent
 	writeCh chan metadataEvent
 
-	mediaTransport *MediaTransport
+	mediaTransport *MediaStream
 
 	closeWriteLoop  chan struct{}
 	writeLoopClosed chan struct{}
@@ -42,12 +42,10 @@ type MetadataTransport struct {
 	remoteTracksChannel chan transport.TrackRemote
 }
 
-type BufferFactory func(ssrc uint32) *packetio.Buffer
-
 func NewMetadataTransport(
 	log logger.Logger,
 	conn io.ReadWriteCloser,
-	mediaTransport *MediaTransport,
+	mediaStream *MediaStream,
 	clientID string,
 ) *MetadataTransport {
 	log = log.WithNamespaceAppended("metadata_transport")
@@ -69,7 +67,7 @@ func NewMetadataTransport(
 
 		remoteTracksChannel: make(chan transport.TrackRemote),
 
-		mediaTransport: mediaTransport,
+		mediaTransport: mediaStream,
 	}
 
 	log.Trace("NewMetadataTransport", nil)
@@ -167,7 +165,7 @@ func (t *MetadataTransport) startReadLoop() {
 						track,
 						trackEvent.SSRC,
 						"",
-						t.mediaTransport.getOrCreateRTPBuffer(trackEvent.SSRC),
+						t.mediaTransport.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEvent.SSRC),
 					)
 
 					t.remoteTracks[trackID] = remoteTrack
@@ -184,7 +182,7 @@ func (t *MetadataTransport) startReadLoop() {
 
 				remoteTrack, ok := t.remoteTracks[trackID]
 				if ok {
-					t.mediaTransport.removeRTPBuffer(remoteTrack.SSRC())
+					t.mediaTransport.RemoveBuffer(packetio.RTPBufferPacket, remoteTrack.SSRC())
 					delete(t.remoteTracks, trackID)
 				}
 
@@ -214,6 +212,7 @@ func (t *MetadataTransport) startReadLoop() {
 
 				localTrack.unsubscribe()
 			}
+		default:
 		}
 	}
 }
@@ -264,8 +263,8 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 
 	// trackInfo := transport.NewTrackWithMID(track, "")
 
-	localTrack := newTrackLocal(track, t.mediaTransport.conn, ssrc)
-	sender := newSender(t.mediaTransport.getOrCreateRTCPBuffer(ssrc))
+	localTrack := newTrackLocal(track, t.mediaTransport.Writer(), ssrc)
+	sender := newSender(t.mediaTransport.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc))
 
 	t.localTracks[track.UniqueID()] = localTrack
 
@@ -312,7 +311,7 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	}
 
 	// Ensure the RTCP buffer is closed. This will close the sender.
-	t.mediaTransport.removeRTCPBuffer(localTrack.ssrc)
+	t.mediaTransport.RemoveBuffer(packetio.RTCPBufferPacket, localTrack.ssrc)
 
 	event := trackEvent{
 		Track:    localTrack.Track().SimpleTrack(),
