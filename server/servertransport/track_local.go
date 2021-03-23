@@ -1,6 +1,7 @@
 package servertransport
 
 import (
+	"fmt"
 	"io"
 
 	"sync/atomic"
@@ -52,7 +53,7 @@ func (t *trackLocal) Write(b []byte) (int, error) {
 }
 
 func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
-	packet.Header.SSRC = packet.SSRC
+	packet.Header.SSRC = uint32(t.ssrc)
 
 	// TODO I might be wrong but I don't think we need to worry about
 	// payload types here, because that will be sent in the metadata,
@@ -65,6 +66,7 @@ func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
 
 func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
 	if !t.isSubscribed() {
+		fmt.Println("write, no subscribers")
 		// Do not write to this track if nobody is subscribed to it.
 		return 0, nil
 	}
@@ -75,6 +77,8 @@ func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
 	}
 
 	i, err := t.writer.Write(b)
+
+	fmt.Println("write, has subscribers", packet.SSRC)
 
 	return i, errors.Annotatef(err, "write RTP")
 }

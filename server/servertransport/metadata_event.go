@@ -28,8 +28,8 @@ func (m metadataEventType) String() string {
 	}
 }
 
-type initEventJSON struct {
-	ClientID string
-}
+// type initEventJSON struct {
+// 	ClientID string
+// }
 
-type byeEventJSON struct{}
+// type byeEventJSON struct{}

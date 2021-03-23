@@ -267,22 +267,6 @@ func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
 	return errors.Annotatef(err, "write RTCP")
 }
 
-func (t *MediaStream) writeRTP(p *rtp.Packet) (int, error) {
-	b, err := p.Marshal()
-	if err != nil {
-		return 0, errors.Annotatef(err, "marshal RTP")
-	}
-
-	i, err := t.conn.Write(b)
-
-	if err == nil {
-		atomic.AddInt64(&t.stats.sentRTPPackets, 1)
-		atomic.AddInt64(&t.stats.sentBytes, int64(i))
-	}
-
-	return i, errors.Annotatef(err, "write RTP")
-}
-
 func (t *MediaStream) Close() error {
 	return t.conn.Close()
 }

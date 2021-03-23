@@ -147,11 +147,11 @@ func (t *MetadataTransport) startReadLoop() {
 
 		switch event.Type {
 		case metadataEventTypeTrack:
-			trackEvent := event.TrackEvent
-			track := trackEvent.Track
-			trackID := trackEvent.Track.UniqueID()
+			trackEv := event.TrackEvent
+			track := trackEv.Track
+			trackID := trackEv.Track.UniqueID()
 
-			switch trackEvent.Type {
+			switch trackEv.Type {
 			case transport.TrackEventTypeAdd:
 				// TODO simulcast rid
 
@@ -159,13 +159,49 @@ func (t *MetadataTransport) startReadLoop() {
 
 				var remoteTrack *trackRemote
 
+				subscribe := func() error {
+					t.log.Info("Sub", logger.Ctx{
+						"ssrc":      trackEv.SSRC,
+						"track_id":  trackID,
+						"client_id": t.clientID,
+					})
+
+					err := t.sendTrackEvent(trackEvent{
+						ClientID: t.clientID,
+						Track:    track,
+						Type:     transport.TrackEventTypeSub,
+						SSRC:     trackEv.SSRC,
+					})
+
+					return errors.Trace(err)
+				}
+
+				unsubscribe := func() error {
+					t.log.Info("Unsub", logger.Ctx{
+						"ssrc":      trackEv.SSRC,
+						"track_id":  trackID,
+						"client_id": t.clientID,
+					})
+
+					err := t.sendTrackEvent(trackEvent{
+						ClientID: t.clientID,
+						Track:    track,
+						Type:     transport.TrackEventTypeUnsub,
+						SSRC:     trackEv.SSRC,
+					})
+
+					return errors.Trace(err)
+				}
+
 				_, ok := t.remoteTracks[trackID]
 				if !ok {
 					remoteTrack = newTrackRemote(
 						track,
-						trackEvent.SSRC,
+						trackEv.SSRC,
 						"",
-						t.mediaTransport.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEvent.SSRC),
+						t.mediaTransport.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEv.SSRC),
+						subscribe,
+						unsubscribe,
 					)
 
 					t.remoteTracks[trackID] = remoteTrack
@@ -260,8 +296,6 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 	defer t.mu.Unlock()
 
 	ssrc := webrtc.SSRC(RandUint32())
-
-	// trackInfo := transport.NewTrackWithMID(track, "")
 
 	localTrack := newTrackLocal(track, t.mediaTransport.Writer(), ssrc)
 	sender := newSender(t.mediaTransport.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc))

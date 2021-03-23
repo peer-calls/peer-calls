@@ -2,6 +2,7 @@ package servertransport
 
 import (
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/atomic"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
@@ -14,6 +15,11 @@ type trackRemote struct {
 	rid    string // TODO simulcast
 	ssrc   webrtc.SSRC
 	track  transport.Track
+
+	onSub   func() error
+	onUnsub func() error
+
+	subscribed atomic.Bool
 }
 
 // TODO we'll get track events but without SSRC. How to associate SSRC packets
@@ -25,12 +31,16 @@ func newTrackRemote(
 	ssrc webrtc.SSRC,
 	rid string,
 	buffer *packetio.Buffer,
+	onSub func() error,
+	onUnsub func() error,
 ) *trackRemote {
 	return &trackRemote{
-		buffer: buffer,
-		rid:    rid,
-		ssrc:   ssrc,
-		track:  track,
+		buffer:  buffer,
+		rid:     rid,
+		ssrc:    ssrc,
+		track:   track,
+		onSub:   onSub,
+		onUnsub: onUnsub,
 	}
 }
 
@@ -56,7 +66,7 @@ func (t *trackRemote) ReadRTP() (*rtp.Packet, interceptor.Attributes, error) {
 		return nil, nil, errors.Annotatef(err, "read RTP")
 	}
 
-	var packet *rtp.Packet
+	packet := &rtp.Packet{}
 
 	err = packet.Unmarshal(b[:i])
 	if err != nil {
@@ -67,3 +77,24 @@ func (t *trackRemote) ReadRTP() (*rtp.Packet, interceptor.Attributes, error) {
 
 	return packet, nil, nil
 }
+
+func (t *trackRemote) Subscribe() error {
+	if !t.subscribed.CompareAndSwap(true) {
+		return errors.Trace(errAlreadySubscribed)
+	}
+
+	return errors.Annotate(t.onSub(), "subscribe")
+}
+
+func (t *trackRemote) Unsubscribe() error {
+	if !t.subscribed.CompareAndSwap(false) {
+		return errors.Trace(errNotSubscribed)
+	}
+
+	return errors.Annotate(t.onUnsub(), "unsubscribe")
+}
+
+var (
+	errAlreadySubscribed = errors.Errorf("already subscribed")
+	errNotSubscribed     = errors.Errorf("not subscribed")
+)

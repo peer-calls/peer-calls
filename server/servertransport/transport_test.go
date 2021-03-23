@@ -1,54 +1,75 @@
 package servertransport
 
 import (
+	"context"
+	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
 	"github.com/pion/sctp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newUDPServer() *net.UDPConn {
+var portCounter int64 = 10000 // nolint:gochecknoglobals
+
+func newUDPPair() (*net.UDPConn, *net.UDPConn) {
+	port1 := int(atomic.AddInt64(&portCounter, 1))
+	port2 := int(atomic.AddInt64(&portCounter, 1))
+
+	conn1 := newUDPServer(port1, port2)
+	conn2 := newUDPClient(port2, conn1.LocalAddr())
+
+	return conn1, conn2
+}
+
+func newUDPServer(localPort, remotePort int) *net.UDPConn {
 	laddr := &net.UDPAddr{
-		Port: 1234,
+		Port: localPort,
 		IP:   net.ParseIP("127.0.0.1"),
+		Zone: "",
 	}
+
 	raddr := &net.UDPAddr{
-		Port: 5678,
+		Port: remotePort,
 		IP:   net.ParseIP("127.0.0.1"),
+		Zone: "",
 	}
 
 	conn, err := net.DialUDP("udp", laddr, raddr)
 	if err != nil {
 		panic(err)
 	}
+
 	return conn
 }
 
-func newUDPClient(raddr net.Addr) *net.UDPConn {
-	// raddr := &net.UDPAddr{
-	// 	Port: 1234,
-	// 	IP:   net.ParseIP("127.0.0.1"),
-	// }
+func newUDPClient(localPort int, raddr net.Addr) *net.UDPConn {
 	laddr := &net.UDPAddr{
-		Port: 5678,
+		Port: localPort,
 		IP:   net.ParseIP("127.0.0.1"),
+		Zone: "",
 	}
 
 	conn, err := net.DialUDP("udp", laddr, raddr.(*net.UDPAddr))
 	if err != nil {
 		panic(err)
 	}
+
 	return conn
 }
 
 func TestUDP(t *testing.T) {
-	conn1 := newUDPServer()
-	conn2 := newUDPClient(conn1.LocalAddr())
+	conn1, conn2 := newUDPPair()
 
 	defer conn1.Close()
 	defer conn2.Close()
@@ -73,61 +94,138 @@ func TestUDP(t *testing.T) {
 	assert.Equal(t, "pong", string(buf))
 }
 
-// func TestServerMediaTransport_RTP(t *testing.T) {
-// 	conn1 := newUDPServer()
-// 	conn2 := newUDPClient(conn1.LocalAddr())
+func createTransportPairs(t *testing.T) (transport.Transport, transport.Transport) {
+	log := test.NewLogger()
 
-// 	log := test.NewLogger()
+	media1, media2 := newUDPPair()
+	data1, data2 := newUDPPair()
+	metadata1, metadata2 := newUDPPair()
 
-// 	t1 := NewMediaTransport(log, conn1)
-// 	t2 := NewMediaTransport(log, conn2)
+	t.Cleanup(func() {
+		media1.Close()
+		media2.Close()
 
-// 	defer t1.Close()
-// 	defer t2.Close()
+		data1.Close()
+		data2.Close()
 
-// 	ssrc := uint32(123)
+		metadata1.Close()
+		metadata2.Close()
+	})
 
-// 	packetizer := rtp.NewPacketizer(
-// 		ReceiveMTU,
-// 		96,
-// 		ssrc,
-// 		&codecs.VP8Payloader{},
-// 		rtp.NewRandomSequencer(),
-// 		96000,
-// 	)
+	t1 := New(log, media1, data1, metadata1)
+	t2 := New(log, media2, data2, metadata2)
 
-// 	writeSample := func(localTrack transport.TrackLocal, s media.Sample) []*rtp.Packet {
-// 		pkts := packetizer.Packetize(s.Data, 1)
+	t.Cleanup(func() {
+		t1.Close()
+		t2.Close()
+	})
 
-// 		for _, pkt := range pkts {
-// 			err := localTrack.WriteRTP(pkt)
-// 			assert.NoError(t, err)
-// 		}
+	return t1, t2
+}
 
-// 		return pkts
-// 	}
+// nolint: gochecknoglobals
+var audioCodec = transport.Codec{
+	MimeType:    "audio/opus",
+	ClockRate:   48000,
+	Channels:    2,
+	SDPFmtpLine: "",
+}
 
-// 	sentPkts := writeSample(t1, media.Sample{Data: []byte{0x01}})
-// 	require.Equal(t, 1, len(sentPkts))
+func TestTransport_AddTrack(t *testing.T) {
+	cancel := test.Timeout(t, 10*time.Second)
+	defer cancel()
 
-// 	expected := map[uint16][]byte{}
+	log := test.NewLogger()
 
-// 	for _, pkt := range sentPkts {
-// 		b, err := pkt.Marshal()
-// 		require.NoError(t, err)
-// 		expected[pkt.SequenceNumber] = b
-// 	}
+	t1, t2 := createTransportPairs(t)
 
-// 	actual := map[uint16][]byte{}
+	track := transport.NewSimpleTrack("a", "b", audioCodec, "user1")
 
-// 	for i := 0; i < len(sentPkts); i++ {
-// 		pkt := <-t2.RTPChannel()
-// 		b, err := pkt.Marshal()
-// 		require.NoError(t, err)
-// 		actual[pkt.SequenceNumber] = b
-// 	}
+	localTrack, sender, err := t1.AddTrack(track)
+	require.NoError(t, err)
 
-// 	assert.Equal(t, expected, actual)
+	_ = sender
+
+	var remoteTrack transport.TrackRemote
+
+	select {
+	case remoteTrack = <-t2.RemoteTracksChannel():
+		assert.Equal(t, track, remoteTrack.Track(), "expected track details to be equal")
+	case <-time.After(time.Second):
+		require.FailNow(t, "timed out waiting for remote track")
+	}
+
+	log.Info("Got remote track, subscribing", nil)
+
+	packetizer := rtp.NewPacketizer(
+		ReceiveMTU,
+		111,
+		0,
+		&codecs.OpusPayloader{},
+		rtp.NewRandomSequencer(),
+		audioCodec.ClockRate,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	sample := []byte{0x01, 0x02, 0x03}
+	localPacket := packetizer.Packetize(sample, 1)[0]
+	localPacket.CSRC = []uint32{} // just to keep the equality check correct.
+
+	// We need to keep trying sending packets until one is received. This is
+	// because packets won't be sent until there is at least one subscriber.
+	go sendPacket(t, ctx.Done(), localTrack, localPacket)
+
+	// We need to subscribe to track first to not waste bandwidth if nobody is
+	// interested in the track.
+	err = remoteTrack.(suber).Subscribe()
+	require.NoError(t, err, "failed to subscribe to track")
+
+	remotePacket, _, err := remoteTrack.ReadRTP()
+	assert.NoError(t, err, "error reading rtp packet")
+	require.NotNil(t, remotePacket, "remote packet was nil")
+
+	assert.Equal(t, localPacket, remotePacket, "expected packets to be equal")
+
+	cancel()
+
+	log.Info("Read RTP", nil)
+
+	err = t1.RemoveTrack(localTrack.Track().UniqueID())
+	assert.NoError(t, err, "removing track")
+
+	// Track should end here.
+	for {
+		_, _, err := remoteTrack.ReadRTP()
+		if multierr.Is(err, io.EOF) {
+			break
+		}
+	}
+}
+
+func sendPacket(
+	t *testing.T,
+	done <-chan struct{},
+	localTrack transport.TrackLocal,
+	packet *rtp.Packet,
+) {
+	for {
+		select {
+		case <-time.After(20 * time.Millisecond):
+			err := localTrack.WriteRTP(packet)
+			assert.NoError(t, err, "error writing rtp packet")
+		case <-done:
+			return
+		}
+	}
+}
+
+type suber interface {
+	Subscribe() error
+}
+
+// type unsuber interface {
+// 	Unsubscribe() error
 // }
 
 // func TestServerMediaTransport_RTCP(t *testing.T) {
@@ -166,8 +264,7 @@ func TestUDP(t *testing.T) {
 // }
 
 func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
-	conn1 := newUDPServer()
-	conn2 := newUDPClient(conn1.LocalAddr())
+	conn1, conn2 := newUDPPair()
 
 	defer conn1.Close()
 	defer conn2.Close()
