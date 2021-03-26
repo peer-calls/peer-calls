@@ -11,17 +11,23 @@ import (
 )
 
 type DataTransport struct {
-	conn         io.ReadWriteCloser
-	log          logger.Logger
+	params DataTransportParams
+
 	messagesChan chan webrtc.DataChannelMessage
 }
 
 var _ transport.DataTransport = &DataTransport{}
 
-func NewDataTransport(log logger.Logger, conn io.ReadWriteCloser) *DataTransport {
+type DataTransportParams struct {
+	Log  logger.Logger
+	Conn io.ReadWriteCloser
+}
+
+func NewDataTransport(params DataTransportParams) *DataTransport {
+	params.Log = params.Log.WithNamespaceAppended("server_data_transport")
+
 	transport := &DataTransport{
-		log:          log.WithNamespaceAppended("server_data_transport"),
-		conn:         conn,
+		params:       params,
 		messagesChan: make(chan webrtc.DataChannelMessage),
 	}
 
@@ -36,15 +42,15 @@ func (t *DataTransport) start() {
 	buf := make([]byte, ReceiveMTU)
 
 	for {
-		i, err := t.conn.Read(buf)
+		i, err := t.params.Conn.Read(buf)
 		if err != nil {
-			t.log.Error("Read remote data", errors.Trace(err), nil)
+			t.params.Log.Error("Read remote data", errors.Trace(err), nil)
 
 			return
 		}
 
 		if i < 1 {
-			t.log.Error(fmt.Sprintf("Message too short: %d", i), nil, nil)
+			t.params.Log.Error(fmt.Sprintf("Message too short: %d", i), nil, nil)
 
 			return
 		}
@@ -80,7 +86,7 @@ func (t *DataTransport) Send(message webrtc.DataChannelMessage) <-chan error {
 
 	b = append(b, message.Data...)
 
-	_, err := t.conn.Write(b)
+	_, err := t.params.Conn.Write(b)
 
 	errCh := make(chan error, 1)
 	errCh <- err
@@ -94,11 +100,11 @@ func (t *DataTransport) SendText(message string) error {
 	b = append(b, 1)
 	b = append(b, message...)
 
-	_, err := t.conn.Write(b)
+	_, err := t.params.Conn.Write(b)
 
 	return errors.Trace(err)
 }
 
 func (t *DataTransport) Close() error {
-	return t.conn.Close()
+	return t.params.Conn.Close()
 }

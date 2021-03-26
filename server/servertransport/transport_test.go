@@ -2,10 +2,9 @@ package servertransport
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,11 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var portCounter int64 = 10000 // nolint:gochecknoglobals
+func newUDPPair(index int) (*net.UDPConn, *net.UDPConn) {
+	portNumber := 10000 + 2*index
 
-func newUDPPair() (*net.UDPConn, *net.UDPConn) {
-	port1 := int(atomic.AddInt64(&portCounter, 1))
-	port2 := int(atomic.AddInt64(&portCounter, 1))
+	port1 := int(portNumber)
+	port2 := int(portNumber + 1)
 
 	conn1 := newUDPServer(port1, port2)
 	conn2 := newUDPClient(port2, conn1.LocalAddr())
@@ -69,7 +68,7 @@ func newUDPClient(localPort int, raddr net.Addr) *net.UDPConn {
 }
 
 func TestUDP(t *testing.T) {
-	conn1, conn2 := newUDPPair()
+	conn1, conn2 := newUDPPair(1)
 
 	defer conn1.Close()
 	defer conn2.Close()
@@ -97,9 +96,9 @@ func TestUDP(t *testing.T) {
 func createTransportPairs(t *testing.T) (transport.Transport, transport.Transport) {
 	log := test.NewLogger()
 
-	media1, media2 := newUDPPair()
-	data1, data2 := newUDPPair()
-	metadata1, metadata2 := newUDPPair()
+	media1, media2 := newUDPPair(1)
+	data1, data2 := newUDPPair(2)
+	metadata1, metadata2 := newUDPPair(3)
 
 	t.Cleanup(func() {
 		media1.Close()
@@ -112,8 +111,22 @@ func createTransportPairs(t *testing.T) (transport.Transport, transport.Transpor
 		metadata2.Close()
 	})
 
-	t1 := New(log, media1, data1, metadata1)
-	t2 := New(log, media2, data2, metadata2)
+	params1 := Params{
+		Log:          log,
+		MediaConn:    media1,
+		DataConn:     data1,
+		MetadataConn: metadata1,
+	}
+
+	params2 := Params{
+		Log:          log,
+		MediaConn:    media2,
+		DataConn:     data2,
+		MetadataConn: metadata2,
+	}
+
+	t1 := New(params1)
+	t2 := New(params2)
 
 	t.Cleanup(func() {
 		t1.Close()
@@ -264,7 +277,10 @@ type suber interface {
 // }
 
 func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
-	conn1, conn2 := newUDPPair()
+	conn1, conn2 := newUDPPair(1)
+
+	fmt.Println(conn1.RemoteAddr(), conn1.LocalAddr())
+	fmt.Println(conn2.RemoteAddr(), conn2.LocalAddr())
 
 	defer conn1.Close()
 	defer conn2.Close()
@@ -273,16 +289,17 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 
 	plf := pionlogger.NewFactory(log)
 
-	var wg sync.WaitGroup
-
-	wg.Add(2)
-
 	// SCTP needs to be started in separate goroutines because creating a new
 	// client will block until the handshake is complete, and there will be no
 	// handshake until both clients are created
 
+	done1 := make(chan struct{})
+	done2 := make(chan struct{})
+
 	var c1 *sctp.Association
 	go func() {
+		defer close(done1)
+
 		var err error
 		c1, err = sctp.Client(sctp.Config{
 			NetConn:              conn1,
@@ -291,12 +308,12 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 			LoggerFactory:        plf,
 		})
 		require.NoError(t, err)
-
-		wg.Done()
 	}()
 
 	var c2 *sctp.Association
 	go func() {
+		defer close(done2)
+
 		var err error
 		c2, err = sctp.Client(sctp.Config{
 			NetConn:              conn2,
@@ -304,12 +321,12 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 			MaxMessageSize:       0,
 			LoggerFactory:        plf,
 		})
-		require.NoError(t, err)
 
-		wg.Done()
+		require.NoError(t, err)
 	}()
 
-	wg.Wait()
+	waitFor(t, done1, time.Second, "sctp conn1")
+	waitFor(t, done2, time.Second, "sctp conn2")
 
 	t.Log("open stream")
 	s1, err := c1.OpenStream(1, sctp.PayloadTypeWebRTCString)
@@ -341,4 +358,15 @@ func TestServerMediaTransport_SCTP_ClientClient(t *testing.T) {
 	// b := make([]byte, 128)
 	// _, err = s2.Read(b)
 	// require.NoError(t, err)
+}
+
+func waitFor(t *testing.T, ch <-chan struct{}, timeout time.Duration, desc string) {
+	timer := time.NewTimer(timeout)
+
+	select {
+	case <-ch:
+		timer.Stop()
+	case <-timer.C:
+		require.FailNow(t, "timed out", desc)
+	}
 }

@@ -1,7 +1,6 @@
 package servertransport
 
 import (
-	"fmt"
 	"io"
 
 	"sync/atomic"
@@ -66,7 +65,6 @@ func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
 
 func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
 	if !t.isSubscribed() {
-		fmt.Println("write, no subscribers")
 		// Do not write to this track if nobody is subscribed to it.
 		return 0, nil
 	}
@@ -77,8 +75,6 @@ func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
 	}
 
 	i, err := t.writer.Write(b)
-
-	fmt.Println("write, has subscribers", packet.SSRC)
 
 	return i, errors.Annotatef(err, "write RTP")
 }

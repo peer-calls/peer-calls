@@ -10,6 +10,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/peer-calls/peer-calls/server/uuid"
+	"github.com/pion/interceptor"
 )
 
 const ReceiveMTU int = 8192
@@ -51,24 +52,48 @@ type Transport struct {
 	closeOnce sync.Once
 }
 
-func New(
-	log logger.Logger,
-	mediaConn io.ReadWriteCloser,
-	dataConn io.ReadWriteCloser,
-	metadataConn io.ReadWriteCloser,
-) *Transport {
+type Params struct {
+	Log          logger.Logger
+	MediaConn    io.ReadWriteCloser
+	DataConn     io.ReadWriteCloser
+	MetadataConn io.ReadWriteCloser
+	Interceptor  interceptor.Interceptor
+}
+
+func New(params Params) *Transport {
+	if params.Interceptor == nil {
+		params.Interceptor = &interceptor.NoOp{}
+	}
+
 	clientID := fmt.Sprintf("node:" + uuid.New())
-	log = log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
+	log := params.Log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
 	})
 	log.Info("NewTransport", nil)
 
-	mediaStream := NewMediaStream(log, nil, mediaConn)
+	mediaStream := NewMediaStream(MediaStreamParams{
+		Log:           log,
+		Conn:          params.MediaConn,
+		Interceptor:   params.Interceptor,
+		BufferFactory: nil,
+	})
+
+	metadataTransportParams := MetadataTransportParams{
+		Log:         log,
+		Conn:        params.MetadataConn,
+		MediaStream: mediaStream,
+		ClientID:    clientID,
+	}
+
+	dataTransportParams := DataTransportParams{
+		Log:  log,
+		Conn: params.DataConn,
+	}
 
 	return &Transport{
-		MetadataTransport: NewMetadataTransport(log, metadataConn, mediaStream, clientID),
+		MetadataTransport: NewMetadataTransport(metadataTransportParams),
 		MediaStream:       mediaStream,
-		DataTransport:     NewDataTransport(log, dataConn),
+		DataTransport:     NewDataTransport(dataTransportParams),
 		clientID:          clientID,
 		closeChan:         make(chan struct{}),
 	}
@@ -87,15 +112,15 @@ func (t *Transport) Done() <-chan struct{} {
 func (t *Transport) Close() (err error) {
 	errs := multierr.New()
 
-	errs.Add(t.DataTransport.Close())
-	errs.Add(t.MediaStream.Close())
-	errs.Add(t.MetadataTransport.Close())
+	errs.Add(errors.Trace(t.DataTransport.Close()))
+	errs.Add(errors.Trace(t.MediaStream.Close()))
+	errs.Add(errors.Trace(t.MetadataTransport.Close()))
 
 	t.closeOnce.Do(func() {
 		close(t.closeChan)
 	})
 
-	return errs.Err()
+	return errors.Trace(errs.Err())
 }
 
 func (t *Transport) Type() transport.Type {

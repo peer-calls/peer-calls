@@ -9,6 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
+	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/transport/packetio"
@@ -16,10 +17,7 @@ import (
 )
 
 type MediaStream struct {
-	conn io.ReadWriteCloser
-	log  logger.Logger
-
-	bufferFactory BufferFactory
+	params MediaStreamParams
 
 	rtpBuffers  map[webrtc.SSRC]*packetio.Buffer
 	rtcpBuffers map[webrtc.SSRC]*packetio.Buffer
@@ -52,20 +50,25 @@ func newBuffer(packetType packetio.BufferPacketType, ssrc uint32) *packetio.Buff
 	return packetio.NewBuffer()
 }
 
-func NewMediaStream(
-	log logger.Logger,
-	bufferFactory BufferFactory,
-	conn io.ReadWriteCloser,
-) *MediaStream {
-	if bufferFactory == nil {
-		bufferFactory = newBuffer
+type MediaStreamParams struct {
+	Log  logger.Logger
+	Conn io.ReadWriteCloser
+
+	// BufferFactory is optional.
+	BufferFactory BufferFactory
+	// Interceptor is optional.
+	Interceptor interceptor.Interceptor
+}
+
+func NewMediaStream(params MediaStreamParams) *MediaStream {
+	if params.BufferFactory == nil {
+		params.BufferFactory = newBuffer
 	}
 
-	t := MediaStream{
-		conn: conn,
-		log:  log.WithNamespaceAppended("server_media_transport"),
+	params.Log = params.Log.WithNamespaceAppended("server_media_transport")
 
-		bufferFactory: bufferFactory,
+	t := MediaStream{
+		params: params,
 
 		rtpBuffers:  map[webrtc.SSRC]*packetio.Buffer{},
 		rtcpBuffers: map[webrtc.SSRC]*packetio.Buffer{},
@@ -80,9 +83,9 @@ func (t *MediaStream) start() {
 	buf := make([]byte, ReceiveMTU)
 
 	for {
-		i, err := t.conn.Read(buf)
+		i, err := t.params.Conn.Read(buf)
 		if err != nil {
-			t.log.Error("Read remote data", errors.Trace(err), nil)
+			t.params.Log.Error("Read remote data", errors.Trace(err), nil)
 
 			return
 		}
@@ -100,7 +103,7 @@ func (t *MediaStream) start() {
 		err = t.handle(b)
 
 		if err != nil {
-			t.log.Error("Handle remote data", errors.Trace(err), nil)
+			t.params.Log.Error("Handle remote data", errors.Trace(err), nil)
 		}
 	}
 }
@@ -155,7 +158,7 @@ func (t *MediaStream) RemoveBuffer(
 }
 
 func (t *MediaStream) Writer() io.Writer {
-	return t.conn
+	return t.params.Conn
 }
 
 func (t *MediaStream) getOrCreateRTPBuffer(ssrc webrtc.SSRC) *packetio.Buffer {
@@ -257,7 +260,7 @@ func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
 		return errors.Annotatef(err, "marshal RTCP")
 	}
 
-	i, err := t.conn.Write(b)
+	i, err := t.params.Conn.Write(b)
 
 	if err == nil {
 		atomic.AddInt64(&t.stats.sentRTCPPackets, 1)
@@ -268,7 +271,7 @@ func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
 }
 
 func (t *MediaStream) Close() error {
-	return t.conn.Close()
+	return t.params.Conn.Close()
 }
 
 // create a list of Destination SSRCs
