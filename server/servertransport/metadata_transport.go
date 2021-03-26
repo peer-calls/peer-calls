@@ -339,6 +339,9 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 		return errors.Errorf("remove track: not found: %s", trackID)
 	}
 
+	// Ensure writing no longer works.
+	localTrack.Close()
+
 	// Ensure the RTCP buffer is closed. This will close the sender.
 	t.params.MediaStream.RemoveBuffer(packetio.RTCPBufferPacket, localTrack.ssrc)
 

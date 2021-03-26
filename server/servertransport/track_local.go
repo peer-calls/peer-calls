@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/juju/errors"
+	atomicInternal "github.com/peer-calls/peer-calls/server/atomic"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -17,6 +18,7 @@ type trackLocal struct {
 	ssrc   webrtc.SSRC
 
 	subscribers int64
+	closed      atomicInternal.Bool
 }
 
 func newTrackLocal(
@@ -51,6 +53,10 @@ func (t *trackLocal) Write(b []byte) (int, error) {
 	return i, errors.Trace(err)
 }
 
+func (t *trackLocal) Close() {
+	t.closed.Set(true)
+}
+
 func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
 	packet.Header.SSRC = uint32(t.ssrc)
 
@@ -64,8 +70,13 @@ func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
 }
 
 func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
+	if t.closed.Get() {
+		return 0, errors.Trace(io.ErrClosedPipe)
+	}
+
 	if !t.isSubscribed() {
-		// Do not write to this track if nobody is subscribed to it.
+		// Do not write to this track if track is closed or nobody is subscribed
+		// to it.
 		return 0, nil
 	}
 
