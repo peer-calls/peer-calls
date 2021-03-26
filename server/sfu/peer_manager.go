@@ -496,6 +496,9 @@ func (t *PeerManager) Sub(params SubParams) error {
 				pkt.MediaSSRC = uint32(props.SSRC)
 				pkt.SenderSSRC = uint32(props.SSRC)
 
+				// FIXME congestion control. Do not send more than 1pkt/second.
+				// We can probably do that with a new interceptor implementation.
+
 				if err := transport.WriteRTCP([]rtcp.Packet{pkt}); err != nil {
 					return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
 				}

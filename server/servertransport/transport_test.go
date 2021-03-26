@@ -198,6 +198,10 @@ func TestTransport_AddTrack(t *testing.T) {
 	assert.NoError(t, err, "error reading rtp packet")
 	require.NotNil(t, remotePacket, "remote packet was nil")
 
+	// ensure all fields are populated before comparing
+	_, err = localPacket.Marshal()
+	assert.NoError(t, err, "marashal local packet")
+
 	assert.Equal(t, localPacket, remotePacket, "expected packets to be equal")
 
 	cancel()

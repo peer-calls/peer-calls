@@ -6,8 +6,10 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/atomic"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/interceptor"
 	"github.com/pion/randutil"
 	"github.com/pion/transport/packetio"
 	"github.com/pion/webrtc/v3"
@@ -24,7 +26,7 @@ func RandUint32() uint32 {
 type MetadataTransport struct {
 	params MetadataTransportParams
 
-	localTracks  map[transport.TrackID]*trackLocal
+	localTracks  map[transport.TrackID]*trackLocalWithSender
 	remoteTracks map[transport.TrackID]*trackRemote
 	mu           *sync.RWMutex
 
@@ -43,6 +45,12 @@ type MetadataTransportParams struct {
 	Conn        io.ReadWriteCloser
 	MediaStream *MediaStream
 	ClientID    string
+	Interceptor interceptor.Interceptor
+}
+
+type trackLocalWithSender struct {
+	trackLocal *trackLocal
+	sender     *sender
 }
 
 func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
@@ -51,7 +59,7 @@ func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
 	t := &MetadataTransport{
 		params: params,
 
-		localTracks:  map[transport.TrackID]*trackLocal{},
+		localTracks:  map[transport.TrackID]*trackLocalWithSender{},
 		remoteTracks: map[transport.TrackID]*trackRemote{},
 		mu:           &sync.RWMutex{},
 
@@ -195,6 +203,8 @@ func (t *MetadataTransport) startReadLoop() {
 						trackEv.SSRC,
 						"",
 						t.params.MediaStream.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEv.SSRC),
+						track.Codec(),
+						t.params.Interceptor,
 						subscribe,
 						unsubscribe,
 					)
@@ -215,6 +225,7 @@ func (t *MetadataTransport) startReadLoop() {
 				if ok {
 					t.params.MediaStream.RemoveBuffer(packetio.RTPBufferPacket, remoteTrack.SSRC())
 					delete(t.remoteTracks, trackID)
+					remoteTrack.Close()
 				}
 
 				t.mu.Unlock()
@@ -229,7 +240,7 @@ func (t *MetadataTransport) startReadLoop() {
 					break
 				}
 
-				localTrack.subscribe()
+				localTrack.trackLocal.subscribe()
 			case transport.TrackEventTypeUnsub:
 				t.mu.Lock()
 
@@ -241,7 +252,7 @@ func (t *MetadataTransport) startReadLoop() {
 					break
 				}
 
-				localTrack.unsubscribe()
+				localTrack.trackLocal.unsubscribe()
 			}
 		default:
 		}
@@ -265,7 +276,7 @@ func (t *MetadataTransport) LocalTracks() []transport.TrackWithMID {
 	i := -1
 	for _, localTrack := range t.localTracks {
 		i++
-		localTracks[i] = transport.NewTrackWithMID(localTrack.Track(), "")
+		localTracks[i] = transport.NewTrackWithMID(localTrack.trackLocal.Track(), "")
 	}
 
 	return localTracks
@@ -292,10 +303,17 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 
 	ssrc := webrtc.SSRC(RandUint32())
 
-	localTrack := newTrackLocal(track, t.params.MediaStream.Writer(), ssrc)
-	sender := newSender(t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc))
+	closed := &atomic.Bool{}
 
-	t.localTracks[track.UniqueID()] = localTrack
+	localTrack := newTrackLocal(track, t.params.MediaStream.Writer(), ssrc, track.Codec(), t.params.Interceptor)
+
+	rtcpBuffer := t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc)
+	sender := newSender(rtcpBuffer, t.params.Interceptor, closed)
+
+	t.localTracks[track.UniqueID()] = &trackLocalWithSender{
+		trackLocal: localTrack,
+		sender:     sender,
+	}
 
 	event := trackEvent{
 		ClientID: t.params.ClientID,
@@ -339,15 +357,16 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 		return errors.Errorf("remove track: not found: %s", trackID)
 	}
 
-	// Ensure writing no longer works.
-	localTrack.Close()
+	// Ensure writing stops and interceptors are released.
+	localTrack.sender.Close()
+	localTrack.trackLocal.Close()
 
 	// Ensure the RTCP buffer is closed. This will close the sender.
-	t.params.MediaStream.RemoveBuffer(packetio.RTCPBufferPacket, localTrack.ssrc)
+	t.params.MediaStream.RemoveBuffer(packetio.RTCPBufferPacket, localTrack.trackLocal.ssrc)
 
 	event := trackEvent{
-		Track:    localTrack.Track().SimpleTrack(),
-		SSRC:     localTrack.ssrc,
+		Track:    localTrack.trackLocal.Track().SimpleTrack(),
+		SSRC:     localTrack.trackLocal.ssrc,
 		Type:     transport.TrackEventTypeRemove,
 		ClientID: t.params.ClientID,
 	}

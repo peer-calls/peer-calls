@@ -11,15 +11,19 @@ import (
 )
 
 type trackRemote struct {
-	buffer *packetio.Buffer
-	rid    string // TODO simulcast
-	ssrc   webrtc.SSRC
-	track  transport.Track
+	buffer      *packetio.Buffer
+	rid         string // TODO simulcast
+	ssrc        webrtc.SSRC
+	track       transport.Track
+	interceptor interceptor.Interceptor
 
 	onSub   func() error
 	onUnsub func() error
 
 	subscribed atomic.Bool
+
+	streamInfo           *interceptor.StreamInfo
+	interceptorRTPReader interceptor.RTPReader
 }
 
 // TODO we'll get track events but without SSRC. How to associate SSRC packets
@@ -31,17 +35,41 @@ func newTrackRemote(
 	ssrc webrtc.SSRC,
 	rid string,
 	buffer *packetio.Buffer,
+	codec transport.Codec,
+	ceptor interceptor.Interceptor,
 	onSub func() error,
 	onUnsub func() error,
 ) *trackRemote {
-	return &trackRemote{
-		buffer:  buffer,
-		rid:     rid,
-		ssrc:    ssrc,
-		track:   track,
-		onSub:   onSub,
-		onUnsub: onUnsub,
+	t := &trackRemote{
+		buffer:      buffer,
+		rid:         rid,
+		ssrc:        ssrc,
+		track:       track,
+		interceptor: ceptor,
+		onSub:       onSub,
+		onUnsub:     onUnsub,
 	}
+
+	t.streamInfo = &interceptor.StreamInfo{
+		ID:                  "",
+		Attributes:          nil,
+		SSRC:                uint32(ssrc),
+		PayloadType:         0,   // FIXME
+		RTPHeaderExtensions: nil, // FIXME
+		MimeType:            codec.MimeType,
+		ClockRate:           codec.ClockRate,
+		Channels:            codec.Channels,
+		SDPFmtpLine:         codec.SDPFmtpLine,
+		RTCPFeedback:        nil, // FIXME
+	}
+
+	interceptorRTPReader := ceptor.BindRemoteStream(
+		t.streamInfo, interceptor.RTPReaderFunc(t.read),
+	)
+
+	t.interceptorRTPReader = interceptorRTPReader
+
+	return t
 }
 
 var _ transport.TrackRemote = &trackRemote{}
@@ -58,10 +86,16 @@ func (t *trackRemote) RID() string {
 	return t.rid
 }
 
+func (t *trackRemote) read(in []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
+	i, err := t.buffer.Read(in)
+
+	return i, a, errors.Trace(err)
+}
+
 func (t *trackRemote) ReadRTP() (*rtp.Packet, interceptor.Attributes, error) {
 	b := make([]byte, ReceiveMTU)
 
-	i, err := t.buffer.Read(b)
+	i, a, err := t.interceptorRTPReader.Read(b, interceptor.Attributes{})
 	if err != nil {
 		return nil, nil, errors.Annotatef(err, "read RTP")
 	}
@@ -73,9 +107,7 @@ func (t *trackRemote) ReadRTP() (*rtp.Packet, interceptor.Attributes, error) {
 		return nil, nil, errors.Annotatef(err, "unmarshal RTP")
 	}
 
-	// TODO interceptors
-
-	return packet, nil, nil
+	return packet, a, nil
 }
 
 func (t *trackRemote) Subscribe() error {
@@ -92,6 +124,10 @@ func (t *trackRemote) Unsubscribe() error {
 	}
 
 	return errors.Annotate(t.onUnsub(), "unsubscribe")
+}
+
+func (t *trackRemote) Close() {
+	t.interceptor.UnbindRemoteStream(t.streamInfo)
 }
 
 var (

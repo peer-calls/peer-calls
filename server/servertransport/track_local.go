@@ -8,30 +8,56 @@ import (
 	"github.com/juju/errors"
 	atomicInternal "github.com/peer-calls/peer-calls/server/atomic"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
 
 type trackLocal struct {
-	track  transport.Track
-	writer io.Writer
-	ssrc   webrtc.SSRC
+	track       transport.Track
+	writer      io.Writer
+	ssrc        webrtc.SSRC
+	interceptor interceptor.Interceptor
 
 	subscribers int64
-	closed      atomicInternal.Bool
+	closed      *atomicInternal.Bool
+
+	streamInfo           *interceptor.StreamInfo
+	interceptorRTPWriter interceptor.RTPWriter
 }
 
 func newTrackLocal(
 	track transport.Track,
 	writer io.Writer,
 	ssrc webrtc.SSRC,
+	codec transport.Codec,
+	ceptor interceptor.Interceptor,
 ) *trackLocal {
-	return &trackLocal{
+	t := &trackLocal{
 		track:       track,
 		writer:      writer,
 		ssrc:        ssrc,
+		interceptor: ceptor,
 		subscribers: 0,
+		closed:      &atomicInternal.Bool{},
 	}
+
+	t.streamInfo = &interceptor.StreamInfo{
+		ID:                  "",
+		Attributes:          nil,
+		SSRC:                uint32(ssrc),
+		PayloadType:         0,   // FIXME
+		RTPHeaderExtensions: nil, // FIXME
+		MimeType:            codec.MimeType,
+		ClockRate:           codec.ClockRate,
+		Channels:            codec.Channels,
+		SDPFmtpLine:         codec.SDPFmtpLine,
+		RTCPFeedback:        nil, // FIXME
+	}
+
+	t.interceptorRTPWriter = ceptor.BindLocalStream(t.streamInfo, interceptor.RTPWriterFunc(t.write))
+
+	return t
 }
 
 var _ transport.TrackLocal = &trackLocal{}
@@ -48,28 +74,39 @@ func (t *trackLocal) Write(b []byte) (int, error) {
 		return 0, errors.Annotatef(err, "write unmarshal RTP")
 	}
 
-	i, err := t.write(packet)
+	i, err := t.write(&packet.Header, packet.Payload, interceptor.Attributes{})
 
 	return i, errors.Trace(err)
 }
 
-func (t *trackLocal) Close() {
-	t.closed.Set(true)
-}
-
 func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
-	packet.Header.SSRC = uint32(t.ssrc)
-
-	// TODO I might be wrong but I don't think we need to worry about
-	// payload types here, because that will be sent in the metadata,
-	// and will eventually be overwritten by pion/webrtc.
-
-	_, err := t.write(packet)
+	_, err := t.write(&packet.Header, packet.Payload, interceptor.Attributes{})
 
 	return errors.Annotatef(err, "write RTP")
 }
 
-func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
+func (t *trackLocal) write(header *rtp.Header, payload []byte, a interceptor.Attributes) (int, error) {
+	header.SSRC = uint32(t.ssrc)
+	// TODO I might be wrong but I don't think we need to worry about
+	// payload types here, because that will be sent in the metadata,
+	// and will eventually be overwritten by pion/webrtc.
+
+	packet := &rtp.Packet{
+		Header:  *header,
+		Payload: payload,
+	}
+
+	b, err := packet.Marshal()
+	if err != nil {
+		return 0, errors.Annotatef(err, "marshal RTP")
+	}
+
+	i, err := t.writer.Write(b)
+
+	return i, errors.Annotatef(err, "write RTP")
+}
+
+func (t *trackLocal) writePacket(packet *rtp.Packet) (int, error) {
 	if t.closed.Get() {
 		return 0, errors.Trace(io.ErrClosedPipe)
 	}
@@ -84,6 +121,8 @@ func (t *trackLocal) write(packet *rtp.Packet) (int, error) {
 	if err != nil {
 		return 0, errors.Annotatef(err, "marshal RTP")
 	}
+
+	t.interceptorRTPWriter.Write(&packet.Header, packet.Payload, interceptor.Attributes{})
 
 	i, err := t.writer.Write(b)
 
@@ -100,4 +139,9 @@ func (t *trackLocal) subscribe() {
 
 func (t *trackLocal) unsubscribe() {
 	atomic.AddInt64(&t.subscribers, -1)
+}
+
+func (t *trackLocal) Close() {
+	t.closed.Set(true)
+	t.interceptor.UnbindLocalStream(t.streamInfo)
 }

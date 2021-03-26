@@ -83,6 +83,7 @@ func New(params Params) *Transport {
 		Conn:        params.MetadataConn,
 		MediaStream: mediaStream,
 		ClientID:    clientID,
+		Interceptor: params.Interceptor,
 	}
 
 	dataTransportParams := DataTransportParams{

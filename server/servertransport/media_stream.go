@@ -19,6 +19,8 @@ import (
 type MediaStream struct {
 	params MediaStreamParams
 
+	interceptorRTCPWriter interceptor.RTCPWriter
+
 	rtpBuffers  map[webrtc.SSRC]*packetio.Buffer
 	rtcpBuffers map[webrtc.SSRC]*packetio.Buffer
 
@@ -73,6 +75,8 @@ func NewMediaStream(params MediaStreamParams) *MediaStream {
 		rtpBuffers:  map[webrtc.SSRC]*packetio.Buffer{},
 		rtcpBuffers: map[webrtc.SSRC]*packetio.Buffer{},
 	}
+
+	t.interceptorRTCPWriter = t.params.Interceptor.BindRTCPWriter(interceptor.RTCPWriterFunc(t.writeRTCP))
 
 	go t.start()
 
@@ -255,9 +259,14 @@ func (t *MediaStream) handleRTCP(buf []byte) error {
 }
 
 func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
+	_, err := t.interceptorRTCPWriter.Write(p, make(interceptor.Attributes))
+	return errors.Trace(err)
+}
+
+func (t *MediaStream) writeRTCP(p []rtcp.Packet, _ interceptor.Attributes) (int, error) {
 	b, err := rtcp.Marshal(p)
 	if err != nil {
-		return errors.Annotatef(err, "marshal RTCP")
+		return 0, errors.Annotatef(err, "marshal RTCP")
 	}
 
 	i, err := t.params.Conn.Write(b)
@@ -267,7 +276,7 @@ func (t *MediaStream) WriteRTCP(p []rtcp.Packet) error {
 		atomic.AddInt64(&t.stats.sentBytes, int64(i))
 	}
 
-	return errors.Annotatef(err, "write RTCP")
+	return i, errors.Annotatef(err, "write RTCP")
 }
 
 func (t *MediaStream) Close() error {

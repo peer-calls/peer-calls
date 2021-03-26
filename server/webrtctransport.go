@@ -545,6 +545,7 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackWithMID {
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+	// FIXME expose receiver. Interceptors do not run if receiver.ReadRTCP is not called.
 	rtpCodecParameters := track.Codec()
 
 	codec := transport.Codec{
