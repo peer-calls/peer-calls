@@ -14,6 +14,7 @@ type MemoryAdapter struct {
 
 func NewMemoryAdapter(room string) *MemoryAdapter {
 	var clientsMu sync.RWMutex
+
 	return &MemoryAdapter{
 		clientsMu: &clientsMu,
 		clients:   map[string]ClientWriter{},

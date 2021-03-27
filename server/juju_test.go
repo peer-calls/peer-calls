@@ -44,11 +44,13 @@ func addDefer(a, b int) (r int) {
 	defer func() {
 		r = a + b
 	}()
+
 	return
 }
 
 func addNoDefer(a, b int) (r int) {
 	r = a + b
+
 	return
 }
 

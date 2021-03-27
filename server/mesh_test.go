@@ -42,6 +42,7 @@ var _ server.RoomManager = &MockRoomManager{}
 
 func (r *MockRoomManager) Enter(room string) (server.Adapter, bool) {
 	r.enter <- room
+
 	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}, true
 }
 

@@ -72,33 +72,33 @@ func TestRoomManagerFactory(t *testing.T) {
 		assert.Nil(t, nm, "should fall back to default")
 	})
 
-	// t.Run("sfu transport listen ok", func(t *testing.T) {
-	// 	networkConfig := server.NetworkConfig{}
-	// 	networkConfig.Type = server.NetworkTypeSFU
-	// 	networkConfig.SFU.Transport.ListenAddr = "127.0.0.1:0"
+	t.Run("sfu transport listen ok", func(t *testing.T) {
+		networkConfig := server.NetworkConfig{}
+		networkConfig.Type = server.NetworkTypeSFU
+		networkConfig.SFU.Transport.ListenAddr = "127.0.0.1:0"
 
-	// 	rm, nm := factory.NewRoomManager(networkConfig)
-	// 	defer cleanup(rm, nm)
-	// 	_, ok := rm.(*server.ChannelRoomManager)
-	// 	assert.True(t, ok)
-	// 	assert.NotNil(t, nm)
-	// })
+		rm, nm := factory.NewRoomManager(networkConfig)
+		defer cleanup(rm, nm)
+		_, ok := rm.(*server.ChannelRoomManager)
+		assert.True(t, ok)
+		assert.NotNil(t, nm)
+	})
 
-	// t.Run("sfu transport listen ok, remote addrs", func(t *testing.T) {
-	// 	networkConfig := server.NetworkConfig{}
-	// 	networkConfig.Type = server.NetworkTypeSFU
-	// 	networkConfig.SFU.Transport.ListenAddr = "127.0.0.1:0"
-	// 	networkConfig.SFU.Transport.Nodes = []string{
-	// 		"127.0.0.1:1234",
-	// 		"127.0.0.1:1235",
-	// 	}
+	t.Run("sfu transport listen ok, remote addrs", func(t *testing.T) {
+		networkConfig := server.NetworkConfig{}
+		networkConfig.Type = server.NetworkTypeSFU
+		networkConfig.SFU.Transport.ListenAddr = "127.0.0.1:0"
+		networkConfig.SFU.Transport.Nodes = []string{
+			"127.0.0.1:1234",
+			"127.0.0.1:1235",
+		}
 
-	// 	rm, nm := factory.NewRoomManager(networkConfig)
-	// 	defer cleanup(rm, nm)
-	// 	_, ok := rm.(*server.ChannelRoomManager)
-	// 	assert.True(t, ok)
-	// 	assert.NotNil(t, nm)
-	// })
+		rm, nm := factory.NewRoomManager(networkConfig)
+		defer cleanup(rm, nm)
+		_, ok := rm.(*server.ChannelRoomManager)
+		assert.True(t, ok)
+		assert.NotNil(t, nm)
+	})
 
 	t.Run("sfu transport listen ok, invalid addrs", func(t *testing.T) {
 		networkConfig := server.NetworkConfig{}

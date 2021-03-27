@@ -49,6 +49,7 @@ func ReadConfig(filenames []string) (c Config, err error) {
 	InitConfig(&c)
 	err = ReadConfigFiles(filenames, &c)
 	ReadConfigFromEnv("PEERCALLS_", &c)
+
 	return c, errors.Trace(err)
 }
 
@@ -57,6 +58,7 @@ func ReadConfigYAML(reader io.Reader, c *Config) error {
 	if err := decoder.Decode(c); err != nil {
 		return errors.Annotatef(err, "decode yaml")
 	}
+
 	return nil
 }
 
