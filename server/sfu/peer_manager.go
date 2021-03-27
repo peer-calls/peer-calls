@@ -24,23 +24,23 @@ type PeerManager struct {
 	jitterHandler JitterHandler
 
 	// transports indexed by ClientID
-	transports map[string]transport.Transport
+	transports map[identifiers.ClientID]transport.Transport
 
 	pliTimes map[identifiers.TrackID]time.Time
 
-	room string
+	room identifiers.RoomID
 
 	// // pubsub keeps track of published tracks and its subscribers.
 	pubsub *pubsub.PubSub
 }
 
-func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler) *PeerManager {
+func NewPeerManager(room identifiers.RoomID, log logger.Logger, jitterHandler JitterHandler) *PeerManager {
 	return &PeerManager{
 		log: log.WithNamespaceAppended("room_peers_manager"),
 
 		jitterHandler: jitterHandler,
 
-		transports: map[string]transport.Transport{},
+		transports: map[identifiers.ClientID]transport.Transport{},
 
 		pliTimes: map[identifiers.TrackID]time.Time{},
 
@@ -50,7 +50,7 @@ func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler)
 	}
 }
 
-func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
+func (t *PeerManager) broadcast(clientID identifiers.ClientID, msg webrtc.DataChannelMessage) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -510,7 +510,7 @@ func (t *PeerManager) Unsub(params SubParams) error {
 }
 
 // TracksMetadata retrieves local track metadata for a specific transport.
-func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok bool) {
+func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMetadata, ok bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -557,7 +557,7 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 }
 
 // Remove removes the transport and unsubscribes it from track events.
-func (t *PeerManager) Remove(clientID string) {
+func (t *PeerManager) Remove(clientID identifiers.ClientID) {
 	t.log.Trace("Remove", logger.Ctx{
 		"client_id": clientID,
 	})

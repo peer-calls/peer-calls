@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -14,14 +15,14 @@ const DataChannelName = "data"
 type TracksManager struct {
 	log                 logger.Logger
 	mu                  sync.RWMutex
-	peerManagers        map[string]*PeerManager
+	peerManagers        map[identifiers.RoomID]*PeerManager
 	jitterBufferEnabled bool
 }
 
 func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManager {
 	return &TracksManager{
 		log:                 log.WithNamespaceAppended("tracks_manager"),
-		peerManagers:        map[string]*PeerManager{},
+		peerManagers:        map[identifiers.RoomID]*PeerManager{},
 		jitterBufferEnabled: jitterBufferEnabled,
 	}
 }
@@ -36,7 +37,7 @@ func NewTracksManager(log logger.Logger, jitterBufferEnabled bool) *TracksManage
 //  - When WebRTCTransports are created and peers join the room, or
 //  - When RoomManager event that a room was created: A server transport will
 //    be created for each configured node.
-func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -81,7 +82,10 @@ func (m *TracksManager) Add(room string, tr transport.Transport) (<-chan pubsub.
 	return pubTrackEventsCh, nil
 }
 
-func (m *TracksManager) TracksMetadata(room string, clientID string) (metadata []TrackMetadata, ok bool) {
+func (m *TracksManager) TracksMetadata(
+	room identifiers.RoomID,
+	clientID identifiers.ClientID,
+) (metadata []TrackMetadata, ok bool) {
 	m.mu.RLock()
 	peerManager, ok := m.peerManagers[room]
 	m.mu.RUnlock()

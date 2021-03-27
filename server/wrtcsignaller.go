@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/webrtc/v3"
 )
@@ -13,8 +14,8 @@ type Signaller struct {
 
 	peerConnection *webrtc.PeerConnection
 	initiator      bool
-	localPeerID    string
-	remotePeerID   string
+	localPeerID    identifiers.ClientID
+	remotePeerID   identifiers.ClientID
 	negotiator     *Negotiator
 
 	signalMu      sync.Mutex
@@ -31,8 +32,8 @@ func NewSignaller(
 	log logger.Logger,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
-	localPeerID string,
-	remotePeerID string,
+	localPeerID identifiers.ClientID,
+	remotePeerID identifiers.ClientID,
 ) (*Signaller, error) {
 	log = log.WithNamespaceAppended("signaller")
 

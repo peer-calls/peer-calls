@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
@@ -34,10 +35,10 @@ type RedisAdapter struct {
 
 	clientsMu *sync.RWMutex
 	// contains local clients connected to current instance
-	clients map[string]ClientWriter
+	clients map[identifiers.ClientID]ClientWriter
 	// contains IDs of all clients in room, including those from other instances
 	prefix   string
-	room     string
+	room     identifiers.RoomID
 	pubRedis *redis.Client // TODO replace this with interface
 	subRedis *redis.Client
 	keys     struct {
@@ -48,19 +49,19 @@ type RedisAdapter struct {
 	stop func() error
 }
 
-func getRoomChannelName(prefix string, room string) string {
+func getRoomChannelName(prefix string, room identifiers.RoomID) string {
 	// TODO escape room name, what if it has ":" in the name?
-	return prefix + ":room:" + room + ":broadcast"
+	return prefix + ":room:" + room.String() + ":broadcast"
 }
 
-func getClientChannelName(prefix string, room string, clientID string) string {
+func getClientChannelName(prefix string, room identifiers.RoomID, clientID identifiers.ClientID) string {
 	// TODO escape room name, what if it has ":" in the name?
-	return prefix + ":room:" + room + ":client:" + clientID
+	return prefix + ":room:" + room.String() + ":client:" + clientID.String()
 }
 
-func getRoomClientsName(prefix string, room string) string {
+func getRoomClientsName(prefix string, room identifiers.RoomID) string {
 	// TODO escape room name, what if it has ":" in the name?
-	return prefix + ":room:" + room + ":clients"
+	return prefix + ":room:" + room.String() + ":clients"
 }
 
 func NewRedisAdapter(
@@ -68,7 +69,7 @@ func NewRedisAdapter(
 	pubRedis *redis.Client,
 	subRedis *redis.Client,
 	prefix string,
-	room string,
+	room identifiers.RoomID,
 ) *RedisAdapter {
 	var (
 		clientsMu      sync.RWMutex
@@ -81,7 +82,7 @@ func NewRedisAdapter(
 		}),
 		serializer:   byteSerializer,
 		deserializer: byteSerializer,
-		clients:      map[string]ClientWriter{},
+		clients:      map[identifiers.ClientID]ClientWriter{},
 		clientsMu:    &clientsMu,
 		prefix:       prefix,
 		room:         room,
@@ -118,7 +119,7 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	return nil
 }
 
-func (a *RedisAdapter) Remove(clientID string) error {
+func (a *RedisAdapter) Remove(clientID identifiers.ClientID) error {
 	a.log.Trace("Remove", logger.Ctx{
 		"client_id": clientID,
 	})
@@ -136,7 +137,7 @@ func (a *RedisAdapter) Remove(clientID string) error {
 	return errors.Annotatef(err, "remove client: %s", clientID)
 }
 
-func (a *RedisAdapter) removeAll(clientIDs []string) (err error) {
+func (a *RedisAdapter) removeAll(clientIDs []identifiers.ClientID) (err error) {
 	var errs MultiErrorHandler
 
 	for _, clientID := range clientIDs {
@@ -148,11 +149,11 @@ func (a *RedisAdapter) removeAll(clientIDs []string) (err error) {
 	return errors.Trace(errs.Err())
 }
 
-func (a *RedisAdapter) remove(clientID string) (err error) {
+func (a *RedisAdapter) remove(clientID identifiers.ClientID) (err error) {
 	var errs MultiErrorHandler
 
 	// can only remove clients connected to this adapter
-	if err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err(); err != nil {
+	if err = a.pubRedis.HDel(a.keys.roomClients, clientID.String()).Err(); err != nil {
 		errs.Add(errors.Annotatef(err, "hdel %s %s", a.keys.roomClients, clientID))
 	}
 
@@ -163,13 +164,13 @@ func (a *RedisAdapter) remove(clientID string) (err error) {
 	return errors.Trace(errs.Err())
 }
 
-func (a *RedisAdapter) Metadata(clientID string) (metadata string, ok bool) {
-	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID).Result()
+func (a *RedisAdapter) Metadata(clientID identifiers.ClientID) (metadata string, ok bool) {
+	metadata, err := a.pubRedis.HGet(a.keys.roomClients, clientID.String()).Result()
 
 	return metadata, err == nil
 }
 
-func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
+func (a *RedisAdapter) SetMetadata(clientID identifiers.ClientID, metadata string) (ok bool) {
 	logCtx := logger.Ctx{
 		"client_id": clientID,
 		"metadata":  metadata,
@@ -177,7 +178,7 @@ func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
 
 	a.log.Trace("SetMetadata", logCtx)
 
-	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID, metadata).Result()
+	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID.String(), metadata).Result()
 	if err != nil {
 		// FIXME return error
 		a.log.Error("Setmetadata", errors.Trace(err), logCtx)
@@ -187,17 +188,23 @@ func (a *RedisAdapter) SetMetadata(clientID string, metadata string) (ok bool) {
 }
 
 // Returns IDs of all known clients connected to this room
-func (a *RedisAdapter) Clients() (map[string]string, error) {
+func (a *RedisAdapter) Clients() (map[identifiers.ClientID]string, error) {
 	a.log.Trace("Clients", nil)
 
 	r := a.pubRedis.HGetAll(a.keys.roomClients)
 
 	allClients, err := r.Result()
 	if err != nil {
-		return allClients, errors.Annotatef(err, "clients in room: %s", a.room)
+		return nil, errors.Annotatef(err, "clients in room: %s", a.room)
 	}
 
-	return allClients, nil
+	ret := make(map[identifiers.ClientID]string, len(allClients))
+
+	for clientID, metadata := range allClients {
+		ret[identifiers.ClientID(clientID)] = metadata
+	}
+
+	return ret, nil
 }
 
 // Returns count of all known clients connected to this room
@@ -270,7 +277,7 @@ func (a *RedisAdapter) handleMessage(
 
 	handlePattern := func() error {
 		params := strings.Split(channel, ":")
-		clientID := params[len(params)-1]
+		clientID := identifiers.ClientID(params[len(params)-1])
 
 		a.clientsMu.RLock()
 		client, ok := a.clients[clientID]
@@ -397,7 +404,7 @@ func (a *RedisAdapter) Close() error {
 	}
 
 	a.clientsMu.Lock()
-	clientIDs := make([]string, 0, len(a.clients))
+	clientIDs := make([]identifiers.ClientID, 0, len(a.clients))
 
 	for clientID := range a.clients {
 		clientIDs = append(clientIDs, clientID)
@@ -412,8 +419,8 @@ func (a *RedisAdapter) Close() error {
 	return errors.Trace(errs.Err())
 }
 
-func (a *RedisAdapter) localClients() map[string]ClientWriter {
-	clients := make(map[string]ClientWriter, len(a.clients))
+func (a *RedisAdapter) localClients() map[identifiers.ClientID]ClientWriter {
+	clients := make(map[identifiers.ClientID]ClientWriter, len(a.clients))
 
 	for k, v := range a.clients {
 		clients[k] = v
@@ -446,7 +453,7 @@ func (a *RedisAdapter) Broadcast(msg Message) error {
 	return errors.Annotate(err, "broadcast")
 }
 
-func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Message) (err error) {
+func (a *RedisAdapter) localBroadcast(clients map[identifiers.ClientID]ClientWriter, msg Message) (err error) {
 	a.log.Trace("localBroadcast", logger.Ctx{
 		"message_type": msg.Type,
 	})
@@ -462,7 +469,7 @@ func (a *RedisAdapter) localBroadcast(clients map[string]ClientWriter, msg Messa
 	return errors.Trace(errs.Err())
 }
 
-func (a *RedisAdapter) Emit(clientID string, msg Message) error {
+func (a *RedisAdapter) Emit(clientID identifiers.ClientID, msg Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
 
 	a.log.Trace("Emit", logger.Ctx{

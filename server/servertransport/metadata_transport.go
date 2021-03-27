@@ -45,7 +45,7 @@ type MetadataTransportParams struct {
 	Log           logger.Logger
 	Conn          io.ReadWriteCloser
 	MediaStream   *MediaStream
-	ClientID      string
+	ClientID      identifiers.ClientID
 	Interceptor   interceptor.Interceptor
 	CodecRegistry *codecs.Registry
 }

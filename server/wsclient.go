@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/uuid"
 	"nhooyr.io/websocket"
 )
@@ -27,7 +28,7 @@ type WSReadWriter interface {
 
 // An abstraction for sending out to websocket using channels.
 type Client struct {
-	id         string
+	id         identifiers.ClientID
 	conn       WSReadWriter
 	metadata   string
 	serializer ByteSerializer
@@ -41,9 +42,9 @@ func NewClient(conn WSReadWriter) *Client {
 	return NewClientWithID(conn, "")
 }
 
-func NewClientWithID(conn WSReadWriter, id string) *Client {
+func NewClientWithID(conn WSReadWriter, id identifiers.ClientID) *Client {
 	if id == "" {
-		id = uuid.New()
+		id = identifiers.ClientID(uuid.New())
 	}
 	return &Client{
 		id:   id,
@@ -72,7 +73,7 @@ func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg Me
 	return errors.Annotate(err, "write")
 }
 
-func (c *Client) ID() string {
+func (c *Client) ID() identifiers.ClientID {
 	return c.id
 }
 

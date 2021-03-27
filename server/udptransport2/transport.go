@@ -3,6 +3,7 @@ package udptransport2
 import (
 	"sync"
 
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
@@ -12,13 +13,13 @@ import (
 type Transport struct {
 	*servertransport.Transport
 	closeWriteOnce sync.Once
-	streamID       string
+	streamID       identifiers.RoomID
 	closeWrite     func()
 }
 
 func NewTransport(
 	log logger.Logger,
-	streamID string,
+	streamID identifiers.RoomID,
 	mediaConn stringmux.Conn,
 	dataConn stringmux.Conn,
 	metadataConn stringmux.Conn,
@@ -51,6 +52,7 @@ func (t *Transport) CloseWrite() {
 	t.closeWriteOnce.Do(t.closeWrite)
 }
 
-func (t *Transport) StreamID() string {
+// TODO rename to RoomID.
+func (t *Transport) StreamID() identifiers.RoomID {
 	return t.streamID
 }

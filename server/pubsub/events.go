@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 )
 
 type subRequestType int
@@ -14,7 +15,7 @@ const (
 )
 
 type trackEventSubRequest struct {
-	clientID string
+	clientID identifiers.ClientID
 	typ      subRequestType
 	done     chan trackEventSubResponse
 }
@@ -43,7 +44,7 @@ func newEvents(in <-chan PubTrackEvent, bufferSize int) *events {
 }
 
 func (s *events) start(in <-chan PubTrackEvent) {
-	subs := map[string]chan PubTrackEvent{}
+	subs := map[identifiers.ClientID]chan PubTrackEvent{}
 
 	defer func() {
 		for _, outCh := range subs {
@@ -96,7 +97,7 @@ func (s *events) request(req trackEventSubRequest) (<-chan PubTrackEvent, error)
 	}
 }
 
-func (s *events) Subscribe(clientID string) (<-chan PubTrackEvent, error) {
+func (s *events) Subscribe(clientID identifiers.ClientID) (<-chan PubTrackEvent, error) {
 	req := trackEventSubRequest{
 		typ:      subRequestTypeSubscribe,
 		clientID: clientID,
@@ -108,7 +109,7 @@ func (s *events) Subscribe(clientID string) (<-chan PubTrackEvent, error) {
 	return sub, errors.Annotatef(err, "subscribe: %s", clientID)
 }
 
-func (s *events) Unsubscribe(clientID string) error {
+func (s *events) Unsubscribe(clientID identifiers.ClientID) error {
 	req := trackEventSubRequest{
 		typ:      subRequestTypeUnsubscribe,
 		clientID: clientID,

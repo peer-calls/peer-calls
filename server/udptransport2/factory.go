@@ -8,6 +8,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/clock"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
@@ -229,7 +230,7 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 		tracker   *controlStateTracker
 	}
 
-	transports := map[string]*transportWithTracker{}
+	transports := map[identifiers.RoomID]*transportWithTracker{}
 
 	defer func() {
 		pingTicker.Stop()
@@ -251,26 +252,26 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 		close(f.torndown)
 	}()
 
-	createTransport := func(streamID string) (*Transport, error) {
+	createTransport := func(streamID identifiers.RoomID) (*Transport, error) {
 		log := f.params.Log.WithCtx(logger.Ctx{
 			"stream_id": streamID,
 		})
 
 		log.Trace("Create transport", nil)
 
-		metadataConn, err := f.streams.metadata.GetConn(streamID)
+		metadataConn, err := f.streams.metadata.GetConn(streamID.String())
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
 
-		dataConn, err := f.streams.data.GetConn(streamID)
+		dataConn, err := f.streams.data.GetConn(streamID.String())
 		if err != nil {
 			metadataConn.Close()
 
 			return nil, errors.Trace(err)
 		}
 
-		mediaConn, err := f.streams.media.GetConn(streamID)
+		mediaConn, err := f.streams.media.GetConn(streamID.String())
 		if err != nil {
 			metadataConn.Close()
 			dataConn.Close()
@@ -522,7 +523,7 @@ func (f *Factory) TransportsChannel() <-chan *Transport {
 	return f.transportsChannel
 }
 
-func (f *Factory) CreateTransport(streamID string) error {
+func (f *Factory) CreateTransport(streamID identifiers.RoomID) error {
 	f.params.Log.Trace("CreateTransport", logger.Ctx{
 		"stream_id": streamID,
 	})
@@ -540,7 +541,7 @@ func (f *Factory) CreateTransport(streamID string) error {
 	}
 }
 
-func (f *Factory) CloseTransport(streamID string) error {
+func (f *Factory) CloseTransport(streamID identifiers.RoomID) error {
 	f.params.Log.Trace("CloseTransport", logger.Ctx{
 		"stream_id": streamID,
 	})

@@ -1,7 +1,9 @@
 package server
 
+import "github.com/peer-calls/peer-calls/server/identifiers"
+
 type ClientWriter interface {
-	ID() string
+	ID() identifiers.ClientID
 	Write(message Message) error
 	Metadata() string
 	SetMetadata(metadata string)
@@ -9,12 +11,12 @@ type ClientWriter interface {
 
 type Adapter interface {
 	Add(client ClientWriter) error
-	Remove(clientID string) error
+	Remove(clientID identifiers.ClientID) error
 	Broadcast(msg Message) error
-	Metadata(clientID string) (string, bool)
-	SetMetadata(clientID string, metadata string) bool
-	Emit(clientID string, msg Message) error
-	Clients() (map[string]string, error)
+	Metadata(clientID identifiers.ClientID) (string, bool)
+	SetMetadata(clientID identifiers.ClientID, metadata string) bool
+	Emit(clientID identifiers.ClientID, msg Message) error
+	Clients() (map[identifiers.ClientID]string, error)
 	Size() (int, error)
 	Close() error
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
@@ -48,8 +49,8 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error)
-	TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool)
+	Add(room identifiers.RoomID, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error)
+	TracksMetadata(room identifiers.RoomID, clientID identifiers.ClientID) ([]sfu.TrackMetadata, bool)
 	Sub(params sfu.SubParams) error
 	Unsub(params sfu.SubParams) error
 }
@@ -62,8 +63,8 @@ func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc 
 }
 
 type RoomManager interface {
-	Enter(room string) (adapter Adapter, isNew bool)
-	Exit(room string) (isRemoved bool)
+	Enter(room identifiers.RoomID) (adapter Adapter, isNew bool)
+	Exit(room identifiers.RoomID) (isRemoved bool)
 }
 
 func NewMux(

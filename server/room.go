@@ -5,9 +5,10 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 )
 
-type NewAdapterFunc func(room string) Adapter
+type NewAdapterFunc func(room identifiers.RoomID) Adapter
 
 type adapterCounter struct {
 	count   uint64
@@ -15,7 +16,7 @@ type adapterCounter struct {
 }
 
 type AdapterRoomManager struct {
-	rooms      map[string]*adapterCounter
+	rooms      map[identifiers.RoomID]*adapterCounter
 	roomsMu    sync.RWMutex
 	newAdapter NewAdapterFunc
 }
@@ -24,12 +25,12 @@ var _ RoomManager = &AdapterRoomManager{}
 
 func NewAdapterRoomManager(newAdapter NewAdapterFunc) *AdapterRoomManager {
 	return &AdapterRoomManager{
-		rooms:      map[string]*adapterCounter{},
+		rooms:      map[identifiers.RoomID]*adapterCounter{},
 		newAdapter: newAdapter,
 	}
 }
 
-func (r *AdapterRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
+func (r *AdapterRoomManager) Enter(room identifiers.RoomID) (adapter Adapter, isNew bool) {
 	r.roomsMu.Lock()
 	defer r.roomsMu.Unlock()
 
@@ -47,7 +48,7 @@ func (r *AdapterRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
 	return ac.adapter, isNew
 }
 
-func (r *AdapterRoomManager) Exit(room string) (isRemoved bool) {
+func (r *AdapterRoomManager) Exit(room identifiers.RoomID) (isRemoved bool) {
 	r.roomsMu.Lock()
 	defer r.roomsMu.Unlock()
 
@@ -101,7 +102,7 @@ func (r *ChannelRoomManager) isClosed() bool {
 	}
 }
 
-func (r *ChannelRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
+func (r *ChannelRoomManager) Enter(room identifiers.RoomID) (adapter Adapter, isNew bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -115,7 +116,7 @@ func (r *ChannelRoomManager) Enter(room string) (adapter Adapter, isNew bool) {
 	return adapter, isNew
 }
 
-func (r *ChannelRoomManager) Exit(room string) (isRemoved bool) {
+func (r *ChannelRoomManager) Exit(room identifiers.RoomID) (isRemoved bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -143,7 +144,7 @@ func (r *ChannelRoomManager) RoomEventsChannel() <-chan RoomEvent {
 }
 
 type RoomEvent struct {
-	RoomName string
+	RoomName identifiers.RoomID
 	Type     RoomEventType
 }
 

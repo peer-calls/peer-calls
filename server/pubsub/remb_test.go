@@ -3,6 +3,7 @@ package pubsub_test
 import (
 	"testing"
 
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,7 +12,7 @@ func TestBitrateEstimator(t *testing.T) {
 	t.Parallel()
 
 	type feed struct {
-		clientID string
+		clientID identifiers.ClientID
 		bitrate  uint64
 	}
 
@@ -23,7 +24,7 @@ func TestBitrateEstimator(t *testing.T) {
 	type test struct {
 		name   string
 		feed   *feed
-		remove string
+		remove identifiers.ClientID
 		expect *expect
 	}
 

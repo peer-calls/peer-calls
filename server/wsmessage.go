@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 )
 
 type Serializer interface {
@@ -20,7 +21,7 @@ type Message struct {
 	// custom implementations.
 	Type MessageType `json:"type"`
 	// Room this message is related to
-	Room string `json:"room"`
+	Room identifiers.RoomID `json:"room"`
 	// Payload content
 	Payload interface{} `json:"payload"`
 }
@@ -41,18 +42,19 @@ const (
 	MessageTypeUsers MessageType = "users"
 )
 
-func NewMessage(typ MessageType, room string, payload interface{}) Message {
+func NewMessage(typ MessageType, room identifiers.RoomID, payload interface{}) Message {
 	return Message{Type: typ, Room: room, Payload: payload}
 }
 
-func NewMessageRoomJoin(room string, clientID string, metadata string) Message {
+func NewMessageRoomJoin(room identifiers.RoomID, clientID identifiers.ClientID, metadata string) Message {
+	// FIXME strong types.
 	return NewMessage(MessageTypeRoomJoin, room, map[string]string{
-		"clientID": clientID,
+		"clientID": clientID.String(),
 		"metadata": metadata,
 	})
 }
 
-func NewMessageRoomLeave(room string, clientID string) Message {
+func NewMessageRoomLeave(room identifiers.RoomID, clientID identifiers.ClientID) Message {
 	return NewMessage(MessageTypeRoomLeave, room, clientID)
 }
 

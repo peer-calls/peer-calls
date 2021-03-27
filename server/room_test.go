@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -13,7 +14,7 @@ import (
 func TestAdapterRoomManager(t *testing.T) {
 	t.Parallel()
 
-	var newAdapter server.NewAdapterFunc = func(room string) server.Adapter {
+	var newAdapter server.NewAdapterFunc = func(room identifiers.RoomID) server.Adapter {
 		return server.NewMemoryAdapter(room)
 	}
 
@@ -50,7 +51,7 @@ func TestChannelRoomManager(t *testing.T) {
 	goleak.VerifyNone(t)
 	defer goleak.VerifyNone(t)
 
-	var newAdapter server.NewAdapterFunc = func(room string) server.Adapter {
+	var newAdapter server.NewAdapterFunc = func(room identifiers.RoomID) server.Adapter {
 		return server.NewMemoryAdapter(room)
 	}
 

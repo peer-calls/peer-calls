@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"nhooyr.io/websocket"
 )
@@ -26,8 +27,8 @@ func NewWSS(log logger.Logger, rooms RoomManager) *WSS {
 
 type Subscription struct {
 	Adapter  Adapter
-	ClientID string
-	Room     string
+	ClientID identifiers.ClientID
+	Room     identifiers.RoomID
 	Messages <-chan Message
 }
 
@@ -44,8 +45,8 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 
 	ctx := r.Context()
 
-	clientID := path.Base(r.URL.Path)
-	room := path.Base(path.Dir(r.URL.Path))
+	clientID := identifiers.ClientID(path.Base(r.URL.Path))
+	room := identifiers.RoomID(path.Base(path.Dir(r.URL.Path)))
 	adapter, _ := wss.rooms.Enter(room)
 	ch := make(chan Message)
 

@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
 // This package contains commonly used test variables
 
-const room = "test-room"
+const room identifiers.RoomID = "test-room"
 
 var serializer server.ByteSerializer
 

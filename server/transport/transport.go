@@ -16,7 +16,7 @@ const (
 )
 
 type Transport interface {
-	ClientID() string
+	ClientID() identifiers.ClientID
 	Type() Type
 
 	DataTransport

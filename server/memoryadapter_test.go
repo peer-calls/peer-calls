@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -22,7 +23,7 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	assert.Nil(t, err)
 	clientIDs, err := adapter.Clients()
 	assert.Nil(t, err)
-	assert.Equal(t, map[string]string{clientID: "a"}, clientIDs)
+	assert.Equal(t, map[identifiers.ClientID]string{clientID: "a"}, clientIDs)
 	size, err := adapter.Size()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, size)
@@ -30,7 +31,7 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	assert.Nil(t, err)
 	clientIDs, err = adapter.Clients()
 	assert.Nil(t, err)
-	assert.Equal(t, map[string]string{}, clientIDs)
+	assert.Equal(t, map[identifiers.ClientID]string{}, clientIDs)
 	size, err = adapter.Size()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, size)

@@ -8,7 +8,7 @@ import (
 // Transport only defines a subset of methods from transport.Transport to make
 // mocking in testing easier.
 type Transport interface {
-	ClientID() string
+	ClientID() identifiers.ClientID
 
 	AddTrack(track transport.Track) (transport.TrackLocal, transport.RTCPReader, error)
 	RemoveTrack(trackID identifiers.TrackID) error

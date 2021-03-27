@@ -11,6 +11,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/codecs"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
@@ -136,7 +137,7 @@ type peerCtx struct {
 	close     func() error
 }
 
-func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID string) peerCtx {
+func createPeerConnection(t *testing.T, ctx context.Context, url string, clientID identifiers.ClientID) peerCtx {
 	t.Helper()
 
 	var peerCtx peerCtx
@@ -239,7 +240,7 @@ func TestSFU_PeerConnection(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	peerCtx := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
+	peerCtx := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID.String(), clientID)
 	defer peerCtx.close()
 	waitPeerConnected(t, ctx, peerCtx.pc)
 }
@@ -259,13 +260,13 @@ func TestSFU_OnTrack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	peerCtx1 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID, clientID)
+	peerCtx1 := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID.String(), clientID)
 	defer peerCtx1.close()
 	waitPeerConnected(t, ctx, peerCtx1.pc)
 
 	fmt.Println("PEER 1 CONNECTED")
 
-	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName+"/"+clientID2, clientID2)
+	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID2.String(), clientID2)
 	defer peerCtx2.close()
 	waitPeerConnected(t, ctx, peerCtx2.pc)
 

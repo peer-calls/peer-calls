@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,21 +19,21 @@ import (
 const timeout = 10 * time.Second
 
 type MockRoomManager struct {
-	enter     chan string
-	exit      chan string
+	enter     chan identifiers.RoomID
+	exit      chan identifiers.RoomID
 	emit      chan Emit
 	broadcast chan server.Message
 }
 
 type Emit struct {
-	clientID string
+	clientID identifiers.ClientID
 	message  server.Message
 }
 
 func NewMockRoomManager() *MockRoomManager {
 	return &MockRoomManager{
-		enter:     make(chan string, 10),
-		exit:      make(chan string, 10),
+		enter:     make(chan identifiers.RoomID, 10),
+		exit:      make(chan identifiers.RoomID, 10),
 		emit:      make(chan Emit, 10),
 		broadcast: make(chan server.Message, 10),
 	}
@@ -40,13 +41,13 @@ func NewMockRoomManager() *MockRoomManager {
 
 var _ server.RoomManager = &MockRoomManager{}
 
-func (r *MockRoomManager) Enter(room string) (server.Adapter, bool) {
+func (r *MockRoomManager) Enter(room identifiers.RoomID) (server.Adapter, bool) {
 	r.enter <- room
 
 	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}, true
 }
 
-func (r *MockRoomManager) Exit(room string) bool {
+func (r *MockRoomManager) Exit(room identifiers.RoomID) bool {
 	r.exit <- room
 	return false
 }
@@ -59,7 +60,7 @@ func (r *MockRoomManager) close() {
 }
 
 type MockAdapter struct {
-	room      string
+	room      identifiers.RoomID
 	emit      chan Emit
 	broadcast chan server.Message
 }
@@ -68,7 +69,7 @@ func (m *MockAdapter) Add(client server.ClientWriter) error {
 	return nil
 }
 
-func (m *MockAdapter) Remove(clientID string) error {
+func (m *MockAdapter) Remove(clientID identifiers.ClientID) error {
 	return nil
 }
 
@@ -77,12 +78,12 @@ func (m *MockAdapter) Broadcast(message server.Message) error {
 	return nil
 }
 
-func (m *MockAdapter) SetMetadata(clientID string, metadata string) bool {
+func (m *MockAdapter) SetMetadata(clientID identifiers.ClientID, metadata string) bool {
 	return true
 }
 
-func (m *MockAdapter) Clients() (map[string]string, error) {
-	return map[string]string{"client1": "abc"}, nil
+func (m *MockAdapter) Clients() (map[identifiers.ClientID]string, error) {
+	return map[identifiers.ClientID]string{"client1": "abc"}, nil
 }
 
 func (m *MockAdapter) Close() error {
@@ -93,11 +94,11 @@ func (m *MockAdapter) Size() (int, error) {
 	return 0, nil
 }
 
-func (m *MockAdapter) Metadata(clientID string) (string, bool) {
+func (m *MockAdapter) Metadata(clientID identifiers.ClientID) (string, bool) {
 	return "", true
 }
 
-func (m *MockAdapter) Emit(clientID string, message server.Message) error {
+func (m *MockAdapter) Emit(clientID identifiers.ClientID, message server.Message) error {
 	m.emit <- Emit{
 		clientID: clientID,
 		message:  message,
@@ -105,9 +106,9 @@ func (m *MockAdapter) Emit(clientID string, message server.Message) error {
 	return nil
 }
 
-const roomName = "test-room"
-const clientID = "user1"
-const clientID2 = "user2"
+const roomName = identifiers.RoomID("test-room")
+const clientID = identifiers.ClientID("user1")
+const clientID2 = identifiers.ClientID("user2")
 
 func mustDialWS(t *testing.T, ctx context.Context, url string) *websocket.Conn {
 	t.Helper()
@@ -138,7 +139,7 @@ func setupMeshServer(rooms server.RoomManager) (s *httptest.Server, url string) 
 	log := logger.New()
 	handler := server.NewMeshHandler(log, server.NewWSS(log, rooms))
 	s = httptest.NewServer(handler)
-	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName + "/" + clientID
+	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName.String() + "/" + clientID.String()
 	return
 }
 
@@ -182,8 +183,8 @@ func TestMesh_event_ready(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, map[string]interface{}{
 		"initiator": clientID,
-		"peerIds":   []string{"client1"},
-		"nicknames": map[string]string{
+		"peerIds":   []identifiers.ClientID{"client1"},
+		"nicknames": map[identifiers.ClientID]string{
 			"client1": "abc",
 		},
 	}, payload)
@@ -200,7 +201,7 @@ func TestMesh_event_signal(t *testing.T) {
 	ws := mustDialWS(t, ctx, url)
 	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
-	otherClientID := "other-user"
+	otherClientID := identifiers.ClientID("other-user")
 	var signal interface{} = "a-signal"
 	mustWriteWS(t, ctx, ws, server.NewMessage(server.MessageTypeSignal, "test-room", map[string]interface{}{
 		"userId": otherClientID,

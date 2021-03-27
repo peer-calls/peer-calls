@@ -2,14 +2,12 @@ package server
 
 import (
 	"net"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/udptransport2"
 )
@@ -175,11 +173,11 @@ func (nm *NodeManager) handleTransport(transport *udptransport2.Transport) error
 				"track_event_type": pubTrackEvent.Type,
 			}
 
-			if strings.HasPrefix(pubTrackEvent.PubTrack.ClientID, servertransport.ServerNodePrefix) {
+			if pubTrackEvent.PubTrack.ClientID.IsServer() {
 				// Do not forward tracks from other server transports to this node;
 				// only forward tracks from WebRTC connections connected directly to
 				// this server.
-				nm.params.Log.Info("Skipping track from other serverr transport", logCtx)
+				nm.params.Log.Info("Skipping track from other server transport", logCtx)
 
 				continue
 			}

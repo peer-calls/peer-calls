@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server/clock"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/peer-calls/peer-calls/server/udptransport2"
@@ -114,7 +115,7 @@ func TestManager_RTP(t *testing.T) {
 			require.Fail(t, "Timed out waiting for transport1")
 		}
 
-		assert.Equal(t, "test-stream", transport1.StreamID())
+		assert.Equal(t, identifiers.RoomID("test-stream"), transport1.StreamID())
 
 		select {
 		case trwr := <-transport1.RemoteTracksChannel():

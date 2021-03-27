@@ -15,13 +15,13 @@ import (
 
 const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
 
-const localPeerID = "__SERVER__"
+const localPeerID identifiers.ClientID = "__SERVER__"
 
 const serverIsInitiator = true
 
 type MetadataPayload struct {
-	UserID   string              `json:"userId"`
-	Metadata []sfu.TrackMetadata `json:"metadata"`
+	UserID   identifiers.ClientID `json:"userId"`
+	Metadata []sfu.TrackMetadata  `json:"metadata"`
 }
 
 func NewSFUHandler(
@@ -84,8 +84,8 @@ type SocketHandler struct {
 	webRTCTransportFactory *WebRTCTransportFactory
 	webRTCTransport        *WebRTCTransport
 	adapter                Adapter
-	clientID               string
-	room                   string
+	clientID               identifiers.ClientID
+	room                   identifiers.RoomID
 
 	mu sync.Mutex
 }
@@ -94,8 +94,8 @@ func NewSocketHandler(
 	log logger.Logger,
 	tracksManager TracksManager,
 	webRTCTransportFactory *WebRTCTransportFactory,
-	clientID string,
-	room string,
+	clientID identifiers.ClientID,
+	room identifiers.RoomID,
 	adapter Adapter,
 ) *SocketHandler {
 	return &SocketHandler{
@@ -139,7 +139,7 @@ func (sh *SocketHandler) Cleanup() {
 	}
 
 	err := sh.adapter.Broadcast(
-		NewMessage("hangUp", sh.room, map[string]string{
+		NewMessage("hangUp", sh.room, map[string]interface{}{
 			"userId": sh.clientID,
 		}),
 	)
@@ -151,6 +151,7 @@ func (sh *SocketHandler) Cleanup() {
 func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 	event := m.Payload.(map[string]interface{})
 
+	// FIXME use strong types.
 	pubClientID := event["pubClientId"].(string)
 	trackID := identifiers.TrackID(event["trackId"].(string))
 	typ := transport.TrackEventType(event["type"].(float64))
@@ -160,17 +161,17 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 	switch typ {
 	case transport.TrackEventTypeSub:
 		err = sh.tracksManager.Sub(sfu.SubParams{
-			PubClientID: pubClientID,
-			Room:        sh.room,
+			PubClientID: identifiers.ClientID(pubClientID),
+			Room:        identifiers.RoomID(sh.room),
 			TrackID:     trackID,
-			SubClientID: sh.clientID,
+			SubClientID: identifiers.ClientID(sh.clientID),
 		})
 	case transport.TrackEventTypeUnsub:
 		err = sh.tracksManager.Unsub(sfu.SubParams{
-			PubClientID: pubClientID,
-			Room:        sh.room,
+			PubClientID: identifiers.ClientID(pubClientID),
+			Room:        identifiers.RoomID(sh.room),
 			TrackID:     trackID,
-			SubClientID: sh.clientID,
+			SubClientID: identifiers.ClientID(sh.clientID),
 		})
 	default:
 		err = errors.Errorf("invalid payload type: %d", typ)
@@ -198,6 +199,8 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	adapter := sh.adapter
 	roomID := sh.room
 	clientID := sh.clientID
+	// userID is the same as clientID for webrtc connections.
+	userID := identifiers.UserID(sh.clientID)
 
 	initiator := localPeerID
 	if !serverIsInitiator {
@@ -229,7 +232,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	err = adapter.Broadcast(
 		NewMessage("users", roomID, map[string]interface{}{
 			"initiator": initiator,
-			"peerIds":   []string{localPeerID},
+			"peerIds":   []identifiers.ClientID{localPeerID},
 			"nicknames": clients,
 		}),
 	)
@@ -237,7 +240,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		return errors.Annotatef(err, "broadcasting users")
 	}
 
-	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(roomID, clientID)
+	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(roomID, clientID, userID)
 	if err != nil {
 		return errors.Annotatef(err, "create new WebRTCTransport")
 	}
@@ -324,7 +327,8 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 	adapter.SetMetadata(clientID, "")
 
 	err := sh.adapter.Broadcast(
-		NewMessage("hangUp", room, map[string]string{
+		// FIXME strong types.
+		NewMessage("hangUp", room, map[string]identifiers.ClientID{
 			"userId": sh.clientID,
 		}),
 	)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -30,18 +31,18 @@ type Candidate struct {
 }
 
 type Payload struct {
-	UserID string      `json:"userId"`
-	Signal interface{} `json:"signal"`
+	UserID identifiers.ClientID `json:"userId"`
+	Signal interface{}          `json:"signal"`
 }
 
-func NewPayloadSDP(userID string, sessionDescription webrtc.SessionDescription) Payload {
+func NewPayloadSDP(userID identifiers.ClientID, sessionDescription webrtc.SessionDescription) Payload {
 	return Payload{
 		UserID: userID,
 		Signal: sessionDescription,
 	}
 }
 
-func NewPayloadRenegotiate(userID string) Payload {
+func NewPayloadRenegotiate(userID identifiers.ClientID) Payload {
 	return Payload{
 		UserID: userID,
 		Signal: Renegotiate{
@@ -50,7 +51,7 @@ func NewPayloadRenegotiate(userID string) Payload {
 	}
 }
 
-func NewTransceiverRequest(userID string, kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) Payload {
+func NewTransceiverRequest(userID identifiers.ClientID, kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) Payload {
 	signal := TransceiverRequestJSON{}
 
 	signal.TransceiverRequest.Kind = kind.String()
@@ -200,6 +201,7 @@ func newSDP(sdpType interface{}, signal map[string]interface{}) (s webrtc.Sessio
 }
 
 func NewPayloadFromMap(payload map[string]interface{}) (p Payload, err error) {
+	// FIXME strong types.
 	userID, ok := payload["userId"].(string)
 	if !ok {
 		err = errors.Errorf("No userId property in payload: %#v", payload)
@@ -229,7 +231,7 @@ func NewPayloadFromMap(payload map[string]interface{}) (p Payload, err error) {
 		return p, errors.Trace(err)
 	}
 
-	p.UserID = userID
+	p.UserID = identifiers.ClientID(userID)
 	p.Signal = value
 
 	return p, nil

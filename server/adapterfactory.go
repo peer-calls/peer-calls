@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
@@ -13,7 +14,7 @@ type AdapterFactory struct {
 	pubClient *redis.Client
 	subClient *redis.Client
 
-	NewAdapter func(room string) Adapter
+	NewAdapter func(room identifiers.RoomID) Adapter
 }
 
 func NewAdapterFactory(log logger.Logger, c StoreConfig) *AdapterFactory {
@@ -38,13 +39,13 @@ func NewAdapterFactory(log logger.Logger, c StoreConfig) *AdapterFactory {
 			Addr: addr,
 		})
 
-		f.NewAdapter = func(room string) Adapter {
+		f.NewAdapter = func(room identifiers.RoomID) Adapter {
 			return NewRedisAdapter(log, f.pubClient, f.subClient, prefix, room)
 		}
 	default:
 		log.Info("Using MemoryAdapter", nil)
 
-		f.NewAdapter = func(room string) Adapter {
+		f.NewAdapter = func(room identifiers.RoomID) Adapter {
 			return NewMemoryAdapter(room)
 		}
 	}

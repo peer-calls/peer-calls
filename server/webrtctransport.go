@@ -194,7 +194,8 @@ type WebRTCTransport struct {
 
 	log logger.Logger
 
-	clientID string
+	clientID identifiers.ClientID
+	userID   identifiers.UserID
 
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
@@ -207,7 +208,11 @@ type WebRTCTransport struct {
 	localTracks map[identifiers.TrackID]localTrack
 }
 
-func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {
+func (f WebRTCTransportFactory) NewWebRTCTransport(
+	roomID identifiers.RoomID,
+	clientID identifiers.ClientID,
+	userID identifiers.UserID,
+) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}
 
 	for _, iceServer := range GetICEAuthServers(f.iceServers) {
@@ -234,11 +239,14 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*We
 		return nil, errors.Annotate(err, "new peer connection")
 	}
 
-	return NewWebRTCTransport(f.log, roomID, clientID, true, peerConnection, f.codecRegistry)
+	return NewWebRTCTransport(f.log, roomID, clientID, userID, true, peerConnection, f.codecRegistry)
 }
 
 func NewWebRTCTransport(
-	log logger.Logger, roomID, clientID string,
+	log logger.Logger,
+	roomID identifiers.RoomID,
+	clientID identifiers.ClientID,
+	userID identifiers.UserID,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
 	codecRegistry *codecs.Registry,
@@ -348,7 +356,7 @@ func (p *WebRTCTransport) Close() error {
 	return p.signaller.Close()
 }
 
-func (p *WebRTCTransport) ClientID() string {
+func (p *WebRTCTransport) ClientID() identifiers.ClientID {
 	return p.clientID
 }
 
@@ -578,7 +586,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 
 	t := RemoteTrack{
 		TrackRemote: track,
-		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.clientID),
+		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.userID),
 	}
 
 	trwr := transport.TrackRemoteWithRTCPReader{

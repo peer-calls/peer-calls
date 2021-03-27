@@ -6,12 +6,12 @@ import (
 )
 
 type PubTrack struct {
-	ClientID string              `json:"clientId"`
-	UserID   string              `json:"userId"`
-	TrackID  identifiers.TrackID `json:"trackId"`
+	ClientID identifiers.ClientID `json:"clientId"`
+	UserID   identifiers.UserID   `json:"userId"`
+	TrackID  identifiers.TrackID  `json:"trackId"`
 }
 
-func newPubTrack(pubClientID string, track transport.Track) PubTrack {
+func newPubTrack(pubClientID identifiers.ClientID, track transport.Track) PubTrack {
 	return PubTrack{
 		ClientID: pubClientID,
 		TrackID:  track.UniqueID(),

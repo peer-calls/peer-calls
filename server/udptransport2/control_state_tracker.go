@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 )
 
 // controlStateTracker ensures that local and remote transports are both
@@ -273,12 +274,12 @@ func (c remoteControlEventType) String() string {
 
 type remoteControlEvent struct {
 	Type     remoteControlEventType `json:"type"`
-	StreamID string                 `json:"streamId"`
+	StreamID identifiers.RoomID     `json:"streamId"`
 }
 
 type localControlEvent struct {
 	typ      localControlEventType
-	streamID string
+	streamID identifiers.RoomID
 }
 
 type controlState int

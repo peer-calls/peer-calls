@@ -27,15 +27,15 @@ type PubSub struct {
 
 	// publishersByPubClientID is a map of a set of pubs that have been created by a
 	// particular transport (indexes by clientID).
-	publishersByPubClientID map[string]readerSet
+	publishersByPubClientID map[identifiers.ClientID]readerSet
 
 	// subsBySubClientID is a map of a set of publishers that the transport has
 	// subscribed to.
-	subsBySubClientID map[string]subscriber
+	subsBySubClientID map[identifiers.ClientID]subscriber
 }
 
 type publisher struct {
-	clientID         string
+	clientID         identifiers.ClientID
 	reader           Reader
 	bitrateEstimator *BitrateEstimator
 }
@@ -54,13 +54,13 @@ func New(log logger.Logger) *PubSub {
 		eventsChan:              eventsChan,
 		events:                  newEvents(eventsChan, 0),
 		publishers:              map[identifiers.TrackID]publisher{},
-		publishersByPubClientID: map[string]readerSet{},
-		subsBySubClientID:       map[string]subscriber{},
+		publishersByPubClientID: map[identifiers.ClientID]readerSet{},
+		subsBySubClientID:       map[identifiers.ClientID]subscriber{},
 	}
 }
 
 // Pub publishes a track.
-func (p *PubSub) Pub(pubClientID string, reader Reader) {
+func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 	track := reader.Track()
 
 	p.log.Trace("Pub", logger.Ctx{
@@ -89,7 +89,7 @@ func (p *PubSub) Pub(pubClientID string, reader Reader) {
 }
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
-func (p *PubSub) Unpub(pubClientID string, trackID identifiers.TrackID) {
+func (p *PubSub) Unpub(pubClientID identifiers.ClientID, trackID identifiers.TrackID) {
 	p.log.Trace("Unpub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  trackID,
@@ -116,7 +116,7 @@ func (p *PubSub) Unpub(pubClientID string, trackID identifiers.TrackID) {
 }
 
 // Sub subscribes to a published track.
-func (p *PubSub) Sub(pubClientID string, trackID identifiers.TrackID, transport Transport) (transport.RTCPReader, error) {
+func (p *PubSub) Sub(pubClientID identifiers.ClientID, trackID identifiers.TrackID, transport Transport) (transport.RTCPReader, error) {
 	p.log.Trace("Sub", logger.Ctx{
 		"client_id":     transport.ClientID(),
 		"track_id":      trackID,
@@ -172,7 +172,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 }
 
 // Unsub unsubscribes from a published track.
-func (p *PubSub) Unsub(pubClientID string, trackID identifiers.TrackID, subClientID string) error {
+func (p *PubSub) Unsub(pubClientID identifiers.ClientID, trackID identifiers.TrackID, subClientID identifiers.ClientID) error {
 	p.log.Trace("Unsub", logger.Ctx{
 		"client_id":     subClientID,
 		"track_id":      trackID,
@@ -194,7 +194,7 @@ func (p *PubSub) Unsub(pubClientID string, trackID identifiers.TrackID, subClien
 }
 
 // unsub caller must hold the lock.
-func (p *PubSub) unsub(subClientID string, pub publisher) error {
+func (p *PubSub) unsub(subClientID identifiers.ClientID, pub publisher) error {
 	var multiErr multierr.MultiErr
 
 	trackID := pub.reader.Track().UniqueID()
@@ -230,7 +230,7 @@ func (p *PubSub) BitrateEstimator(trackID identifiers.TrackID) (*BitrateEstimato
 
 // Terminate unpublishes al tracks from from a particular client, as well as
 // removes any subscriptions it has.
-func (p *PubSub) Terminate(clientID string) {
+func (p *PubSub) Terminate(clientID identifiers.ClientID) {
 	p.log.Trace("Terminate", logger.Ctx{
 		"client_id": clientID,
 	})
@@ -246,14 +246,14 @@ func (p *PubSub) Terminate(clientID string) {
 
 // Subscribers returns all subscribed subClientIDs to a specific clientID/track
 // pair.
-func (p *PubSub) Subscribers(pubClientID string, trackID identifiers.TrackID) []string {
-	var ret []string
+func (p *PubSub) Subscribers(pubClientID identifiers.ClientID, trackID identifiers.TrackID) []identifiers.ClientID {
+	var ret []identifiers.ClientID
 
 	if pub, ok := p.publishers[trackID]; ok {
 		subs := pub.reader.Subs()
 
 		if l := len(subs); l > 0 {
-			ret = make([]string, l)
+			ret = make([]identifiers.ClientID, l)
 
 			copy(ret, subs)
 		}
@@ -263,7 +263,7 @@ func (p *PubSub) Subscribers(pubClientID string, trackID identifiers.TrackID) []
 }
 
 type TrackProps struct {
-	ClientID string
+	ClientID identifiers.ClientID
 	SSRC     webrtc.SSRC
 	RID      string
 }
@@ -301,7 +301,7 @@ func (p *PubSub) Tracks() []PubTrack {
 }
 
 // SubscribeToEvents creates a new subscription to track events.
-func (p *PubSub) SubscribeToEvents(clientID string) (<-chan PubTrackEvent, error) {
+func (p *PubSub) SubscribeToEvents(clientID identifiers.ClientID) (<-chan PubTrackEvent, error) {
 	p.log.Trace("SubscribeToEvents", logger.Ctx{
 		"client_id": clientID,
 	})
@@ -312,7 +312,7 @@ func (p *PubSub) SubscribeToEvents(clientID string) (<-chan PubTrackEvent, error
 }
 
 // UnsubscribeFromEvents removes an existing subscription from track events.
-func (p *PubSub) UnsubscribeFromEvents(clientID string) error {
+func (p *PubSub) UnsubscribeFromEvents(clientID identifiers.ClientID) error {
 	p.log.Trace("UnsubscribeFromEvents", logger.Ctx{
 		"client_id": clientID,
 	})

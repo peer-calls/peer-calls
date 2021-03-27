@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/codecs"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -17,8 +18,6 @@ import (
 const (
 	// TODO reduce this.
 	ReceiveMTU int = 8192
-
-	ServerNodePrefix = "node:"
 )
 
 var (
@@ -53,7 +52,7 @@ type Transport struct {
 	*MediaStream
 	*DataTransport
 
-	clientID  string
+	clientID  identifiers.ClientID
 	closeChan chan struct{}
 	closeOnce sync.Once
 }
@@ -76,7 +75,7 @@ func New(params Params) *Transport {
 		params.CodecRegistry = codecs.NewRegistryDefault()
 	}
 
-	clientID := fmt.Sprintf("%s%s", ServerNodePrefix, uuid.New())
+	clientID := identifiers.ClientID(fmt.Sprintf("%s%s", identifiers.ServerNodePrefix, uuid.New()))
 	log := params.Log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
 	})
@@ -114,7 +113,7 @@ func New(params Params) *Transport {
 
 var _ transport.Transport = &Transport{}
 
-func (t *Transport) ClientID() string {
+func (t *Transport) ClientID() identifiers.ClientID {
 	return t.clientID
 }
 

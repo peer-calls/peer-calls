@@ -6,8 +6,8 @@ import (
 
 type SubParams struct {
 	// Room to which to subscribe to.
-	Room        string
-	PubClientID string
+	Room        identifiers.RoomID
+	PubClientID identifiers.ClientID
 	TrackID     identifiers.TrackID
-	SubClientID string
+	SubClientID identifiers.ClientID
 }

@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/pion/webrtc/v3"
@@ -12,7 +13,7 @@ import (
 type DataTransceiver struct {
 	log logger.Logger
 
-	clientID       string
+	clientID       identifiers.ClientID
 	peerConnection *webrtc.PeerConnection
 
 	// dataChannelChan will receive DataChannels from peer connection
@@ -40,7 +41,7 @@ type DataTransceiver struct {
 
 func NewDataTransceiver(
 	log logger.Logger,
-	clientID string,
+	clientID identifiers.ClientID,
 	dataChannel *webrtc.DataChannel,
 	peerConnection *webrtc.PeerConnection,
 ) *DataTransceiver {

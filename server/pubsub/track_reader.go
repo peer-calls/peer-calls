@@ -6,15 +6,16 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
 
 type Reader interface {
 	Track() transport.Track
-	Sub(subClientID string, trackLocal transport.TrackLocal) error
-	Unsub(subClientID string) error
-	Subs() []string
+	Sub(subClientID identifiers.ClientID, trackLocal transport.TrackLocal) error
+	Unsub(subClientID identifiers.ClientID) error
+	Subs() []identifiers.ClientID
 
 	SSRC() webrtc.SSRC
 	RID() string
@@ -26,7 +27,7 @@ type TrackReader struct {
 	onClose func()
 
 	trackRemote transport.TrackRemote
-	subs        map[string]transport.TrackLocal
+	subs        map[identifiers.ClientID]transport.TrackLocal
 }
 
 var _ Reader = &TrackReader{}
@@ -36,7 +37,7 @@ func NewTrackReader(trackRemote transport.TrackRemote, onClose func()) *TrackRea
 		onClose: onClose,
 
 		trackRemote: trackRemote,
-		subs:        map[string]transport.TrackLocal{},
+		subs:        map[identifiers.ClientID]transport.TrackLocal{},
 	}
 
 	go t.startReadLoop()
@@ -88,7 +89,7 @@ func (t *TrackReader) startReadLoop() {
 	t.mu.Unlock()
 }
 
-func (t *TrackReader) Sub(subClientID string, trackLocal transport.TrackLocal) error {
+func (t *TrackReader) Sub(subClientID identifiers.ClientID, trackLocal transport.TrackLocal) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -112,7 +113,7 @@ func (t *TrackReader) Sub(subClientID string, trackLocal transport.TrackLocal) e
 	return nil
 }
 
-func (t *TrackReader) Unsub(subClientID string) error {
+func (t *TrackReader) Unsub(subClientID identifiers.ClientID) error {
 	var err error
 
 	t.mu.Lock()
@@ -133,8 +134,8 @@ func (t *TrackReader) Unsub(subClientID string) error {
 	return errors.Trace(err)
 }
 
-func (t *TrackReader) Subs() []string {
-	subs := make([]string, len(t.subs))
+func (t *TrackReader) Subs() []identifiers.ClientID {
+	subs := make([]identifiers.ClientID, len(t.subs))
 
 	t.mu.Lock()
 

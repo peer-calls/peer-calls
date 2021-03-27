@@ -1,5 +1,7 @@
 package pubsub
 
+import "github.com/peer-calls/peer-calls/server/identifiers"
+
 // BitrateEstimator estimates minimum, maximum and average bitrate. It is not
 // safe for concurrent use.
 type BitrateEstimator struct {
@@ -9,18 +11,18 @@ type BitrateEstimator struct {
 
 	totalBitrate float64
 
-	estimatesByClientID map[string]uint64
+	estimatesByClientID map[identifiers.ClientID]uint64
 }
 
 // NewBitrateEstimator creates a new instance of BitrateEstimator.
 func NewBitrateEstimator() *BitrateEstimator {
 	return &BitrateEstimator{
-		estimatesByClientID: map[string]uint64{},
+		estimatesByClientID: map[identifiers.ClientID]uint64{},
 	}
 }
 
 // Feed records the estimated bitrate for client.
-func (r *BitrateEstimator) Feed(clientID string, estimatedBitrate uint64) {
+func (r *BitrateEstimator) Feed(clientID identifiers.ClientID, estimatedBitrate uint64) {
 	oldEstimatedBitrate, ok := r.estimatesByClientID[clientID]
 
 	delete(r.estimatesByClientID, clientID)
@@ -103,7 +105,7 @@ func (r *BitrateEstimator) Avg() uint64 {
 	return r.avg
 }
 
-func (r *BitrateEstimator) RemoveClientBitrate(clientID string) {
+func (r *BitrateEstimator) RemoveClientBitrate(clientID identifiers.ClientID) {
 	oldEstimate, ok := r.estimatesByClientID[clientID]
 	if !ok {
 		return

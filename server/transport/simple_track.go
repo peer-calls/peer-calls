@@ -12,7 +12,7 @@ type SimpleTrack struct {
 	id       string
 	streamID string
 	mimeType string
-	userID   string
+	userID   identifiers.UserID
 
 	uniqueID identifiers.TrackID
 
@@ -21,7 +21,7 @@ type SimpleTrack struct {
 
 var _ Track = SimpleTrack{}
 
-func NewSimpleTrack(id string, streamID string, codec Codec, userID string) SimpleTrack {
+func NewSimpleTrack(id string, streamID string, codec Codec, userID identifiers.UserID) SimpleTrack {
 	return SimpleTrack{
 		id:       id,
 		streamID: streamID,
@@ -43,7 +43,7 @@ func (s SimpleTrack) StreamID() string {
 	return s.streamID
 }
 
-func (s SimpleTrack) UserID() string {
+func (s SimpleTrack) UserID() identifiers.UserID {
 	return s.userID
 }
 

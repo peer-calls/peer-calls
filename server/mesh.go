@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 )
 
@@ -42,7 +43,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 				log.Info("hangUp event", nil)
 				adapter.SetMetadata(clientID, "")
 			case MessageTypeReady:
-				// FIXME check for errors
+				// FIXME string types.
 				payload, _ := msg.Payload.(map[string]interface{})
 				adapter.SetMetadata(clientID, payload["nickname"].(string))
 
@@ -62,9 +63,12 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 				)
 				err = errors.Annotatef(err, "ready broadcast")
 			case MessageTypeSignal:
+				// FIXME strong types.
 				payload, _ := msg.Payload.(map[string]interface{})
 				signal := payload["signal"]
-				targetClientID, _ := payload["userId"].(string)
+				targetClientIDStr, _ := payload["userId"].(string)
+
+				targetClientID := identifiers.ClientID(targetClientIDStr)
 
 				log.Info("Send signal to", logger.Ctx{
 					"target_client_id": targetClientID,
@@ -86,8 +90,8 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func getReadyClients(adapter Adapter) (map[string]string, error) {
-	filteredClients := map[string]string{}
+func getReadyClients(adapter Adapter) (map[identifiers.ClientID]string, error) {
+	filteredClients := map[identifiers.ClientID]string{}
 	clients, err := adapter.Clients()
 	if err != nil {
 		return filteredClients, errors.Annotate(err, "ready clients")
@@ -103,7 +107,7 @@ func getReadyClients(adapter Adapter) (map[string]string, error) {
 	return filteredClients, nil
 }
 
-func clientsToPeerIDs(clients map[string]string) (peers []string) {
+func clientsToPeerIDs(clients map[identifiers.ClientID]string) (peers []identifiers.ClientID) {
 	for clientID := range clients {
 		peers = append(peers, clientID)
 	}

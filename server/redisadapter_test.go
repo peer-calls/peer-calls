@@ -11,6 +11,7 @@ import (
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -35,7 +36,7 @@ func configureRedis(t *testing.T) (*redis.Client, *redis.Client, func()) {
 	}
 }
 
-func getClientIDs(t *testing.T, a *server.RedisAdapter) map[string]string {
+func getClientIDs(t *testing.T, a *server.RedisAdapter) map[identifiers.ClientID]string {
 	clientIDs, err := a.Clients()
 	assert.Nil(t, err)
 	return clientIDs
@@ -92,8 +93,8 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	t.Log("waiting for room join message broadcast (2)")
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter1.out))
 	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter2.out))
-	assert.Equal(t, map[string]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter1))
-	assert.Equal(t, map[string]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter2))
+	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter1))
+	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter2))
 
 	assert.True(t, adapter1.SetMetadata(client1.ID(), "aaa"))
 	assert.True(t, adapter2.SetMetadata(client2.ID(), "bbb"))
@@ -114,11 +115,16 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	t.Log("waiting for client id removal", client1.ID())
 	leaveMessage, err := serializer.Deserialize(recv(t, mockWriter2.out))
 	assert.Nil(t, err)
-	assert.Equal(t, server.NewMessageRoomLeave(room, client1.ID()), leaveMessage)
-	assert.Equal(t, map[string]string{client2.ID(): "bbb"}, getClientIDs(t, adapter2))
+
+	assert.Equal(t, room, leaveMessage.Room)
+	assert.Equal(t, server.MessageTypeRoomLeave, leaveMessage.Type)
+	assert.Equal(t, client1.ID().String(), leaveMessage.Payload)
+	// FIXME strong types.
+	// assert.Equal(t, server.NewMessageRoomLeave(room, client1.ID()), leaveMessage)
+	assert.Equal(t, map[identifiers.ClientID]string{client2.ID(): "bbb"}, getClientIDs(t, adapter2))
 
 	assert.Nil(t, adapter2.Remove(client2.ID()))
-	assert.Equal(t, map[string]string{}, getClientIDs(t, adapter2))
+	assert.Equal(t, map[identifiers.ClientID]string{}, getClientIDs(t, adapter2))
 
 	t.Log("stopping...")
 	for _, stop := range []func() error{adapter1.Close, adapter2.Close} {

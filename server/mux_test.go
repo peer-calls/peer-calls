@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
@@ -21,8 +22,8 @@ import (
 var iceServers = []server.ICEServer{}
 
 type addedPeer struct {
-	room      string
-	clientID  string
+	room      identifiers.RoomID
+	clientID  identifiers.ClientID
 	transport transport.Transport
 }
 
@@ -42,7 +43,7 @@ func newMockTracksManager() *mockTracksManager {
 	}
 }
 
-func (m *mockTracksManager) Add(room string, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+func (m *mockTracksManager) Add(room identifiers.RoomID, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
 	ch := make(chan pubsub.PubTrackEvent)
 	close(ch)
 
@@ -55,7 +56,10 @@ func (m *mockTracksManager) Add(room string, transport transport.Transport) (<-c
 	return ch, nil
 }
 
-func (m *mockTracksManager) TracksMetadata(room string, clientID string) ([]sfu.TrackMetadata, bool) {
+func (m *mockTracksManager) TracksMetadata(
+	room identifiers.RoomID,
+	clientID identifiers.ClientID,
+) ([]sfu.TrackMetadata, bool) {
 	return nil, true
 }
 
