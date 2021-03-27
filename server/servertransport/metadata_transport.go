@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/codecs"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
@@ -26,8 +27,8 @@ func RandUint32() uint32 {
 type MetadataTransport struct {
 	params MetadataTransportParams
 
-	localTracks  map[transport.TrackID]*trackLocalWithRTCPReader
-	remoteTracks map[transport.TrackID]*trackRemoteWithRTCPReader
+	localTracks  map[identifiers.TrackID]*trackLocalWithRTCPReader
+	remoteTracks map[identifiers.TrackID]*trackRemoteWithRTCPReader
 	mu           *sync.RWMutex
 
 	// trackEventsCh chan transport.TrackEvent
@@ -65,8 +66,8 @@ func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
 	t := &MetadataTransport{
 		params: params,
 
-		localTracks:  map[transport.TrackID]*trackLocalWithRTCPReader{},
-		remoteTracks: map[transport.TrackID]*trackRemoteWithRTCPReader{},
+		localTracks:  map[identifiers.TrackID]*trackLocalWithRTCPReader{},
+		remoteTracks: map[identifiers.TrackID]*trackRemoteWithRTCPReader{},
 		mu:           &sync.RWMutex{},
 
 		// trackEventsCh: make(chan transport.TrackEvent),
@@ -409,7 +410,7 @@ func (t *MetadataTransport) sendMetadataEvent(event metadataEvent) error {
 	}
 }
 
-func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
+func (t *MetadataTransport) RemoveTrack(trackID identifiers.TrackID) error {
 	t.mu.Lock()
 
 	ltwr, ok := t.localTracks[trackID]

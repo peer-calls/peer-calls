@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
@@ -25,7 +26,7 @@ type Transport interface {
 	LocalTracks() []TrackWithMID
 
 	AddTrack(Track) (TrackLocal, RTCPReader, error)
-	RemoveTrack(TrackID) error
+	RemoveTrack(identifiers.TrackID) error
 
 	RTCPWriter
 

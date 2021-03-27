@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -151,7 +152,7 @@ func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
 	event := m.Payload.(map[string]interface{})
 
 	pubClientID := event["pubClientId"].(string)
-	trackID := transport.TrackID(event["trackId"].(string))
+	trackID := identifiers.TrackID(event["trackId"].(string))
 	typ := transport.TrackEventType(event["type"].(float64))
 
 	var err error

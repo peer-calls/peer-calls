@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/codecs"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -203,7 +204,7 @@ type WebRTCTransport struct {
 
 	remoteTracksChannel chan transport.TrackRemoteWithRTCPReader
 
-	localTracks map[transport.TrackID]localTrack
+	localTracks map[identifiers.TrackID]localTrack
 }
 
 func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*WebRTCTransport, error) {
@@ -308,8 +309,8 @@ func NewWebRTCTransport(
 		// rtpCh:         make(chan *rtp.Packet),
 		// rtcpCh:        make(chan []rtcp.Packet),
 
-		localTracks: map[transport.TrackID]localTrack{},
-		// remoteTracks: map[transport.TrackID]remoteTrack{},
+		localTracks: map[identifiers.TrackID]localTrack{},
+		// remoteTracks: map[identifiers.TrackID]remoteTrack{},
 
 		remoteTracksChannel: make(chan transport.TrackRemoteWithRTCPReader),
 	}
@@ -405,7 +406,7 @@ func (p *WebRTCTransport) RemoteTracksChannel() <-chan transport.TrackRemoteWith
 // 	return packet.MarshalSize(), nil
 // }
 
-func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
+func (p *WebRTCTransport) RemoveTrack(trackID identifiers.TrackID) error {
 	p.mu.Lock()
 
 	pta, ok := p.localTracks[trackID]
@@ -527,7 +528,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 // 	p.remoteTracks[rti.trackInfo.Track.UniqueID()] = rti
 // }
 
-// func (p *WebRTCTransport) removeRemoteTrack(trackID transport.TrackID) {
+// func (p *WebRTCTransport) removeRemoteTrack(trackID identifiers.TrackID) {
 // 	p.mu.Lock()
 // 	defer p.mu.Unlock()
 

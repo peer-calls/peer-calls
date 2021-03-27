@@ -5,7 +5,7 @@ package pubsub
 // 	ClientID string
 
 // 	// TrackID is the unique ID of a published track.
-// 	TrackID transport.TrackID
+// 	TrackID identifiers.TrackID
 // }
 
 // func (p clientTrack) String() string {

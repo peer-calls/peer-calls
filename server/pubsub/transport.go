@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/transport"
 )
 
@@ -10,7 +11,7 @@ type Transport interface {
 	ClientID() string
 
 	AddTrack(track transport.Track) (transport.TrackLocal, transport.RTCPReader, error)
-	RemoveTrack(trackID transport.TrackID) error
+	RemoveTrack(trackID identifiers.TrackID) error
 }
 
 // Assert that Transport is compatible with the transport.Transport.

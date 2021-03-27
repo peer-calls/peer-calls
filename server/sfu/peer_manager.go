@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pubsub"
@@ -25,7 +26,7 @@ type PeerManager struct {
 	// transports indexed by ClientID
 	transports map[string]transport.Transport
 
-	pliTimes map[transport.TrackID]time.Time
+	pliTimes map[identifiers.TrackID]time.Time
 
 	room string
 
@@ -41,7 +42,7 @@ func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler)
 
 		transports: map[string]transport.Transport{},
 
-		pliTimes: map[transport.TrackID]time.Time{},
+		pliTimes: map[identifiers.TrackID]time.Time{},
 
 		room: room,
 
@@ -404,7 +405,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 			"sub_client_id": params.SubClientID,
 		}
 
-		feedBitrateEstimate := func(trackID transport.TrackID, bitrate uint64) {
+		feedBitrateEstimate := func(trackID identifiers.TrackID, bitrate uint64) {
 			t.mu.Lock()
 
 			bitrateEstimator, ok := t.pubsub.BitrateEstimator(trackID)

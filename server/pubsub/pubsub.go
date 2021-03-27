@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -22,7 +23,7 @@ type PubSub struct {
 
 	// publishers is a map of publishers indexed by clientID of transport that
 	// published the track and the track SSRC.
-	publishers map[transport.TrackID]publisher
+	publishers map[identifiers.TrackID]publisher
 
 	// publishersByPubClientID is a map of a set of pubs that have been created by a
 	// particular transport (indexes by clientID).
@@ -41,7 +42,7 @@ type publisher struct {
 
 type subscriber struct {
 	transport         Transport
-	publishersByTrack map[transport.TrackID]publisher
+	publishersByTrack map[identifiers.TrackID]publisher
 }
 
 // New returns a new instance of PubSub.
@@ -52,7 +53,7 @@ func New(log logger.Logger) *PubSub {
 		log:                     log.WithNamespaceAppended("pubsub"),
 		eventsChan:              eventsChan,
 		events:                  newEvents(eventsChan, 0),
-		publishers:              map[transport.TrackID]publisher{},
+		publishers:              map[identifiers.TrackID]publisher{},
 		publishersByPubClientID: map[string]readerSet{},
 		subsBySubClientID:       map[string]subscriber{},
 	}
@@ -88,7 +89,7 @@ func (p *PubSub) Pub(pubClientID string, reader Reader) {
 }
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
-func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
+func (p *PubSub) Unpub(pubClientID string, trackID identifiers.TrackID) {
 	p.log.Trace("Unpub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  trackID,
@@ -115,7 +116,7 @@ func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
 }
 
 // Sub subscribes to a published track.
-func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Transport) (transport.RTCPReader, error) {
+func (p *PubSub) Sub(pubClientID string, trackID identifiers.TrackID, transport Transport) (transport.RTCPReader, error) {
 	p.log.Trace("Sub", logger.Ctx{
 		"client_id":     transport.ClientID(),
 		"track_id":      trackID,
@@ -161,7 +162,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 	if _, ok := p.subsBySubClientID[subClientID]; !ok {
 		p.subsBySubClientID[subClientID] = subscriber{
 			transport:         tr,
-			publishersByTrack: map[transport.TrackID]publisher{},
+			publishersByTrack: map[identifiers.TrackID]publisher{},
 		}
 	}
 
@@ -171,7 +172,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 }
 
 // Unsub unsubscribes from a published track.
-func (p *PubSub) Unsub(pubClientID string, trackID transport.TrackID, subClientID string) error {
+func (p *PubSub) Unsub(pubClientID string, trackID identifiers.TrackID, subClientID string) error {
 	p.log.Trace("Unsub", logger.Ctx{
 		"client_id":     subClientID,
 		"track_id":      trackID,
@@ -221,7 +222,7 @@ func (p *PubSub) unsub(subClientID string, pub publisher) error {
 }
 
 // BitrateEstimator returns the instance of BitrateEstimatro for a track.
-func (p *PubSub) BitrateEstimator(trackID transport.TrackID) (*BitrateEstimator, bool) {
+func (p *PubSub) BitrateEstimator(trackID identifiers.TrackID) (*BitrateEstimator, bool) {
 	pub, ok := p.publishers[trackID]
 
 	return pub.bitrateEstimator, ok
@@ -245,7 +246,7 @@ func (p *PubSub) Terminate(clientID string) {
 
 // Subscribers returns all subscribed subClientIDs to a specific clientID/track
 // pair.
-func (p *PubSub) Subscribers(pubClientID string, trackID transport.TrackID) []string {
+func (p *PubSub) Subscribers(pubClientID string, trackID identifiers.TrackID) []string {
 	var ret []string
 
 	if pub, ok := p.publishers[trackID]; ok {
@@ -268,7 +269,7 @@ type TrackProps struct {
 }
 
 // ClientIDByTrackID returns the clientID from a published unique trackID.
-func (p *PubSub) TrackPropsByTrackID(trackID transport.TrackID) (TrackProps, bool) {
+func (p *PubSub) TrackPropsByTrackID(trackID identifiers.TrackID) (TrackProps, bool) {
 	pub, ok := p.publishers[trackID]
 
 	if !ok {

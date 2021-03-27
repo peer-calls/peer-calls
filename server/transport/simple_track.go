@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 )
 
 type SimpleTrack struct {
@@ -13,7 +14,7 @@ type SimpleTrack struct {
 	mimeType string
 	userID   string
 
-	uniqueID TrackID
+	uniqueID identifiers.TrackID
 
 	codec Codec
 }
@@ -25,7 +26,7 @@ func NewSimpleTrack(id string, streamID string, codec Codec, userID string) Simp
 		id:       id,
 		streamID: streamID,
 		userID:   userID,
-		uniqueID: TrackID(fmt.Sprintf("%s:%s", streamID, id)),
+		uniqueID: identifiers.TrackID(fmt.Sprintf("%s:%s", streamID, id)),
 		codec:    codec,
 	}
 }
@@ -50,7 +51,7 @@ func (s SimpleTrack) MimeType() string {
 	return s.mimeType
 }
 
-func (s SimpleTrack) UniqueID() TrackID {
+func (s SimpleTrack) UniqueID() identifiers.TrackID {
 	return s.uniqueID
 }
 
@@ -76,7 +77,7 @@ func (s *SimpleTrack) UnmarshalJSON(data []byte) error {
 	s.streamID = j.StreamID
 	s.codec = j.Codec
 	s.userID = j.UserID
-	s.uniqueID = TrackID(fmt.Sprintf("%s:%s", j.StreamID, j.ID))
+	s.uniqueID = identifiers.TrackID(fmt.Sprintf("%s:%s", j.StreamID, j.ID))
 
 	return errors.Annotatef(err, "unmarshal simple track json")
 }

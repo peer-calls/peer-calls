@@ -1,7 +1,9 @@
 package transport
 
+import "github.com/peer-calls/peer-calls/server/identifiers"
+
 type Track interface {
-	UniqueID() TrackID
+	UniqueID() identifiers.TrackID
 	ID() string
 	StreamID() string
 	UserID() string
@@ -15,5 +17,3 @@ type Codec struct {
 	Channels    uint16 `json:"channels"`
 	SDPFmtpLine string `json:"sdpFmtpLine"`
 }
-
-type TrackID string
