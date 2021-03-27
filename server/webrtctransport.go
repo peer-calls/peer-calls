@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -15,9 +16,10 @@ import (
 )
 
 type WebRTCTransportFactory struct {
-	log        logger.Logger
-	iceServers []ICEServer
-	webrtcAPI  *webrtc.API
+	log           logger.Logger
+	iceServers    []ICEServer
+	webrtcAPI     *webrtc.API
+	codecRegistry *codecs.Registry
 }
 
 func NewWebRTCTransportFactory(
@@ -34,6 +36,7 @@ func NewWebRTCTransportFactory(
 
 	settingEngine := webrtc.SettingEngine{
 		LoggerFactory: pionlogger.NewFactory(log),
+		BufferFactory: nil,
 	}
 
 	networkTypes := NewNetworkTypes(log, sfuConfig.Protocols)
@@ -86,6 +89,8 @@ func NewWebRTCTransportFactory(
 		}
 	}
 
+	registry := codecs.NewRegistryDefault()
+
 	if len(allowedInterfaces) > 0 {
 		settingEngine.SetInterfaceFilter(func(iface string) bool {
 			_, ok := allowedInterfaces[iface]
@@ -96,7 +101,7 @@ func NewWebRTCTransportFactory(
 
 	var mediaEngine webrtc.MediaEngine
 
-	RegisterCodecs(&mediaEngine, sfuConfig.JitterBuffer)
+	RegisterCodecs(&mediaEngine, registry, sfuConfig.JitterBuffer)
 
 	interceptorRegistry := &interceptor.Registry{}
 
@@ -110,24 +115,48 @@ func NewWebRTCTransportFactory(
 		webrtc.WithInterceptorRegistry(interceptorRegistry),
 	)
 
-	return &WebRTCTransportFactory{log, iceServers, api}
+	return &WebRTCTransportFactory{log, iceServers, api, registry}
 }
 
-var videoRTCPFeedback = []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
+func RegisterCodecs(mediaEngine *webrtc.MediaEngine, registry *codecs.Registry, jitterBufferEnabled bool) {
+	// TODO handle errors gracefully.
 
-func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
-	err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{
-			MimeType:     webrtc.MimeTypeOpus,
-			ClockRate:    48000,
-			Channels:     2,
-			SDPFmtpLine:  "minptime=10;useinbandfec=1",
-			RTCPFeedback: nil,
-		},
-		PayloadType: 111,
-	}, webrtc.RTPCodecTypeAudio)
-	if err != nil {
-		panic(err) // TODO handle gracefully
+	for _, codec := range registry.Audio.CodecParameters {
+		err := mediaEngine.RegisterCodec(codec, webrtc.RTPCodecTypeAudio)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, codec := range registry.Video.CodecParameters {
+		err := mediaEngine.RegisterCodec(codec, webrtc.RTPCodecTypeVideo)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, ext := range registry.Audio.HeaderExtensions {
+		if err := mediaEngine.RegisterHeaderExtension(
+			webrtc.RTPHeaderExtensionCapability{
+				URI: ext.Parameter.URI,
+			},
+			webrtc.RTPCodecTypeAudio,
+			ext.AllowedDirections...,
+		); err != nil {
+			panic(err)
+		}
+	}
+
+	for _, ext := range registry.Video.HeaderExtensions {
+		if err := mediaEngine.RegisterHeaderExtension(
+			webrtc.RTPHeaderExtensionCapability{
+				URI: ext.Parameter.URI,
+			},
+			webrtc.RTPCodecTypeAudio,
+			ext.AllowedDirections...,
+		); err != nil {
+			panic(err)
+		}
 	}
 
 	// rtcpfb := []webrtc.RTCPFeedback{
@@ -156,22 +185,6 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, jitterBufferEnabled bool) {
 	// 		Parameter: "",
 	// 	})
 	// }
-
-	// videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
-	err = mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{
-			MimeType:     webrtc.MimeTypeVP8,
-			ClockRate:    90000,
-			Channels:     0,
-			SDPFmtpLine:  "",
-			RTCPFeedback: videoRTCPFeedback,
-		},
-		PayloadType: 96,
-	}, webrtc.RTPCodecTypeVideo)
-
-	if err != nil {
-		panic(err)
-	}
 }
 
 type WebRTCTransport struct {
@@ -185,6 +198,8 @@ type WebRTCTransport struct {
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
 	dataTransceiver *DataTransceiver
+
+	codecRegistry *codecs.Registry
 
 	remoteTracksChannel chan transport.TrackRemoteWithRTCPReader
 
@@ -218,11 +233,14 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(roomID, clientID string) (*We
 		return nil, errors.Annotate(err, "new peer connection")
 	}
 
-	return NewWebRTCTransport(f.log, roomID, clientID, true, peerConnection)
+	return NewWebRTCTransport(f.log, roomID, clientID, true, peerConnection, f.codecRegistry)
 }
 
 func NewWebRTCTransport(
-	log logger.Logger, roomID, clientID string, initiator bool, peerConnection *webrtc.PeerConnection,
+	log logger.Logger, roomID, clientID string,
+	initiator bool,
+	peerConnection *webrtc.PeerConnection,
+	codecRegistry *codecs.Registry,
 ) (*WebRTCTransport, error) {
 	log = log.WithNamespaceAppended("webrtc_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
@@ -283,6 +301,8 @@ func NewWebRTCTransport(
 		signaller:       signaller,
 		peerConnection:  peerConnection,
 		dataTransceiver: dataTransceiver,
+
+		codecRegistry: codecRegistry,
 
 		// trackEventsCh: make(chan transport.TrackEvent),
 		// rtpCh:         make(chan *rtp.Packet),
@@ -418,8 +438,10 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 
 	var rtcpFeedback []webrtc.RTCPFeedback
 
+	codecParameters, _ := p.codecRegistry.FindByMimeType(codec.MimeType)
+
 	if strings.HasPrefix(codec.MimeType, "video/") {
-		rtcpFeedback = videoRTCPFeedback
+		rtcpFeedback = codecParameters.RTCPFeedback
 	}
 
 	capability := webrtc.RTPCodecCapability{
@@ -431,7 +453,6 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 	}
 
 	track, err := webrtc.NewTrackLocalStaticRTP(capability, t.ID(), t.StreamID())
-
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "new track")
 	}
@@ -545,7 +566,6 @@ func (p *WebRTCTransport) LocalTracks() []transport.TrackWithMID {
 }
 
 func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-	// FIXME expose receiver. Interceptors do not run if receiver.ReadRTCP is not called.
 	rtpCodecParameters := track.Codec()
 
 	codec := transport.Codec{

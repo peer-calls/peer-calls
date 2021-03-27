@@ -16,7 +16,6 @@ import (
 type trackLocal struct {
 	track       transport.Track
 	writer      io.Writer
-	ssrc        webrtc.SSRC
 	interceptor interceptor.Interceptor
 
 	subscribers int64
@@ -30,13 +29,15 @@ func newTrackLocal(
 	track transport.Track,
 	writer io.Writer,
 	ssrc webrtc.SSRC,
+	payloadType webrtc.PayloadType,
 	codec transport.Codec,
 	ceptor interceptor.Interceptor,
+	rtpHeaderExtensions []interceptor.RTPHeaderExtension,
+	rtcpFeedback []interceptor.RTCPFeedback,
 ) *trackLocal {
 	t := &trackLocal{
 		track:       track,
 		writer:      writer,
-		ssrc:        ssrc,
 		interceptor: ceptor,
 		subscribers: 0,
 		closed:      &atomicInternal.Bool{},
@@ -46,13 +47,13 @@ func newTrackLocal(
 		ID:                  "",
 		Attributes:          nil,
 		SSRC:                uint32(ssrc),
-		PayloadType:         0,   // FIXME
-		RTPHeaderExtensions: nil, // FIXME
+		PayloadType:         uint8(payloadType),
+		RTPHeaderExtensions: rtpHeaderExtensions,
 		MimeType:            codec.MimeType,
 		ClockRate:           codec.ClockRate,
 		Channels:            codec.Channels,
 		SDPFmtpLine:         codec.SDPFmtpLine,
-		RTCPFeedback:        nil, // FIXME
+		RTCPFeedback:        rtcpFeedback,
 	}
 
 	t.interceptorRTPWriter = ceptor.BindLocalStream(t.streamInfo, interceptor.RTPWriterFunc(t.write))
@@ -85,11 +86,13 @@ func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
 	return errors.Annotatef(err, "write RTP")
 }
 
+func (t *trackLocal) ssrc() webrtc.SSRC {
+	return webrtc.SSRC(t.streamInfo.SSRC)
+}
+
 func (t *trackLocal) write(header *rtp.Header, payload []byte, a interceptor.Attributes) (int, error) {
-	header.SSRC = uint32(t.ssrc)
-	// TODO I might be wrong but I don't think we need to worry about
-	// payload types here, because that will be sent in the metadata,
-	// and will eventually be overwritten by pion/webrtc.
+	header.SSRC = uint32(t.streamInfo.SSRC)
+	header.PayloadType = uint8(t.streamInfo.PayloadType)
 
 	packet := &rtp.Packet{
 		Header:  *header,

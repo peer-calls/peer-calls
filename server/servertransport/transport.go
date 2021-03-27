@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -53,16 +54,21 @@ type Transport struct {
 }
 
 type Params struct {
-	Log          logger.Logger
-	MediaConn    io.ReadWriteCloser
-	DataConn     io.ReadWriteCloser
-	MetadataConn io.ReadWriteCloser
-	Interceptor  interceptor.Interceptor
+	Log           logger.Logger
+	MediaConn     io.ReadWriteCloser
+	DataConn      io.ReadWriteCloser
+	MetadataConn  io.ReadWriteCloser
+	Interceptor   interceptor.Interceptor
+	CodecRegistry *codecs.Registry
 }
 
 func New(params Params) *Transport {
 	if params.Interceptor == nil {
 		params.Interceptor = &interceptor.NoOp{}
+	}
+
+	if params.CodecRegistry == nil {
+		params.CodecRegistry = codecs.NewRegistryDefault()
 	}
 
 	clientID := fmt.Sprintf("node:" + uuid.New())
@@ -79,11 +85,12 @@ func New(params Params) *Transport {
 	})
 
 	metadataTransportParams := MetadataTransportParams{
-		Log:         log,
-		Conn:        params.MetadataConn,
-		MediaStream: mediaStream,
-		ClientID:    clientID,
-		Interceptor: params.Interceptor,
+		Log:           log,
+		Conn:          params.MetadataConn,
+		MediaStream:   mediaStream,
+		ClientID:      clientID,
+		Interceptor:   params.Interceptor,
+		CodecRegistry: params.CodecRegistry,
 	}
 
 	dataTransportParams := DataTransportParams{

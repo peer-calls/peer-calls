@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
@@ -40,11 +41,12 @@ type MetadataTransport struct {
 }
 
 type MetadataTransportParams struct {
-	Log         logger.Logger
-	Conn        io.ReadWriteCloser
-	MediaStream *MediaStream
-	ClientID    string
-	Interceptor interceptor.Interceptor
+	Log           logger.Logger
+	Conn          io.ReadWriteCloser
+	MediaStream   *MediaStream
+	ClientID      string
+	Interceptor   interceptor.Interceptor
+	CodecRegistry *codecs.Registry
 }
 
 type trackLocalWithRTCPReader struct {
@@ -322,8 +324,52 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 	defer t.mu.Unlock()
 
 	ssrc := webrtc.SSRC(RandUint32())
+	codec := track.Codec()
 
-	localTrack := newTrackLocal(track, t.params.MediaStream.Writer(), ssrc, track.Codec(), t.params.Interceptor)
+	codecParameters, ok := t.params.CodecRegistry.FindByMimeType(codec.MimeType)
+	if !ok {
+		return nil, nil, errors.Errorf("unsupported mimeType: %s", codec.MimeType)
+	}
+
+	var rtcpFeedback []interceptor.RTCPFeedback
+
+	if codecParameters.RTCPFeedback != nil {
+		rtcpFeedback := make([]interceptor.RTCPFeedback, len(codecParameters.RTCPFeedback))
+
+		for i, fb := range codecParameters.RTCPFeedback {
+			rtcpFeedback[i] = interceptor.RTCPFeedback{
+				Type:      fb.Type,
+				Parameter: fb.Parameter,
+			}
+		}
+	}
+
+	headerExtensions := t.params.CodecRegistry.RTPHeaderExtensionsForMimeType(codec.MimeType)
+
+	var rtpHeaderExtensions []interceptor.RTPHeaderExtension
+
+	if headerExtensions != nil {
+		rtpHeaderExtensions = make([]interceptor.RTPHeaderExtension, len(headerExtensions))
+
+		for i, h := range headerExtensions {
+			rtpHeaderExtensions[i] = interceptor.RTPHeaderExtension{
+				ID:  h.Parameter.ID,
+				URI: h.Parameter.URI,
+			}
+		}
+	}
+
+	// FIXME Find parameters by mime type.
+	// TODO I'm not sure if this is enough for simulcast.
+	localTrack := newTrackLocal(
+		track, t.params.MediaStream.Writer(),
+		ssrc,
+		codecParameters.PayloadType,
+		track.Codec(),
+		t.params.Interceptor,
+		rtpHeaderExtensions,
+		rtcpFeedback,
+	)
 
 	rtcpBuffer := t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc)
 	sender := newRTCPReader(rtcpBuffer, t.params.Interceptor)
@@ -366,7 +412,7 @@ func (t *MetadataTransport) sendMetadataEvent(event metadataEvent) error {
 func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	t.mu.Lock()
 
-	localTrack, ok := t.localTracks[trackID]
+	ltwr, ok := t.localTracks[trackID]
 	delete(t.localTracks, trackID)
 
 	t.mu.Unlock()
@@ -376,15 +422,16 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	}
 
 	// Ensure writing stops and interceptors are released.
-	localTrack.rtcpReader.Close()
-	localTrack.trackLocal.Close()
+	ltwr.rtcpReader.Close()
+	ltwr.trackLocal.Close()
+	ssrc := ltwr.trackLocal.ssrc()
 
 	// Ensure the RTCP buffer is closed. This will close the sender.
-	t.params.MediaStream.RemoveBuffer(packetio.RTCPBufferPacket, localTrack.trackLocal.ssrc)
+	t.params.MediaStream.RemoveBuffer(packetio.RTCPBufferPacket, ssrc)
 
 	event := trackEvent{
-		Track:    localTrack.trackLocal.Track().SimpleTrack(),
-		SSRC:     localTrack.trackLocal.ssrc,
+		Track:    ltwr.trackLocal.Track().SimpleTrack(),
+		SSRC:     ssrc,
 		Type:     transport.TrackEventTypeRemove,
 		ClientID: t.params.ClientID,
 	}

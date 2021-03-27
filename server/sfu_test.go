@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
@@ -161,7 +162,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	require.Nil(t, wsClient.Err())
 
 	var mediaEngine webrtc.MediaEngine
-	server.RegisterCodecs(&mediaEngine, false)
+	server.RegisterCodecs(&mediaEngine, codecs.NewRegistryDefault(), false)
 
 	log := test.NewLogger()
 

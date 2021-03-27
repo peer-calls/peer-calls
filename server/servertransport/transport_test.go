@@ -110,19 +110,21 @@ func createTransportPairs(t *testing.T) (transport.Transport, transport.Transpor
 	})
 
 	params1 := Params{
-		Log:          log,
-		MediaConn:    media1,
-		DataConn:     data1,
-		MetadataConn: metadata1,
-		Interceptor:  nil,
+		Log:           log,
+		MediaConn:     media1,
+		DataConn:      data1,
+		MetadataConn:  metadata1,
+		Interceptor:   nil,
+		CodecRegistry: nil,
 	}
 
 	params2 := Params{
-		Log:          log,
-		MediaConn:    media2,
-		DataConn:     data2,
-		MetadataConn: metadata2,
-		Interceptor:  nil,
+		Log:           log,
+		MediaConn:     media2,
+		DataConn:      data2,
+		MetadataConn:  metadata2,
+		Interceptor:   nil,
+		CodecRegistry: nil,
 	}
 
 	t1 := New(params1)
@@ -174,7 +176,7 @@ func TestTransport_AddTrack(t *testing.T) {
 
 	packetizer := rtp.NewPacketizer(
 		ReceiveMTU,
-		111,
+		0,
 		0,
 		&codecs.OpusPayloader{},
 		rtp.NewRandomSequencer(),
@@ -204,6 +206,7 @@ func TestTransport_AddTrack(t *testing.T) {
 	_, err = localPacket.Marshal()
 	assert.NoError(t, err, "marashal local packet")
 
+	assert.Equal(t, uint8(111), localPacket.PayloadType, "expected audio/opus payload type 111")
 	assert.Equal(t, localPacket, remotePacket, "expected packets to be equal")
 
 	cancel()
