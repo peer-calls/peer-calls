@@ -104,6 +104,11 @@ func (t *TrackReader) Sub(subClientID string, trackLocal transport.TrackLocal) e
 
 	t.subs[subClientID] = trackLocal
 
+	// FIXME do not block with network IO.
+	if sub, ok := t.trackRemote.(subscribable); ok {
+		_ = sub.Subscribe()
+	}
+
 	return nil
 }
 
@@ -116,6 +121,11 @@ func (t *TrackReader) Unsub(subClientID string) error {
 		err = errors.Errorf("track not found: %v", subClientID)
 	} else {
 		delete(t.subs, subClientID)
+
+		// FIXME do not block with network IO.
+		if unsub, ok := t.trackRemote.(unsubscribable); ok {
+			_ = unsub.Unsubscribe()
+		}
 	}
 
 	t.mu.Unlock()
@@ -145,4 +155,12 @@ func (t *TrackReader) SSRC() webrtc.SSRC {
 
 func (t *TrackReader) RID() string {
 	return t.trackRemote.RID()
+}
+
+type subscribable interface {
+	Subscribe() error
+}
+
+type unsubscribable interface {
+	Unsubscribe() error
 }

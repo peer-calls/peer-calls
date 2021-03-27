@@ -23,6 +23,7 @@ type Transport interface {
 	RemoteTracksChannel() <-chan TrackRemoteWithRTCPReader
 
 	LocalTracks() []TrackWithMID
+
 	AddTrack(Track) (TrackLocal, RTCPReader, error)
 	RemoveTrack(TrackID) error
 

@@ -24,6 +24,7 @@ type PeerManager struct {
 
 	// webrtcTransports indexed by ClientID
 	webrtcTransports map[string]transport.Transport
+	// serverTransports indexed by ClientID. TODO unify these two.
 	serverTransports map[string]transport.Transport
 
 	pliTimes map[transport.TrackID]time.Time
@@ -423,14 +424,24 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.wg.Done()
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	switch tr.Type() {
 	case transport.TypeServer:
-		t.serverTransports[tr.ClientID()] = tr
+		t.mu.Lock()
 
-		// FIXME pion3 upgrade let the servers know of the new tracks.
+		t.serverTransports[tr.ClientID()] = tr
+		// pubTracks := t.pubsub.Tracks()
+
+		t.mu.Unlock()
+
+		// // Let the servers know of the new tracks.
+		// for _, pubTrack := range pubTracks {
+		// 	// if err := pubTransport.AddTrack(track); err != nil {
+		// 	//   log.Error("add track", errors.Trace(err), logger.Ctx{
+		// 	//     "pub_client_id": pubTransport.ClientID(),
+		// 	//     "sub_client_id": tr.ClientID(),
+		// 	//     "track_id":      trackInfo.Track.UniqueID(),
+		// 	//   })
+		// }
 		// for _, pubTransport := range t.webrtcTransports {
 		// 	for _, trackInfo := range pubTransport.RemoteTracks() {
 		// 		// FIXME should this be tr.AddTrack???
@@ -445,7 +456,11 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		// }
 
 	case transport.TypeWebRTC:
+		t.mu.Lock()
+
 		t.webrtcTransports[tr.ClientID()] = tr
+
+		t.mu.Unlock()
 	}
 
 	return pubTrackEventsCh, nil
@@ -486,22 +501,6 @@ func (t *PeerManager) Sub(params SubParams) error {
 
 			t.mu.Unlock()
 		}
-
-		// getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
-		// 	t.mu.Lock()
-
-		// 	props, ok := t.pubsub.TrackPropsByTrackID(trackID)
-
-		// 	t.mu.Unlock()
-
-		// 	return props, ok
-		// }
-
-		// getOrSetLastPLITime := func(trackID transport.TrackID) bool {
-		// t.mu.Lock()
-
-		//   t.mu.Unlock()
-		// }
 
 		forwardPLI := func(packet *rtcp.PictureLossIndication) error {
 			now := time.Now()

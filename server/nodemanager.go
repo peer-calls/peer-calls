@@ -2,12 +2,15 @@ package server
 
 import (
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/clock"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/servertransport"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/udptransport2"
 )
 
@@ -164,12 +167,36 @@ func (nm *NodeManager) handleTransport(transport *udptransport2.Transport) error
 			//
 			// The question is: how should StreamTransport handle/receive
 			// subscription requests?
-			nm.params.Log.Info("Pub Track Event", logger.Ctx{
+
+			logCtx := logger.Ctx{
 				"client_id":        pubTrackEvent.PubTrack.ClientID,
 				"user_id":          pubTrackEvent.PubTrack.UserID,
 				"track_id":         pubTrackEvent.PubTrack.TrackID,
 				"track_event_type": pubTrackEvent.Type,
+			}
+
+			if strings.HasPrefix(pubTrackEvent.PubTrack.ClientID, servertransport.ServerNodePrefix) {
+				// Do not forward tracks from other server transports to this node;
+				// only forward tracks from WebRTC connections connected directly to
+				// this server.
+				nm.params.Log.Info("Skipping track from other serverr transport", logCtx)
+
+				continue
+			}
+
+			err := nm.params.TracksManager.Sub(sfu.SubParams{
+				Room:        streamID,
+				PubClientID: pubTrackEvent.PubTrack.ClientID,
+				TrackID:     pubTrackEvent.PubTrack.TrackID,
+				SubClientID: transport.ClientID(),
 			})
+			if err != nil {
+				nm.params.Log.Error("Failed to subscribe server transport to pub track event", errors.Trace(err), logCtx)
+
+				continue
+			}
+
+			nm.params.Log.Info("Subscribed server transport to pub track event", logCtx)
 		}
 	}()
 

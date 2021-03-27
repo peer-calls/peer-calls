@@ -14,7 +14,12 @@ import (
 	"github.com/pion/interceptor"
 )
 
-const ReceiveMTU int = 8192
+const (
+	// TODO reduce this.
+	ReceiveMTU int = 8192
+
+	ServerNodePrefix = "node:"
+)
 
 var (
 	ErrNoData        = errors.Errorf("cannot handle empty buffer")
@@ -71,7 +76,7 @@ func New(params Params) *Transport {
 		params.CodecRegistry = codecs.NewRegistryDefault()
 	}
 
-	clientID := fmt.Sprintf("node:" + uuid.New())
+	clientID := fmt.Sprintf("%s%s", ServerNodePrefix, uuid.New())
 	log := params.Log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
 	})
