@@ -164,8 +164,9 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 	go func() {
 		defer t.wg.Done()
 
-		for remoteTrack := range tr.RemoteTracksChannel() {
-			remoteTrack := remoteTrack
+		for remoteTrackWithReceiver := range tr.RemoteTracksChannel() {
+			remoteTrack := remoteTrackWithReceiver.TrackRemote
+			rtcpReader := remoteTrackWithReceiver.RTCPReader
 			trackID := remoteTrack.Track().UniqueID()
 
 			done := make(chan struct{})
@@ -179,6 +180,24 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 				t.mu.Unlock()
 			}))
+
+			t.wg.Add(1)
+
+			go func() {
+				defer t.wg.Done()
+
+				for {
+					// ReadRTCP ensures interceptors will do their work.
+					_, _, err := rtcpReader.ReadRTCP()
+					if err != nil {
+						if !multierr.Is(err, io.EOF) {
+							t.log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
+						}
+
+						return
+					}
+				}
+			}()
 
 			t.wg.Add(1)
 
@@ -435,7 +454,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
 
-	sender, err := t.pubsub.Sub(params.PubClientID, params.TrackID, tr)
+	rtcpReader, err := t.pubsub.Sub(params.PubClientID, params.TrackID, tr)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -514,7 +533,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 		}
 
 		for {
-			packets, _, err := sender.ReadRTCP()
+			packets, _, err := rtcpReader.ReadRTCP()
 			if err != nil {
 				if !multierr.Is(err, io.EOF) {
 					t.log.Error("Read RTCP for sender", errors.Trace(err), logCtx)

@@ -186,7 +186,7 @@ type WebRTCTransport struct {
 	signaller       *Signaller
 	dataTransceiver *DataTransceiver
 
-	remoteTracksChannel chan transport.TrackRemote
+	remoteTracksChannel chan transport.TrackRemoteWithRTCPReader
 
 	localTracks map[transport.TrackID]localTrack
 }
@@ -291,7 +291,7 @@ func NewWebRTCTransport(
 		localTracks: map[transport.TrackID]localTrack{},
 		// remoteTracks: map[transport.TrackID]remoteTrack{},
 
-		remoteTracksChannel: make(chan transport.TrackRemote),
+		remoteTracksChannel: make(chan transport.TrackRemoteWithRTCPReader),
 	}
 	peerConnection.OnTrack(transport.handleTrack)
 
@@ -352,7 +352,7 @@ func (p *WebRTCTransport) Done() <-chan struct{} {
 	return p.signaller.Done()
 }
 
-func (p *WebRTCTransport) RemoteTracksChannel() <-chan transport.TrackRemote {
+func (p *WebRTCTransport) RemoteTracksChannel() <-chan transport.TrackRemoteWithRTCPReader {
 	return p.remoteTracksChannel
 }
 
@@ -413,7 +413,7 @@ func (p *WebRTCTransport) RemoveTrack(trackID transport.TrackID) error {
 
 var _ transport.Transport = &WebRTCTransport{}
 
-func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, transport.Sender, error) {
+func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, transport.RTCPReader, error) {
 	codec := t.Codec()
 
 	var rtcpFeedback []webrtc.RTCPFeedback
@@ -560,8 +560,13 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.clientID),
 	}
 
+	trwr := transport.TrackRemoteWithRTCPReader{
+		TrackRemote: t,
+		RTCPReader:  receiver,
+	}
+
 	select {
-	case p.remoteTracksChannel <- t:
+	case p.remoteTracksChannel <- trwr:
 	case <-p.signaller.Done():
 	}
 

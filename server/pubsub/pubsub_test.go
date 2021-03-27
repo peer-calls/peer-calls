@@ -457,14 +457,14 @@ var (
 	errTrackNotFound     = errors.Errorf("track not found")
 )
 
-func (t *transportMock) AddTrack(track transport.Track) (transport.TrackLocal, transport.Sender, error) {
+func (t *transportMock) AddTrack(track transport.Track) (transport.TrackLocal, transport.RTCPReader, error) {
 	if _, ok := t.addedTracks[track.UniqueID()]; ok {
 		return nil, nil, errors.Annotatef(errTrackAlreadyAdded, "%s", track.UniqueID())
 	}
 
 	t.addedTracks[track.UniqueID()] = track
 
-	return trackLocalMock{t.clientID, track}, senderMock{}, nil
+	return trackLocalMock{t.clientID, track}, rtcpReaderMock{}, nil
 }
 
 func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
@@ -479,8 +479,8 @@ func (t *transportMock) RemoveTrack(trackID transport.TrackID) error {
 
 var _ pubsub.Transport = &transportMock{}
 
-type senderMock struct {
-	transport.Sender
+type rtcpReaderMock struct {
+	transport.RTCPReader
 }
 
 type trackLocalMock struct {

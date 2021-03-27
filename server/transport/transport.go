@@ -20,10 +20,10 @@ type Transport interface {
 
 	DataTransport
 
-	RemoteTracksChannel() <-chan TrackRemote
+	RemoteTracksChannel() <-chan TrackRemoteWithRTCPReader
 
 	LocalTracks() []TrackWithMID
-	AddTrack(Track) (TrackLocal, Sender, error)
+	AddTrack(Track) (TrackLocal, RTCPReader, error)
 	RemoveTrack(TrackID) error
 
 	RTCPWriter
@@ -53,8 +53,13 @@ type TrackRemote interface {
 	RID() string
 }
 
-type Sender interface {
+type RTCPReader interface {
 	ReadRTCP() ([]rtcp.Packet, interceptor.Attributes, error)
+}
+
+type TrackRemoteWithRTCPReader struct {
+	TrackRemote TrackRemote
+	RTCPReader  RTCPReader
 }
 
 type RTCPWriter interface {

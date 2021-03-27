@@ -21,7 +21,12 @@ type MediaStream struct {
 
 	interceptorRTCPWriter interceptor.RTCPWriter
 
-	rtpBuffers  map[webrtc.SSRC]*packetio.Buffer
+	// rtpBuffers will contain buffered RTP packets from the remote side before
+	// they are read.
+	rtpBuffers map[webrtc.SSRC]*packetio.Buffer
+	// rtcpBuffers will contain buffered RTCP packets for both the tracks that
+	// are being received, and for the tracks being sent. Therefore the  SSRCs
+	// for all tracks in a session need to be different.
 	rtcpBuffers map[webrtc.SSRC]*packetio.Buffer
 
 	mu sync.Mutex

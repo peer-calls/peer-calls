@@ -115,7 +115,7 @@ func (p *PubSub) Unpub(pubClientID string, trackID transport.TrackID) {
 }
 
 // Sub subscribes to a published track.
-func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Transport) (transport.Sender, error) {
+func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Transport) (transport.RTCPReader, error) {
 	p.log.Trace("Sub", logger.Ctx{
 		"client_id":     transport.ClientID(),
 		"track_id":      trackID,
@@ -141,12 +141,12 @@ func (p *PubSub) Sub(pubClientID string, trackID transport.TrackID, transport Tr
 	return sender, nil
 }
 
-func (p *PubSub) sub(pub publisher, tr Transport) (transport.Sender, error) {
+func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) {
 	subClientID := tr.ClientID()
 
 	track := pub.reader.Track()
 
-	trackLocal, sender, err := tr.AddTrack(track)
+	trackLocal, rtcpReader, err := tr.AddTrack(track)
 	if err != nil {
 		return nil, errors.Annotatef(err, "adding track to transport")
 	}
@@ -167,7 +167,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.Sender, error) {
 
 	p.subsBySubClientID[subClientID].publishersByTrack[track.UniqueID()] = pub
 
-	return sender, nil
+	return rtcpReader, nil
 }
 
 // Unsub unsubscribes from a published track.

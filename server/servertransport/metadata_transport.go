@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/atomic"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
@@ -26,8 +25,8 @@ func RandUint32() uint32 {
 type MetadataTransport struct {
 	params MetadataTransportParams
 
-	localTracks  map[transport.TrackID]*trackLocalWithSender
-	remoteTracks map[transport.TrackID]*trackRemote
+	localTracks  map[transport.TrackID]*trackLocalWithRTCPReader
+	remoteTracks map[transport.TrackID]*trackRemoteWithRTCPReader
 	mu           *sync.RWMutex
 
 	// trackEventsCh chan transport.TrackEvent
@@ -37,7 +36,7 @@ type MetadataTransport struct {
 	writeLoopClosed chan struct{}
 	readLoopClosed  chan struct{}
 
-	remoteTracksChannel chan transport.TrackRemote
+	remoteTracksChannel chan transport.TrackRemoteWithRTCPReader
 }
 
 type MetadataTransportParams struct {
@@ -48,9 +47,14 @@ type MetadataTransportParams struct {
 	Interceptor interceptor.Interceptor
 }
 
-type trackLocalWithSender struct {
+type trackLocalWithRTCPReader struct {
 	trackLocal *trackLocal
-	sender     *sender
+	rtcpReader *rtcpReader
+}
+
+type trackRemoteWithRTCPReader struct {
+	trackRemote *trackRemote
+	rtcpReader  *rtcpReader
 }
 
 func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
@@ -59,8 +63,8 @@ func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
 	t := &MetadataTransport{
 		params: params,
 
-		localTracks:  map[transport.TrackID]*trackLocalWithSender{},
-		remoteTracks: map[transport.TrackID]*trackRemote{},
+		localTracks:  map[transport.TrackID]*trackLocalWithRTCPReader{},
+		remoteTracks: map[transport.TrackID]*trackRemoteWithRTCPReader{},
 		mu:           &sync.RWMutex{},
 
 		// trackEventsCh: make(chan transport.TrackEvent),
@@ -70,7 +74,7 @@ func NewMetadataTransport(params MetadataTransportParams) *MetadataTransport {
 		writeLoopClosed: make(chan struct{}),
 		readLoopClosed:  make(chan struct{}),
 
-		remoteTracksChannel: make(chan transport.TrackRemote),
+		remoteTracksChannel: make(chan transport.TrackRemoteWithRTCPReader),
 	}
 
 	t.params.Log.Trace("NewMetadataTransport", nil)
@@ -160,14 +164,14 @@ func (t *MetadataTransport) startReadLoop() {
 
 				t.mu.Lock()
 
-				var remoteTrack *trackRemote
+				logCtx := logger.Ctx{
+					"ssrc":      trackEv.SSRC,
+					"track_id":  trackID,
+					"client_id": t.params.ClientID,
+				}
 
 				subscribe := func() error {
-					t.params.Log.Info("Sub", logger.Ctx{
-						"ssrc":      trackEv.SSRC,
-						"track_id":  trackID,
-						"client_id": t.params.ClientID,
-					})
+					t.params.Log.Info("Sub", logCtx)
 
 					err := t.sendTrackEvent(trackEvent{
 						ClientID: t.params.ClientID,
@@ -180,11 +184,7 @@ func (t *MetadataTransport) startReadLoop() {
 				}
 
 				unsubscribe := func() error {
-					t.params.Log.Info("Unsub", logger.Ctx{
-						"ssrc":      trackEv.SSRC,
-						"track_id":  trackID,
-						"client_id": t.params.ClientID,
-					})
+					t.params.Log.Info("Unsub", logCtx)
 
 					err := t.sendTrackEvent(trackEvent{
 						ClientID: t.params.ClientID,
@@ -196,8 +196,14 @@ func (t *MetadataTransport) startReadLoop() {
 					return errors.Trace(err)
 				}
 
-				_, ok := t.remoteTracks[trackID]
-				if !ok {
+				var (
+					remoteTrack *trackRemote
+					rtcpReader  *rtcpReader
+				)
+
+				if _, ok := t.remoteTracks[trackID]; ok {
+					t.params.Log.Warn("Track already added", logCtx)
+				} else {
 					remoteTrack = newTrackRemote(
 						track,
 						trackEv.SSRC,
@@ -209,20 +215,34 @@ func (t *MetadataTransport) startReadLoop() {
 						unsubscribe,
 					)
 
-					t.remoteTracks[trackID] = remoteTrack
+					rtcpReader = newRTCPReader(
+						t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, trackEv.SSRC),
+						t.params.Interceptor,
+					)
+
+					t.remoteTracks[trackID] = &trackRemoteWithRTCPReader{
+						trackRemote: remoteTrack,
+						rtcpReader:  rtcpReader,
+					}
 				}
 
 				t.mu.Unlock()
 
 				if remoteTrack != nil {
+					trwr := transport.TrackRemoteWithRTCPReader{
+						TrackRemote: remoteTrack,
+						RTCPReader:  rtcpReader,
+					}
+
 					// TODO potential deadlock.
-					t.remoteTracksChannel <- remoteTrack
+					t.remoteTracksChannel <- trwr
 				}
 			case transport.TrackEventTypeRemove:
 				t.mu.Lock()
 
-				remoteTrack, ok := t.remoteTracks[trackID]
+				trwr, ok := t.remoteTracks[trackID]
 				if ok {
+					remoteTrack := trwr.trackRemote
 					t.params.MediaStream.RemoveBuffer(packetio.RTPBufferPacket, remoteTrack.SSRC())
 					delete(t.remoteTracks, trackID)
 					remoteTrack.Close()
@@ -259,7 +279,7 @@ func (t *MetadataTransport) startReadLoop() {
 	}
 }
 
-func (t *MetadataTransport) RemoteTracksChannel() <-chan transport.TrackRemote {
+func (t *MetadataTransport) RemoteTracksChannel() <-chan transport.TrackRemoteWithRTCPReader {
 	return t.remoteTracksChannel
 }
 
@@ -297,22 +317,20 @@ func (t *MetadataTransport) LocalTracks() []transport.TrackWithMID {
 // 	return remoteTracks
 // }
 
-func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLocal, transport.Sender, error) {
+func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLocal, transport.RTCPReader, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	ssrc := webrtc.SSRC(RandUint32())
 
-	closed := &atomic.Bool{}
-
 	localTrack := newTrackLocal(track, t.params.MediaStream.Writer(), ssrc, track.Codec(), t.params.Interceptor)
 
 	rtcpBuffer := t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc)
-	sender := newSender(rtcpBuffer, t.params.Interceptor, closed)
+	sender := newRTCPReader(rtcpBuffer, t.params.Interceptor)
 
-	t.localTracks[track.UniqueID()] = &trackLocalWithSender{
+	t.localTracks[track.UniqueID()] = &trackLocalWithRTCPReader{
 		trackLocal: localTrack,
-		sender:     sender,
+		rtcpReader: sender,
 	}
 
 	event := trackEvent{
@@ -358,7 +376,7 @@ func (t *MetadataTransport) RemoveTrack(trackID transport.TrackID) error {
 	}
 
 	// Ensure writing stops and interceptors are released.
-	localTrack.sender.Close()
+	localTrack.rtcpReader.Close()
 	localTrack.trackLocal.Close()
 
 	// Ensure the RTCP buffer is closed. This will close the sender.

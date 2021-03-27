@@ -20,10 +20,8 @@ import (
 )
 
 func newUDPPair(index int) (*net.UDPConn, *net.UDPConn) {
-	portNumber := 10000 + 2*index
-
-	port1 := int(portNumber)
-	port2 := int(portNumber + 1)
+	port1 := 10000 + 2*index
+	port2 := port1 + 1
 
 	conn1 := newUDPServer(port1, port2)
 	conn2 := newUDPClient(port2, conn1.LocalAddr())
@@ -116,6 +114,7 @@ func createTransportPairs(t *testing.T) (transport.Transport, transport.Transpor
 		MediaConn:    media1,
 		DataConn:     data1,
 		MetadataConn: metadata1,
+		Interceptor:  nil,
 	}
 
 	params2 := Params{
@@ -123,6 +122,7 @@ func createTransportPairs(t *testing.T) (transport.Transport, transport.Transpor
 		MediaConn:    media2,
 		DataConn:     data2,
 		MetadataConn: metadata2,
+		Interceptor:  nil,
 	}
 
 	t1 := New(params1)
@@ -159,14 +159,16 @@ func TestTransport_AddTrack(t *testing.T) {
 
 	_ = sender
 
-	var remoteTrack transport.TrackRemote
+	var trwr transport.TrackRemoteWithRTCPReader
 
 	select {
-	case remoteTrack = <-t2.RemoteTracksChannel():
-		assert.Equal(t, track, remoteTrack.Track(), "expected track details to be equal")
+	case trwr = <-t2.RemoteTracksChannel():
+		assert.Equal(t, track, trwr.TrackRemote.Track(), "expected track details to be equal")
 	case <-time.After(time.Second):
 		require.FailNow(t, "timed out waiting for remote track")
 	}
+
+	remoteTrack := trwr.TrackRemote
 
 	log.Info("Got remote track, subscribing", nil)
 
