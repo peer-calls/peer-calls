@@ -75,13 +75,13 @@ func (t *trackLocal) Write(b []byte) (int, error) {
 		return 0, errors.Annotatef(err, "write unmarshal RTP")
 	}
 
-	i, err := t.write(&packet.Header, packet.Payload, interceptor.Attributes{})
+	i, err := t.write(&packet.Header, packet.Payload, t.streamInfo.Attributes)
 
 	return i, errors.Trace(err)
 }
 
 func (t *trackLocal) WriteRTP(packet *rtp.Packet) error {
-	_, err := t.write(&packet.Header, packet.Payload, interceptor.Attributes{})
+	_, err := t.write(&packet.Header, packet.Payload, t.streamInfo.Attributes)
 
 	return errors.Annotatef(err, "write RTP")
 }

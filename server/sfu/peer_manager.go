@@ -4,7 +4,6 @@ import (
 	"io"
 	"strings"
 	"sync"
-
 	"time"
 
 	"github.com/juju/errors"
@@ -27,6 +26,8 @@ type PeerManager struct {
 	webrtcTransports map[string]transport.Transport
 	serverTransports map[string]transport.Transport
 
+	pliTimes map[transport.TrackID]time.Time
+
 	room string
 
 	// // pubsub keeps track of published tracks and its subscribers.
@@ -35,11 +36,16 @@ type PeerManager struct {
 
 func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler) *PeerManager {
 	return &PeerManager{
-		log:              log.WithNamespaceAppended("room_peers_manager"),
+		log: log.WithNamespaceAppended("room_peers_manager"),
+
+		jitterHandler: jitterHandler,
+
 		webrtcTransports: map[string]transport.Transport{},
 		serverTransports: map[string]transport.Transport{},
-		jitterHandler:    jitterHandler,
-		room:             room,
+
+		pliTimes: map[transport.TrackID]time.Time{},
+
+		room: room,
 
 		pubsub: pubsub.New(log),
 	}
@@ -481,55 +487,83 @@ func (t *PeerManager) Sub(params SubParams) error {
 			t.mu.Unlock()
 		}
 
-		getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
+		// getTrackProps := func(trackID transport.TrackID) (pubsub.TrackProps, bool) {
+		// 	t.mu.Lock()
+
+		// 	props, ok := t.pubsub.TrackPropsByTrackID(trackID)
+
+		// 	t.mu.Unlock()
+
+		// 	return props, ok
+		// }
+
+		// getOrSetLastPLITime := func(trackID transport.TrackID) bool {
+		// t.mu.Lock()
+
+		//   t.mu.Unlock()
+		// }
+
+		forwardPLI := func(packet *rtcp.PictureLossIndication) error {
+			now := time.Now()
+
 			t.mu.Lock()
 
-			props, ok := t.pubsub.TrackPropsByTrackID(trackID)
+			props, propsFound := t.pubsub.TrackPropsByTrackID(params.TrackID)
+			transport, transportFound := t.getTransport(props.ClientID)
+			lastPLITime := t.pliTimes[params.TrackID]
+
+			// TODO perhaps a better solution for this would be an RTCP interceptor.
+			pliTooSoon := now.Sub(lastPLITime) < time.Second
+			if !pliTooSoon {
+				t.pliTimes[params.TrackID] = now
+			}
 
 			t.mu.Unlock()
 
-			return props, ok
+			if !propsFound {
+				return errors.Annotatef(pubsub.ErrTrackNotFound, "got RTCP for track that was not found")
+			}
+
+			if !transportFound {
+				return errors.Errorf("transport not found: %s", props.ClientID)
+			}
+
+			if pliTooSoon {
+				// Congestion control.
+				return errors.Errorf("too many PLI packets received, ignoring")
+			}
+
+			// Important: set the correct SSRC before sending the packet to source.
+			packet.MediaSSRC = uint32(props.SSRC)
+			packet.SenderSSRC = uint32(props.SSRC)
+
+			if err := transport.WriteRTCP([]rtcp.Packet{packet}); err != nil {
+				return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
+			}
+
+			// TODO remove this log.
+			t.log.Info("Sent PLI back to source", logCtx)
+
+			return nil
 		}
 
-		handlePacket := func(packet rtcp.Packet) error {
+		handlePacket := func(p rtcp.Packet) (err error) {
 			// NOTE: REMB and NACK are now handled by pion/webrtc interceptors so we
 			// don't have to explicitly handle them here.
-			switch pkt := packet.(type) {
+			switch packet := p.(type) {
 			// PLI cannot be handled by interceptors since it's implementation
 			// specific. We need to find the source and send the PLI packet. We also
 			// need to make sure to set the correct SSRC before the packet is
 			// forwarded, since pion/webrtc/v3 no longer uses the same SSRCs between
 			// different peer connections.
 			case *rtcp.PictureLossIndication:
-				props, ok := getTrackProps(params.TrackID)
-				if !ok {
-					return errors.Annotatef(pubsub.ErrTrackNotFound, "got RTCP for track that was not found")
-				}
-
-				transport, ok := t.getTransport(props.ClientID)
-				if !ok {
-					return errors.Errorf("transport not found: %s", props.ClientID)
-				}
-
-				// Important: set the correct SSRC before sending the packet to source.
-				pkt.MediaSSRC = uint32(props.SSRC)
-				pkt.SenderSSRC = uint32(props.SSRC)
-
-				// FIXME congestion control. Do not send more than 1pkt/second.
-				// We can probably do that with a new interceptor implementation.
-
-				if err := transport.WriteRTCP([]rtcp.Packet{pkt}); err != nil {
-					return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
-				}
-
-				// TODO remove this log.
-				t.log.Info("Sent PLI back to source", logCtx)
+				err = errors.Trace(forwardPLI(packet))
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				feedBitrateEstimate(params.TrackID, pkt.Bitrate)
+				feedBitrateEstimate(params.TrackID, packet.Bitrate)
 			default:
 			}
 
-			return nil
+			return errors.Trace(err)
 		}
 
 		for {
