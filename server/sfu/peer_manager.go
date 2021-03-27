@@ -22,10 +22,8 @@ type PeerManager struct {
 
 	jitterHandler JitterHandler
 
-	// webrtcTransports indexed by ClientID
-	webrtcTransports map[string]transport.Transport
-	// serverTransports indexed by ClientID. TODO unify these two.
-	serverTransports map[string]transport.Transport
+	// transports indexed by ClientID
+	transports map[string]transport.Transport
 
 	pliTimes map[transport.TrackID]time.Time
 
@@ -41,8 +39,7 @@ func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler)
 
 		jitterHandler: jitterHandler,
 
-		webrtcTransports: map[string]transport.Transport{},
-		serverTransports: map[string]transport.Transport{},
+		transports: map[string]transport.Transport{},
 
 		pliTimes: map[transport.TrackID]time.Time{},
 
@@ -51,42 +48,6 @@ func NewPeerManager(room string, log logger.Logger, jitterHandler JitterHandler)
 		pubsub: pubsub.New(log),
 	}
 }
-
-// func (t *PeerManager) addTrack(clientID string, track transport.TrackRemote) {
-// 	t.mu.Lock()
-// 	defer t.mu.Unlock()
-
-// 	log := t.log.WithCtx(logger.Ctx{
-// 		"client_id": clientID,
-// 		"track_id":  track.Track().UniqueID(),
-// 	})
-
-// 	log.Trace("Add track", logger.Ctx{
-// 		"track": track,
-// 	})
-
-// 	// t.pubsub.Pub(clientID, track)
-
-// 	// FIXME pion3 update
-// 	// // Let the server transports know of the new track.
-// 	// for subClientID, subTransport := range t.serverTransports {
-// 	// 	if subClientID != clientID {
-// 	// 		// Note: pubsub.Sub is _not_ called here because the server transport
-// 	// 		// does not want to receive RTP/RTCP data immmediatelly if there are
-// 	// 		// no interested parties on the other end of the connection. This is done
-// 	// 		// later, when Pub/Sub events are handled. These events are sent thorugh
-// 	// 		// servertransport.MetadataTransport - see the goroutine reading from
-// 	// 		// TrackEventsChannel for more info.
-// 	// 		if track_, err := subTransport.AddTrack(track.Track()); err != nil {
-// 	// 			log.Error("Add track", errors.Trace(err), logger.Ctx{
-// 	// 				"sub_client_id": subClientID,
-// 	// 			})
-
-// 	// 			continue
-// 	// 		}
-// 	// 	}
-// 	// }
-// }
 
 func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) {
 	t.mu.Lock()
@@ -105,28 +66,15 @@ func (t *PeerManager) broadcast(clientID string, msg webrtc.DataChannelMessage) 
 		}
 	}
 
-	for _, tr := range t.webrtcTransports {
+	for _, tr := range t.transports {
 		broadcast(tr)
 	}
-
-	for _, tr := range t.serverTransports {
-		broadcast(tr)
-	}
-}
-
-func (t *PeerManager) getTransport(clientID string) (transport.Transport, bool) {
-	transport, ok := t.webrtcTransports[clientID]
-	if !ok {
-		transport, ok = t.serverTransports[clientID]
-	}
-
-	return transport, ok
 }
 
 func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
-	// log := t.log.WithCtx(logger.Ctx{
-	// 	"client_id": tr.ClientID(),
-	// })
+	log := t.log.WithCtx(logger.Ctx{
+		"client_id": tr.ClientID(),
+	})
 
 	pubTrackEventSub, err := t.pubsub.SubscribeToEvents(tr.ClientID())
 	if err != nil {
@@ -198,7 +146,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 					_, _, err := rtcpReader.ReadRTCP()
 					if err != nil {
 						if !multierr.Is(err, io.EOF) {
-							t.log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
+							log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
 						}
 
 						return
@@ -424,44 +372,9 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.wg.Done()
 
-	switch tr.Type() {
-	case transport.TypeServer:
-		t.mu.Lock()
-
-		t.serverTransports[tr.ClientID()] = tr
-		// pubTracks := t.pubsub.Tracks()
-
-		t.mu.Unlock()
-
-		// // Let the servers know of the new tracks.
-		// for _, pubTrack := range pubTracks {
-		// 	// if err := pubTransport.AddTrack(track); err != nil {
-		// 	//   log.Error("add track", errors.Trace(err), logger.Ctx{
-		// 	//     "pub_client_id": pubTransport.ClientID(),
-		// 	//     "sub_client_id": tr.ClientID(),
-		// 	//     "track_id":      trackInfo.Track.UniqueID(),
-		// 	//   })
-		// }
-		// for _, pubTransport := range t.webrtcTransports {
-		// 	for _, trackInfo := range pubTransport.RemoteTracks() {
-		// 		// FIXME should this be tr.AddTrack???
-		// 		if err := pubTransport.AddTrack(trackInfo.Track); err != nil {
-		// 			log.Error("add track", errors.Trace(err), logger.Ctx{
-		// 				"pub_client_id": pubTransport.ClientID(),
-		// 				"sub_client_id": tr.ClientID(),
-		// 				"track_id":      trackInfo.Track.UniqueID(),
-		// 			})
-		// 		}
-		// 	}
-		// }
-
-	case transport.TypeWebRTC:
-		t.mu.Lock()
-
-		t.webrtcTransports[tr.ClientID()] = tr
-
-		t.mu.Unlock()
-	}
+	t.mu.Lock()
+	t.transports[tr.ClientID()] = tr
+	t.mu.Unlock()
 
 	return pubTrackEventsCh, nil
 }
@@ -470,7 +383,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	tr, ok := t.getTransport(params.SubClientID)
+	tr, ok := t.transports[params.SubClientID]
 	if !ok {
 		return errors.Errorf("transport not found: %s", params.PubClientID)
 	}
@@ -508,7 +421,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 			t.mu.Lock()
 
 			props, propsFound := t.pubsub.TrackPropsByTrackID(params.TrackID)
-			transport, transportFound := t.getTransport(props.ClientID)
+			transport, transportFound := t.transports[props.ClientID]
 			lastPLITime := t.pliTimes[params.TrackID]
 
 			// TODO perhaps a better solution for this would be an RTCP interceptor.
@@ -600,7 +513,7 @@ func (t *PeerManager) TracksMetadata(clientID string) (m []TrackMetadata, ok boo
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	tr, ok := t.getTransport(clientID)
+	tr, ok := t.transports[clientID]
 	if !ok {
 		return m, false
 	}
@@ -659,11 +572,7 @@ func (t *PeerManager) Remove(clientID string) {
 
 	t.pubsub.Terminate(clientID)
 
-	if _, ok := t.serverTransports[clientID]; ok {
-		delete(t.serverTransports, clientID)
-	} else {
-		delete(t.webrtcTransports, clientID)
-	}
+	delete(t.transports, clientID)
 }
 
 // func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
@@ -703,7 +612,7 @@ func (t *PeerManager) Size() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return len(t.webrtcTransports) + len(t.serverTransports)
+	return len(t.transports)
 }
 
 func (t *PeerManager) Close() <-chan struct{} {
@@ -711,14 +620,15 @@ func (t *PeerManager) Close() <-chan struct{} {
 
 	t.mu.Lock()
 
-	for clientID, serverTransport := range t.serverTransports {
-		t.log.Info("Closing server transport", logger.Ctx{
-			"client_id": serverTransport.ClientID(),
+	// This is only needed for server transports.
+	for clientID, transport := range t.transports {
+		t.log.Info("Closing transport", logger.Ctx{
+			"client_id": transport.ClientID(),
 		})
 
-		serverTransport.Close()
+		transport.Close()
 
-		delete(t.serverTransports, clientID)
+		delete(t.transports, clientID)
 	}
 
 	t.mu.Unlock()
