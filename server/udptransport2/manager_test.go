@@ -85,7 +85,14 @@ func TestManager_RTP(t *testing.T) {
 	})
 	defer tm2.Close()
 
-	track := transport.NewSimpleTrack("user1", 8, 1, "a", "aa")
+	codec := transport.Codec{
+		MimeType:    "audio/opus",
+		ClockRate:   48000,
+		Channels:    2,
+		SDPFmtpLine: "",
+	}
+
+	track := transport.NewSimpleTrack("trackID", "streamID", codec, "user1")
 
 	var wg sync.WaitGroup
 
@@ -110,12 +117,11 @@ func TestManager_RTP(t *testing.T) {
 		assert.Equal(t, "test-stream", transport1.StreamID())
 
 		select {
-		case event := <-transport1.TrackEventsChannel():
-			assert.Equal(t, uint8(8), event.TrackWithMID.Track.PayloadType())
-			assert.Equal(t, uint32(1), event.TrackWithMID.Track.SSRC())
-			assert.Equal(t, transport.TrackEventTypeAdd, event.Type)
+		case trwr := <-transport1.RemoteTracksChannel():
+			remoteTrack := trwr.TrackRemote
+			assert.Equal(t, track, remoteTrack.Track())
 		case <-time.After(time.Second):
-			assert.Fail(t, "Timed out waiting for rtp.Packet")
+			assert.Fail(t, "Timed out waiting for track")
 		}
 	}()
 
@@ -138,7 +144,7 @@ func TestManager_RTP(t *testing.T) {
 			require.Fail(t, "Timed out waiting for transport2")
 		}
 
-		err = transport2.AddTrack(track)
+		_, _, err = transport2.AddTrack(track)
 		require.NoError(t, err, "failed to add track")
 	}()
 

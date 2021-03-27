@@ -6,6 +6,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/pion/interceptor"
 )
 
 type Transport struct {
@@ -21,6 +22,7 @@ func NewTransport(
 	mediaConn stringmux.Conn,
 	dataConn stringmux.Conn,
 	metadataConn stringmux.Conn,
+	ceptor interceptor.Interceptor,
 ) *Transport {
 	closeWrite := func() {
 		mediaConn.CloseWrite()
@@ -28,9 +30,18 @@ func NewTransport(
 		metadataConn.CloseWrite()
 	}
 
+	serverTransportParams := servertransport.Params{
+		Log:           log,
+		MediaConn:     mediaConn,
+		DataConn:      dataConn,
+		MetadataConn:  metadataConn,
+		Interceptor:   ceptor,
+		CodecRegistry: nil,
+	}
+
 	return &Transport{
 		streamID:       streamID,
-		Transport:      servertransport.New(log, mediaConn, dataConn, metadataConn),
+		Transport:      servertransport.New(serverTransportParams),
 		closeWriteOnce: sync.Once{},
 		closeWrite:     closeWrite,
 	}

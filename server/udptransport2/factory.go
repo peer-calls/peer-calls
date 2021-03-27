@@ -12,6 +12,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/pion/interceptor"
 	"github.com/pion/sctp"
 )
 
@@ -52,6 +53,8 @@ type FactoryParams struct {
 	//
 	// When set to zero, there will be no timeout.
 	DestroyTimeout time.Duration
+
+	Interceptor interceptor.Interceptor
 }
 
 func NewFactory(params FactoryParams) (*Factory, error) {
@@ -275,7 +278,7 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 			return nil, errors.Trace(err)
 		}
 
-		transport := NewTransport(f.params.Log, streamID, mediaConn, dataConn, metadataConn)
+		transport := NewTransport(f.params.Log, streamID, mediaConn, dataConn, metadataConn, f.params.Interceptor)
 
 		return transport, nil
 	}
