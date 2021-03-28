@@ -5,6 +5,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/message"
 )
 
 type MemoryAdapter struct {
@@ -28,7 +29,12 @@ func (m *MemoryAdapter) Add(client ClientWriter) (err error) {
 	m.clientsMu.Lock()
 	clientID := client.ID()
 	m.clients[clientID] = client
-	err = m.broadcast(NewMessageRoomJoin(m.room, clientID, client.Metadata()))
+	err = m.broadcast(
+		message.NewRoomJoin(m.room, message.RoomJoin{
+			ClientID: clientID,
+			Metadata: client.Metadata(),
+		}),
+	)
 	m.clientsMu.Unlock()
 	return errors.Annotatef(err, "add client: %s", clientID)
 }
@@ -41,7 +47,7 @@ func (m *MemoryAdapter) Close() error {
 func (m *MemoryAdapter) Remove(clientID identifiers.ClientID) (err error) {
 	m.clientsMu.Lock()
 	delete(m.clients, clientID)
-	err = m.broadcast(NewMessageRoomLeave(m.room, clientID))
+	err = m.broadcast(message.NewRoomLeave(m.room, clientID))
 	m.clientsMu.Unlock()
 	return errors.Annotatef(err, "remove client: %s", clientID)
 }
@@ -92,14 +98,14 @@ func (m *MemoryAdapter) Size() (value int, err error) {
 }
 
 // Send a message to all sockets
-func (m *MemoryAdapter) Broadcast(msg Message) error {
+func (m *MemoryAdapter) Broadcast(msg message.Message) error {
 	m.clientsMu.RLock()
 	err := m.broadcast(msg)
 	m.clientsMu.RUnlock()
 	return errors.Annotate(err, "Broadcast")
 }
 
-func (m *MemoryAdapter) broadcast(msg Message) error {
+func (m *MemoryAdapter) broadcast(msg message.Message) error {
 	var errs MultiErrorHandler
 
 	for clientID := range m.clients {
@@ -112,14 +118,14 @@ func (m *MemoryAdapter) broadcast(msg Message) error {
 }
 
 // Sends a message to specific socket.
-func (m *MemoryAdapter) Emit(clientID identifiers.ClientID, msg Message) error {
+func (m *MemoryAdapter) Emit(clientID identifiers.ClientID, msg message.Message) error {
 	m.clientsMu.RLock()
 	err := m.emit(clientID, msg)
 	m.clientsMu.RUnlock()
 	return errors.Annotatef(err, "emit")
 }
 
-func (m *MemoryAdapter) emit(clientID identifiers.ClientID, msg Message) error {
+func (m *MemoryAdapter) emit(clientID identifiers.ClientID, msg message.Message) error {
 	client, ok := m.clients[clientID]
 	if !ok {
 		return errors.Errorf("Client not found, clientID: %s", clientID)

@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/pion/webrtc/v3"
 )
@@ -18,7 +17,6 @@ type Negotiator struct {
 	log logger.Logger
 
 	initiator            bool
-	remotePeerID         identifiers.ClientID
 	peerConnection       *webrtc.PeerConnection
 	onOffer              func(webrtc.SessionDescription, error)
 	onRequestNegotiation func()
@@ -34,7 +32,6 @@ func NewNegotiator(
 	log logger.Logger,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
-	remotePeerID identifiers.ClientID,
 	onOffer func(webrtc.SessionDescription, error),
 	onRequestNegotiation func(),
 ) *Negotiator {
@@ -42,7 +39,6 @@ func NewNegotiator(
 		log:                  log.WithNamespaceAppended("negotiator"),
 		initiator:            initiator,
 		peerConnection:       peerConnection,
-		remotePeerID:         remotePeerID,
 		onOffer:              onOffer,
 		onRequestNegotiation: onRequestNegotiation,
 	}

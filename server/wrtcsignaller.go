@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -14,13 +14,11 @@ type Signaller struct {
 
 	peerConnection *webrtc.PeerConnection
 	initiator      bool
-	localPeerID    identifiers.ClientID
-	remotePeerID   identifiers.ClientID
 	negotiator     *Negotiator
 
 	signalMu      sync.Mutex
 	closed        bool
-	signalChannel chan Payload
+	signalChannel chan message.Signal
 	closeChannel  chan struct{}
 	closeOnce     sync.Once
 
@@ -32,8 +30,6 @@ func NewSignaller(
 	log logger.Logger,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
-	localPeerID identifiers.ClientID,
-	remotePeerID identifiers.ClientID,
 ) (*Signaller, error) {
 	log = log.WithNamespaceAppended("signaller")
 
@@ -41,9 +37,7 @@ func NewSignaller(
 		log:             log,
 		initiator:       initiator,
 		peerConnection:  peerConnection,
-		localPeerID:     localPeerID,
-		remotePeerID:    remotePeerID,
-		signalChannel:   make(chan Payload),
+		signalChannel:   make(chan message.Signal),
 		closeChannel:    make(chan struct{}),
 		descriptionSent: make(chan struct{}),
 	}
@@ -52,7 +46,6 @@ func NewSignaller(
 		log,
 		initiator,
 		peerConnection,
-		s.remotePeerID,
 		s.handleLocalOffer,
 		s.handleLocalRequestNegotiation,
 	)
@@ -71,7 +64,7 @@ func (s *Signaller) Done() <-chan struct{} {
 	return s.closeChannel
 }
 
-func (s *Signaller) SignalChannel() <-chan Payload {
+func (s *Signaller) SignalChannel() <-chan message.Signal {
 	return s.signalChannel
 }
 
@@ -122,7 +115,7 @@ func (s *Signaller) handleICEConnectionStateChange(connectionState webrtc.ICECon
 	}
 }
 
-func (s *Signaller) onSignal(payload Payload) {
+func (s *Signaller) onSignal(payload message.Signal) {
 	s.signalMu.Lock()
 
 	go func() {
@@ -173,11 +166,10 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 		return
 	}
 
-	payload := Payload{
-		UserID: s.localPeerID,
-		Signal: Candidate{
-			Candidate: c.ToJSON(),
-		},
+	candidate := c.ToJSON()
+
+	payload := message.Signal{
+		Candidate: &candidate,
 	}
 
 	s.log.Debug("Got ICE candidate from server peer", logger.Ctx{
@@ -187,45 +179,48 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 	s.onSignal(payload)
 }
 
-func (s *Signaller) Signal(payload map[string]interface{}) error {
-	signalPayload, err := NewPayloadFromMap(payload)
-	if err != nil {
-		return errors.Annotate(err, "construct signal from payload")
-	}
-
-	switch signal := signalPayload.Signal.(type) {
-	case Candidate:
+func (s *Signaller) Signal(signal message.Signal) error {
+	switch {
+	case signal.Candidate != nil:
 		s.log.Debug("Remote candidate", logger.Ctx{
 			"candidate": signal.Candidate.Candidate,
 		})
 
 		if signal.Candidate.Candidate != "" {
-			return s.peerConnection.AddICECandidate(signal.Candidate)
+			return s.peerConnection.AddICECandidate(*signal.Candidate)
 		}
+
 		return nil
-	case Renegotiate:
+	case signal.Renegotiate:
 		s.log.Trace("Remote peer wanted to negotiate", nil)
 		s.Negotiate()
+
 		return nil
-	case TransceiverRequestPayload:
+	case signal.TransceiverRequest != nil:
 		s.log.Trace("Remote transceiver request", logger.Ctx{
 			"transceiver_kind": signal.TransceiverRequest.Kind,
 		})
-		s.handleTransceiverRequest(signal)
+		s.handleTransceiverRequest(*signal.TransceiverRequest)
 		return nil
-	case webrtc.SessionDescription:
+	case signal.Type > 0:
 		s.log.Trace("Remote sdp", logger.Ctx{
 			"signal_type": signal.Type,
 			"sdp":         signal.SDP,
 		})
-		return s.handleRemoteSDP(signal)
+
+		sessionDescription := webrtc.SessionDescription{
+			Type: signal.Type,
+			SDP:  signal.SDP,
+		}
+
+		return s.handleRemoteSDP(sessionDescription)
 	default:
 		return errors.Errorf("unexpected signal: %#v", signal)
 	}
 }
 
-func (s *Signaller) handleTransceiverRequest(transceiverRequest TransceiverRequestPayload) {
-	codecType := transceiverRequest.TransceiverRequest.Kind
+func (s *Signaller) handleTransceiverRequest(transceiverRequest message.TransceiverRequest) {
+	codecType := transceiverRequest.Kind.RTPCodecType()
 
 	s.negotiator.AddTransceiverFromKind(TransceiverRequest{
 		CodecType: codecType,
@@ -263,7 +258,10 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 		"sdp":         answer.SDP,
 	})
 
-	s.onSignal(NewPayloadSDP(s.localPeerID, answer))
+	s.onSignal(message.Signal{
+		Type: answer.Type,
+		SDP:  answer.SDP,
+	})
 
 	// allow ice candidates to be sent
 	s.closeDescriptionSent()
@@ -272,7 +270,9 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 
 func (s *Signaller) handleLocalRequestNegotiation() {
 	s.log.Trace("Send negotiation request to initiator", nil)
-	s.onSignal(NewPayloadRenegotiate(s.localPeerID))
+	s.onSignal(message.Signal{
+		Renegotiate: true,
+	})
 }
 
 func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error) {
@@ -294,7 +294,10 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 		return
 	}
 
-	s.onSignal(NewPayloadSDP(s.localPeerID, offer))
+	s.onSignal(message.Signal{
+		Type: offer.Type,
+		SDP:  offer.SDP,
+	})
 
 	// allow ice candidates to be sent
 	s.closeDescriptionSent()
@@ -312,7 +315,14 @@ func (s *Signaller) closeDescriptionSent() {
 func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction webrtc.RTPTransceiverDirection) {
 	if !s.initiator {
 		s.log.Trace("Send transceiver request to initiator", nil)
-		s.onSignal(NewTransceiverRequest(s.localPeerID, kind, direction))
+		s.onSignal(message.Signal{
+			TransceiverRequest: &message.TransceiverRequest{
+				Kind: message.NewTrackKind(kind),
+				Init: message.TransceiverInit{
+					Direction: message.Direction(direction.String()),
+				},
+			},
+		})
 	}
 }
 

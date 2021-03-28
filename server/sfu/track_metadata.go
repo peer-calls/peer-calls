@@ -1,10 +1,6 @@
 package sfu
 
-import "github.com/peer-calls/peer-calls/server/identifiers"
+import "github.com/peer-calls/peer-calls/server/message"
 
-type TrackMetadata struct {
-	Mid      string             `json:"mid"`
-	UserID   identifiers.UserID `json:"userId"`
-	StreamID string             `json:"streamId"`
-	Kind     string             `json:"kind"`
-}
+// TODO remove.
+type TrackMetadata = message.TrackMetadata

@@ -12,6 +12,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 )
 
 const (
@@ -111,7 +112,12 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	a.clients[clientID] = client
 	a.clientsMu.Unlock()
 
-	err = a.Broadcast(NewMessageRoomJoin(a.room, clientID, client.Metadata()))
+	join := message.RoomJoin{
+		ClientID: clientID,
+		Metadata: client.Metadata(),
+	}
+
+	err = a.Broadcast(message.NewRoomJoin(a.room, join))
 	if err != nil {
 		return errors.Annotatef(err, "clientID: %s", clientID)
 	}
@@ -157,7 +163,7 @@ func (a *RedisAdapter) remove(clientID identifiers.ClientID) (err error) {
 		errs.Add(errors.Annotatef(err, "hdel %s %s", a.keys.roomClients, clientID))
 	}
 
-	if err = a.Broadcast(NewMessageRoomLeave(a.room, clientID)); err != nil {
+	if err = a.Broadcast(message.NewRoomLeave(a.room, clientID)); err != nil {
 		errs.Add(errors.Annotatef(err, "broadcast room leave %s %s", a.keys.roomClients, clientID))
 	}
 
@@ -219,24 +225,24 @@ func (a *RedisAdapter) Size() (size int, err error) {
 func (a *RedisAdapter) handleMessage(
 	pattern string,
 	channel string,
-	message string,
+	messageStr string,
 ) error {
-	msg, err := a.deserializer.Deserialize([]byte(message))
+	msg, err := a.deserializer.Deserialize([]byte(messageStr))
 	if err != nil {
 		return errors.Annotate(err, "deserialize redis subscription")
 	}
 
-	handleRoomJoin := func() error {
+	handleRoomJoin := func(roomID identifiers.RoomID, join message.RoomJoin) error {
 		a.clientsMu.RLock()
 		clients := a.localClients()
 		a.clientsMu.RUnlock()
 
-		payload, ok := msg.Payload.(map[string]interface{})
-		if !ok {
-			return errors.Errorf("room join: expected a map[string]interface{}, but got payload of type %T", msg.Payload)
-		}
+		// payload, ok := msg.Payload.(map[string]interface{})
+		// if !ok {
+		// 	return errors.Errorf("room join: expected a map[string]interface{}, but got payload of type %T", msg.Payload)
+		// }
 
-		err = a.pubRedis.HSet(a.keys.roomClients, payload["clientID"], payload["metadata"]).Err()
+		err = a.pubRedis.HSet(a.keys.roomClients, join.ClientID.String(), join.Metadata).Err()
 		if err != nil {
 			return errors.Annotate(err, "room join")
 		}
@@ -245,7 +251,7 @@ func (a *RedisAdapter) handleMessage(
 		return errors.Annotate(err, "room join")
 	}
 
-	handleRoomLeave := func() error {
+	handleRoomLeave := func(roomID identifiers.RoomID, clientID identifiers.ClientID) error {
 		a.clientsMu.RLock()
 		clients := a.localClients()
 		a.clientsMu.RUnlock()
@@ -255,12 +261,7 @@ func (a *RedisAdapter) handleMessage(
 			return errors.Trace(err)
 		}
 
-		clientID, ok := msg.Payload.(string)
-		if !ok {
-			return errors.Errorf("room leave: expected a string, but got payload of type %T", msg.Payload)
-		}
-
-		err = a.pubRedis.HDel(a.keys.roomClients, clientID).Err()
+		err = a.pubRedis.HDel(a.keys.roomClients, clientID.String()).Err()
 
 		return errors.Annotate(err, "room leave")
 	}
@@ -295,10 +296,10 @@ func (a *RedisAdapter) handleMessage(
 	case channel == a.keys.roomChannel:
 		// localBroadcast to all clients
 		switch msg.Type {
-		case MessageTypeRoomJoin:
-			err = errors.Trace(handleRoomJoin())
-		case MessageTypeRoomLeave:
-			err = errors.Trace(handleRoomLeave())
+		case message.TypeRoomJoin:
+			err = errors.Trace(handleRoomJoin(msg.Room, *msg.Payload.RoomJoin))
+		case message.TypeRoomLeave:
+			err = errors.Trace(handleRoomLeave(msg.Room, msg.Payload.RoomLeave))
 		default:
 			err = errors.Trace(handleRoomBroadcast())
 		}
@@ -429,7 +430,7 @@ func (a *RedisAdapter) localClients() map[identifiers.ClientID]ClientWriter {
 	return clients
 }
 
-func (a *RedisAdapter) publish(channel string, msg Message) error {
+func (a *RedisAdapter) publish(channel string, msg message.Message) error {
 	data, err := a.serializer.Serialize(msg)
 	if err != nil {
 		return errors.Annotatef(err, "serialize")
@@ -440,7 +441,7 @@ func (a *RedisAdapter) publish(channel string, msg Message) error {
 	return errors.Annotate(err, "publish")
 }
 
-func (a *RedisAdapter) Broadcast(msg Message) error {
+func (a *RedisAdapter) Broadcast(msg message.Message) error {
 	channel := a.keys.roomChannel
 
 	a.log.Trace("Broadcast", logger.Ctx{
@@ -453,7 +454,7 @@ func (a *RedisAdapter) Broadcast(msg Message) error {
 	return errors.Annotate(err, "broadcast")
 }
 
-func (a *RedisAdapter) localBroadcast(clients map[identifiers.ClientID]ClientWriter, msg Message) (err error) {
+func (a *RedisAdapter) localBroadcast(clients map[identifiers.ClientID]ClientWriter, msg message.Message) (err error) {
 	a.log.Trace("localBroadcast", logger.Ctx{
 		"message_type": msg.Type,
 	})
@@ -469,7 +470,7 @@ func (a *RedisAdapter) localBroadcast(clients map[identifiers.ClientID]ClientWri
 	return errors.Trace(errs.Err())
 }
 
-func (a *RedisAdapter) Emit(clientID identifiers.ClientID, msg Message) error {
+func (a *RedisAdapter) Emit(clientID identifiers.ClientID, msg message.Message) error {
 	channel := getClientChannelName(a.prefix, a.room, clientID)
 
 	a.log.Trace("Emit", logger.Ctx{
@@ -486,7 +487,7 @@ func (a *RedisAdapter) Emit(clientID identifiers.ClientID, msg Message) error {
 	return errors.Annotatef(err, "publish message")
 }
 
-func (a *RedisAdapter) localEmit(client ClientWriter, msg Message) error {
+func (a *RedisAdapter) localEmit(client ClientWriter, msg message.Message) error {
 	clientID := client.ID()
 
 	a.log.Trace("localEmit", logger.Ctx{

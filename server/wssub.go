@@ -10,6 +10,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"nhooyr.io/websocket"
 )
 
@@ -29,7 +30,7 @@ type Subscription struct {
 	Adapter  Adapter
 	ClientID identifiers.ClientID
 	Room     identifiers.RoomID
-	Messages <-chan Message
+	Messages <-chan message.Message
 }
 
 func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription, error) {
@@ -48,7 +49,7 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 	clientID := identifiers.ClientID(path.Base(r.URL.Path))
 	room := identifiers.RoomID(path.Base(path.Dir(r.URL.Path)))
 	adapter, _ := wss.rooms.Enter(room)
-	ch := make(chan Message)
+	ch := make(chan message.Message)
 
 	log := wss.log.WithCtx(logger.Ctx{
 		"client_id": clientID,

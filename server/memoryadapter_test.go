@@ -8,6 +8,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -55,10 +56,18 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
-	msg := server.NewMessage("test-type", room, []byte("test"))
+
+	msg := message.NewReady(room, message.Ready{
+		Nickname: "test",
+	})
 	adapter.Emit(client.ID(), msg)
 	msg1 := <-mockWriter.out
-	joinMessage := serialize(t, server.NewMessageRoomJoin(room, client.ID(), client.Metadata()))
+
+	joinMessage := serialize(t, message.NewRoomJoin(room, message.RoomJoin{
+		ClientID: client.ID(),
+		Metadata: client.Metadata(),
+	}))
+
 	assert.Equal(t, joinMessage, msg1)
 	msg2 := <-mockWriter.out
 	cancel()
@@ -69,7 +78,11 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 func TestMemoryAdapter_emitMissing(t *testing.T) {
 	goleak.VerifyNone(t)
 	adapter := server.NewMemoryAdapter(room)
-	msg := server.NewMessage("test-type", room, []byte("test"))
+
+	msg := message.NewReady(room, message.Ready{
+		Nickname: "test",
+	})
+
 	adapter.Emit("123", msg)
 }
 
@@ -103,11 +116,16 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
-	msg := server.NewMessage("test-type", room, []byte("test"))
+
+	msg := message.NewReady(room, message.Ready{
+		Nickname: "test",
+	})
 	adapter.Broadcast(msg)
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "")), <-mockWriter1.out)
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "")), <-mockWriter1.out)
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "")), <-mockWriter2.out)
+
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client1.ID(), ""})), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), ""})), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), ""})), <-mockWriter2.out)
+
 	serializedMsg := serialize(t, msg)
 	assert.Equal(t, serializedMsg, <-mockWriter1.out)
 	assert.Equal(t, serializedMsg, <-mockWriter2.out)

@@ -13,6 +13,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/test"
@@ -56,19 +57,17 @@ func TestSFU_ConnectDisconnect(t *testing.T) {
 	require.Nil(t, err, "error closing client socket")
 }
 
-func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Message) {
+func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan message.Message) {
 	t.Helper()
 
 	for {
 		select {
 		case msg := <-ch:
 			// t.Log("1 msg.Type", msg)
-			if msg.Type == server.MessageTypeUsers {
+			if msg.Type == message.TypeUsers {
 				assert.Equal(t, roomName, msg.Room)
-				payload := msg.Payload.(map[string]interface{})
-				assert.Equal(t, "__SERVER__", payload["initiator"])
-				assert.Equal(t, []interface{}{"__SERVER__"}, payload["peerIds"])
-				// assert.Equal(t, map[string]interface{}{clientID: "some-user"}, payload["nicknames"])
+				assert.Equal(t, identifiers.ClientID("__SERVER__"), msg.Payload.Users.Initiator)
+				assert.Equal(t, []identifiers.ClientID{"__SERVER__"}, msg.Payload.Users.PeerIDs)
 				return
 			}
 		case <-ctx.Done():
@@ -81,7 +80,8 @@ func waitForUsersEvent(t *testing.T, ctx context.Context, ch <-chan server.Messa
 func startSignalling(
 	t *testing.T,
 	wsClient *server.Client,
-	wsRecvCh <-chan server.Message,
+	wsRecvCh <-chan message.Message,
+	clientID identifiers.ClientID,
 	signaller *server.Signaller,
 ) {
 	t.Helper()
@@ -89,24 +89,17 @@ func startSignalling(
 
 	go func() {
 		for msg := range wsRecvCh {
-			payload, ok := msg.Payload.(map[string]interface{})
-
 			switch msg.Type {
-			case server.MessageTypeSignal:
-				require.True(t, ok, "invalid signal msg payload type")
-				err := signaller.Signal(payload)
+			case message.TypeSignal:
+				err := signaller.Signal(msg.Payload.Signal.Signal)
 				require.NoError(t, err, "error in receiving signal payload: %w", err)
-			case server.MessageTypePubTrack:
-				if transport.TrackEventType(payload["type"].(float64)) == transport.TrackEventTypeAdd {
-					err := wsClient.Write(server.Message{
-						Type: server.MessageTypeSubTrack,
-						Payload: map[string]interface{}{
-							"type":        transport.TrackEventTypeSub,
-							"trackId":     payload["trackId"].(string),
-							"pubClientId": payload["pubClientId"].(string),
-						},
-						Room: msg.Room,
-					})
+			case message.TypePubTrack:
+				if msg.Payload.PubTrack.Type == transport.TrackEventTypeAdd {
+					err := wsClient.Write(message.NewSubTrack(msg.Room, message.SubTrack{
+						Type:        transport.TrackEventTypeSub,
+						TrackID:     msg.Payload.PubTrack.TrackID,
+						PubClientID: msg.Payload.PubTrack.PubClientID,
+					}))
 					require.NoError(t, err, "error sending sub_track event to ws: %w", err)
 				}
 
@@ -118,8 +111,13 @@ func startSignalling(
 
 	go func() {
 		for signal := range signalChan {
-			err := wsClient.Write(server.NewMessage("signal", roomName, signal))
-			// Sometimes there are late signals e created even after the test has
+			userSignal := message.UserSignal{
+				UserID: clientID,
+				Signal: signal,
+			}
+
+			err := wsClient.Write(message.NewSignal(roomName, userSignal))
+			// Sometimes there are late signals created even after the test has
 			// finished successfully, so ignore the errors, but log them.
 
 			if err != nil {
@@ -133,7 +131,7 @@ type peerCtx struct {
 	pc        *webrtc.PeerConnection
 	signaller *server.Signaller
 	wsClient  *server.Client
-	msg       <-chan server.Message
+	msg       <-chan message.Message
 	close     func() error
 }
 
@@ -154,8 +152,8 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	wsClient := server.NewClientWithID(wsc, clientID)
 	msgChan := wsClient.Subscribe(ctx)
 
-	err := wsClient.Write(server.NewMessage("ready", roomName, map[string]interface{}{
-		"nickname": "some-user",
+	err := wsClient.Write(message.NewReady(roomName, message.Ready{
+		Nickname: "some-user",
 	}))
 	require.NoError(t, err, "error sending ready message")
 
@@ -181,14 +179,12 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 		log,
 		false,
 		peerCtx.pc,
-		clientID,
-		"__SERVER__",
 	)
 	require.Nil(t, err, "error creating signaller")
 
 	closer.AddFuncErr(peerCtx.signaller.Close) // also closes pc
 
-	startSignalling(t, wsClient, msgChan, peerCtx.signaller)
+	startSignalling(t, wsClient, msgChan, "__SERVER__", peerCtx.signaller)
 
 	return peerCtx
 }

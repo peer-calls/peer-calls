@@ -3,40 +3,65 @@ package message
 import "github.com/pion/webrtc/v3"
 
 type Signal struct {
-	Candidate          Candidate           `json:"candidate,omitempty"`
-	Renegotiate        bool                `json:"renegotiate,omitempty"`
-	Type               SignalType          `json:"type,omitempty"`
-	SDP                string              `json:"string"`
-	TransceiverRequest *TransceiverRequest `json:"transceiverRequest,omitempty"`
-}
-
-type Candidate struct {
-	Candidate     string `json:"candidate"`
-	SDPMlineIndex string `json:"sdpMLineIndex"`
-	SDPMid        string `json:"sdpMid"`
-}
-
-type Renegotiate struct {
-	Renegotiate bool `json:"renegotiate"`
+	Candidate          *webrtc.ICECandidateInit `json:"candidate,omitempty"`
+	Renegotiate        bool                     `json:"renegotiate,omitempty"`
+	Type               webrtc.SDPType           `json:"type,omitempty"`
+	SDP                string                   `json:"sdp,omitempty"`
+	TransceiverRequest *TransceiverRequest      `json:"transceiverRequest,omitempty"`
 }
 
 type TransceiverRequest struct {
-	Kind      TransceiverRequestKind         `json:"kind"`
-	Direction webrtc.RTPTransceiverDirection `json:"direction"`
+	Kind TrackKind       `json:"kind"`
+	Init TransceiverInit `json:"init"`
 }
 
-type TransceiverRequestKind string
+type TransceiverInit struct {
+	Direction Direction `json:"direction,omitempty"`
+}
+
+type Direction string
 
 const (
-	TransceiverRequestKindAudio = "audio"
-	TransceiverRequestKindVideo = "video"
+	DirectionSendRecv Direction = "sendrecv"
+	DirectionSendOnly Direction = "sendonly"
+	DirectionRecvOnly Direction = "recvonly"
+	DirectionInactive Direction = "inactive"
 )
 
-type SignalType string
+func (d Direction) RTPTransceiverDirection() (webrtc.RTPTransceiverDirection, bool) {
+	switch d {
+	case "sendrecv":
+		return webrtc.RTPTransceiverDirectionSendrecv, true
+	case "sendonly":
+		return webrtc.RTPTransceiverDirectionSendonly, true
+	case "recvonly":
+		return webrtc.RTPTransceiverDirectionRecvonly, true
+	case "inactive":
+		return webrtc.RTPTransceiverDirectionInactive, true
+	}
+
+	return webrtc.RTPTransceiverDirection(0), false
+}
+
+type TrackKind string
 
 const (
-	SignalTypeOffer    SignalType = "offer"
-	SignalTypeAnswer   SignalType = "answer"
-	SignalTypePranswer SignalType = "pranswer"
-	SignalTypeRollback SignalType = "rollback"
+	TrackKindAudio = "audio"
+	TrackKindVideo = "video"
 )
+
+func NewTrackKind(codecType webrtc.RTPCodecType) TrackKind {
+	if codecType == webrtc.RTPCodecTypeAudio {
+		return TrackKindAudio
+	}
+
+	return TrackKindVideo
+}
+
+func (t TrackKind) RTPCodecType() webrtc.RTPCodecType {
+	if t == TrackKindAudio {
+		return webrtc.RTPCodecTypeAudio
+	}
+
+	return webrtc.RTPCodecTypeVideo
+}

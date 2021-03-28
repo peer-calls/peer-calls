@@ -12,6 +12,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -86,13 +87,13 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client1.ID(), "a")), recv(t, mockWriter1.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client1.ID(), "a"})), recv(t, mockWriter1.out))
 
 	adapter2 := server.NewRedisAdapter(test.NewLogger(), pub, sub, "peercalls", room)
 	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter1.out))
-	assert.Equal(t, serialize(t, server.NewMessageRoomJoin(room, client2.ID(), "b")), recv(t, mockWriter2.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), "b"})), recv(t, mockWriter1.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), "b"})), recv(t, mockWriter2.out))
 	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter1))
 	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter2))
 
@@ -117,8 +118,8 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, room, leaveMessage.Room)
-	assert.Equal(t, server.MessageTypeRoomLeave, leaveMessage.Type)
-	assert.Equal(t, client1.ID().String(), leaveMessage.Payload)
+	assert.Equal(t, message.TypeRoomLeave, leaveMessage.Type)
+	assert.Equal(t, client1.ID(), leaveMessage.Payload.RoomLeave)
 	// FIXME strong types.
 	// assert.Equal(t, server.NewMessageRoomLeave(room, client1.ID()), leaveMessage)
 	assert.Equal(t, map[identifiers.ClientID]string{client2.ID(): "bbb"}, getClientIDs(t, adapter2))

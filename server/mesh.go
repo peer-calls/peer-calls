@@ -7,6 +7,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 )
 
 type ReadyMessage struct {
@@ -34,18 +35,16 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 			})
 
 			var (
-				responseEventName MessageType
-				err               error
+				err error
 			)
 
 			switch msg.Type {
-			case MessageTypeHangUp:
+			case message.TypeHangUp:
 				log.Info("hangUp event", nil)
 				adapter.SetMetadata(clientID, "")
-			case MessageTypeReady:
-				// FIXME string types.
-				payload, _ := msg.Payload.(map[string]interface{})
-				adapter.SetMetadata(clientID, payload["nickname"].(string))
+			case message.TypeReady:
+				ready := *msg.Payload.Ready
+				adapter.SetMetadata(clientID, ready.Nickname)
 
 				clients, readyClientsErr := getReadyClients(adapter)
 				if readyClientsErr != nil {
@@ -55,35 +54,30 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 				log.Info(fmt.Sprintf("Got clients: %s", clients), nil)
 
 				err = adapter.Broadcast(
-					NewMessage(MessageTypeUsers, room, map[string]interface{}{
-						"initiator": clientID,
-						"peerIds":   clientsToPeerIDs(clients),
-						"nicknames": clients,
+					message.NewUsers(room, message.Users{
+						Initiator: clientID,
+						PeerIDs:   clientsToPeerIDs(clients),
+						Nicknames: clients,
 					}),
 				)
 				err = errors.Annotatef(err, "ready broadcast")
-			case MessageTypeSignal:
-				// FIXME strong types.
-				payload, _ := msg.Payload.(map[string]interface{})
-				signal := payload["signal"]
-				targetClientIDStr, _ := payload["userId"].(string)
+			case message.TypeSignal:
+				signal := *msg.Payload.Signal
 
-				targetClientID := identifiers.ClientID(targetClientIDStr)
+				targetClientID := signal.UserID
 
 				log.Info("Send signal to", logger.Ctx{
 					"target_client_id": targetClientID,
 				})
-				err = adapter.Emit(targetClientID, NewMessage(MessageTypeSignal, room, map[string]interface{}{
-					"userId": clientID,
-					"signal": signal,
+				err = adapter.Emit(targetClientID, message.NewSignal(room, message.UserSignal{
+					Signal: signal.Signal,
+					UserID: clientID,
 				}))
 				err = errors.Annotatef(err, "signal emit")
 			}
 
 			if err != nil {
-				log.Error("Send event", errors.Trace(err), logger.Ctx{
-					"event_name": responseEventName,
-				})
+				log.Error("Send event", errors.Trace(err), nil)
 			}
 		}
 	}

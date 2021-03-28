@@ -8,9 +8,9 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
-	"github.com/pion/webrtc/v3"
 )
 
 const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
@@ -18,11 +18,6 @@ const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-leve
 const localPeerID identifiers.ClientID = "__SERVER__"
 
 const serverIsInitiator = true
-
-type MetadataPayload struct {
-	UserID   identifiers.ClientID `json:"userId"`
-	Metadata []sfu.TrackMetadata  `json:"metadata"`
-}
 
 func NewSFUHandler(
 	log logger.Logger,
@@ -108,24 +103,24 @@ func NewSocketHandler(
 	}
 }
 
-func (sh *SocketHandler) HandleMessage(message Message) error {
+func (sh *SocketHandler) HandleMessage(msg message.Message) error {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 
 	var err error
 
-	switch message.Type {
-	case MessageTypeHangUp:
-		err = errors.Trace(sh.handleHangUp(message))
-	case MessageTypeReady:
-		err = errors.Trace(sh.handleReady(message))
-	case MessageTypeSignal:
-		err = errors.Trace(sh.handleSignal(message))
-	case MessageTypeSubTrack:
-		err = errors.Trace(sh.handleSubTrackEvent(message))
-	case MessageTypePing:
+	switch msg.Type {
+	case message.TypeHangUp:
+		err = errors.Trace(sh.handleHangUp(*msg.Payload.HangUp))
+	case message.TypeReady:
+		err = errors.Trace(sh.handleReady(*msg.Payload.Ready))
+	case message.TypeSignal:
+		err = errors.Trace(sh.handleSignal(*msg.Payload.Signal))
+	case message.TypeSubTrack:
+		err = errors.Trace(sh.handleSubTrackEvent(*msg.Payload.SubTrack))
+	case message.TypePing:
 	default:
-		err = errors.Errorf("Unhandled event: %s", message.Type)
+		err = errors.Errorf("Unhandled event: %+v", msg)
 	}
 
 	return errors.Trace(err)
@@ -139,8 +134,8 @@ func (sh *SocketHandler) Cleanup() {
 	}
 
 	err := sh.adapter.Broadcast(
-		NewMessage("hangUp", sh.room, map[string]interface{}{
-			"userId": sh.clientID,
+		message.NewHangUp(sh.room, message.HangUp{
+			UserID: sh.clientID,
 		}),
 	)
 	if err != nil {
@@ -148,39 +143,34 @@ func (sh *SocketHandler) Cleanup() {
 	}
 }
 
-func (sh *SocketHandler) handleSubTrackEvent(m Message) error {
-	event := m.Payload.(map[string]interface{})
-
-	// FIXME use strong types.
-	pubClientID := event["pubClientId"].(string)
-	trackID := identifiers.TrackID(event["trackId"].(string))
-	typ := transport.TrackEventType(event["type"].(float64))
-
+func (sh *SocketHandler) handleSubTrackEvent(sub message.SubTrack) error {
 	var err error
 
-	switch typ {
+	switch sub.Type {
 	case transport.TrackEventTypeSub:
 		err = sh.tracksManager.Sub(sfu.SubParams{
-			PubClientID: identifiers.ClientID(pubClientID),
-			Room:        identifiers.RoomID(sh.room),
-			TrackID:     trackID,
-			SubClientID: identifiers.ClientID(sh.clientID),
+			PubClientID: sub.PubClientID,
+			Room:        sh.room,
+			TrackID:     sub.TrackID,
+			SubClientID: sh.clientID,
 		})
+		err = errors.Trace(err)
 	case transport.TrackEventTypeUnsub:
 		err = sh.tracksManager.Unsub(sfu.SubParams{
-			PubClientID: identifiers.ClientID(pubClientID),
-			Room:        identifiers.RoomID(sh.room),
-			TrackID:     trackID,
-			SubClientID: identifiers.ClientID(sh.clientID),
+			PubClientID: sub.PubClientID,
+			Room:        sh.room,
+			TrackID:     sub.TrackID,
+			SubClientID: sh.clientID,
 		})
+		err = errors.Trace(err)
 	default:
-		err = errors.Errorf("invalid payload type: %d", typ)
+		err = errors.Errorf("invalid sub track event: %+v", sub)
 	}
 
 	return errors.Trace(err)
 }
 
-func (sh *SocketHandler) handleHangUp(_ Message) error {
+func (sh *SocketHandler) handleHangUp(_ message.HangUp) error {
 	clientID := sh.clientID
 
 	sh.log.Info("hangUp event", nil)
@@ -195,7 +185,7 @@ func (sh *SocketHandler) handleHangUp(_ Message) error {
 	return nil
 }
 
-func (sh *SocketHandler) handleReady(message Message) error {
+func (sh *SocketHandler) handleReady(msg message.Ready) error {
 	adapter := sh.adapter
 	roomID := sh.room
 	clientID := sh.clientID
@@ -217,12 +207,7 @@ func (sh *SocketHandler) handleReady(message Message) error {
 		return errors.Errorf("unexpected ready event in room %s - already have a webrtc transport", roomID)
 	}
 
-	payload, ok := message.Payload.(map[string]interface{})
-	if !ok {
-		return errors.Errorf("ready message payload is of wrong type: %T", message.Payload)
-	}
-
-	adapter.SetMetadata(clientID, payload["nickname"].(string))
+	adapter.SetMetadata(clientID, msg.Nickname)
 
 	clients, err := getReadyClients(adapter)
 	if err != nil {
@@ -230,10 +215,10 @@ func (sh *SocketHandler) handleReady(message Message) error {
 	}
 
 	err = adapter.Broadcast(
-		NewMessage("users", roomID, map[string]interface{}{
-			"initiator": initiator,
-			"peerIds":   []identifiers.ClientID{localPeerID},
-			"nicknames": clients,
+		message.NewUsers(roomID, message.Users{
+			Initiator: initiator,
+			PeerIDs:   []identifiers.ClientID{localPeerID},
+			Nicknames: clients,
 		}),
 	)
 	if err != nil {
@@ -257,50 +242,42 @@ func (sh *SocketHandler) handleReady(message Message) error {
 
 	go func() {
 		for pubTrackEvent := range pubTrackEventsCh {
-			err := sh.adapter.Emit(clientID, Message{
-				Type: MessageTypePubTrack,
-				Payload: map[string]interface{}{
-					"trackId":     pubTrackEvent.PubTrack.TrackID,
-					"pubClientId": pubTrackEvent.PubTrack.ClientID,
-					"userId":      pubTrackEvent.PubTrack.UserID,
-					"type":        pubTrackEvent.Type,
-				},
-				Room: roomID,
-			})
+			err := sh.adapter.Emit(clientID, message.NewPubTrack(roomID, message.PubTrack{
+				PubClientID: pubTrackEvent.PubTrack.ClientID,
+				TrackID:     pubTrackEvent.PubTrack.TrackID,
+				UserID:      pubTrackEvent.PubTrack.UserID,
+				Type:        pubTrackEvent.Type,
+			}))
 			if err != nil {
 				sh.log.Error("Emit pub track event", errors.Trace(err), nil)
 			}
 		}
 	}()
 
-	go sh.processLocalSignals(message, webRTCTransport.SignalChannel(), start)
+	go sh.processLocalSignals(webRTCTransport.SignalChannel(), start)
 
 	return nil
 }
 
-func (sh *SocketHandler) handleSignal(message Message) error {
-	payload, ok := message.Payload.(map[string]interface{})
-	if !ok {
-		return errors.Errorf("signal: unexpected type %T", payload)
-	}
-
+func (sh *SocketHandler) handleSignal(signal message.UserSignal) error {
 	if sh.webRTCTransport == nil {
 		return errors.Errorf("signal: webRTCTransport not initialized")
 	}
 
-	err := sh.webRTCTransport.Signal(payload)
+	err := sh.webRTCTransport.Signal(signal.Signal)
 	return errors.Annotate(err, "handleSignal")
 }
 
-func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, startTime time.Time) {
+func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, startTime time.Time) {
 	room := sh.room
 	adapter := sh.adapter
 	clientID := sh.clientID
 
 	for signal := range signals {
-		if _, ok := signal.Signal.(webrtc.SessionDescription); ok {
+		if signal.Type > 0 {
+			// TODO use PubTrack instead of metadata.
 			if metadata, ok := sh.tracksManager.TracksMetadata(room, clientID); ok {
-				err := adapter.Emit(clientID, NewMessage("metadata", room, MetadataPayload{
+				err := adapter.Emit(clientID, message.NewMetadata(room, message.Metadata{
 					UserID:   localPeerID,
 					Metadata: metadata,
 				}))
@@ -310,7 +287,12 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 			}
 		}
 
-		err := adapter.Emit(clientID, NewMessage("signal", room, signal))
+		userSignal := message.UserSignal{
+			UserID: localPeerID,
+			Signal: signal,
+		}
+
+		err := adapter.Emit(clientID, message.NewSignal(room, userSignal))
 		if err != nil {
 			sh.log.Error("Send local signal", errors.Trace(err), nil)
 			// TODO abort connection
@@ -327,9 +309,8 @@ func (sh *SocketHandler) processLocalSignals(_ Message, signals <-chan Payload, 
 	adapter.SetMetadata(clientID, "")
 
 	err := sh.adapter.Broadcast(
-		// FIXME strong types.
-		NewMessage("hangUp", room, map[string]identifiers.ClientID{
-			"userId": sh.clientID,
+		message.NewHangUp(room, message.HangUp{
+			UserID: sh.clientID,
 		}),
 	)
 	if err != nil {

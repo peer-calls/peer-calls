@@ -17,7 +17,9 @@ func TestMessage_JSON(t *testing.T) {
 			Type: message.TypeHangUp,
 			Room: "test",
 			Payload: message.Payload{
-				HangUp: &message.HangUp{},
+				HangUp: &message.HangUp{
+					UserID: identifiers.ClientID("test"),
+				},
 			},
 		},
 		{
@@ -33,11 +35,20 @@ func TestMessage_JSON(t *testing.T) {
 			Type: message.TypeSignal,
 			Room: "test",
 			Payload: message.Payload{
-				Signal: &message.Signal{
-					Candidate: message.Candidate{
-						Candidate:     "a",
-						SDPMlineIndex: "b",
-						SDPMid:        "c",
+				Signal: &message.UserSignal{
+					UserID: identifiers.ClientID("client123"),
+					Signal: message.Signal{
+						Candidate: &webrtc.ICECandidateInit{
+							Candidate: "a",
+							SDPMLineIndex: func() *uint16 {
+								val := uint16(1)
+								return &val
+							}(),
+							SDPMid: func() *string {
+								val := "c"
+								return &val
+							}(),
+						},
 					},
 				},
 			},
@@ -46,10 +57,15 @@ func TestMessage_JSON(t *testing.T) {
 			Type: message.TypeSignal,
 			Room: "test",
 			Payload: message.Payload{
-				Signal: &message.Signal{
-					TransceiverRequest: &message.TransceiverRequest{
-						Kind:      message.TransceiverRequestKindAudio,
-						Direction: webrtc.RTPTransceiverDirectionSendrecv,
+				Signal: &message.UserSignal{
+					UserID: identifiers.ClientID("client123"),
+					Signal: message.Signal{
+						TransceiverRequest: &message.TransceiverRequest{
+							Kind: message.TrackKindAudio,
+							Init: message.TransceiverInit{
+								Direction: message.DirectionSendRecv,
+							},
+						},
 					},
 				},
 			},
@@ -58,8 +74,11 @@ func TestMessage_JSON(t *testing.T) {
 			Type: message.TypeSignal,
 			Room: "test",
 			Payload: message.Payload{
-				Signal: &message.Signal{
-					Renegotiate: true,
+				Signal: &message.UserSignal{
+					UserID: identifiers.ClientID("client123"),
+					Signal: message.Signal{
+						Renegotiate: true,
+					},
 				},
 			},
 		},
@@ -67,9 +86,12 @@ func TestMessage_JSON(t *testing.T) {
 			Type: message.TypeSignal,
 			Room: "test",
 			Payload: message.Payload{
-				Signal: &message.Signal{
-					Type: message.SignalTypeOffer,
-					SDP:  "-sdp-",
+				Signal: &message.UserSignal{
+					UserID: identifiers.ClientID("client123"),
+					Signal: message.Signal{
+						Type: webrtc.SDPTypeOffer,
+						SDP:  "-sdp-",
+					},
 				},
 			},
 		},
@@ -108,7 +130,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				RoomJoin: &message.RoomJoin{
-					ClientID: identifiers.UserID("user123"),
+					ClientID: identifiers.ClientID("user123"),
 					Metadata: "{}",
 				},
 			},
@@ -131,7 +153,23 @@ func TestMessage_JSON(t *testing.T) {
 						"clinet444": "four-four-four",
 					},
 				},
-				RoomLeave: "user123",
+			},
+		},
+		{
+			Type: message.TypeMetadata,
+			Room: "test",
+			Payload: message.Payload{
+				Metadata: &message.Metadata{
+					UserID: identifiers.ClientID("test"),
+					Metadata: []message.TrackMetadata{
+						{
+							Mid:      "1",
+							UserID:   identifiers.UserID("user123"),
+							StreamID: "streamID",
+							Kind:     message.TrackKindAudio,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -144,5 +182,7 @@ func TestMessage_JSON(t *testing.T) {
 
 		err = json.Unmarshal(b, &m2)
 		assert.NoError(t, err, "unmarshal message: %s", string(b))
+
+		assert.Equal(t, m, m2, "messages are not equal")
 	}
 }

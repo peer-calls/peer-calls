@@ -9,6 +9,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/pionlogger"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
@@ -289,8 +290,6 @@ func NewWebRTCTransport(
 		log,
 		initiator,
 		peerConnection,
-		localPeerID,
-		clientID,
 	)
 
 	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
@@ -307,6 +306,7 @@ func NewWebRTCTransport(
 		log: log,
 
 		clientID:        clientID,
+		userID:          userID,
 		signaller:       signaller,
 		peerConnection:  peerConnection,
 		dataTransceiver: dataTransceiver,
@@ -676,13 +676,13 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 	// }()
 }
 
-func (p *WebRTCTransport) Signal(payload map[string]interface{}) error {
-	err := p.signaller.Signal(payload)
+func (p *WebRTCTransport) Signal(signal message.Signal) error {
+	err := p.signaller.Signal(signal)
 
 	return errors.Annotate(err, "signal")
 }
 
-func (p *WebRTCTransport) SignalChannel() <-chan Payload {
+func (p *WebRTCTransport) SignalChannel() <-chan message.Signal {
 	return p.signaller.SignalChannel()
 }
 

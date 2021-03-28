@@ -15,36 +15,129 @@ type Message struct {
 	Payload Payload
 }
 
-type Props struct {
-	// Types 0-10 are reserved for base functionality, others can be used for
-	// custom implementations.
-	Type Type `json:"type"`
-	// Room this message is related to
-	Room identifiers.RoomID `json:"room"`
-	// Payload content. Depending on the Type, only one field will be set.
-	Payload Payload `json:"payload"`
+func NewReady(roomID identifiers.RoomID, payload Ready) Message {
+	return Message{
+		Type: TypeReady,
+		Room: roomID,
+		Payload: Payload{
+			Ready: &payload,
+		},
+	}
+}
+
+func NewHangUp(roomID identifiers.RoomID, payload HangUp) Message {
+	return Message{
+		Type: TypeHangUp,
+		Room: roomID,
+		Payload: Payload{
+			HangUp: &payload,
+		},
+	}
+}
+
+func NewRoomJoin(roomID identifiers.RoomID, payload RoomJoin) Message {
+	return Message{
+		Type: TypeRoomJoin,
+		Room: roomID,
+		Payload: Payload{
+			RoomJoin: &payload,
+		},
+	}
+}
+
+func NewRoomLeave(roomID identifiers.RoomID, clientID identifiers.ClientID) Message {
+	return Message{
+		Type: TypeRoomLeave,
+		Room: roomID,
+		Payload: Payload{
+			RoomLeave: clientID,
+		},
+	}
+}
+
+func NewUsers(roomID identifiers.RoomID, payload Users) Message {
+	return Message{
+		Type: TypeUsers,
+		Room: roomID,
+		Payload: Payload{
+			Users: &payload,
+		},
+	}
+}
+
+func NewPubTrack(roomID identifiers.RoomID, payload PubTrack) Message {
+	return Message{
+		Type: TypePubTrack,
+		Room: roomID,
+		Payload: Payload{
+			PubTrack: &payload,
+		},
+	}
+}
+
+func NewSubTrack(roomID identifiers.RoomID, payload SubTrack) Message {
+	return Message{
+		Type: TypeSubTrack,
+		Room: roomID,
+		Payload: Payload{
+			SubTrack: &payload,
+		},
+	}
+}
+
+func NewMetadata(roomID identifiers.RoomID, payload Metadata) Message {
+	return Message{
+		Type: TypeMetadata,
+		Room: roomID,
+		Payload: Payload{
+			Metadata: &payload,
+		},
+	}
+}
+
+func NewSignal(roomID identifiers.RoomID, payload UserSignal) Message {
+	return Message{
+		Type: TypeSignal,
+		Room: roomID,
+		Payload: Payload{
+			Signal: &payload,
+		},
+	}
+}
+
+type UserSignal struct {
+	UserID identifiers.ClientID `json:"userId"`
+	Signal Signal               `json:"signal"`
 }
 
 // Payload should only have a single field set, depending on the type of the
 // message.
 type Payload struct {
 	HangUp *HangUp
+	// Ready is sent from the client to the server.
 	Ready  *Ready
-	Signal *Signal
+	Signal *UserSignal
 	Ping   *Ping
 
 	PubTrack *PubTrack
 	SubTrack *SubTrack
 
-	RoomJoin  *RoomJoin
+	// RoomJoin is only sent to other server-side clients in the same room.
+	RoomJoin *RoomJoin
+	// RoomLeave is only sent to other server-side clients in the same room.
 	RoomLeave identifiers.ClientID
 
+	// Users is sent as a response to Ready.
+	// TODO use PubTrack instead.
 	Users *Users
+
+	// TODO use PubTrack instead.
+	Metadata *Metadata
 }
 
 type RoomJoin struct {
-	ClientID identifiers.UserID `json:"userId"`
-	Metadata string             `json:"metadata"`
+	ClientID identifiers.ClientID `json:"userId"`
+	Metadata string               `json:"metadata"`
 }
 
 type Type string
@@ -58,13 +151,16 @@ const (
 	TypePubTrack Type = "pubTrack"
 	TypeSubTrack Type = "subTrack"
 
-	TypeRoomJoin  Type = "ws_room_join"
-	TypeRoomLeave Type = "ws_room_leave"
+	TypeRoomJoin  Type = "wsRoomJoin"
+	TypeRoomLeave Type = "wsRoomLeave"
 
-	TypeUsers Type = "users"
+	TypeUsers    Type = "users"
+	TypeMetadata Type = "metadata"
 )
 
-type HangUp struct{}
+type HangUp struct {
+	UserID identifiers.ClientID `json:"userId"`
+}
 
 type Ready struct {
 	Nickname string `json:"nickname"`
@@ -72,10 +168,27 @@ type Ready struct {
 
 type Ping struct{}
 
+// The only thing that's not easy to handle this way are nicknames.
+// Deprecated: use PubTrack instead.
 type Users struct {
 	Initiator identifiers.ClientID            `json:"initiator"`
-	PeerIDs   []identifiers.ClientID          `json:"peerIDs"`
+	PeerIDs   []identifiers.ClientID          `json:"peerIds"`
 	Nicknames map[identifiers.ClientID]string `json:"nicknames"`
+}
+
+// Deprecated: use PubTrack instead.
+type Metadata struct {
+	UserID   identifiers.ClientID `json:"userId"`
+	Metadata []TrackMetadata      `json:"metadata"`
+}
+
+// Deprecated: use PubTrack instead.
+type TrackMetadata struct {
+	Mid    string             `json:"mid"`
+	UserID identifiers.UserID `json:"userId"`
+	// StreamID is the track's StreamID.
+	StreamID string    `json:"streamId"`
+	Kind     TrackKind `json:"kind"`
 }
 
 type PubTrack struct {

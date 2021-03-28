@@ -33,7 +33,9 @@ linters-settings:
     # path to a file containing a list of functions to exclude from checking
     # see https://github.com/kisielk/errcheck#excluding-functions for details
     exclude: .golangci-errcheck-exclude.txt
-
+  # exhaustivestruct:
+  #   struct-patterns:
+  #     - 'github.com/peer-calls/peer-calls/server/message.Payload'
 # issues:
 #   # exclude-use-default: false
 #   # exclude-rules:

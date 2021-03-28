@@ -35,8 +35,8 @@ func (m Message) MarshalJSON() ([]byte, error) {
 		payload, err = json.Marshal(m.Payload.Signal)
 		err = errors.Trace(err)
 	case TypePing:
-		payload, err = json.Marshal(m.Payload.Ping)
-		err = errors.Trace(err)
+		// payload, err = json.Marshal(m.Payload.Ping)
+		// err = errors.Trace(err)
 	case TypePubTrack:
 		payload, err = json.Marshal(m.Payload.PubTrack)
 		err = errors.Trace(err)
@@ -51,6 +51,9 @@ func (m Message) MarshalJSON() ([]byte, error) {
 		err = errors.Trace(err)
 	case TypeUsers:
 		payload, err = json.Marshal(m.Payload.Users)
+		err = errors.Trace(err)
+	case TypeMetadata:
+		payload, err = json.Marshal(m.Payload.Metadata)
 		err = errors.Trace(err)
 	default:
 		err = errors.Annotatef(ErrUnknownMessageType, "message: %+v", m)
@@ -82,8 +85,6 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 	m.Room = j.Room
 	m.Type = j.Type
 
-	fmt.Println("aaaaaaa", string(j.Payload))
-
 	switch m.Type {
 	case TypeHangUp:
 		m.Payload.HangUp = &HangUp{}
@@ -94,13 +95,11 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(j.Payload, m.Payload.Ready)
 		err = errors.Trace(err)
 	case TypeSignal:
-		m.Payload.Signal = &Signal{}
+		m.Payload.Signal = &UserSignal{}
 		err = json.Unmarshal(j.Payload, m.Payload.Signal)
 		err = errors.Trace(err)
 	case TypePing:
 		m.Payload.Ping = &Ping{}
-		err = json.Unmarshal(j.Payload, m.Payload.Ping)
-		err = errors.Trace(err)
 	case TypePubTrack:
 		m.Payload.PubTrack = &PubTrack{}
 		err = json.Unmarshal(j.Payload, m.Payload.PubTrack)
@@ -114,11 +113,16 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(j.Payload, m.Payload.RoomJoin)
 		err = errors.Trace(err)
 	case TypeRoomLeave:
+		fmt.Println("unmarshal", string(j.Payload))
 		err = json.Unmarshal(j.Payload, &m.Payload.RoomLeave)
 		err = errors.Trace(err)
 	case TypeUsers:
 		m.Payload.Users = &Users{}
 		err = json.Unmarshal(j.Payload, m.Payload.Users)
+		err = errors.Trace(err)
+	case TypeMetadata:
+		m.Payload.Metadata = &Metadata{}
+		err = json.Unmarshal(j.Payload, m.Payload.Metadata)
 		err = errors.Trace(err)
 	default:
 		err = errors.Annotatef(ErrUnknownMessageType, "message: %+v", m)

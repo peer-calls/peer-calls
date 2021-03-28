@@ -9,6 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -542,7 +543,7 @@ func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMe
 			Mid:      trackInfo.MID(),
 			StreamID: track.StreamID(),
 			UserID:   track.UserID(),
-			Kind:     kind.String(),
+			Kind:     message.TrackKind(kind.String()),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{

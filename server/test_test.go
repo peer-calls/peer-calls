@@ -6,6 +6,7 @@ import (
 
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
@@ -37,7 +38,7 @@ func (w *MockWSWriter) Read(ctx context.Context) (typ websocket.MessageType, msg
 	return
 }
 
-func serialize(t *testing.T, msg server.Message) []byte {
+func serialize(t *testing.T, msg message.Message) []byte {
 	t.Helper()
 	data, err := serializer.Serialize(msg)
 	require.Nil(t, err)
