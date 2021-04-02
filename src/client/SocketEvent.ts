@@ -25,6 +25,11 @@ export enum TrackEventType {
   Unsub = 4,
 }
 
+export interface TrackId {
+  id: string
+  streamId: string
+}
+
 export interface SocketEvent {
   users: {
     initiator: string
@@ -38,13 +43,13 @@ export interface SocketEvent {
     peerId: string
   }
   pubTrack: {
-    trackId: string
+    trackId: TrackId
     pubClientId: string
     peerId: string
     type: TrackEventType.Add | TrackEventType.Remove
   }
   subTrack: {
-    trackId: string
+    trackId: TrackId
     pubClientId: string
     type: TrackEventType.Sub | TrackEventType.Unsub
   }
