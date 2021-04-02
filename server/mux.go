@@ -203,14 +203,14 @@ func (mux *Mux) getData() map[string]interface{} {
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
-	userID := uuid.New()
+	peerID := uuid.New()
 	iceServers := GetICEAuthServers(mux.iceServers)
 
 	config := ClientConfig{
 		BaseURL:    mux.BaseURL,
 		Nickname:   r.Header.Get("X-Forwarded-User"),
 		CallID:     callID,
-		UserID:     userID,
+		PeerID:     peerID,
 		ICEServers: iceServers,
 		Network:    mux.network.Type,
 	}

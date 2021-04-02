@@ -168,7 +168,7 @@ func Test_routeCall(t *testing.T) {
 	assert.Equal(t, "/test", config.BaseURL)
 	assert.Equal(t, "", config.Nickname)
 	assert.Equal(t, "abc", config.CallID)
-	assert.NotEmpty(t, config.UserID)
+	assert.NotEmpty(t, config.PeerID)
 	assert.NotEmpty(t, config.ICEServers)
 	assert.Equal(t, server.NetworkTypeMesh, config.Network)
 }

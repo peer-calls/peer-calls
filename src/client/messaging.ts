@@ -10,7 +10,7 @@ import { TextEncoder } from './textcodec'
 import { config } from './window'
 
 const debug = _debug('peercalls')
-const { userId } = config
+const { peerId } = config
 
 export function createMessagingMiddleware(
   createEncoder = () => new Encoder(),
@@ -40,12 +40,12 @@ export function createMessagingMiddleware(
       switch (action.type) {
         case MESSAGE_SEND:
           encoder.encode({
-            senderId: userId,
+            senderId: peerId,
             data: textEncoder.encode(JSON.stringify(action.payload)),
           })
           return next(addMessage({
             ...action.payload,
-            userId: ME,
+            peerId: ME,
           }))
         default:
           return next(action)

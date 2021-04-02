@@ -3,7 +3,7 @@ import { Dispatch, GetState } from '../store'
 import { MESSAGE_ADD, MESSAGE_SEND } from '../constants'
 import { config } from '../window'
 
-const { userId } = config
+const { peerId } = config
 
 export interface MessageAddAction {
   type: 'MESSAGE_ADD'
@@ -16,7 +16,7 @@ export const addMessage = (message: MessageType): MessageAddAction => ({
 })
 
 export interface TextMessage {
-  userId: string
+  peerId: string
   type: 'text'
   payload: string
   timestamp: string
@@ -30,7 +30,7 @@ export interface Base64File {
 }
 
 export interface FileMessage {
-  userId: string
+  peerId: string
   type: 'file'
   payload: Base64File
   timestamp: string
@@ -56,7 +56,7 @@ export const sendText = (payload: string) => {
     payload,
     timestamp: new Date().toISOString(),
     type: 'text',
-    userId,
+    peerId,
   })
 }
 
@@ -81,7 +81,7 @@ async (dispatch: Dispatch, getState: GetState) => {
   })
 
   dispatch(sendMessage({
-    userId,
+    peerId,
     payload: base64File,
     type: 'file',
     timestamp: new Date().toISOString(),

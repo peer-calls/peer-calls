@@ -5,7 +5,7 @@ import { config } from '../window'
 import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
 
-const { nickname, userId } = config
+const { nickname, peerId } = config
 
 export type Nicknames = Record<string, string>
 
@@ -21,12 +21,12 @@ function removeNickname(
   state: Nicknames,
   action: NicknameRemoveAction,
 ): Nicknames {
-  const { userId } = action.payload
+  const { peerId } = action.payload
   const newState = {
     ...state,
   }
-  if (userId !== ME) {
-    delete newState[userId]
+  if (peerId !== ME) {
+    delete newState[peerId]
   }
   return newState
 }
@@ -37,7 +37,7 @@ export default function nicknames(
 ) {
   switch (action.type) {
     case PEER_REMOVE:
-      return omit(state, [action.payload.userId])
+      return omit(state, [action.payload.peerId])
     case HANG_UP:
       return {[ME]: state[ME]}
     case NICKNAME_REMOVE:
@@ -45,7 +45,7 @@ export default function nicknames(
     case NICKNAMES_SET:
       return Object.keys(action.payload).reduce((obj, key) => {
         const value = action.payload[key]
-        if (key === userId) {
+        if (key === peerId) {
           obj[ME] = value
         } else {
           obj[key] = value

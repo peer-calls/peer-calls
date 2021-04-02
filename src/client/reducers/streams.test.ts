@@ -10,10 +10,10 @@ import { StreamsState } from './streams'
 
 describe('reducers/alerts', () => {
 
-  let store: Store, stream: MediaStream, userId: string
+  let store: Store, stream: MediaStream, peerId: string
   beforeEach(() => {
     store = createStore()
-    userId = 'testUserId'
+    peerId = 'testPeerId'
     stream = new MediaStream()
   })
 
@@ -27,7 +27,7 @@ describe('reducers/alerts', () => {
       expect(store.getState().streams).toEqual({
         localStreams: {},
         metadataByPeerIdMid: {},
-        streamsByUserId: {},
+        streamsByPeerId: {},
         trackIdToPeerIdMid: {},
         tracksByPeerIdMid: {},
       } as StreamsState)
@@ -91,7 +91,7 @@ describe('reducers/alerts', () => {
   })
 
   describe('removeNickname', () => {
-    const otherUserId = 'other-user'
+    const otherPeerId = 'other-user'
     const track1 = new MediaStreamTrack()
     const track2 = new MediaStreamTrack()
     const track3 = new MediaStreamTrack()
@@ -100,44 +100,44 @@ describe('reducers/alerts', () => {
         mid: '0',
         streamId: 'stream-1',
         track: track1,
-        userId: otherUserId,
+        peerId: otherPeerId,
       }))
       store.dispatch(StreamActions.addTrack({
         mid: '1',
         streamId: 'stream-2',
         track: track2,
-        userId: otherUserId,
+        peerId: otherPeerId,
       }))
       store.dispatch(StreamActions.addTrack({
         mid: '2',
         streamId: 'stream-3',
         track: track3,
-        userId,
+        peerId,
       }))
     })
     it('unassociates all tracks from user leaving', () => {
-      store.dispatch(removeNickname({ userId: otherUserId }))
+      store.dispatch(removeNickname({ peerId: otherPeerId }))
       const { streams } = store.getState()
-      const users = Object.keys(streams.streamsByUserId)
-      expect(users).toEqual([ userId ])
+      const users = Object.keys(streams.streamsByPeerId)
+      expect(users).toEqual([ peerId ])
       const tracksByPeerIdMid = streams.tracksByPeerIdMid
       const expected: typeof tracksByPeerIdMid = {
-        [otherUserId + '::0']: {
+        [otherPeerId + '::0']: {
           track: track1,
           mid: '0',
           association: undefined,
         },
-        [otherUserId + '::1']: {
+        [otherPeerId + '::1']: {
           track: track2,
           mid: '1',
           association: undefined,
         },
-        [userId + '::2']: {
+        [peerId + '::2']: {
           track: track3,
           mid: '2',
           association: {
             streamId: 'stream-3',
-            userId,
+            peerId,
           },
         },
       }
@@ -152,15 +152,15 @@ describe('reducers/alerts', () => {
         mid: '0',
         streamId: 'stream-123',
         track,
-        userId,
+        peerId,
       }))
       const { streams } = store.getState()
       const expected: StreamsState = {
         localStreams: {},
         metadataByPeerIdMid: {},
-        streamsByUserId: {
-          [userId]: {
-            userId,
+        streamsByPeerId: {
+          [peerId]: {
+            peerId,
             streams: [{
               stream: jasmine.any(MediaStream) as any,
               streamId: 'stream-123',
@@ -169,21 +169,21 @@ describe('reducers/alerts', () => {
           },
         },
         trackIdToPeerIdMid: {
-          [track.id]: userId + '::0',
+          [track.id]: peerId + '::0',
         },
         tracksByPeerIdMid: {
-          [userId + '::0']: {
+          [peerId + '::0']: {
             track,
             mid: '0',
             association: {
-              userId,
+              peerId,
               streamId: 'stream-123',
             },
           },
         },
       }
       expect(streams).toEqual(expected)
-      const mediaStream = streams.streamsByUserId[userId].streams[0].stream
+      const mediaStream = streams.streamsByPeerId[peerId].streams[0].stream
       const tracks = mediaStream.getTracks()
       expect(tracks.length).toBe(1)
       expect(tracks[0]).toBe(track)
@@ -196,21 +196,21 @@ describe('reducers/alerts', () => {
         mid: '0',
         streamId: 'stream-123',
         track: track1,
-        userId,
+        peerId,
       }))
       store.dispatch(StreamActions.addTrack({
         mid: '1',
         streamId: 'stream-123',
         track: track2,
-        userId,
+        peerId,
       }))
       const { streams } = store.getState()
       const expected: StreamsState = {
         localStreams: {},
         metadataByPeerIdMid: {},
-        streamsByUserId: {
-          [userId]: {
-            userId,
+        streamsByPeerId: {
+          [peerId]: {
+            peerId,
             streams: [{
               stream: jasmine.any(MediaStream) as any,
               streamId: 'stream-123',
@@ -219,30 +219,30 @@ describe('reducers/alerts', () => {
           },
         },
         trackIdToPeerIdMid: {
-          [track1.id]: userId + '::0',
-          [track2.id]: userId + '::1',
+          [track1.id]: peerId + '::0',
+          [track2.id]: peerId + '::1',
         },
         tracksByPeerIdMid: {
-          [userId + '::0']: {
+          [peerId + '::0']: {
             track: track1,
             mid: '0',
             association: {
-              userId,
+              peerId,
               streamId: 'stream-123',
             },
           },
-          [userId + '::1']: {
+          [peerId + '::1']: {
             track: track2,
             mid: '1',
             association: {
-              userId,
+              peerId,
               streamId: 'stream-123',
             },
           },
         },
       }
       expect(streams).toEqual(expected)
-      const mediaStream = streams.streamsByUserId[userId].streams[0].stream
+      const mediaStream = streams.streamsByPeerId[peerId].streams[0].stream
       const tracks = mediaStream.getTracks()
       expect(tracks.length).toBe(2)
       expect(tracks[0]).toBe(track1)
@@ -259,7 +259,7 @@ describe('reducers/alerts', () => {
         mid: '0',
         streamId: 'stream-1',
         track: track1,
-        userId,
+        peerId,
       }))
     })
 
@@ -269,12 +269,12 @@ describe('reducers/alerts', () => {
       const expected: typeof streams = {
         localStreams: {},
         metadataByPeerIdMid: {},
-        streamsByUserId: {},
+        streamsByPeerId: {},
         trackIdToPeerIdMid: {
-          [track1.id]: userId + '::0',
+          [track1.id]: peerId + '::0',
         },
         tracksByPeerIdMid: {
-          [userId + '::0']: {
+          [peerId + '::0']: {
             track: track1,
             mid: '0',
             association: undefined,
@@ -289,45 +289,45 @@ describe('reducers/alerts', () => {
         mid: '1',
         streamId: 'stream-1',
         track: track2,
-        userId,
+        peerId,
       }))
       store.dispatch(StreamActions.removeTrack({ track: track1 }))
       const { streams } = store.getState()
       const expected: typeof streams = {
         localStreams: {},
         metadataByPeerIdMid: {},
-        streamsByUserId: {
-          [userId]: {
+        streamsByPeerId: {
+          [peerId]: {
             streams: [{
               stream: jasmine.any(MediaStream) as any,
               streamId: 'stream-1',
               url: jasmine.any(String) as any,
             }],
-            userId,
+            peerId,
           },
         },
         trackIdToPeerIdMid: {
-          [track1.id]: userId + '::0',
-          [track2.id]: userId + '::1',
+          [track1.id]: peerId + '::0',
+          [track2.id]: peerId + '::1',
         },
         tracksByPeerIdMid: {
-          [userId + '::0']: {
+          [peerId + '::0']: {
             track: track1,
             mid: '0',
             association: undefined,
           },
-          [userId + '::1']: {
+          [peerId + '::1']: {
             track: track2,
             mid: '1',
             association: {
               streamId: 'stream-1',
-              userId,
+              peerId,
             },
           },
         },
       }
       expect(streams).toEqual(expected)
-      const s = streams.streamsByUserId[userId].streams[0]
+      const s = streams.streamsByPeerId[peerId].streams[0]
       expect(s.stream.getTracks()).toEqual([ track2 ])
     })
   })
@@ -342,9 +342,9 @@ describe('reducers/alerts', () => {
           kind: 'video',
           mid: '0',
           streamId: actualStreamId,
-          userId,
+          peerId,
         }],
-        userId: serverId,
+        peerId: serverId,
       }))
       const metadata = store.getState().streams.metadataByPeerIdMid
       expect(metadata).toEqual({
@@ -352,28 +352,28 @@ describe('reducers/alerts', () => {
           kind: 'video',
           mid: '0',
           streamId: actualStreamId,
-          userId,
+          peerId,
         },
       } as typeof metadata)
     })
 
     describe('addTrack', () => {
-      it('uses metadata info to set real userId and streamId', () => {
+      it('uses metadata info to set real peerId and streamId', () => {
         store.dispatch(StreamActions.tracksMetadata({
           metadata: [{
             kind: 'video',
             mid: '0',
             streamId: actualStreamId,
-            userId,
+            peerId,
           }],
-          userId: serverId,
+          peerId: serverId,
         }))
         const track = new MediaStreamTrack()
         store.dispatch(StreamActions.addTrack({
           mid: '0',
           streamId: 'stream-123',
           track,
-          userId: serverId,
+          peerId: serverId,
         }))
         const { streams } = store.getState()
         const expected: StreamsState = {
@@ -383,12 +383,12 @@ describe('reducers/alerts', () => {
               kind: 'video',
               mid: '0',
               streamId: actualStreamId,
-              userId,
+              peerId,
             },
           },
-          streamsByUserId: {
-            [userId]: {
-              userId,
+          streamsByPeerId: {
+            [peerId]: {
+              peerId,
               streams: [{
                 stream: jasmine.any(MediaStream) as any,
                 streamId: 'remote-stream-123',
@@ -404,14 +404,14 @@ describe('reducers/alerts', () => {
               track,
               mid: '0',
               association: {
-                userId,
+                peerId,
                 streamId: 'remote-stream-123',
               },
             },
           },
         }
         expect(streams).toEqual(expected)
-        const mediaStream = streams.streamsByUserId[userId].streams[0].stream
+        const mediaStream = streams.streamsByPeerId[peerId].streams[0].stream
         const tracks = mediaStream.getTracks()
         expect(tracks.length).toBe(1)
         expect(tracks[0]).toBe(track)
@@ -419,22 +419,22 @@ describe('reducers/alerts', () => {
     })
 
     describe('removeTrack', () => {
-      it('uses metadata info to remove correct userId / streamId', () => {
+      it('uses metadata info to remove correct peerId / streamId', () => {
         store.dispatch(StreamActions.tracksMetadata({
           metadata: [{
             kind: 'video',
             mid: '0',
             streamId: actualStreamId,
-            userId,
+            peerId,
           }],
-          userId: serverId,
+          peerId: serverId,
         }))
         const track = new MediaStreamTrack()
         store.dispatch(StreamActions.addTrack({
           mid: '0',
           streamId: 'stream-123',
           track,
-          userId: serverId,
+          peerId: serverId,
         }))
         store.dispatch(StreamActions.removeTrack({ track }))
         const { streams } = store.getState()
@@ -445,10 +445,10 @@ describe('reducers/alerts', () => {
               kind: 'video',
               mid: '0',
               streamId: actualStreamId,
-              userId,
+              peerId,
             },
           },
-          streamsByUserId: {},
+          streamsByPeerId: {},
           trackIdToPeerIdMid: {
             [track.id]: serverId + '::0',
           },
@@ -473,13 +473,13 @@ describe('reducers/alerts', () => {
           mid: '0',
           streamId: 'stream-123',
           track: track1,
-          userId: serverId,
+          peerId: serverId,
         }))
         store.dispatch(StreamActions.addTrack({
           mid: '1',
           streamId: 'stream-123',
           track: track2,
-          userId: serverId,
+          peerId: serverId,
         }))
       })
 
@@ -489,9 +489,9 @@ describe('reducers/alerts', () => {
             kind: 'video',
             mid: '0',
             streamId: actualStreamId,
-            userId,
+            peerId,
           }],
-          userId: serverId,
+          peerId: serverId,
         }))
         const { streams } = store.getState()
         const expected: StreamsState = {
@@ -501,12 +501,12 @@ describe('reducers/alerts', () => {
               kind: 'video',
               mid: '0',
               streamId: actualStreamId,
-              userId,
+              peerId,
             },
           },
-          streamsByUserId: {
-            [userId]: {
-              userId,
+          streamsByPeerId: {
+            [peerId]: {
+              peerId,
               streams: [{
                 stream: jasmine.any(MediaStream) as any,
                 streamId: 'remote-stream-123',
@@ -524,7 +524,7 @@ describe('reducers/alerts', () => {
               mid: '0',
               association: {
                 streamId: 'remote-stream-123',
-                userId,
+                peerId,
               },
             },
             [serverId + '::1']: {

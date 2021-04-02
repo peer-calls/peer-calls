@@ -168,7 +168,7 @@ func (nm *NodeManager) handleTransport(transport *udptransport2.Transport) error
 
 			logCtx := logger.Ctx{
 				"client_id":        pubTrackEvent.PubTrack.ClientID,
-				"user_id":          pubTrackEvent.PubTrack.UserID,
+				"user_id":          pubTrackEvent.PubTrack.PeerID,
 				"track_id":         pubTrackEvent.PubTrack.TrackID,
 				"track_event_type": pubTrackEvent.Type,
 			}

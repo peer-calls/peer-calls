@@ -29,6 +29,6 @@ func TestSimpleTrack(t *testing.T) {
 	assert.Equal(t, "a", t2.ID())
 	assert.Equal(t, "b", t2.StreamID())
 	assert.Equal(t, identifiers.TrackID("b:a"), t2.UniqueID())
-	assert.Equal(t, identifiers.UserID("user-1"), t2.UserID())
+	assert.Equal(t, identifiers.PeerID("user-1"), t2.PeerID())
 	assert.Equal(t, codec, t2.Codec())
 }

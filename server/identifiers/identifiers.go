@@ -11,7 +11,7 @@ type RoomID string
 
 type ClientID string
 
-type UserID string
+type PeerID string
 
 type ClientIDs []ClientID
 

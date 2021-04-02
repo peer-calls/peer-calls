@@ -98,7 +98,7 @@ describe('PeerActions', () => {
         const peer = createPeer()
         const message: MessageType = {
           timestamp: new Date().toISOString(),
-          userId: 'test-user',
+          peerId: 'test-user',
           type: 'text',
           payload: 'test',
         }
@@ -116,7 +116,7 @@ describe('PeerActions', () => {
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
-          userId: 'test-user',
+          peerId: 'test-user',
           timestamp: new Date(message.timestamp).toLocaleString(),
           image: undefined,
           message: 'test',

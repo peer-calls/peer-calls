@@ -21,7 +21,7 @@ export interface RemoveLocalStreamPayload {
 }
 
 export interface MinimizeTogglePayload {
-  userId: string
+  peerId: string
   streamId?: string
 }
 
@@ -42,7 +42,7 @@ export interface RemoveTrackAction {
 export interface AddTrackPayload {
   mid: string
   streamId: string
-  userId: string
+  peerId: string
   track: MediaStreamTrack
 }
 
@@ -51,8 +51,8 @@ export interface AddTrackAction {
   payload: AddTrackPayload
 }
 
-export interface UserIdPayload {
-  userId: string
+export interface PeerIdPayload {
+  peerId: string
 }
 
 export interface TracksMetadataAction {

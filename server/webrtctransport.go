@@ -196,7 +196,7 @@ type WebRTCTransport struct {
 	log logger.Logger
 
 	clientID identifiers.ClientID
-	userID   identifiers.UserID
+	peerID   identifiers.PeerID
 
 	peerConnection  *webrtc.PeerConnection
 	signaller       *Signaller
@@ -212,7 +212,7 @@ type WebRTCTransport struct {
 func (f WebRTCTransportFactory) NewWebRTCTransport(
 	roomID identifiers.RoomID,
 	clientID identifiers.ClientID,
-	userID identifiers.UserID,
+	peerID identifiers.PeerID,
 ) (*WebRTCTransport, error) {
 	webrtcICEServers := []webrtc.ICEServer{}
 
@@ -240,14 +240,14 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(
 		return nil, errors.Annotate(err, "new peer connection")
 	}
 
-	return NewWebRTCTransport(f.log, roomID, clientID, userID, true, peerConnection, f.codecRegistry)
+	return NewWebRTCTransport(f.log, roomID, clientID, peerID, true, peerConnection, f.codecRegistry)
 }
 
 func NewWebRTCTransport(
 	log logger.Logger,
 	roomID identifiers.RoomID,
 	clientID identifiers.ClientID,
-	userID identifiers.UserID,
+	peerID identifiers.PeerID,
 	initiator bool,
 	peerConnection *webrtc.PeerConnection,
 	codecRegistry *codecs.Registry,
@@ -306,7 +306,7 @@ func NewWebRTCTransport(
 		log: log,
 
 		clientID:        clientID,
-		userID:          userID,
+		peerID:          peerID,
 		signaller:       signaller,
 		peerConnection:  peerConnection,
 		dataTransceiver: dataTransceiver,
@@ -586,7 +586,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 
 	t := RemoteTrack{
 		TrackRemote: track,
-		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.userID),
+		track:       transport.NewSimpleTrack(track.ID(), track.StreamID(), codec, p.peerID),
 	}
 
 	trwr := transport.TrackRemoteWithRTCPReader{

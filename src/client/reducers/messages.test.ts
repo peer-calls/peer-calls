@@ -9,13 +9,13 @@ describe('reducers/messages', () => {
     it('add message to chat', () => {
       const payload: MessageType = {
         type: 'text',
-        userId: 'test',
+        peerId: 'test',
         payload: 'hello',
         timestamp: new Date().toISOString(),
       }
       const expected: Message = {
         message: 'hello',
-        userId: 'test',
+        peerId: 'test',
         timestamp: new Date(payload.timestamp).toLocaleString(),
       }
       let state = messages(undefined, {type: 'test'} as any)

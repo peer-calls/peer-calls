@@ -1,13 +1,13 @@
 import { Nicknames } from './reducers/nicknames'
 import { ME } from './constants'
 
-export function getNickname(nicknames: Nicknames, userId: string): string {
-  const nickname = nicknames[userId]
+export function getNickname(nicknames: Nicknames, peerId: string): string {
+  const nickname = nicknames[peerId]
   if (nickname) {
     return nickname
   }
-  if (userId === ME) {
+  if (peerId === ME) {
     return 'You'
   }
-  return userId
+  return peerId
 }

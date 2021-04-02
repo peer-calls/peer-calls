@@ -18,7 +18,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				HangUp: &message.HangUp{
-					UserID: identifiers.ClientID("test"),
+					PeerID: identifiers.ClientID("test"),
 				},
 			},
 		},
@@ -36,7 +36,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				Signal: &message.UserSignal{
-					UserID: identifiers.ClientID("client123"),
+					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
 						Candidate: &webrtc.ICECandidateInit{
 							Candidate: "a",
@@ -58,7 +58,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				Signal: &message.UserSignal{
-					UserID: identifiers.ClientID("client123"),
+					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
 						TransceiverRequest: &message.TransceiverRequest{
 							Kind: message.TrackKindAudio,
@@ -75,7 +75,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				Signal: &message.UserSignal{
-					UserID: identifiers.ClientID("client123"),
+					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
 						Renegotiate: true,
 					},
@@ -87,7 +87,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				Signal: &message.UserSignal{
-					UserID: identifiers.ClientID("client123"),
+					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
 						Type: webrtc.SDPTypeOffer,
 						SDP:  "-sdp-",
@@ -109,7 +109,7 @@ func TestMessage_JSON(t *testing.T) {
 				PubTrack: &message.PubTrack{
 					TrackID:     identifiers.TrackID("123"),
 					PubClientID: identifiers.ClientID("client123"),
-					UserID:      identifiers.UserID("user123"),
+					PeerID:      identifiers.PeerID("user123"),
 					Type:        transport.TrackEventTypeAdd,
 				},
 			},
@@ -160,11 +160,11 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				Metadata: &message.Metadata{
-					UserID: identifiers.ClientID("test"),
+					PeerID: identifiers.ClientID("test"),
 					Metadata: []message.TrackMetadata{
 						{
 							Mid:      "1",
-							UserID:   identifiers.UserID("user123"),
+							PeerID:   identifiers.PeerID("user123"),
 							StreamID: "streamID",
 							Kind:     message.TrackKindAudio,
 						},

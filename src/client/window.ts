@@ -11,7 +11,7 @@ export interface ClientConfig {
   baseUrl: string
   nickname: string
   callId: string
-  userId: string
+  peerId: string
   iceServers: RTCIceServer[]
   network: 'mesh' | 'sfu'
 }

@@ -212,7 +212,7 @@ func TestMesh_event_signal(t *testing.T) {
 	}
 
 	mustWriteWS(t, ctx, ws, message.NewSignal("test-room", message.UserSignal{
-		UserID: otherClientID,
+		PeerID: otherClientID,
 		Signal: signal,
 	}))
 	emit, ok := <-rooms.emit
@@ -222,5 +222,5 @@ func TestMesh_event_signal(t *testing.T) {
 
 	require.NotNil(t, emit.message.Payload.Signal)
 	assert.Equal(t, signal, emit.message.Payload.Signal.Signal)
-	assert.Equal(t, clientID, emit.message.Payload.Signal.UserID)
+	assert.Equal(t, clientID, emit.message.Payload.Signal.PeerID)
 }

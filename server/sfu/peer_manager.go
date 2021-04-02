@@ -101,7 +101,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 				pubTrackEventsCh <- pubsub.PubTrackEvent{
 					PubTrack: pubsub.PubTrack{
 						ClientID: pubTrack.ClientID,
-						UserID:   pubTrack.UserID,
+						PeerID:   pubTrack.PeerID,
 						TrackID:  pubTrack.TrackID,
 					},
 					Type: transport.TrackEventTypeAdd,
@@ -212,7 +212,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			// case transport.TrackEventTypeSub:
 			// 	if err := t.Sub(SubParams{
 			// 		Room:        t.room,
-			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
+			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).PeerID(),
 			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
 			// 		SubClientID: tr.ClientID(),
 			// 	}); err != nil {
@@ -221,7 +221,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			// case transport.TrackEventTypeUnsub:
 			// 	if err := t.Unsub(SubParams{
 			// 		Room:        t.room,
-			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).UserID(),
+			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).PeerID(),
 			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
 			// 		SubClientID: tr.ClientID(),
 			// 	}); err != nil {
@@ -542,7 +542,7 @@ func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMe
 		trackMetadata := TrackMetadata{
 			Mid:      trackInfo.MID(),
 			StreamID: track.StreamID(),
-			UserID:   track.UserID(),
+			PeerID:   track.PeerID(),
 			Kind:     message.TrackKind(kind.String()),
 		}
 

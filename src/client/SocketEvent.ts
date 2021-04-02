@@ -2,19 +2,19 @@ import { SignalData } from 'simple-peer'
 
 export interface Ready {
   room: string
-  userId: string
+  peerId: string
   nickname: string
 }
 
 export interface TrackMetadata {
   mid: string
   kind: string
-  userId: string
+  peerId: string
   streamId: string
 }
 
 export interface MetadataPayload {
-  userId: string
+  peerId: string
   metadata: TrackMetadata[]
 }
 
@@ -30,17 +30,17 @@ export interface SocketEvent {
     initiator: string
     // peers to connect to
     peerIds: string[]
-    // mapping of userId / nickname
+    // mapping of peerId / nickname
     nicknames: Record<string, string>
   }
   metadata: MetadataPayload
   hangUp: {
-    userId: string
+    peerId: string
   }
   pubTrack: {
     trackId: string
     pubClientId: string
-    userId: string
+    peerId: string
     type: TrackEventType.Add | TrackEventType.Remove
   }
   subTrack: {
@@ -49,7 +49,7 @@ export interface SocketEvent {
     type: TrackEventType.Sub | TrackEventType.Unsub
   }
   signal: {
-    userId: string
+    peerId: string
     // eslint-disable-next-line
     signal: SignalData
   }

@@ -6,7 +6,7 @@ type Track interface {
 	UniqueID() identifiers.TrackID
 	ID() string
 	StreamID() string
-	UserID() identifiers.UserID
+	PeerID() identifiers.PeerID
 	Codec() Codec
 	SimpleTrack() SimpleTrack
 }

@@ -112,7 +112,7 @@ func startSignalling(
 	go func() {
 		for signal := range signalChan {
 			userSignal := message.UserSignal{
-				UserID: clientID,
+				PeerID: clientID,
 				Signal: signal,
 			}
 

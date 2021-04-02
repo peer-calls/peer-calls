@@ -12,7 +12,7 @@ type SimpleTrack struct {
 	id       string
 	streamID string
 	mimeType string
-	userID   identifiers.UserID
+	peerID   identifiers.PeerID
 
 	uniqueID identifiers.TrackID
 
@@ -21,11 +21,11 @@ type SimpleTrack struct {
 
 var _ Track = SimpleTrack{}
 
-func NewSimpleTrack(id string, streamID string, codec Codec, userID identifiers.UserID) SimpleTrack {
+func NewSimpleTrack(id string, streamID string, codec Codec, peerID identifiers.PeerID) SimpleTrack {
 	return SimpleTrack{
 		id:       id,
 		streamID: streamID,
-		userID:   userID,
+		peerID:   peerID,
 		uniqueID: identifiers.TrackID(fmt.Sprintf("%s:%s", streamID, id)),
 		codec:    codec,
 	}
@@ -43,8 +43,8 @@ func (s SimpleTrack) StreamID() string {
 	return s.streamID
 }
 
-func (s SimpleTrack) UserID() identifiers.UserID {
-	return s.userID
+func (s SimpleTrack) PeerID() identifiers.PeerID {
+	return s.peerID
 }
 
 func (s SimpleTrack) MimeType() string {
@@ -63,7 +63,7 @@ func (s SimpleTrack) MarshalJSON() ([]byte, error) {
 	return json.Marshal(TrackJSON{
 		ID:       s.id,
 		StreamID: s.streamID,
-		UserID:   s.userID,
+		PeerID:   s.peerID,
 		Codec:    s.codec,
 	})
 }
@@ -76,7 +76,7 @@ func (s *SimpleTrack) UnmarshalJSON(data []byte) error {
 	s.id = j.ID
 	s.streamID = j.StreamID
 	s.codec = j.Codec
-	s.userID = j.UserID
+	s.peerID = j.PeerID
 	s.uniqueID = identifiers.TrackID(fmt.Sprintf("%s:%s", j.StreamID, j.ID))
 
 	return errors.Annotatef(err, "unmarshal simple track json")

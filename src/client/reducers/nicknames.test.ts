@@ -8,7 +8,7 @@ import { getLocalNickname } from '../reducers/nicknames'
 import { config } from '../window'
 import reducers from './index'
 
-const { nickname, userId } = config
+const { nickname, peerId } = config
 
 describe('reducers/nicknames', () => {
 
@@ -33,7 +33,7 @@ describe('reducers/nicknames', () => {
       store.dispatch(setNicknames({
         a: 'one',
         b: 'two',
-        [userId]: 'three',
+        [peerId]: 'three',
       }))
       expect(store.getState().nicknames).toEqual({
         a: 'one',
@@ -74,7 +74,7 @@ describe('reducers/nicknames', () => {
     })
 
     it('removes a specific nickname', () => {
-      store.dispatch(removeNickname({ userId: 'a' }))
+      store.dispatch(removeNickname({ peerId: 'a' }))
       expect(store.getState().nicknames).toEqual({
         b: 'two',
         [ME]: nickname,
@@ -82,7 +82,7 @@ describe('reducers/nicknames', () => {
     })
 
     it('does not remove current user\'s nickanme', () => {
-      store.dispatch(removeNickname({ userId: ME }))
+      store.dispatch(removeNickname({ peerId: ME }))
       expect(store.getState().nicknames).toEqual({
         a: 'one',
         b: 'two',

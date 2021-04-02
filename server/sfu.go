@@ -135,7 +135,7 @@ func (sh *SocketHandler) Cleanup() {
 
 	err := sh.adapter.Broadcast(
 		message.NewHangUp(sh.room, message.HangUp{
-			UserID: sh.clientID,
+			PeerID: sh.clientID,
 		}),
 	)
 	if err != nil {
@@ -189,8 +189,8 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 	adapter := sh.adapter
 	roomID := sh.room
 	clientID := sh.clientID
-	// userID is the same as clientID for webrtc connections.
-	userID := identifiers.UserID(sh.clientID)
+	// peerID is the same as clientID for webrtc connections.
+	peerID := identifiers.PeerID(sh.clientID)
 
 	initiator := localPeerID
 	if !serverIsInitiator {
@@ -225,7 +225,7 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 		return errors.Annotatef(err, "broadcasting users")
 	}
 
-	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(roomID, clientID, userID)
+	webRTCTransport, err := sh.webRTCTransportFactory.NewWebRTCTransport(roomID, clientID, peerID)
 	if err != nil {
 		return errors.Annotatef(err, "create new WebRTCTransport")
 	}
@@ -245,7 +245,7 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 			err := sh.adapter.Emit(clientID, message.NewPubTrack(roomID, message.PubTrack{
 				PubClientID: pubTrackEvent.PubTrack.ClientID,
 				TrackID:     pubTrackEvent.PubTrack.TrackID,
-				UserID:      pubTrackEvent.PubTrack.UserID,
+				PeerID:      pubTrackEvent.PubTrack.PeerID,
 				Type:        pubTrackEvent.Type,
 			}))
 			if err != nil {
@@ -278,7 +278,7 @@ func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, star
 			// TODO use PubTrack instead of metadata.
 			if metadata, ok := sh.tracksManager.TracksMetadata(room, clientID); ok {
 				err := adapter.Emit(clientID, message.NewMetadata(room, message.Metadata{
-					UserID:   localPeerID,
+					PeerID:   localPeerID,
 					Metadata: metadata,
 				}))
 				if err != nil {
@@ -288,7 +288,7 @@ func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, star
 		}
 
 		userSignal := message.UserSignal{
-			UserID: localPeerID,
+			PeerID: localPeerID,
 			Signal: signal,
 		}
 
@@ -310,7 +310,7 @@ func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, star
 
 	err := sh.adapter.Broadcast(
 		message.NewHangUp(room, message.HangUp{
-			UserID: sh.clientID,
+			PeerID: sh.clientID,
 		}),
 	)
 	if err != nil {

@@ -90,11 +90,11 @@ export default class Chat extends React.PureComponent<ChatProps> {
           {messages.length ? (
             messages.map((message, i) => (
               <div key={i}>
-                {message.userId === ME ? (
+                {message.peerId === ME ? (
                   <div className="chat-item chat-item-me">
                     <div className="message">
                       <span className="message-user-name">
-                        {getNickname(this.props.nicknames, message.userId)}
+                        {getNickname(this.props.nicknames, message.peerId)}
                       </span>
                       <time className="message-time">{message.timestamp}</time>
                       <MessageEntry message={message} />
@@ -110,7 +110,7 @@ export default class Chat extends React.PureComponent<ChatProps> {
                     </span>
                     <div className="message">
                       <span className="message-user-name">
-                        {getNickname(this.props.nicknames, message.userId)}
+                        {getNickname(this.props.nicknames, message.peerId)}
                       </span>
                       <time className="message-time">{message.timestamp}</time>
                       <MessageEntry message={message} />

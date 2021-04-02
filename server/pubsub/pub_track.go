@@ -7,7 +7,7 @@ import (
 
 type PubTrack struct {
 	ClientID identifiers.ClientID `json:"clientId"`
-	UserID   identifiers.UserID   `json:"userId"`
+	PeerID   identifiers.PeerID   `json:"peerId"`
 	TrackID  identifiers.TrackID  `json:"trackId"`
 }
 
@@ -15,6 +15,6 @@ func newPubTrack(pubClientID identifiers.ClientID, track transport.Track) PubTra
 	return PubTrack{
 		ClientID: pubClientID,
 		TrackID:  track.UniqueID(),
-		UserID:   track.UserID(),
+		PeerID:   track.PeerID(),
 	}
 }

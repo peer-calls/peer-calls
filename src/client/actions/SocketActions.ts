@@ -18,7 +18,7 @@ export interface SocketHandlerOptions {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
-  userId: string
+  peerId: string
 }
 
 class SocketHandler {
@@ -27,7 +27,7 @@ class SocketHandler {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
-  userId: string
+  peerId: string
 
   constructor (options: SocketHandlerOptions) {
     this.socket = options.socket
@@ -35,20 +35,20 @@ class SocketHandler {
     this.stream = options.stream
     this.dispatch = options.dispatch
     this.getState = options.getState
-    this.userId = options.userId
+    this.peerId = options.peerId
   }
-  handleSignal = ({ userId, signal }: SocketEvent['signal']) => {
+  handleSignal = ({ peerId, signal }: SocketEvent['signal']) => {
     const { getState } = this
-    const peer = getState().peers[userId]
-    sdpDebug('remote signal: userId: %s, signal: %o', userId, signal)
-    if (!peer) return debug('user: %s, no peer found', userId)
+    const peer = getState().peers[peerId]
+    sdpDebug('remote signal: peerId: %s, signal: %o', peerId, signal)
+    if (!peer) return debug('user: %s, no peer found', peerId)
     peer.signal(signal)
   }
   // One user has hung up
-  handleHangUp = ({ userId }: SocketEvent['hangUp']) => {
+  handleHangUp = ({ peerId }: SocketEvent['hangUp']) => {
     const { dispatch } = this
-    debug('socket hangUp, userId: %s', userId)
-    dispatch(removeNickname({ userId }))
+    debug('socket hangUp, peerId: %s', peerId)
+    dispatch(removeNickname({ peerId }))
   }
   handleMetadata = (payload: MetadataPayload) => {
     const { dispatch } = this
@@ -65,13 +65,13 @@ class SocketHandler {
     const { peers } = this.getState()
     debug('active peers: %o', Object.keys(peers))
 
-    const isInitiator = initiator === this.userId
+    const isInitiator = initiator === this.peerId
     debug('isInitiator', isInitiator)
 
     dispatch(setNicknames(nicknames))
 
     peerIds
-    .filter(peerId => !peers[peerId] && peerId !== this.userId)
+    .filter(peerId => !peers[peerId] && peerId !== this.peerId)
     .forEach(peerId => PeerActions.createPeer({
       socket,
       user: {
@@ -99,12 +99,12 @@ export interface HandshakeOptions {
   store: Store
   roomName: string
   nickname: string
-  userId: string
+  peerId: string
   stream?: MediaStream
 }
 
 export function handshake (options: HandshakeOptions) {
-  const { nickname, socket, roomName, stream, userId, store } = options
+  const { nickname, socket, roomName, stream, peerId, store } = options
 
   const handler = new SocketHandler({
     socket,
@@ -112,7 +112,7 @@ export function handshake (options: HandshakeOptions) {
     stream,
     dispatch: store.dispatch,
     getState: store.getState,
-    userId,
+    peerId,
   })
 
   // remove listeneres to make socket reusable
@@ -124,11 +124,11 @@ export function handshake (options: HandshakeOptions) {
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
   socket.on(constants.SOCKET_EVENT_PUB_TRACK, handler.handlePub)
 
-  debug('userId: %s', userId)
+  debug('peerId: %s', peerId)
   socket.emit(constants.SOCKET_EVENT_READY, {
     room: roomName,
     nickname,
-    userId,
+    peerId,
   })
 }
 

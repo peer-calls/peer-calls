@@ -55,7 +55,7 @@ class PeerHandler {
     const { socket, user } = this
     sdpDebug('local signal: %s, signal: %o', user.id, signal)
 
-    const payload = { userId: user.id, signal }
+    const payload = { peerId: user.id, signal }
     socket.emit('signal', payload)
   }
   handleConnect = () => {
@@ -81,16 +81,16 @@ class PeerHandler {
     transceiver: RTCRtpTransceiver,
   ) => {
     const { user, dispatch } = this
-    const userId = user.id
+    const peerId = user.id
     const mid = transceiver.mid!
 
     debug('peer: %s, track: %s, stream: %s, mid: %s',
-          userId, track.id, stream.id, mid)
+          peerId, track.id, stream.id, mid)
 
     insertableStreamsCodec.decrypt({
       receiver: transceiver.receiver,
       mid,
-      userId,
+      peerId,
     })
 
     // Listen to mute event to know when a track was removed
@@ -98,18 +98,18 @@ class PeerHandler {
     track.onmute = () => {
       debug(
         'peer: %s, track mute (id: %s, stream.id: %s)',
-        userId, track.id, stream.id)
+        peerId, track.id, stream.id)
       dispatch(StreamActions.removeTrack({ track }))
     }
 
     function addTrack() {
       debug(
         'peer: %s, track unmute (id: %s, stream.id: %s)',
-        userId, track.id, stream.id)
+        peerId, track.id, stream.id)
       dispatch(StreamActions.addTrack({
         streamId: stream.id,
         mid,
-        userId,
+        peerId,
         track,
       }))
     }
@@ -160,17 +160,17 @@ export function createPeer (options: CreatePeerOptions) {
   const { socket, user, initiator, stream } = options
 
   return (dispatch: Dispatch, getState: GetState) => {
-    const userId = user.id
+    const peerId = user.id
     debug(
       'create peer: %s, hasStream: %s, initiator: %s',
-      userId, !!stream, initiator)
+      peerId, !!stream, initiator)
     dispatch(NotifyActions.warning('Connecting to peer...'))
 
-    const oldPeer = getState().peers[userId]
+    const oldPeer = getState().peers[peerId]
     if (oldPeer) {
       dispatch(NotifyActions.info('Cleaning up old connection...'))
       oldPeer.destroy()
-      dispatch(removePeer(userId))
+      dispatch(removePeer(peerId))
     }
 
     debug('Using ice servers: %o', iceServers)
@@ -209,13 +209,13 @@ export function createPeer (options: CreatePeerOptions) {
     peer.on(constants.PEER_EVENT_TRACK, handler.handleTrack)
     peer.on(constants.PEER_EVENT_DATA, handler.handleData)
 
-    dispatch(addPeer({ peer, userId }))
+    dispatch(addPeer({ peer, peerId }))
   }
 }
 
 export interface AddPeerParams {
   peer: Peer.Instance
-  userId: string
+  peerId: string
 }
 
 export interface AddPeerAction {
@@ -230,12 +230,12 @@ export const addPeer = (payload: AddPeerParams): AddPeerAction => ({
 
 export interface RemovePeerAction {
   type: 'PEER_REMOVE'
-  payload: { userId: string }
+  payload: { peerId: string }
 }
 
-export const removePeer = (userId: string): RemovePeerAction => ({
+export const removePeer = (peerId: string): RemovePeerAction => ({
   type: constants.PEER_REMOVE,
-  payload: { userId },
+  payload: { peerId },
 })
 
 export type PeerAction =

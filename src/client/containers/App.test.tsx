@@ -92,9 +92,9 @@ describe('App', () => {
             type: StreamTypeCamera,
           },
         },
-        streamsByUserId: {
+        streamsByPeerId: {
           'other-user': {
-            userId: 'other-user',
+            peerId: 'other-user',
             streams: [{
               stream: remoteStream,
               streamId: remoteStream.id,
@@ -155,7 +155,7 @@ describe('App', () => {
         expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.MINIMIZE_TOGGLE,
           payload: {
-            userId: constants.ME,
+            peerId: constants.ME,
             streamId: store.getState()
             .streams.localStreams[StreamTypeCamera]!.streamId,
           },

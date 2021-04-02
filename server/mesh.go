@@ -11,7 +11,7 @@ import (
 )
 
 type ReadyMessage struct {
-	UserID string `json:"userId"`
+	PeerID string `json:"peerId"`
 	Room   string `json:"room"`
 }
 
@@ -64,14 +64,14 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 			case message.TypeSignal:
 				signal := *msg.Payload.Signal
 
-				targetClientID := signal.UserID
+				targetClientID := signal.PeerID
 
 				log.Info("Send signal to", logger.Ctx{
 					"target_client_id": targetClientID,
 				})
 				err = adapter.Emit(targetClientID, message.NewSignal(room, message.UserSignal{
 					Signal: signal.Signal,
-					UserID: clientID,
+					PeerID: clientID,
 				}))
 				err = errors.Annotatef(err, "signal emit")
 			}

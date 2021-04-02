@@ -6,7 +6,7 @@ import { config } from '../window'
 import * as NotifyActions from './NotifyActions'
 import * as SocketActions from './SocketActions'
 
-const { callId, userId } = config
+const { callId, peerId } = config
 
 export interface ConnectedAction {
   type: 'SOCKET_CONNECTED'
@@ -49,7 +49,7 @@ export const dial = makeAction(
       nickname: params.nickname,
       socket,
       roomName: callId,
-      userId,
+      peerId,
       store,
     })
     socket.once(SOCKET_EVENT_USERS, () => resolve())
@@ -62,7 +62,7 @@ export type HangUpAction = {
 }
 
 export const hangUp = (): HangUpAction => {
-  socket.emit(SOCKET_EVENT_HANG_UP, { userId })
+  socket.emit(SOCKET_EVENT_HANG_UP, { peerId })
   SocketActions.removeEventListeners(socket)
   return {
     type: HANG_UP,

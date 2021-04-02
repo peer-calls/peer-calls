@@ -11,7 +11,7 @@ export interface VideoProps {
   nickname: string
   windowState: WindowState
   stream?: StreamWithURL
-  userId: string
+  peerId: string
   muted: boolean
   mirrored: boolean
   play: () => void
@@ -49,7 +49,7 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   handleMinimize = () => {
     this.props.onMinimizeToggle({
-      userId: this.props.userId,
+      peerId: this.props.peerId,
       streamId: this.props.stream && this.props.stream.streamId,
     })
   }
@@ -60,7 +60,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     }
   }
   render () {
-    const { mirrored, userId, windowState } = this.props
+    const { mirrored, peerId, windowState } = this.props
     const minimized =  windowState === 'minimized'
     const className = classnames('video-container', {
       minimized,
@@ -70,7 +70,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     return (
       <div className={className}>
         <video
-          id={`video-${userId}`}
+          id={`video-${peerId}`}
           autoPlay
           onClick={this.handleClick}
           onLoadedMetadata={() => this.props.play()}

@@ -94,7 +94,7 @@ type ClientConfig struct {
 	BaseURL    string          `json:"baseUrl"`
 	Nickname   string          `json:"nickname"`
 	CallID     string          `json:"callId"`
-	UserID     string          `json:"userId"`
+	PeerID     string          `json:"peerId"`
 	ICEServers []ICEAuthServer `json:"iceServers"`
 	Network    NetworkType     `json:"network"`
 }

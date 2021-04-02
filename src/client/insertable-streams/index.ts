@@ -4,7 +4,7 @@ import { WebWorker } from '../webworker'
 import { config } from '../window'
 
 const debug = _debug('peercalls')
-const { userId } = config
+const { peerId } = config
 
 interface EncryptStreamEvent {
   type: 'encrypt'
@@ -17,13 +17,13 @@ interface DecryptStreamEvent {
   // In the case of SFU only transceiver.mid is known at the time of receiving
   // a track until TrackMetadata array is received.
   mid: string
-  // In the case of direct P2P connections, userId will be set correctly from
+  // In the case of direct P2P connections, peerId will be set correctly from
   // the start, but when SFU is used, mid will have to be used to resolve the
   // username after the metadata event is received.
-  userId: string
+  peerId: string
   // The streams property will be undefined if this is a transceiver reuse,
   // but a message still needs to be sent to the worker so that it updates
-  // the userId/mid asssociation.
+  // the peerId/mid asssociation.
   streams?: RTCInsertableStreams
 }
 
@@ -39,7 +39,7 @@ interface MetadataEvent {
 
 interface InitEvent {
   type: 'init'
-  userId: string
+  peerId: string
   url: string
 }
 
@@ -56,18 +56,18 @@ export interface DecryptParams {
   receiver: RTCRtpReceiver
   // Only transceiver.mid is known at the time of receiving a track.
   mid: string
-  userId: string
+  peerId: string
 }
 
 interface WorkerParams {
-  userId: string
+  peerId: string
   url: string
 }
 
 const workerFunc = () => (self: EncryptionWorker) => {
   const params: WorkerParams = {
     url: '',
-    userId: '',
+    peerId: '',
   }
 
   const tagLength = 128
@@ -75,7 +75,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
   interface DecryptContext {
     key?: CryptoKey
-    userId: string
+    peerId: string
     password: string
   }
 
@@ -107,24 +107,24 @@ const workerFunc = () => (self: EncryptionWorker) => {
     },
   }
 
-  function getUserId(mid: string, userId: string) {
+  function getPeerId(mid: string, peerId: string) {
     const metadata = metadataByMid[mid]
     if (!metadata) {
-      return userId
+      return peerId
     }
 
-    return metadata.userId
+    return metadata.peerId
   }
 
-  function createKey(password: string, url: string, userId: string) {
+  function createKey(password: string, url: string, peerId: string) {
     const urlBytes = new TextEncoder().encode(url)
-    const userIdBytes = new TextEncoder().encode(userId)
+    const peerIdBytes = new TextEncoder().encode(peerId)
 
     const salt = new Uint8Array(
-      urlBytes.byteLength + 1 + userIdBytes.byteLength,
+      urlBytes.byteLength + 1 + peerIdBytes.byteLength,
     )
     salt.set(urlBytes)
-    salt.set(userIdBytes, urlBytes.byteLength + 1)
+    salt.set(peerIdBytes, urlBytes.byteLength + 1)
 
     return crypto.subtle.importKey(
       'raw',
@@ -150,20 +150,20 @@ const workerFunc = () => (self: EncryptionWorker) => {
     ))
   }
 
-  function updateDecryptContext(mid: string, userId: string) {
+  function updateDecryptContext(mid: string, peerId: string) {
     const { password } = context
     const { url } = params
 
-    userId = getUserId(mid, userId)
+    peerId = getPeerId(mid, peerId)
 
     let c = context.decryptContextByMid[mid]
 
-    if (c && c.userId === userId && c.password === password) {
+    if (c && c.peerId === peerId && c.password === password) {
       return
     }
 
     c = context.decryptContextByMid[mid] = {
-      userId,
+      peerId,
       password,
     }
 
@@ -172,7 +172,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
       return
     }
 
-    return createKey(password, url, userId)
+    return createKey(password, url, peerId)
     .then(key => {
       // Ensure there was no context update in the meantime. This can happen
       // if metadata has changed, or a user has left and another one who just
@@ -185,7 +185,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
   function updateEncryptContext() {
     const { password } = context
-    const { url, userId } = params
+    const { url, peerId } = params
 
     if (context.encryptContext &&
         context.encryptContext.password === password) {
@@ -199,7 +199,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
     context.encryptContext.password = password
 
-    return createKey(password, url, userId)
+    return createKey(password, url, peerId)
     .then(key => {
       // Ensure password has not been changed in the meantime.
       if (context.encryptContext.password === password) {
@@ -357,7 +357,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
         return
       }
 
-      return updateDecryptContext(mid, m.userId)
+      return updateDecryptContext(mid, m.peerId)
     })
 
     return Promise.all(promises)
@@ -370,7 +370,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
     .then(() => Promise.all(
       Object.keys(context.decryptContextByMid).map(mid => {
         const decryptContext = context.decryptContextByMid[mid]
-        return updateDecryptContext(mid, decryptContext.userId)
+        return updateDecryptContext(mid, decryptContext.peerId)
       }),
     ))
   }
@@ -395,7 +395,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
       .pipeTo(msg.streams.writableStream)
     }
 
-    return updateDecryptContext(msg.mid, msg.userId)
+    return updateDecryptContext(msg.mid, msg.peerId)
   }
 
   self.onmessage = event => {
@@ -403,7 +403,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
     switch (msg.type) {
       case 'init':
         params.url = msg.url
-        params.userId = msg.userId
+        params.peerId = msg.peerId
         console.log('InsertableStreams worker initialized', params.url)
         break
       case 'password':
@@ -456,7 +456,7 @@ export class InsertableStreamsCodec {
     const initMsg: InitEvent = {
       type: 'init',
       url: location.href,
-      userId,
+      peerId,
     }
 
     try {
@@ -575,7 +575,7 @@ export class InsertableStreamsCodec {
     const message: DecryptStreamEvent = {
       type: 'decrypt',
       mid: params.mid,
-      userId: params.userId,
+      peerId: params.peerId,
       streams,
     }
 

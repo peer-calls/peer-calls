@@ -303,7 +303,7 @@ describe('components/Toolbar track dropdowns', () => {
     store.dispatch({
       type: PEER_ADD,
       payload: {
-        userId: peerId,
+        peerId: peerId,
         peer,
       },
     })

@@ -106,7 +106,7 @@ func NewSignal(roomID identifiers.RoomID, payload UserSignal) Message {
 }
 
 type UserSignal struct {
-	UserID identifiers.ClientID `json:"userId"`
+	PeerID identifiers.ClientID `json:"peerId"`
 	Signal Signal               `json:"signal"`
 }
 
@@ -136,7 +136,7 @@ type Payload struct {
 }
 
 type RoomJoin struct {
-	ClientID identifiers.ClientID `json:"userId"`
+	ClientID identifiers.ClientID `json:"peerId"`
 	Metadata string               `json:"metadata"`
 }
 
@@ -159,7 +159,7 @@ const (
 )
 
 type HangUp struct {
-	UserID identifiers.ClientID `json:"userId"`
+	PeerID identifiers.ClientID `json:"peerId"`
 }
 
 type Ready struct {
@@ -178,14 +178,14 @@ type Users struct {
 
 // Deprecated: use PubTrack instead.
 type Metadata struct {
-	UserID   identifiers.ClientID `json:"userId"`
+	PeerID   identifiers.ClientID `json:"peerId"`
 	Metadata []TrackMetadata      `json:"metadata"`
 }
 
 // Deprecated: use PubTrack instead.
 type TrackMetadata struct {
 	Mid    string             `json:"mid"`
-	UserID identifiers.UserID `json:"userId"`
+	PeerID identifiers.PeerID `json:"peerId"`
 	// StreamID is the track's StreamID.
 	StreamID string    `json:"streamId"`
 	Kind     TrackKind `json:"kind"`
@@ -194,7 +194,7 @@ type TrackMetadata struct {
 type PubTrack struct {
 	TrackID     identifiers.TrackID  `json:"trackId"`
 	PubClientID identifiers.ClientID `json:"pubClientId"`
-	UserID      identifiers.UserID   `json:"userId"`
+	PeerID      identifiers.PeerID   `json:"peerId"`
 	// Type can contain only Add or Remove.
 	Type transport.TrackEventType `json:"type"`
 }
