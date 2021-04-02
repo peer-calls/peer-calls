@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
@@ -52,7 +53,7 @@ func TestEvents(t *testing.T) {
 		PubTrack: PubTrack{
 			ClientID: "a",
 			PeerID:   "b",
-			TrackID:  "A:track1",
+			TrackID:  identifiers.TrackID{ID: "track1", StreamID: "A"},
 		},
 		Type: transport.TrackEventTypeAdd,
 	}

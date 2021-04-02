@@ -65,10 +65,10 @@ func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 
 	p.log.Trace("Pub", logger.Ctx{
 		"client_id": pubClientID,
-		"track_id":  track.UniqueID(),
+		"track_id":  track.TrackID(),
 	})
 
-	trackID := track.UniqueID()
+	trackID := track.TrackID()
 
 	p.publishers[trackID] = publisher{
 		clientID:         pubClientID,
@@ -154,7 +154,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 
 	if err := pub.reader.Sub(subClientID, trackLocal); err != nil {
 		// We don't care about the potential error at this point.
-		_ = tr.RemoveTrack(track.UniqueID())
+		_ = tr.RemoveTrack(track.TrackID())
 		// TODO what to do with the track now?
 		return nil, errors.Trace(err)
 	}
@@ -166,7 +166,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 		}
 	}
 
-	p.subsBySubClientID[subClientID].publishersByTrack[track.UniqueID()] = pub
+	p.subsBySubClientID[subClientID].publishersByTrack[track.TrackID()] = pub
 
 	return rtcpReader, nil
 }
@@ -197,7 +197,7 @@ func (p *PubSub) Unsub(pubClientID identifiers.ClientID, trackID identifiers.Tra
 func (p *PubSub) unsub(subClientID identifiers.ClientID, pub publisher) error {
 	var multiErr multierr.MultiErr
 
-	trackID := pub.reader.Track().UniqueID()
+	trackID := pub.reader.Track().TrackID()
 
 	pub.bitrateEstimator.RemoveClientBitrate(subClientID)
 
@@ -236,7 +236,7 @@ func (p *PubSub) Terminate(clientID identifiers.ClientID) {
 	})
 
 	for reader := range p.publishersByPubClientID[clientID] {
-		p.Unpub(clientID, reader.Track().UniqueID())
+		p.Unpub(clientID, reader.Track().TrackID())
 	}
 
 	for _, reader := range p.subsBySubClientID[clientID].publishersByTrack {

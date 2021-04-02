@@ -3,9 +3,7 @@ package transport
 import "github.com/peer-calls/peer-calls/server/identifiers"
 
 type Track interface {
-	UniqueID() identifiers.TrackID
-	ID() string
-	StreamID() string
+	TrackID() identifiers.TrackID
 	PeerID() identifiers.PeerID
 	Codec() Codec
 	SimpleTrack() SimpleTrack

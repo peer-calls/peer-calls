@@ -14,7 +14,7 @@ type PubTrack struct {
 func newPubTrack(pubClientID identifiers.ClientID, track transport.Track) PubTrack {
 	return PubTrack{
 		ClientID: pubClientID,
-		TrackID:  track.UniqueID(),
+		TrackID:  track.TrackID(),
 		PeerID:   track.PeerID(),
 	}
 }

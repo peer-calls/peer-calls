@@ -107,7 +107,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				PubTrack: &message.PubTrack{
-					TrackID:     identifiers.TrackID("123"),
+					TrackID:     identifiers.TrackID{ID: "123", StreamID: "456"},
 					PubClientID: identifiers.ClientID("client123"),
 					PeerID:      identifiers.PeerID("user123"),
 					Type:        transport.TrackEventTypeAdd,
@@ -119,7 +119,7 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				SubTrack: &message.SubTrack{
-					TrackID:     identifiers.TrackID("123"),
+					TrackID:     identifiers.TrackID{ID: "123", StreamID: "456"},
 					PubClientID: identifiers.ClientID("client123"),
 					Type:        transport.TrackEventTypeAdd,
 				},

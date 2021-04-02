@@ -159,7 +159,7 @@ func (t *MetadataTransport) startReadLoop() {
 		case metadataEventTypeTrack:
 			trackEv := event.TrackEvent
 			track := trackEv.Track
-			trackID := trackEv.Track.UniqueID()
+			trackID := trackEv.Track.TrackID()
 
 			switch trackEv.Type {
 			case transport.TrackEventTypeAdd:
@@ -375,7 +375,7 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 	rtcpBuffer := t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc)
 	sender := newRTCPReader(rtcpBuffer, t.params.Interceptor)
 
-	t.localTracks[track.UniqueID()] = &trackLocalWithRTCPReader{
+	t.localTracks[track.TrackID()] = &trackLocalWithRTCPReader{
 		trackLocal: localTrack,
 		rtcpReader: sender,
 	}

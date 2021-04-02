@@ -17,7 +17,7 @@ func TestSimpleTrack(t *testing.T) {
 	}
 
 	t1 := NewSimpleTrack("a", "b", codec, "user-1")
-	assert.Equal(t, identifiers.TrackID("b:a"), t1.UniqueID())
+	assert.Equal(t, identifiers.TrackID{ID: "a", StreamID: "b"}, t1.TrackID())
 
 	b, err := json.Marshal(t1)
 	assert.NoError(t, err)
@@ -26,9 +26,9 @@ func TestSimpleTrack(t *testing.T) {
 	err = json.Unmarshal(b, &t2)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "a", t2.ID())
-	assert.Equal(t, "b", t2.StreamID())
-	assert.Equal(t, identifiers.TrackID("b:a"), t2.UniqueID())
+	assert.Equal(t, "a", t2.TrackID().ID)
+	assert.Equal(t, "b", t2.TrackID().StreamID)
+	assert.Equal(t, identifiers.TrackID{ID: "a", StreamID: "b"}, t2.TrackID())
 	assert.Equal(t, identifiers.PeerID("user-1"), t2.PeerID())
 	assert.Equal(t, codec, t2.Codec())
 }

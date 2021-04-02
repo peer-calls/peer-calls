@@ -213,7 +213,7 @@ func TestTransport_AddTrack(t *testing.T) {
 
 	log.Info("Read RTP", nil)
 
-	err = t1.RemoveTrack(localTrack.Track().UniqueID())
+	err = t1.RemoveTrack(localTrack.Track().TrackID())
 	assert.NoError(t, err, "removing track")
 
 	// Track should end here.

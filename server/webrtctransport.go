@@ -461,7 +461,9 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 		RTCPFeedback: rtcpFeedback,
 	}
 
-	track, err := webrtc.NewTrackLocalStaticRTP(capability, t.ID(), t.StreamID())
+	trackID := t.TrackID()
+
+	track, err := webrtc.NewTrackLocalStaticRTP(capability, trackID.ID, trackID.StreamID)
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "new track")
 	}
@@ -518,7 +520,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 	trackInfo := transport.NewTrackWithMID(t, mid)
 
 	p.mu.Lock()
-	p.localTracks[t.UniqueID()] = localTrack{trackInfo, transceiver, sender, track}
+	p.localTracks[t.TrackID()] = localTrack{trackInfo, transceiver, sender, track}
 	p.mu.Unlock()
 
 	tt := LocalTrack{
@@ -533,7 +535,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 // 	p.mu.Lock()
 // 	defer p.mu.Unlock()
 
-// 	p.remoteTracks[rti.trackInfo.Track.UniqueID()] = rti
+// 	p.remoteTracks[rti.trackInfo.Track.TrackID()] = rti
 // }
 
 // func (p *WebRTCTransport) removeRemoteTrack(trackID identifiers.TrackID) {
@@ -644,7 +646,7 @@ func (p *WebRTCTransport) handleTrack(track *webrtc.TrackRemote, receiver *webrt
 
 	// go func() {
 	// 	defer func() {
-	// 		p.removeRemoteTrack(trackInfo.Track.UniqueID())
+	// 		p.removeRemoteTrack(trackInfo.Track.TrackID())
 	// 		p.trackEventsCh <- transport.TrackEvent{
 	// 			TrackInfo: trackInfo,
 	// 			Type:      transport.TrackEventTypeRemove,

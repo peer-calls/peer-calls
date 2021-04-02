@@ -124,7 +124,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		for remoteTrackWithReceiver := range tr.RemoteTracksChannel() {
 			remoteTrack := remoteTrackWithReceiver.TrackRemote
 			rtcpReader := remoteTrackWithReceiver.RTCPReader
-			trackID := remoteTrack.Track().UniqueID()
+			trackID := remoteTrack.Track().TrackID()
 
 			done := make(chan struct{})
 
@@ -213,7 +213,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			// 	if err := t.Sub(SubParams{
 			// 		Room:        t.room,
 			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).PeerID(),
-			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
+			// 		TrackID:     trackEvent.TrackInfo.Track.TrackID(),
 			// 		SubClientID: tr.ClientID(),
 			// 	}); err != nil {
 			// 		log.Error("sub failed", errors.Trace(err), nil)
@@ -222,7 +222,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 			// 	if err := t.Unsub(SubParams{
 			// 		Room:        t.room,
 			// 		PubClientID: trackEvent.TrackInfo.Track.(*servertransport.ServerTrack).PeerID(),
-			// 		TrackID:     trackEvent.TrackInfo.Track.UniqueID(),
+			// 		TrackID:     trackEvent.TrackInfo.Track.TrackID(),
 			// 		SubClientID: tr.ClientID(),
 			// 	}); err != nil {
 			// 		log.Error("sub failed", errors.Trace(err), nil)
@@ -541,13 +541,13 @@ func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMe
 
 		trackMetadata := TrackMetadata{
 			Mid:      trackInfo.MID(),
-			StreamID: track.StreamID(),
+			StreamID: track.TrackID().StreamID,
 			PeerID:   track.PeerID(),
 			Kind:     message.TrackKind(kind.String()),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{
-			"track_id":  track.UniqueID(),
+			"track_id":  track.TrackID(),
 			"client_id": clientID,
 		})
 
@@ -578,7 +578,7 @@ func (t *PeerManager) Remove(clientID identifiers.ClientID) {
 }
 
 // func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
-// 	trackID := track.UniqueID()
+// 	trackID := track.TrackID()
 
 // 	t.log.Trace("Remove track", logger.Ctx{
 // 		"client_id": clientID,

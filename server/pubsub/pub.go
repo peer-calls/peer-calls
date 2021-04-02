@@ -58,7 +58,7 @@ package pubsub
 // 		errs.Add(t.Unsub())
 // 	}
 
-// 	errs.Add(transport.RemoveTrack(p.track.UniqueID()))
+// 	errs.Add(transport.RemoveTrack(p.track.TrackID()))
 
 // 	return errors.Trace(errs.Err())
 // }

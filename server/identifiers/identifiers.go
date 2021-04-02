@@ -5,7 +5,12 @@ import (
 	"strings"
 )
 
-type TrackID string
+type TrackID struct {
+	// ID corresponds to track label.
+	ID string `json:"id"`
+	// Stream corresponds to stream ID.
+	StreamID string `json:"streamId"`
+}
 
 type RoomID string
 
