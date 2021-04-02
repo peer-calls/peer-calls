@@ -6,6 +6,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/message"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -317,7 +318,7 @@ func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction w
 		s.log.Trace("Send transceiver request to initiator", nil)
 		s.onSignal(message.Signal{
 			TransceiverRequest: &message.TransceiverRequest{
-				Kind: message.NewTrackKind(kind),
+				Kind: transport.NewTrackKind(kind),
 				Init: message.TransceiverInit{
 					Direction: message.Direction(direction.String()),
 				},

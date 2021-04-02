@@ -9,6 +9,7 @@ type PubTrack struct {
 	ClientID identifiers.ClientID `json:"clientId"`
 	PeerID   identifiers.PeerID   `json:"peerId"`
 	TrackID  identifiers.TrackID  `json:"trackId"`
+	Kind     transport.TrackKind  `json:"kind"`
 }
 
 func newPubTrack(pubClientID identifiers.ClientID, track transport.Track) PubTrack {
@@ -16,5 +17,6 @@ func newPubTrack(pubClientID identifiers.ClientID, track transport.Track) PubTra
 		ClientID: pubClientID,
 		TrackID:  track.TrackID(),
 		PeerID:   track.PeerID(),
+		Kind:     track.Codec().TrackKind(),
 	}
 }

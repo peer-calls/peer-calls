@@ -61,7 +61,7 @@ func TestMessage_JSON(t *testing.T) {
 					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
 						TransceiverRequest: &message.TransceiverRequest{
-							Kind: message.TrackKindAudio,
+							Kind: transport.TrackKindAudio,
 							Init: message.TransceiverInit{
 								Direction: message.DirectionSendRecv,
 							},
@@ -110,6 +110,7 @@ func TestMessage_JSON(t *testing.T) {
 					TrackID:     identifiers.TrackID{ID: "123", StreamID: "456"},
 					PubClientID: identifiers.ClientID("client123"),
 					PeerID:      identifiers.PeerID("user123"),
+					Kind:        transport.TrackKindVideo,
 					Type:        transport.TrackEventTypeAdd,
 				},
 			},
@@ -166,7 +167,7 @@ func TestMessage_JSON(t *testing.T) {
 							Mid:      "1",
 							PeerID:   identifiers.PeerID("user123"),
 							StreamID: "streamID",
-							Kind:     message.TrackKindAudio,
+							Kind:     transport.TrackKindAudio,
 						},
 					},
 				},

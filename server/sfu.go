@@ -246,6 +246,7 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 				PubClientID: pubTrackEvent.PubTrack.ClientID,
 				TrackID:     pubTrackEvent.PubTrack.TrackID,
 				PeerID:      pubTrackEvent.PubTrack.PeerID,
+				Kind:        pubTrackEvent.PubTrack.Kind,
 				Type:        pubTrackEvent.Type,
 			}))
 			if err != nil {

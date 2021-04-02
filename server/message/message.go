@@ -187,14 +187,15 @@ type TrackMetadata struct {
 	Mid    string             `json:"mid"`
 	PeerID identifiers.PeerID `json:"peerId"`
 	// StreamID is the track's StreamID.
-	StreamID string    `json:"streamId"`
-	Kind     TrackKind `json:"kind"`
+	StreamID string              `json:"streamId"`
+	Kind     transport.TrackKind `json:"kind"`
 }
 
 type PubTrack struct {
 	TrackID     identifiers.TrackID  `json:"trackId"`
 	PubClientID identifiers.ClientID `json:"pubClientId"`
 	PeerID      identifiers.PeerID   `json:"peerId"`
+	Kind        transport.TrackKind  `json:"kind"`
 	// Type can contain only Add or Remove.
 	Type transport.TrackEventType `json:"type"`
 }

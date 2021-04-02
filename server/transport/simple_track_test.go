@@ -22,7 +22,7 @@ func TestSimpleTrack(t *testing.T) {
 	b, err := json.Marshal(t1)
 	assert.NoError(t, err)
 
-	t2 := SimpleTrack{}
+	var t2 SimpleTrack
 	err = json.Unmarshal(b, &t2)
 	assert.NoError(t, err)
 

@@ -25,10 +25,14 @@ export enum TrackEventType {
   Unsub = 4,
 }
 
+  // TrackId maps to identifiers.TrackID.
 export interface TrackId {
   id: string
   streamId: string
 }
+
+// TrackKind maps to transport.TrackKind.
+export type TrackKind = 'audio' | 'video'
 
 export interface SocketEvent {
   users: {
@@ -46,6 +50,7 @@ export interface SocketEvent {
     trackId: TrackId
     pubClientId: string
     peerId: string
+    kind: TrackKind
     type: TrackEventType.Add | TrackEventType.Remove
   }
   subTrack: {

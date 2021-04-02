@@ -9,7 +9,6 @@ import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/pubsub"
 	"github.com/peer-calls/peer-calls/server/transport"
@@ -99,12 +98,8 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		for _, pubTrack := range pubTracks {
 			if pubTrack.ClientID != tr.ClientID() {
 				pubTrackEventsCh <- pubsub.PubTrackEvent{
-					PubTrack: pubsub.PubTrack{
-						ClientID: pubTrack.ClientID,
-						PeerID:   pubTrack.PeerID,
-						TrackID:  pubTrack.TrackID,
-					},
-					Type: transport.TrackEventTypeAdd,
+					PubTrack: pubTrack,
+					Type:     transport.TrackEventTypeAdd,
 				}
 			}
 		}
@@ -543,7 +538,7 @@ func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMe
 			Mid:      trackInfo.MID(),
 			StreamID: track.TrackID().StreamID,
 			PeerID:   track.PeerID(),
-			Kind:     message.TrackKind(kind.String()),
+			Kind:     transport.TrackKind(kind.String()),
 		}
 
 		t.log.Trace("GetTracksMetadata", logger.Ctx{

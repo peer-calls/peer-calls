@@ -1,6 +1,9 @@
 package message
 
-import "github.com/pion/webrtc/v3"
+import (
+	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/pion/webrtc/v3"
+)
 
 type Signal struct {
 	Candidate          *webrtc.ICECandidateInit `json:"candidate,omitempty"`
@@ -11,8 +14,8 @@ type Signal struct {
 }
 
 type TransceiverRequest struct {
-	Kind TrackKind       `json:"kind"`
-	Init TransceiverInit `json:"init"`
+	Kind transport.TrackKind `json:"kind"`
+	Init TransceiverInit     `json:"init"`
 }
 
 type TransceiverInit struct {
@@ -41,27 +44,4 @@ func (d Direction) RTPTransceiverDirection() (webrtc.RTPTransceiverDirection, bo
 	}
 
 	return webrtc.RTPTransceiverDirection(0), false
-}
-
-type TrackKind string
-
-const (
-	TrackKindAudio = "audio"
-	TrackKindVideo = "video"
-)
-
-func NewTrackKind(codecType webrtc.RTPCodecType) TrackKind {
-	if codecType == webrtc.RTPCodecTypeAudio {
-		return TrackKindAudio
-	}
-
-	return TrackKindVideo
-}
-
-func (t TrackKind) RTPCodecType() webrtc.RTPCodecType {
-	if t == TrackKindAudio {
-		return webrtc.RTPCodecTypeAudio
-	}
-
-	return webrtc.RTPCodecTypeVideo
 }
