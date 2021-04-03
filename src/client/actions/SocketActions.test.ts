@@ -163,32 +163,22 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByPeerId: {
+          pubStreams: {},
+          pubStreamsKeysByPeerId: {},
+          remoteStreamsKeysByPeerId: {
             [peerB]: {
-              streams: [{
-                stream: jasmine.any(MediaStream) as any,
-                streamId: stream.id,
-                url: jasmine.any(String) as any,
-              }],
-              peerId: peerB,
+              [stream.id]: true,
             },
           },
-          trackIdToPeerIdMid: {
-            [track.id]: peerB + '::0',
-          },
-          tracksByPeerIdMid: {
-            [peerB + '::0']: {
-              association: {
-                streamId: stream.id,
-                peerId: peerB,
-              },
-              mid: '0',
-              track,
+          remoteStreams: {
+            [stream.id]: {
+              stream: jasmine.any(MediaStream) as any,
+              streamId: stream.id,
+              url: jasmine.any(String) as any,
             },
           },
         } as StreamsState)
-        const mediaStream = streams.streamsByPeerId[peerB].streams[0].stream
+        const mediaStream = streams.remoteStreams[stream.id].stream
         expect(mediaStream.getTracks()).toEqual([ track ])
       })
     })
@@ -206,18 +196,10 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByPeerId: {},
-          trackIdToPeerIdMid: {
-            [track.id]: peerB + '::0',
-          },
-          tracksByPeerIdMid: {
-            [peerB + '::0']: {
-              association: undefined,
-              mid: '0',
-              track,
-            },
-          },
+          pubStreamsKeysByPeerId: {},
+          pubStreams: {},
+          remoteStreamsKeysByPeerId: {},
+          remoteStreams: {},
         } as StreamsState)
       })
     })
@@ -242,13 +224,10 @@ describe('SocketActions', () => {
         const track = new MediaStreamTrack()
         const mid = '0'
         peer.emit(constants.PEER_EVENT_TRACK, track, stream, tr(mid))
-        const streams = store.getState().streams.streamsByPeerId
-        expect(Object.keys(streams)).toEqual([ peerB ])
-        const userStreams = streams[peerB].streams
-        expect(userStreams.length).toBe(1)
-        expect(userStreams[0].streamId).toBe(stream.id)
-        expect(userStreams[0].stream).not.toBe(stream)
-        expect(userStreams[0].stream.getTracks()).toEqual([ track ])
+        const s = store.getState().streams.remoteStreams[stream.id]
+        expect(s).toBeTruthy()
+        expect(s.streamId).toBe(stream.id)
+        expect(s.stream.getTracks()).toEqual([ track ])
       })
 
       it('removes stream & peer from store', () => {
@@ -256,10 +235,10 @@ describe('SocketActions', () => {
         peer.emit('close')
         expect(store.getState().streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByPeerId: {},
-          trackIdToPeerIdMid: {},
-          tracksByPeerIdMid: {},
+          pubStreamsKeysByPeerId: {},
+          pubStreams: {},
+          remoteStreamsKeysByPeerId: {},
+          remoteStreams: {},
         } as StreamsState)
         expect(store.getState().peers).toEqual({})
       })

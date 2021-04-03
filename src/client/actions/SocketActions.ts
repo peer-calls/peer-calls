@@ -1,13 +1,12 @@
 import _debug from 'debug'
-import { MetadataPayload, SocketEvent, TrackEventType } from '../SocketEvent'
+import { SocketEvent, TrackEventType } from '../SocketEvent'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
 import { ClientSocket } from '../socket'
 import { Dispatch, GetState, Store } from '../store'
 import { removeNickname, setNicknames } from './NicknameActions'
-import { tracksMetadata } from './StreamActions'
-import { insertableStreamsCodec } from '../insertable-streams'
+import { pubTrackEvent } from './StreamActions'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -50,12 +49,6 @@ class SocketHandler {
     debug('socket hangUp, peerId: %s', peerId)
     dispatch(removeNickname({ peerId }))
   }
-  handleMetadata = (payload: MetadataPayload) => {
-    const { dispatch } = this
-    debug('metadata', payload)
-    dispatch(tracksMetadata(payload))
-    insertableStreamsCodec.setTrackMetadata(payload.metadata)
-  }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
     debug('socket remote peerIds: %o', peerIds)
@@ -74,7 +67,7 @@ class SocketHandler {
     .filter(peerId => !peers[peerId] && peerId !== this.peerId)
     .forEach(peerId => PeerActions.createPeer({
       socket,
-      user: {
+      peer: {
         id: peerId,
       },
       initiator: isInitiator,
@@ -82,7 +75,10 @@ class SocketHandler {
     })(dispatch, getState))
   }
   handlePub = (pubTrack: SocketEvent['pubTrack']) => {
+    const { dispatch } = this
     const { trackId, pubClientId, type } = pubTrack
+
+    dispatch(pubTrackEvent(pubTrack))
 
     if (type == TrackEventType.Add) {
       this.socket.emit(constants.SOCKET_EVENT_SUB_TRACK, {
@@ -118,7 +114,6 @@ export function handshake (options: HandshakeOptions) {
   // remove listeneres to make socket reusable
   removeEventListeners(socket)
 
-  socket.on(constants.SOCKET_EVENT_METADATA, handler.handleMetadata)
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
@@ -133,7 +128,6 @@ export function handshake (options: HandshakeOptions) {
 }
 
 export function removeEventListeners (socket: ClientSocket) {
-  socket.removeAllListeners(constants.SOCKET_EVENT_METADATA)
   socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
   socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
   socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)

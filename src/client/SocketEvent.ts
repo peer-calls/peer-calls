@@ -6,18 +6,6 @@ export interface Ready {
   nickname: string
 }
 
-export interface TrackMetadata {
-  mid: string
-  kind: string
-  peerId: string
-  streamId: string
-}
-
-export interface MetadataPayload {
-  peerId: string
-  metadata: TrackMetadata[]
-}
-
 export enum TrackEventType {
   Add = 1,
   Remove = 2,
@@ -25,10 +13,22 @@ export enum TrackEventType {
   Unsub = 4,
 }
 
-  // TrackId maps to identifiers.TrackID.
+// TrackId maps to identifiers.TrackID.
 export interface TrackId {
   id: string
   streamId: string
+}
+
+export interface PubTrack {
+  trackId: TrackId
+  pubClientId: string
+  peerId: string
+  broadcasterId: string
+  kind: TrackKind
+}
+
+export interface PubTrackEvent extends PubTrack {
+  type: TrackEventType.Add | TrackEventType.Remove
 }
 
 // TrackKind maps to transport.TrackKind.
@@ -42,17 +42,11 @@ export interface SocketEvent {
     // mapping of peerId / nickname
     nicknames: Record<string, string>
   }
-  metadata: MetadataPayload
+  // metadata: MetadataPayload
   hangUp: {
     peerId: string
   }
-  pubTrack: {
-    trackId: TrackId
-    pubClientId: string
-    peerId: string
-    kind: TrackKind
-    type: TrackEventType.Add | TrackEventType.Remove
-  }
+  pubTrack: PubTrackEvent
   subTrack: {
     trackId: TrackId
     pubClientId: string

@@ -1,4 +1,4 @@
-import { MetadataPayload } from '../SocketEvent'
+import { PubTrackEvent } from '../SocketEvent'
 import * as constants from '../constants'
 
 export type StreamType = 'camera' | 'desktop'
@@ -31,6 +31,8 @@ export interface MinimizeToggleAction {
 }
 
 export interface RemoveTrackPayload {
+  streamId: string
+  peerId: string
   track: MediaStreamTrack
 }
 
@@ -40,7 +42,6 @@ export interface RemoveTrackAction {
 }
 
 export interface AddTrackPayload {
-  mid: string
   streamId: string
   peerId: string
   track: MediaStreamTrack
@@ -55,9 +56,9 @@ export interface PeerIdPayload {
   peerId: string
 }
 
-export interface TracksMetadataAction {
-  type: 'TRACKS_METADATA'
-  payload: MetadataPayload
+export interface PubTrackEventAction {
+  type: 'PUB_TRACK_EVENT'
+  payload: PubTrackEvent
 }
 
 export const removeLocalStream = (
@@ -89,10 +90,10 @@ export const minimizeToggle = (
   payload,
 })
 
-export const tracksMetadata = (
-  payload: MetadataPayload,
-): TracksMetadataAction => ({
-  type: constants.TRACKS_METADATA,
+export const pubTrackEvent = (
+  payload: PubTrackEvent,
+): PubTrackEventAction => ({
+  type: constants.PUB_TRACK_EVENT,
   payload,
 })
 

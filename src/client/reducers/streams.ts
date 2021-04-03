@@ -1,30 +1,50 @@
 import _debug from 'debug'
 import forEach from 'lodash/forEach'
-import keyBy from 'lodash/keyBy'
+import map from 'lodash/map'
 import omit from 'lodash/omit'
-import { MetadataPayload, TrackMetadata } from '../SocketEvent'
 import { HangUpAction } from '../actions/CallActions'
-import { MediaTrackAction, MediaStreamAction, MediaTrackPayload } from '../actions/MediaActions'
-import { NicknameRemoveAction, NicknameRemovePayload } from '../actions/NicknameActions'
+import { MediaStreamAction, MediaTrackAction, MediaTrackPayload } from '../actions/MediaActions'
 import { RemovePeerAction } from '../actions/PeerActions'
-import { AddLocalStreamPayload, AddTrackPayload, RemoveLocalStreamPayload, StreamAction, StreamType, TracksMetadataAction, StreamTypeCamera } from '../actions/StreamActions'
-import { HANG_UP, MEDIA_STREAM, NICKNAME_REMOVE, PEER_REMOVE, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE, TRACKS_METADATA, MEDIA_TRACK } from '../constants'
-import { createObjectURL, MediaStream, revokeObjectURL } from '../window'
+import { AddLocalStreamPayload, AddTrackPayload, PubTrackEventAction, RemoveLocalStreamPayload, RemoveTrackPayload, StreamAction, StreamType, StreamTypeCamera } from '../actions/StreamActions'
+import { HANG_UP, MEDIA_STREAM, MEDIA_TRACK, PEER_REMOVE, PUB_TRACK_EVENT, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
+import { PubTrack, PubTrackEvent, TrackEventType, TrackKind } from '../SocketEvent'
+import { createObjectURL, MediaStream, revokeObjectURL, config } from '../window'
+
+import { insertableStreamsCodec } from '../insertable-streams'
 
 const debug = _debug('peercalls')
-const defaultState = Object.freeze({
-  localStreams: {},
-  streamsByPeerId: {},
-  metadataByPeerIdMid: {},
-  trackIdToPeerIdMid: {},
-  tracksByPeerIdMid: {},
-})
 
-const peerIdMidSeparator = '::'
+export interface StreamsState {
+  localStreams: {
+    [t in StreamType]?: LocalStream
+  }
+  // pubStreamsKeysByPeerId contains a set of keys for pubStreams indexed by
+  // the broadcasterId.
+  pubStreamsKeysByPeerId: Record<string, Record<string, true>>
+  // pubStreams contains PubStreams indexed by streamId.
+  pubStreams: Record<string, PubStream>
 
-function getPeerIdMid(peerId: string, mid: string): string {
-  return peerId + peerIdMidSeparator + mid
+  // remoteStreamsKeysByPeerId contains a set of keys for remoteStreams indexed
+  // by the broadcasterId.
+  remoteStreamsKeysByPeerId: Record<string, Record<string, true>>
+  // remoteStreams contains StreamWithURL indexed by streamId.
+  remoteStreams: Record<string, StreamWithURL>
 }
+
+interface PubStream {
+  peerId: string
+  pubTracks: {
+    [t in TrackKind]?: PubTrack
+  }
+}
+
+const defaultState: Readonly<StreamsState> = Object.freeze({
+  localStreams: {},
+  pubStreamsKeysByPeerId: {},
+  pubStreams: {},
+  remoteStreamsKeysByPeerId: {},
+  remoteStreams: {},
+})
 
 function safeCreateObjectURL (stream: MediaStream) {
   try {
@@ -45,74 +65,9 @@ export interface LocalStream extends StreamWithURL {
   mirror: boolean
 }
 
-export interface UserStreams {
-  peerId: string
-  streams: StreamWithURL[]
-}
-
-export interface StreamsState {
-  localStreams: {
-    [t in StreamType]?: LocalStream
-  }
-  streamsByPeerId: Record<string, UserStreams>
-  metadataByPeerIdMid: Record<string, TrackMetadata>
-  trackIdToPeerIdMid: Record<string, string>
-  tracksByPeerIdMid: Record<string, TrackInfo>
-}
-
-interface TrackInfo {
-  track: MediaStreamTrack
-  mid: string
-  association: TrackAssociation | undefined
-}
-
-interface TrackAssociation {
+export interface PubTracks {
   streamId: string
-  peerId: string
-}
-
-interface MidWithPeerId {
-  mid: string
-  streamId: string
-  peerId: string
-}
-
-interface StreamIdPeerId {
-  streamId: string
-  peerId: string
-}
-
-/*
- * getPeerId returns the real user id from the metadata, if available, or
- * the peerId for the peer. In a normal P2P mesh network, each user will
- * have their own peer, which will correspond to their own peerId. In case of
- * an SFU, on peer connection from the server could provide tracks from
- * different users. That's why metadata is sent before each negotiation. The
- * metadata will contain a peerId paired with mid (transceiver).
- */
-function getPeerId(
-  state: StreamsState,
-  payload: MidWithPeerId,
-): StreamIdPeerId {
-  const { mid } = payload
-  const peerIdMid = getPeerIdMid(payload.peerId, mid)
-  const metadata = state.metadataByPeerIdMid[peerIdMid]
-
-  if (metadata) {
-    debug(
-      'streams getPeerId',
-      payload.peerId, payload.streamId, metadata.peerId, metadata.streamId)
-    return {
-      peerId: metadata.peerId,
-      streamId: metadata.streamId,
-    }
-  }
-
-  debug('streams getPeerId', payload.peerId, payload.streamId)
-  return {
-    peerId: payload.peerId,
-    streamId: payload.streamId,
-  }
+  tracksByKind: Record<TrackKind, PubTrack>
 }
 
 function addLocalStream (
@@ -145,7 +100,8 @@ function addLocalStream (
 }
 
 function removeLocalStream (
-  state: StreamsState, payload: RemoveLocalStreamPayload,
+  state: StreamsState,
+  payload: RemoveLocalStreamPayload,
 ): StreamsState {
   debug('streams removeLocalStream')
   const { localStreams } = state
@@ -161,277 +117,274 @@ function removeLocalStream (
   }
 }
 
-function removeTrack(
-  state: StreamsState, track: MediaStreamTrack,
+function removeTrack (
+  state: Readonly<StreamsState>,
+  payload: RemoveTrackPayload,
 ): StreamsState {
-  debug('streams removeTrack: %o', track.id)
-  const peerIdMid = state.trackIdToPeerIdMid[track.id]
-  const t = state.tracksByPeerIdMid[peerIdMid]
+  const { streamId, peerId, track } = payload
+  debug('streams removeTrack', streamId, track.id)
 
-  if (!t) {
-    debug('streams removeTrack trackInfo not found', peerIdMid)
-    return state
-  }
-  const {association} = t
-  if (!association) {
-    debug('streams removeTrack track not associated')
-    return state
-  }
-  const {peerId, streamId} = association
-  debug('streams removeTrack peerId: %s, streamId: %s', peerId, streamId)
-
-  const userStreams = state.streamsByPeerId[peerId]
-  if (!userStreams) {
-    debug('streams removeTrack user streams not found')
-    return state
+  if (config.network === 'mesh') {
+    // For mesh network, we don't need any special PubTrackEvent, so just act
+    // as if we received the PubTrackEvent so we can associate the track with
+    // the correct peer.
+    state = pubTrack(state, {
+      broadcasterId: peerId,
+      peerId,
+      pubClientId: peerId,
+      trackId: {
+        id: track.id,
+        streamId,
+      },
+      kind: track.kind as TrackKind,
+      type: TrackEventType.Remove,
+    })
   }
 
-  let streams = userStreams.streams
-  const s = streams.find(s => s.streamId === streamId)
-
-  if (!s) {
-    debug('streams removeTrack track stream not found', streamId)
+  const remoteStream = state.remoteStreams[streamId]
+  if (!remoteStream) {
+    debug('streams removeTrack stream not found', streamId)
     return state
   }
 
-  debug('stream removeTrack: before tracks', s.stream.getTracks().length)
-  s.stream.removeTrack(track)
-  debug('stream removeTrack: after tracks', s.stream.getTracks().length)
-  if (s.stream.getTracks().length === 0) {
-    s.url && revokeObjectURL(s.url)
-    streams = streams.filter(_s => _s !== s)
-  }
+  // NOTE: we do not remove event listeners from the track because it is
+  // possible that it was just temporarily muted.
+  remoteStream.stream.removeTrack(track)
 
-  const tracksByPeerIdMid = {
-    ...state.tracksByPeerIdMid,
-    [peerIdMid]: {
-      track,
-      mid: t.mid,
-      association: undefined,
-    },
-  }
+  if (remoteStream.stream.getTracks().length === 0) {
+    stopStream(remoteStream)
 
-  if (streams.length > 0) {
+    const remoteStreams = omit(state.remoteStreams, streamId)
+
+    const streamKeys = omit(state.remoteStreamsKeysByPeerId[peerId], streamId)
+
+    const remoteStreamsKeysByPeerId = Object.keys(streamKeys).length === 0
+      ?  omit(state.remoteStreamsKeysByPeerId, peerId)
+      : {
+        ...state.remoteStreamsKeysByPeerId,
+        [peerId]: streamKeys,
+      }
+
     return {
       ...state,
-      streamsByPeerId: {
-        ...state.streamsByPeerId,
-        [peerId]: {
-          ...userStreams,
-          streams,
-        },
-      },
-      tracksByPeerIdMid,
+      remoteStreams,
+      remoteStreamsKeysByPeerId,
     }
   }
 
-  debug('streams removeTrack removing user entry since no streams left')
-  return {
-    ...state,
-    streamsByPeerId: omit(state.streamsByPeerId, [peerId]),
-    tracksByPeerIdMid,
-  }
+  // No need to update state when the existing stream only modified and not
+  // removed. The <video> tag should handle this automatically.
+  return state
 }
 
-function addTrack(
-  state: StreamsState, payload: AddTrackPayload,
+function addTrack (
+  state: Readonly<StreamsState>,
+  payload: AddTrackPayload,
 ): StreamsState {
-  debug('streams addTrack: %o', payload)
-  const peerIdMid = getPeerIdMid(payload.peerId, payload.mid)
-  const { peerId, streamId } = getPeerId(state, payload)
-  const { track } = payload
+  const { streamId, track, peerId } = payload
 
-  const userStreams = state.streamsByPeerId[peerId] || {
-    streams: [],
-    peerId,
+  let remoteStream = state.remoteStreams[streamId]
+
+  if (config.network === 'mesh') {
+    // For mesh network, we don't need any special PubTrackEvent, so just act
+    // as if we received the PubTrackEvent so we can associate the track with
+    // the correct peer.
+    state = pubTrack(state, {
+      broadcasterId: peerId,
+      peerId,
+      pubClientId: peerId,
+      trackId: {
+        id: track.id,
+        streamId,
+      },
+      kind: track.kind as TrackKind,
+      type: TrackEventType.Add,
+    })
   }
 
-  const streams: StreamWithURL[] = userStreams.streams
-  const existing = streams.find(s => s.streamId === streamId)
+  const remoteStreamsKeysByPeerId = {
+    ...state.remoteStreamsKeysByPeerId,
+    [peerId]: {
+      ...state.remoteStreamsKeysByPeerId[peerId],
+      [streamId]: true as true,
+    },
+  }
 
-  if (existing) {
-    debug('streams addTrack to existing stream')
-    existing.stream.addTrack(track)
-  } else {
-    debug('streams addTrack to new stream')
+  if (!remoteStream) {
     const stream = new MediaStream()
-    stream.addTrack(track)
-    streams.push({
+
+    remoteStream = {
       stream,
       streamId,
       url: safeCreateObjectURL(stream),
-    })
+    }
+
+    remoteStream.stream.addTrack(track)
+
+    return {
+      ...state,
+      remoteStreamsKeysByPeerId,
+      remoteStreams: {
+        ...state.remoteStreams,
+        [streamId]: remoteStream,
+      },
+    }
+  }
+
+  remoteStream.stream.addTrack(track)
+
+  // No need to update state when the existing stream only modified and not
+  // added. The <video> tag should handle this automatically.
+  return {
+    ...state,
+    remoteStreamsKeysByPeerId,
+  }
+}
+
+function stopStream (s: StreamWithURL) {
+  debug('streams stopStream()')
+  s.stream.getTracks().forEach(track => stopTrack(track))
+  s.url && revokeObjectURL(s.url)
+}
+
+function stopTrack (track: MediaStreamTrack) {
+  track.stop()
+  track.onmute = null
+  track.onunmute = null
+}
+
+function pubTrackAdd (
+  state: Readonly<StreamsState>,
+  payload: PubTrackEvent,
+): StreamsState {
+  const { broadcasterId, kind } = payload
+  const { streamId } = payload.trackId
+  const { pubStreams } = state
+
+  const streamIds = state.pubStreamsKeysByPeerId[broadcasterId] || {}
+
+  const pubStream = state.pubStreams[streamId] || {
+    peerId: broadcasterId,
+    pubTracks: {},
   }
 
   return {
     ...state,
-    streamsByPeerId: {
-      ...state.streamsByPeerId,
-      [peerId]: {
-        ...userStreams,
-        streams: [...streams],
+    pubStreamsKeysByPeerId: {
+      ...state.pubStreamsKeysByPeerId,
+      [broadcasterId]: {
+        ...streamIds,
+        [streamId]: true,
       },
     },
-    trackIdToPeerIdMid: {
-      ...state.trackIdToPeerIdMid,
-      [track.id]: peerIdMid,
-    },
-    tracksByPeerIdMid: {
-      ...state.tracksByPeerIdMid,
-      [peerIdMid]: {
-        track,
-        mid: payload.mid,
-        association: {
-          streamId,
-          peerId,
+    pubStreams: {
+      ...pubStreams,
+      [streamId]: {
+        ...pubStream,
+        pubTracks: {
+          ...pubStream.pubTracks,
+          [kind]: payload,
         },
       },
     },
   }
 }
 
-export function unassociateUserTracks(
-  state: StreamsState,
-  payload: NicknameRemovePayload,
-): StreamsState  {
-  debug('streams unassociateUserTracks')
-  const { peerId } = payload
+function pubTrackRemove (
+  state: Readonly<StreamsState>,
+  payload: PubTrackEvent,
+): StreamsState {
+  const { broadcasterId, kind } = payload
+  const { streamId } = payload.trackId
 
-  const userStreams = state.streamsByPeerId[peerId]
-  if (!userStreams) {
-    debug('streams unassociateUserTracks: user not found')
+  let streamIds = state.pubStreamsKeysByPeerId[broadcasterId] || {}
+
+  const pubStream = state.pubStreams[streamId]
+
+  if (!pubStream) {
+    // We have some kind of invalid state.
+    debug('streams pubTrackRemove: stream not found', streamId, kind)
     return state
   }
 
-  const tracksByPeerIdMid: Record<string, TrackInfo> = {}
+  const pubTracks = omit(pubStream.pubTracks, kind)
 
-  userStreams.streams.forEach(s => {
-    s.stream.getTracks().forEach(track => {
-      const peerIdMid = state.trackIdToPeerIdMid[track.id]
-      tracksByPeerIdMid[peerIdMid] = {
-        track,
-        mid: state.tracksByPeerIdMid[peerIdMid].mid,
-        association: undefined,
+  // Check if this stream has any other tracks left.
+  if (Object.keys(pubTracks).length === 0) {
+    // No more tracks left, remove the streamId.
+    streamIds = omit(streamIds, streamId)
+
+    // Check if this peer still has any other streams left, and remove its key
+    // if it does not.
+    const pubStreamsKeysByPeerId = Object.keys(streamIds).length === 0
+      ? omit(state.pubStreamsKeysByPeerId, broadcasterId)
+      : {
+        ...state.pubStreamsKeysByPeerId,
+        [broadcasterId]: streamIds,
       }
-      s.stream.removeTrack(track)
-    })
-  })
 
-  const streamsByPeerId = omit(state.streamsByPeerId, [peerId])
+    return {
+      ...state,
+      pubStreamsKeysByPeerId,
+      remoteStreams: omit(state.remoteStreams, streamId),
+    }
+  }
 
   return {
     ...state,
-    streamsByPeerId,
-    tracksByPeerIdMid: {
-      ...state.tracksByPeerIdMid,
-      ...tracksByPeerIdMid,
+    pubStreams: {
+      ...state.pubStreams,
+      [streamId]: {
+        ...pubStream,
+        pubTracks,
+      },
     },
   }
 }
 
-function stopStream(s: StreamWithURL) {
-  debug('streams stopStream()')
-  s.stream.getTracks().forEach(track => {
-    track.stop()
-    track.onmute = null
-    track.onunmute = null
-  })
-  s.url && revokeObjectURL(s.url)
-}
-
-function stopAllTracks(streams: StreamWithURL[]) {
-  debug('streams stopAllTracks()')
-  streams.forEach(s => stopStream(s))
-}
-
-function setMetadata(
+function pubTrack (
   state: StreamsState,
-  payload: MetadataPayload,
+  payload: PubTrackEvent,
 ): StreamsState {
-  debug('streams setMetadata: %o', payload)
-  let newState = state
-  const metadataByPeerIdMid = keyBy(
-    payload.metadata,
-    m => getPeerIdMid(payload.peerId, m.mid),
-  )
+  // Maintain association between track metadata and peerId.
+  insertableStreamsCodec.postPubTrackEvent(payload)
 
-  forEach(state.tracksByPeerIdMid, (t, peerIdMid) => {
-    if (!metadataByPeerIdMid[peerIdMid] && t && t.association) {
-      // remove any track the server has lost track of
-      newState = removeTrack(newState, t.track)
-    }
-  })
-
-  newState = {
-    ...newState,
-    metadataByPeerIdMid,
+  switch (payload.type) {
+  case TrackEventType.Add:
+    state = pubTrackAdd(state, payload)
+    break
+  case TrackEventType.Remove:
+    state = pubTrackRemove(state, payload)
+    break
   }
 
-  payload.metadata.forEach(m => {
-    const { streamId, mid, peerId } = m
-    const peerIdMid = getPeerIdMid(payload.peerId, mid)
-    const t = state.tracksByPeerIdMid[peerIdMid]
-
-    if (!t) {
-      // this track hasn't been seen yet so there's nothing to do
-      return
-    }
-
-    if (!t.association) {
-      // add the unassociated track
-      newState = addTrack(newState, {
-        mid,
-        streamId,
-        track: t.track,
-        peerId: payload.peerId,
-      })
-      return
-    }
-
-    const a = t.association
-    if (a.streamId === streamId && a.peerId === peerId) {
-      // track is associated with the right peerId / streamId
-      return
-    }
-
-    newState = removeTrack(newState, t.track)
-    newState = addTrack(newState, {
-      mid,
-      streamId: a.streamId,
-      track: t.track,
-      peerId: payload.peerId,
-    })
-  })
-
-  return newState
+  return state
 }
 
 function removePeer(
-  state: StreamsState,
+  state: Readonly<StreamsState>,
   payload: RemovePeerAction['payload'],
 ): StreamsState {
   debug('streams removePeer: %o', payload)
-  let newState: StreamsState = state
 
-  const keysToRemove = Object.keys(state.tracksByPeerIdMid)
-  .filter(key => key.startsWith(payload.peerId + peerIdMidSeparator))
+  const streamIds = map(
+    state.remoteStreamsKeysByPeerId[payload.peerId],
+    (_, streamId) => streamId,
+  )
 
-  const trackIdToPeerIdMid = state.trackIdToPeerIdMid
-
-  keysToRemove.forEach(key => {
-    const t = state.tracksByPeerIdMid[key]
-    if (t.association) {
-      newState = removeTrack(newState, t.track)
-    }
-    delete trackIdToPeerIdMid[t.track.id]
+  streamIds.forEach(streamId => {
+    const stream = state.remoteStreams[streamId]
+    stopStream(stream)
   })
 
-  const tracksByPeerIdMid = omit(state.tracksByPeerIdMid, keysToRemove)
+  const remoteStreamsKeysByPeerId =
+    omit(state.remoteStreamsKeysByPeerId, payload.peerId)
+  const remoteStreams = omit(state.remoteStreams, streamIds)
 
   return {
-    ...newState,
-    trackIdToPeerIdMid: {...trackIdToPeerIdMid},
-    tracksByPeerIdMid,
+    ...state,
+    remoteStreamsKeysByPeerId,
+    remoteStreams,
   }
 }
 
@@ -472,9 +425,8 @@ export default function streams(
     MediaStreamAction |
     MediaTrackAction |
     HangUpAction |
-    NicknameRemoveAction |
-    RemovePeerAction |
-    TracksMetadataAction,
+    PubTrackEventAction |
+    RemovePeerAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_REMOVE:
@@ -482,16 +434,15 @@ export default function streams(
     case STREAM_TRACK_ADD:
       return addTrack(state, action.payload)
     case STREAM_TRACK_REMOVE:
-      return removeTrack(state, action.payload.track)
-    case NICKNAME_REMOVE:
-      return unassociateUserTracks(state, action.payload)
-    case TRACKS_METADATA:
-      return setMetadata(state, action.payload)
+      return removeTrack(state, action.payload)
+    case PUB_TRACK_EVENT:
+      return pubTrack(state, action.payload)
     case PEER_REMOVE:
       return removePeer(state, action.payload)
     case HANG_UP:
       forEach(state.localStreams, ls => stopStream(ls!))
-      forEach(state.streamsByPeerId, us => stopAllTracks(us.streams))
+      forEach(state.remoteStreams, rs => stopStream(rs))
+      // TODO reset insertableStreamsCodec context?
       return defaultState
     case MEDIA_STREAM:
       if (action.status === 'resolved') {

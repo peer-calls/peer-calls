@@ -14,8 +14,11 @@ type TrackID struct {
 
 type RoomID string
 
+// ClientID is the remote client ID that's connected to the server.
 type ClientID string
 
+// PeerID is the ID of the remote peer that published the track. In other
+// words it's the ID of the origin of this track.
 type PeerID string
 
 type ClientIDs []ClientID

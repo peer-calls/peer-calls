@@ -92,19 +92,20 @@ describe('App', () => {
             type: StreamTypeCamera,
           },
         },
-        streamsByPeerId: {
+        pubStreams: {},
+        pubStreamsKeysByPeerId: {},
+        remoteStreamsKeysByPeerId: {
           'other-user': {
-            peerId: 'other-user',
-            streams: [{
-              stream: remoteStream,
-              streamId: remoteStream.id,
-              url: 'blob://',
-            }],
+            [remoteStream.id]: true,
           },
         },
-        metadataByPeerIdMid: {},
-        trackIdToPeerIdMid: {},
-        tracksByPeerIdMid: {},
+        remoteStreams: {
+          [remoteStream.id]: {
+            stream: remoteStream,
+            streamId: remoteStream.id,
+            url: 'blob://',
+          },
+        },
       }
       state.peers = {
         'other-user': {} as any,

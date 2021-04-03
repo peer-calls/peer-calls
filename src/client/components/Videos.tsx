@@ -75,7 +75,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
         return
       }
 
-      streams.forEach((stream, i) => {
+      streams.forEach((stream) => {
         const key = getStreamKey(peerId, stream.streamId)
         const props: StreamProps = {
           key,
@@ -96,8 +96,11 @@ export default class Videos extends React.PureComponent<VideosProps> {
 
     forEach(nicknames, (_, peerId) => {
       if (peerId != ME) {
-        const s = streams.streamsByPeerId[peerId]
-        addStreamsByUser(false, peerId, s && s.streams || [])
+        const s = map(
+          streams.pubStreamsKeysByPeerId[peerId],
+          (_, streamId) => streams.remoteStreams[streamId],
+        )
+        addStreamsByUser(false, peerId, s)
       }
     })
 

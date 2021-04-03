@@ -77,6 +77,6 @@ export const config: ClientConfig = {
   callId: 'call1234',
   peerId: 'user1234',
   iceServers: [],
-  network: 'mesh',
+  network: 'sfu',
   nickname: 'nick1234',
 }

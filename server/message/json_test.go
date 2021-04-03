@@ -107,11 +107,12 @@ func TestMessage_JSON(t *testing.T) {
 			Room: "test",
 			Payload: message.Payload{
 				PubTrack: &message.PubTrack{
-					TrackID:     identifiers.TrackID{ID: "123", StreamID: "456"},
-					PubClientID: identifiers.ClientID("client123"),
-					PeerID:      identifiers.PeerID("user123"),
-					Kind:        transport.TrackKindVideo,
-					Type:        transport.TrackEventTypeAdd,
+					TrackID:       identifiers.TrackID{ID: "123", StreamID: "456"},
+					PubClientID:   identifiers.ClientID("client123"),
+					PeerID:        identifiers.PeerID("user123"),
+					BroadcasterID: identifiers.ClientID("broadcaster123"),
+					Kind:          transport.TrackKindVideo,
+					Type:          transport.TrackEventTypeAdd,
 				},
 			},
 		},

@@ -191,11 +191,44 @@ type TrackMetadata struct {
 	Kind     transport.TrackKind `json:"kind"`
 }
 
+// PubTrack will be sent to the clients whenever a track is published or
+// unpublished.
+//
+// Note about PubClientID, PeerID and SourceID: these values will be the same
+// for Mesh, but different for SFU.
+//
+// In the case of a single-node SFU:
+// - PubClientID and PeerID will be the same and define the original track
+//   source.
+// - BroadcasterID will be the ID of the server-side peer connection that the
+//   client peer can subscribe from.
+//
+// In the case of multi-node SFU:
+// - PubClientID will be ID of the transport (WebRTC or Server) that published
+//   the track to current node.
+// - PeerID will be the ID of the original track source (most likely a WebRTC
+//   transport)
+// - BroadcasterID will be the ID of the server-side peer connection that the
+//   client peer can subscribe from.
 type PubTrack struct {
-	TrackID     identifiers.TrackID  `json:"trackId"`
+	// TrackID is the unique track identifier.
+	TrackID identifiers.TrackID `json:"trackId"`
+	// PubClientID is the ID of the remote client that published the track.
 	PubClientID identifiers.ClientID `json:"pubClientId"`
-	PeerID      identifiers.PeerID   `json:"peerId"`
-	Kind        transport.TrackKind  `json:"kind"`
+	// PeerID is the original track source.
+	PeerID identifiers.PeerID `json:"peerId"`
+	// BroadcasterID is the ID of the peer that advertised this track. In the
+	// case of SFU, it's the local peer ID. In Mesh, it's the same as PeerID and
+	// PubClientID.
+	//
+	// TODO perhaps it would be cleaner to send this message over data channels
+	// instead of WebSockets, in which case the BroadcasterID could be inferred
+	// because it would be the ID of the peer connection that this originated
+	// from. However, it would most likely require using another data channel in
+	// addition to the chat one.
+	BroadcasterID identifiers.ClientID `json:"broadcasterId"`
+	// Kind defines whether this is an audio or video track.
+	Kind transport.TrackKind `json:"kind"`
 	// Type can contain only Add or Remove.
 	Type transport.TrackEventType `json:"type"`
 }

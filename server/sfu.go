@@ -243,11 +243,12 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 	go func() {
 		for pubTrackEvent := range pubTrackEventsCh {
 			err := sh.adapter.Emit(clientID, message.NewPubTrack(roomID, message.PubTrack{
-				PubClientID: pubTrackEvent.PubTrack.ClientID,
-				TrackID:     pubTrackEvent.PubTrack.TrackID,
-				PeerID:      pubTrackEvent.PubTrack.PeerID,
-				Kind:        pubTrackEvent.PubTrack.Kind,
-				Type:        pubTrackEvent.Type,
+				PubClientID:   pubTrackEvent.PubTrack.ClientID,
+				TrackID:       pubTrackEvent.PubTrack.TrackID,
+				PeerID:        pubTrackEvent.PubTrack.PeerID,
+				BroadcasterID: localPeerID,
+				Kind:          pubTrackEvent.PubTrack.Kind,
+				Type:          pubTrackEvent.Type,
 			}))
 			if err != nil {
 				sh.log.Error("Emit pub track event", errors.Trace(err), nil)
