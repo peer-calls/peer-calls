@@ -27,7 +27,7 @@ describe('reducers/alerts', () => {
         localStreams: {},
         pubStreamsKeysByPeerId: {},
         pubStreams: {},
-        remoteStreamsKeysByPeerId: {},
+        remoteStreamsKeysByClientId: {},
         remoteStreams: {},
       } as StreamsState)
     })
@@ -102,9 +102,9 @@ describe('reducers/alerts', () => {
         localStreams: {},
         pubStreamsKeysByPeerId: {},
         pubStreams: {},
-        remoteStreamsKeysByPeerId: {
+        remoteStreamsKeysByClientId: {
           [peerId]: {
-            'stream-123': true,
+            'stream-123': undefined,
           },
         },
         remoteStreams: {
@@ -140,9 +140,9 @@ describe('reducers/alerts', () => {
         localStreams: {},
         pubStreams: {},
         pubStreamsKeysByPeerId: {},
-        remoteStreamsKeysByPeerId: {
+        remoteStreamsKeysByClientId: {
           [peerId]: {
-            'stream-123': true,
+            'stream-123': undefined,
           },
         },
         remoteStreams: {
@@ -185,7 +185,7 @@ describe('reducers/alerts', () => {
         localStreams: {},
         pubStreamsKeysByPeerId: {},
         pubStreams: {},
-        remoteStreamsKeysByPeerId: {},
+        remoteStreamsKeysByClientId: {},
         remoteStreams: {},
       }
       expect(streams).toEqual(expected)
@@ -207,9 +207,9 @@ describe('reducers/alerts', () => {
         localStreams: {},
         pubStreamsKeysByPeerId: {},
         pubStreams: {},
-        remoteStreamsKeysByPeerId: {
+        remoteStreamsKeysByClientId: {
           [peerId]: {
-            'stream-1': true,
+            'stream-1': undefined,
           },
         },
         remoteStreams: {

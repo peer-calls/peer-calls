@@ -165,9 +165,9 @@ describe('SocketActions', () => {
           localStreams: {},
           pubStreams: {},
           pubStreamsKeysByPeerId: {},
-          remoteStreamsKeysByPeerId: {
+          remoteStreamsKeysByClientId: {
             [peerB]: {
-              [stream.id]: true,
+              [stream.id]: undefined,
             },
           },
           remoteStreams: {
@@ -198,7 +198,7 @@ describe('SocketActions', () => {
           localStreams: {},
           pubStreamsKeysByPeerId: {},
           pubStreams: {},
-          remoteStreamsKeysByPeerId: {},
+          remoteStreamsKeysByClientId: {},
           remoteStreams: {},
         } as StreamsState)
       })
@@ -237,7 +237,7 @@ describe('SocketActions', () => {
           localStreams: {},
           pubStreamsKeysByPeerId: {},
           pubStreams: {},
-          remoteStreamsKeysByPeerId: {},
+          remoteStreamsKeysByClientId: {},
           remoteStreams: {},
         } as StreamsState)
         expect(store.getState().peers).toEqual({})

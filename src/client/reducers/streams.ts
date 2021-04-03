@@ -12,6 +12,8 @@ import { createObjectURL, MediaStream, revokeObjectURL, config } from '../window
 
 import { insertableStreamsCodec } from '../insertable-streams'
 
+import { RecordSet, setChild, removeChild } from './recordSet'
+
 const debug = _debug('peercalls')
 
 export interface StreamsState {
@@ -19,20 +21,20 @@ export interface StreamsState {
     [t in StreamType]?: LocalStream
   }
   // pubStreamsKeysByPeerId contains a set of keys for pubStreams indexed by
-  // the broadcasterId.
-  pubStreamsKeysByPeerId: Record<string, Record<string, true>>
+  // the peerId.
+  pubStreamsKeysByPeerId: RecordSet<string, string, undefined>
   // pubStreams contains PubStreams indexed by streamId.
   pubStreams: Record<string, PubStream>
 
-  // remoteStreamsKeysByPeerId contains a set of keys for remoteStreams indexed
-  // by the broadcasterId.
-  remoteStreamsKeysByPeerId: Record<string, Record<string, true>>
+  // remoteStreamsKeysByClientId contains a set of keys for remoteStreams indexed
+  // by the clientId.
+  remoteStreamsKeysByClientId: Record<string, Record<string, undefined>>
   // remoteStreams contains StreamWithURL indexed by streamId.
   remoteStreams: Record<string, StreamWithURL>
 }
 
 interface PubStream {
-  peerId: string
+  streamId: string
   pubTracks: {
     [t in TrackKind]?: PubTrack
   }
@@ -42,7 +44,7 @@ const defaultState: Readonly<StreamsState> = Object.freeze({
   localStreams: {},
   pubStreamsKeysByPeerId: {},
   pubStreams: {},
-  remoteStreamsKeysByPeerId: {},
+  remoteStreamsKeysByClientId: {},
   remoteStreams: {},
 })
 
@@ -129,7 +131,6 @@ function removeTrack (
     // as if we received the PubTrackEvent so we can associate the track with
     // the correct peer.
     state = pubTrack(state, {
-      broadcasterId: peerId,
       peerId,
       pubClientId: peerId,
       trackId: {
@@ -156,19 +157,16 @@ function removeTrack (
 
     const remoteStreams = omit(state.remoteStreams, streamId)
 
-    const streamKeys = omit(state.remoteStreamsKeysByPeerId[peerId], streamId)
-
-    const remoteStreamsKeysByPeerId = Object.keys(streamKeys).length === 0
-      ?  omit(state.remoteStreamsKeysByPeerId, peerId)
-      : {
-        ...state.remoteStreamsKeysByPeerId,
-        [peerId]: streamKeys,
-      }
+    const remoteStreamsKeysByClientId = removeChild(
+      state.remoteStreamsKeysByClientId,
+      peerId,
+      streamId,
+    )
 
     return {
       ...state,
       remoteStreams,
-      remoteStreamsKeysByPeerId,
+      remoteStreamsKeysByClientId,
     }
   }
 
@@ -190,7 +188,6 @@ function addTrack (
     // as if we received the PubTrackEvent so we can associate the track with
     // the correct peer.
     state = pubTrack(state, {
-      broadcasterId: peerId,
       peerId,
       pubClientId: peerId,
       trackId: {
@@ -202,13 +199,12 @@ function addTrack (
     })
   }
 
-  const remoteStreamsKeysByPeerId = {
-    ...state.remoteStreamsKeysByPeerId,
-    [peerId]: {
-      ...state.remoteStreamsKeysByPeerId[peerId],
-      [streamId]: true as true,
-    },
-  }
+  const remoteStreamsKeysByClientId = setChild(
+    state.remoteStreamsKeysByClientId,
+    peerId,
+    streamId,
+    undefined,
+  )
 
   if (!remoteStream) {
     const stream = new MediaStream()
@@ -223,7 +219,7 @@ function addTrack (
 
     return {
       ...state,
-      remoteStreamsKeysByPeerId,
+      remoteStreamsKeysByClientId,
       remoteStreams: {
         ...state.remoteStreams,
         [streamId]: remoteStream,
@@ -237,7 +233,7 @@ function addTrack (
   // added. The <video> tag should handle this automatically.
   return {
     ...state,
-    remoteStreamsKeysByPeerId,
+    remoteStreamsKeysByClientId,
   }
 }
 
@@ -257,26 +253,25 @@ function pubTrackAdd (
   state: Readonly<StreamsState>,
   payload: PubTrackEvent,
 ): StreamsState {
-  const { broadcasterId, kind } = payload
+  const { kind, peerId } = payload
   const { streamId } = payload.trackId
   const { pubStreams } = state
 
-  const streamIds = state.pubStreamsKeysByPeerId[broadcasterId] || {}
-
   const pubStream = state.pubStreams[streamId] || {
-    peerId: broadcasterId,
+    streamId,
     pubTracks: {},
   }
 
+  const pubStreamsKeysByPeerId = setChild(
+    state.pubStreamsKeysByPeerId,
+    peerId,
+    streamId,
+    undefined,
+  )
+
   return {
     ...state,
-    pubStreamsKeysByPeerId: {
-      ...state.pubStreamsKeysByPeerId,
-      [broadcasterId]: {
-        ...streamIds,
-        [streamId]: true,
-      },
-    },
+    pubStreamsKeysByPeerId,
     pubStreams: {
       ...pubStreams,
       [streamId]: {
@@ -294,10 +289,8 @@ function pubTrackRemove (
   state: Readonly<StreamsState>,
   payload: PubTrackEvent,
 ): StreamsState {
-  const { broadcasterId, kind } = payload
+  const { peerId, kind } = payload
   const { streamId } = payload.trackId
-
-  let streamIds = state.pubStreamsKeysByPeerId[broadcasterId] || {}
 
   const pubStream = state.pubStreams[streamId]
 
@@ -311,21 +304,13 @@ function pubTrackRemove (
 
   // Check if this stream has any other tracks left.
   if (Object.keys(pubTracks).length === 0) {
-    // No more tracks left, remove the streamId.
-    streamIds = omit(streamIds, streamId)
-
-    // Check if this peer still has any other streams left, and remove its key
-    // if it does not.
-    const pubStreamsKeysByPeerId = Object.keys(streamIds).length === 0
-      ? omit(state.pubStreamsKeysByPeerId, broadcasterId)
-      : {
-        ...state.pubStreamsKeysByPeerId,
-        [broadcasterId]: streamIds,
-      }
-
     return {
       ...state,
-      pubStreamsKeysByPeerId,
+      pubStreamsKeysByPeerId: removeChild(
+        state.pubStreamsKeysByPeerId,
+        peerId,
+        streamId,
+      ),
       remoteStreams: omit(state.remoteStreams, streamId),
     }
   }
@@ -368,7 +353,7 @@ function removePeer(
   debug('streams removePeer: %o', payload)
 
   const streamIds = map(
-    state.remoteStreamsKeysByPeerId[payload.peerId],
+    state.remoteStreamsKeysByClientId[payload.peerId],
     (_, streamId) => streamId,
   )
 
@@ -377,13 +362,13 @@ function removePeer(
     stopStream(stream)
   })
 
-  const remoteStreamsKeysByPeerId =
-    omit(state.remoteStreamsKeysByPeerId, payload.peerId)
+  const remoteStreamsKeysByClientId =
+    omit(state.remoteStreamsKeysByClientId, payload.peerId)
   const remoteStreams = omit(state.remoteStreams, streamIds)
 
   return {
     ...state,
-    remoteStreamsKeysByPeerId,
+    remoteStreamsKeysByClientId,
     remoteStreams,
   }
 }

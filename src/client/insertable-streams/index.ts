@@ -354,8 +354,8 @@ const workerFunc = () => (self: EncryptionWorker) => {
     const streamProps = { kind, streamId }
     const streamKey = newStreamKey(streamProps)
 
-    // We use peerId instead of broadcasterId becaues the peerId is the source
-    // of the track and the only one who might use the insertable streams.
+    // We use peerId becaues the peerId is the source of the track and the only
+    // one who might use the insertable streams.
 
     switch (pubTrackEvent.type) {
     case TrackEventType.Add:

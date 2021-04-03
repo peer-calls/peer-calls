@@ -23,7 +23,6 @@ export interface PubTrack {
   trackId: TrackId
   pubClientId: string
   peerId: string
-  broadcasterId: string
   kind: TrackKind
 }
 

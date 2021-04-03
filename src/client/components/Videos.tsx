@@ -98,8 +98,11 @@ export default class Videos extends React.PureComponent<VideosProps> {
       if (peerId != ME) {
         const s = map(
           streams.pubStreamsKeysByPeerId[peerId],
-          (_, streamId) => streams.remoteStreams[streamId],
+          (_, streamId) => streams.pubStreams[streamId],
         )
+        .map(pubStream => streams.remoteStreams[pubStream.streamId])
+        .filter(s => !!s)
+
         addStreamsByUser(false, peerId, s)
       }
     })

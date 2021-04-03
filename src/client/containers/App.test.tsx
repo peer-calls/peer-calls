@@ -94,9 +94,9 @@ describe('App', () => {
         },
         pubStreams: {},
         pubStreamsKeysByPeerId: {},
-        remoteStreamsKeysByPeerId: {
+        remoteStreamsKeysByClientId: {
           'other-user': {
-            [remoteStream.id]: true,
+            [remoteStream.id]: undefined,
           },
         },
         remoteStreams: {
