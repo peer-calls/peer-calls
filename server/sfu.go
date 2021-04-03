@@ -276,19 +276,6 @@ func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, star
 	clientID := sh.clientID
 
 	for signal := range signals {
-		if signal.Type > 0 {
-			// TODO use PubTrack instead of metadata.
-			if metadata, ok := sh.tracksManager.TracksMetadata(room, clientID); ok {
-				err := adapter.Emit(clientID, message.NewMetadata(room, message.Metadata{
-					PeerID:   localPeerID,
-					Metadata: metadata,
-				}))
-				if err != nil {
-					sh.log.Error("Send metadata", errors.Trace(err), nil)
-				}
-			}
-		}
-
 		userSignal := message.UserSignal{
 			PeerID: localPeerID,
 			Signal: signal,

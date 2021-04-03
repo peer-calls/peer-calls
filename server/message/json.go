@@ -52,9 +52,6 @@ func (m Message) MarshalJSON() ([]byte, error) {
 	case TypeUsers:
 		payload, err = json.Marshal(m.Payload.Users)
 		err = errors.Trace(err)
-	case TypeMetadata:
-		payload, err = json.Marshal(m.Payload.Metadata)
-		err = errors.Trace(err)
 	default:
 		err = errors.Annotatef(ErrUnknownMessageType, "message: %+v", m)
 	}
@@ -119,10 +116,6 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 	case TypeUsers:
 		m.Payload.Users = &Users{}
 		err = json.Unmarshal(j.Payload, m.Payload.Users)
-		err = errors.Trace(err)
-	case TypeMetadata:
-		m.Payload.Metadata = &Metadata{}
-		err = json.Unmarshal(j.Payload, m.Payload.Metadata)
 		err = errors.Trace(err)
 	default:
 		err = errors.Annotatef(ErrUnknownMessageType, "message: %+v", m)

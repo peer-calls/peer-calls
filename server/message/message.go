@@ -85,16 +85,6 @@ func NewSubTrack(roomID identifiers.RoomID, payload SubTrack) Message {
 	}
 }
 
-func NewMetadata(roomID identifiers.RoomID, payload Metadata) Message {
-	return Message{
-		Type: TypeMetadata,
-		Room: roomID,
-		Payload: Payload{
-			Metadata: &payload,
-		},
-	}
-}
-
 func NewSignal(roomID identifiers.RoomID, payload UserSignal) Message {
 	return Message{
 		Type: TypeSignal,
@@ -130,9 +120,6 @@ type Payload struct {
 	// Users is sent as a response to Ready.
 	// TODO use PubTrack instead.
 	Users *Users
-
-	// TODO use PubTrack instead.
-	Metadata *Metadata
 }
 
 type RoomJoin struct {
@@ -154,8 +141,7 @@ const (
 	TypeRoomJoin  Type = "wsRoomJoin"
 	TypeRoomLeave Type = "wsRoomLeave"
 
-	TypeUsers    Type = "users"
-	TypeMetadata Type = "metadata"
+	TypeUsers Type = "users"
 )
 
 type HangUp struct {
@@ -169,26 +155,10 @@ type Ready struct {
 type Ping struct{}
 
 // The only thing that's not easy to handle this way are nicknames.
-// Deprecated: use PubTrack instead.
 type Users struct {
 	Initiator identifiers.ClientID            `json:"initiator"`
 	PeerIDs   []identifiers.ClientID          `json:"peerIds"`
 	Nicknames map[identifiers.ClientID]string `json:"nicknames"`
-}
-
-// Deprecated: use PubTrack instead.
-type Metadata struct {
-	PeerID   identifiers.ClientID `json:"peerId"`
-	Metadata []TrackMetadata      `json:"metadata"`
-}
-
-// Deprecated: use PubTrack instead.
-type TrackMetadata struct {
-	Mid    string             `json:"mid"`
-	PeerID identifiers.PeerID `json:"peerId"`
-	// StreamID is the track's StreamID.
-	StreamID string              `json:"streamId"`
-	Kind     transport.TrackKind `json:"kind"`
 }
 
 // PubTrack will be sent to the clients whenever a track is published or

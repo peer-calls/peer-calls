@@ -82,21 +82,6 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 	return pubTrackEventsCh, nil
 }
 
-func (m *TracksManager) TracksMetadata(
-	room identifiers.RoomID,
-	clientID identifiers.ClientID,
-) (metadata []TrackMetadata, ok bool) {
-	m.mu.RLock()
-	peerManager, ok := m.peerManagers[room]
-	m.mu.RUnlock()
-
-	if !ok {
-		return metadata, false
-	}
-
-	return peerManager.TracksMetadata(clientID)
-}
-
 func (m *TracksManager) Sub(params SubParams) error {
 	peerManager, ok := m.peerManagers[params.Room]
 	if !ok {

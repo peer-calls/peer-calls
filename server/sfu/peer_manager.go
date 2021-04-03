@@ -2,7 +2,6 @@ package sfu
 
 import (
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +29,7 @@ type PeerManager struct {
 
 	room identifiers.RoomID
 
-	// // pubsub keeps track of published tracks and its subscribers.
+	// pubsub keeps track of published tracks and its subscribers.
 	pubsub *pubsub.PubSub
 }
 
@@ -503,53 +502,6 @@ func (t *PeerManager) Unsub(params SubParams) error {
 	err := t.pubsub.Unsub(params.PubClientID, params.TrackID, params.SubClientID)
 
 	return errors.Trace(err)
-}
-
-// TracksMetadata retrieves local track metadata for a specific transport.
-func (t *PeerManager) TracksMetadata(clientID identifiers.ClientID) (m []TrackMetadata, ok bool) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	tr, ok := t.transports[clientID]
-	if !ok {
-		return m, false
-	}
-
-	tracks := tr.LocalTracks()
-	m = make([]TrackMetadata, 0, len(tracks))
-
-	for _, trackInfo := range tracks {
-		track := trackInfo.Track
-
-		var kind webrtc.RTPCodecType
-
-		codec := track.Codec()
-
-		switch {
-		case strings.HasPrefix(codec.MimeType, "audio/"):
-			kind = webrtc.RTPCodecTypeAudio
-		case strings.HasPrefix(codec.MimeType, "video/"):
-			kind = webrtc.RTPCodecTypeVideo
-		default:
-			kind = webrtc.RTPCodecType(0)
-		}
-
-		trackMetadata := TrackMetadata{
-			Mid:      trackInfo.MID(),
-			StreamID: track.TrackID().StreamID,
-			PeerID:   track.PeerID(),
-			Kind:     transport.TrackKind(kind.String()),
-		}
-
-		t.log.Trace("GetTracksMetadata", logger.Ctx{
-			"track_id":  track.TrackID(),
-			"client_id": clientID,
-		})
-
-		m = append(m, trackMetadata)
-	}
-
-	return m, true
 }
 
 // Remove removes the transport and unsubscribes it from track events.

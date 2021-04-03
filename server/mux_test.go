@@ -56,13 +56,6 @@ func (m *mockTracksManager) Add(room identifiers.RoomID, transport transport.Tra
 	return ch, nil
 }
 
-func (m *mockTracksManager) TracksMetadata(
-	room identifiers.RoomID,
-	clientID identifiers.ClientID,
-) ([]sfu.TrackMetadata, bool) {
-	return nil, true
-}
-
 func (m *mockTracksManager) Sub(params sfu.SubParams) error {
 	m.subscribed <- params
 	return nil

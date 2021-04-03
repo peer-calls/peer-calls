@@ -50,7 +50,6 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type TracksManager interface {
 	Add(room identifiers.RoomID, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error)
-	TracksMetadata(room identifiers.RoomID, clientID identifiers.ClientID) ([]sfu.TrackMetadata, bool)
 	Sub(params sfu.SubParams) error
 	Unsub(params sfu.SubParams) error
 }

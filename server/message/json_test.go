@@ -157,23 +157,6 @@ func TestMessage_JSON(t *testing.T) {
 				},
 			},
 		},
-		{
-			Type: message.TypeMetadata,
-			Room: "test",
-			Payload: message.Payload{
-				Metadata: &message.Metadata{
-					PeerID: identifiers.ClientID("test"),
-					Metadata: []message.TrackMetadata{
-						{
-							Mid:      "1",
-							PeerID:   identifiers.PeerID("user123"),
-							StreamID: "streamID",
-							Kind:     transport.TrackKindAudio,
-						},
-					},
-				},
-			},
-		},
 	}
 
 	for _, m := range messages {
