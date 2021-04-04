@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"github.com/peer-calls/peer-calls/server/command"
@@ -7,8 +7,18 @@ import (
 func NewRootCommand(props Props) *command.Command {
 	return command.New(command.Params{
 		Name: "peer-calls",
-		Desc: "Root peer-calls command",
+		Desc: "Peer Calls is a distributed conferencing solution.",
 		ArgsPreProcessor: command.ArgsProcessorFunc(func(c *command.Command, args []string) []string {
+			for _, arg := range args {
+				if len(arg) > 0 && arg[0] != '-' {
+					break
+				}
+
+				if arg == "-h" || arg == "--help" {
+					return args
+				}
+			}
+
 			if len(args) == 0 {
 				return []string{"server"}
 			}

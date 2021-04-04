@@ -69,7 +69,6 @@ type logger struct {
 }
 
 // New returns a new Logger with default StringFormatter. Be sure to call
-
 // WithConfig to set the required levels for different namespaces.
 func New() Logger {
 	return &logger{

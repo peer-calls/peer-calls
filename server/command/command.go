@@ -1,7 +1,10 @@
 package command
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -57,6 +60,7 @@ func (f ArgsProcessorFunc) ProcessArgs(cmd *Command, args []string) []string {
 type Command struct {
 	params      Params
 	subCommands map[string]*Command
+	writer      io.Writer
 }
 
 type Params struct {
@@ -80,14 +84,80 @@ func New(params Params) *Command {
 		}
 	}
 
-	return &Command{
+	c := &Command{
 		params:      params,
 		subCommands: subCommands,
+	}
+
+	c.SetWriter(os.Stderr)
+
+	return c
+}
+
+func (c *Command) SetWriter(w io.Writer) {
+	c.writer = w
+
+	for _, s := range c.params.SubCommands {
+		s.SetWriter(w)
 	}
 }
 
 func (c Command) Name() string {
 	return c.params.Name
+}
+
+func (c Command) Desc() string {
+	return c.params.Desc
+}
+
+func (c Command) Usage(flags *pflag.FlagSet) {
+	var b bytes.Buffer
+
+	b.WriteString("Usage: ")
+
+	flagUsages := flags.FlagUsages()
+
+	hasOptions := flagUsages != ""
+	hasSubCommands := len(c.params.SubCommands) > 0
+
+	b.WriteString(c.params.Name)
+
+	if hasOptions {
+		b.WriteString(" [OPTIONS]")
+	}
+
+	if hasSubCommands {
+		b.WriteString(" [COMMAND] [ARG...]")
+	}
+
+	b.WriteString("\n")
+	b.WriteString(c.params.Desc)
+	b.WriteString("\n")
+
+	if hasOptions {
+		b.WriteString("\nOptions:\n")
+		b.WriteString(flags.FlagUsages())
+		b.WriteString("\n")
+	}
+
+	if hasSubCommands {
+		b.WriteString("\nCommands:\n")
+
+		maxLen := 12
+		for _, s := range c.params.SubCommands {
+			if ll := len(s.Name()); ll > maxLen {
+				maxLen = ll
+			}
+		}
+
+		for _, s := range c.params.SubCommands {
+			b.WriteString(fmt.Sprintf("  %-*s %s\n", maxLen, s.Name(), s.Desc()))
+		}
+
+		b.WriteString("\n")
+	}
+
+	_, _ = b.WriteTo(c.writer)
 }
 
 func (c *Command) Exec(ctx context.Context, args []string) error {
@@ -117,6 +187,12 @@ func (c *Command) Exec(ctx context.Context, args []string) error {
 	}()
 
 	flags := pflag.NewFlagSet(c.Name(), pflag.ContinueOnError)
+
+	flags.SetOutput(c.writer)
+
+	flags.Usage = func() {
+		c.Usage(flags)
+	}
 
 	if c.params.ArgsPreProcessor != nil {
 		args = c.params.ArgsPreProcessor.ProcessArgs(c, args)

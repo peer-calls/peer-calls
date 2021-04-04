@@ -20,11 +20,12 @@ func TestStartMissingConfig(t *testing.T) {
 	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BIND_PORT", "0")
 	os.Setenv(prefix+"LOG", "-*")
+	log := test.NewLogger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := start(ctx, []string{"-c", "/missing/file.yml"})
+	err := start(ctx, log, []string{"-c", "/missing/file.yml"})
 	require.Error(t, err)
 	fmt.Printf("error %+v", err)
 	assert.Contains(t, err.Error(), "read config")
@@ -35,11 +36,12 @@ func TestStartWrongPort(t *testing.T) {
 	defer test.UnsetEnvPrefix(prefix)
 	os.Setenv(prefix+"BIND_PORT", "100000")
 	os.Setenv(prefix+"LOG", "-*")
+	log := test.NewLogger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := start(ctx, []string{})
+	err := start(ctx, log, []string{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid port")
 }
@@ -59,6 +61,7 @@ func TestStart(t *testing.T) {
 	// os.Setenv(prefix+"BIND_ADDR", "127.0.0.1")
 	os.Setenv(prefix+"BIND_PORT", strconv.Itoa(port))
 	os.Setenv(prefix+"LOG", "-*")
+	log := test.NewLogger()
 
 	timeoutCtx, cancelTimeout := context.WithTimeout(context.Background(), 1*time.Second)
 	ctx, cancel := context.WithCancel(timeoutCtx)
@@ -70,7 +73,7 @@ func TestStart(t *testing.T) {
 
 	go func() {
 		defer close(errCh)
-		err := start(ctx, []string{})
+		err := start(ctx, log, []string{})
 		errCh <- err
 	}()
 
