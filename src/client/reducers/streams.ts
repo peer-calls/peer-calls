@@ -26,8 +26,8 @@ export interface StreamsState {
   // pubStreams contains PubStreams indexed by streamId.
   pubStreams: Record<string, PubStream>
 
-  // remoteStreamsKeysByClientId contains a set of keys for remoteStreams indexed
-  // by the clientId.
+  // remoteStreamsKeysByClientId contains a set of keys for remoteStreams
+  // indexed by the clientId.
   remoteStreamsKeysByClientId: Record<string, Record<string, undefined>>
   // remoteStreams contains StreamWithURL indexed by streamId.
   remoteStreams: Record<string, StreamWithURL>

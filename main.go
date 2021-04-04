@@ -1,67 +1,21 @@
 package main
 
 import (
-	pkgErrors "errors"
-	"flag"
+	"context"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/cmd"
 	"github.com/peer-calls/peer-calls/server/logformatter"
 	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/multierr"
+	"github.com/spf13/pflag"
 )
 
 const gitDescribe string = "v0.0.0"
 
-func configure(log logger.Logger, args []string) (net.Listener, *server.StartStopper, error) {
-	flags := flag.NewFlagSet("peer-calls", flag.ExitOnError)
-
-	var configFilename string
-
-	flags.StringVar(&configFilename, "c", "", "Config file to use")
-
-	if err := flags.Parse(args); err != nil {
-		return nil, nil, errors.Annotate(err, "parse flags")
-	}
-
-	configFiles := []string{}
-	if configFilename != "" {
-		configFiles = append(configFiles, configFilename)
-	}
-	c, err := server.ReadConfig(configFiles)
-	if err != nil {
-		return nil, nil, errors.Annotate(err, "read config")
-	}
-
-	log.Info(fmt.Sprintf("Using config: %+v", c), nil)
-	// rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
-	tracks := sfu.NewTracksManager(log, c.Network.SFU.JitterBuffer)
-
-	roomManagerFactory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{
-		AdapterFactory: server.NewAdapterFactory(log, c.Store),
-		Log:            log,
-		TracksManager:  tracks,
-	})
-	rooms, _ := roomManagerFactory.NewRoomManager(c.Network)
-
-	mux := server.NewMux(log, c.BaseURL, gitDescribe, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
-	l, err := net.Listen("tcp", net.JoinHostPort(c.BindHost, strconv.Itoa(c.BindPort)))
-	if err != nil {
-		return nil, nil, errors.Annotate(err, "listen")
-	}
-	startStopper := server.NewStartStopper(server.ServerParams{
-		TLSCertFile: c.TLS.Cert,
-		TLSKeyFile:  c.TLS.Key,
-	}, mux)
-	return l, startStopper, nil
-}
-
-func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan error) {
+func start(ctx context.Context, args []string) error {
 	log := logger.New().
 		WithConfig(
 			logger.NewConfig(logger.ConfigMap{
@@ -80,36 +34,22 @@ func start(args []string) (addr *net.TCPAddr, stop func() error, errChan <-chan 
 		WithFormatter(logformatter.New()).
 		WithNamespaceAppended("main")
 
-	ch := make(chan error, 1)
-	l, startStopper, err := configure(log, args)
-	if err != nil {
-		ch <- errors.Annotate(err, "configure")
-		close(ch)
-		return nil, nil, ch
-	}
-
-	addr = l.Addr().(*net.TCPAddr)
-	log.Info("Listen", logger.Ctx{
-		"local_addr": addr,
+	err := cmd.Exec(ctx, cmd.Props{
+		Log:     log,
+		Version: gitDescribe,
+		Args:    args,
 	})
 
-	go func() {
-		err := startStopper.Start(l)
-		if !pkgErrors.Is(errors.Cause(err), http.ErrServerClosed) {
-			ch <- errors.Annotate(err, "start server")
-		}
-
-		close(ch)
-	}()
-
-	return addr, startStopper.Stop, ch
+	return errors.Trace(err)
 }
 
 func main() {
-	_, _, errChan := start(os.Args[1:])
-	err := <-errChan
-	if err != nil {
-		fmt.Println("Error starting server: %w", err)
+	err := start(context.Background(), os.Args[1:])
+
+	if multierr.Is(err, pflag.ErrHelp) {
+		os.Exit(1)
+	} else if err != nil {
+		fmt.Printf("Command error: %+v\n", errors.Trace(err))
 		os.Exit(1)
 	}
 }

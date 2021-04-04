@@ -7,7 +7,6 @@ require (
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/gobuffalo/packd v0.3.0
 	github.com/gobuffalo/packr v1.30.1
-	github.com/golang/mock v1.4.4 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.2.0
@@ -23,6 +22,7 @@ require (
 	github.com/pion/transport v0.12.3
 	github.com/pion/webrtc/v3 v3.0.18
 	github.com/prometheus/client_golang v1.6.0
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/goleak v1.0.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
