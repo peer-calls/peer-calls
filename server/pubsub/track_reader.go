@@ -1,12 +1,12 @@
 package pubsub
 
 import (
-	"fmt"
 	"io"
 	"sync"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/webrtc/v3"
 )
@@ -59,22 +59,14 @@ func (t *TrackReader) startReadLoop() {
 
 		t.mu.Lock()
 
-		// TODO risk for deadlock on panic, mutex won't get unlocked and we'd end
-		// up in defer which tries to acquire the lock again.
-
 		for key, trackLocal := range t.subs {
 			_ = packet.MarshalSize()
 
 			if err := trackLocal.WriteRTP(packet); err != nil {
-				// FIXME we never seem to resolve this.
-				if err == io.ErrClosedPipe {
-					fmt.Println("closed pipe, removing", key)
-					delete(t.subs, key)
-				} else {
-					fmt.Println("writertp error", err)
+				if multierr.Is(err, io.ErrClosedPipe) {
+					_ = t.unsub(key)
 				}
 			}
-
 		}
 
 		t.mu.Unlock()
@@ -105,7 +97,7 @@ func (t *TrackReader) Sub(subClientID identifiers.ClientID, trackLocal transport
 
 	t.subs[subClientID] = trackLocal
 
-	// FIXME do not block with network IO.
+	// TODO do not block network IO.
 	if sub, ok := t.trackRemote.(subscribable); ok {
 		_ = sub.Subscribe()
 	}
@@ -113,21 +105,28 @@ func (t *TrackReader) Sub(subClientID identifiers.ClientID, trackLocal transport
 	return nil
 }
 
-func (t *TrackReader) Unsub(subClientID identifiers.ClientID) error {
+func (t *TrackReader) unsub(subClientID identifiers.ClientID) error {
 	var err error
 
+	if _, ok := t.subs[subClientID]; !ok {
+		return errors.Errorf("track not found: %v", subClientID)
+	}
+
+	delete(t.subs, subClientID)
+
+	// TODO do not block network IO.
+	if unsub, ok := t.trackRemote.(unsubscribable); ok {
+		err = unsub.Unsubscribe()
+		err = errors.Annotate(err, "Unsubscribe")
+	}
+
+	return errors.Trace(err)
+}
+
+func (t *TrackReader) Unsub(subClientID identifiers.ClientID) error {
 	t.mu.Lock()
 
-	if _, ok := t.subs[subClientID]; !ok {
-		err = errors.Errorf("track not found: %v", subClientID)
-	} else {
-		delete(t.subs, subClientID)
-
-		// FIXME do not block with network IO.
-		if unsub, ok := t.trackRemote.(unsubscribable); ok {
-			_ = unsub.Unsubscribe()
-		}
-	}
+	err := t.unsub(subClientID)
 
 	t.mu.Unlock()
 
