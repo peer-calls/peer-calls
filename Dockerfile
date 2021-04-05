@@ -38,7 +38,7 @@ COPY --from=frontend  /src/build/ /src/build/
 
 RUN set -ex \
  && packr build \
-      -ldflags "-X main.gitDescribe=$(git describe --always --tags --dirty)" \
+      -ldflags "-X main.GitDescribe=$(git describe --always --tags --dirty)" \
       -mod=readonly \
       -o peer-calls
 

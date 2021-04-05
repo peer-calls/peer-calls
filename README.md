@@ -52,7 +52,7 @@ published on NPM since the server is no longer written in NodeJS.
 # Requirements
 
  - [Node.js 8][node] or [Node.js 12][node]
- - [Go 1.14][go]
+ - [Go 1.16][go]
 
 Alternatively, [Docker][docker] can be used to run Peer Calls.
 
