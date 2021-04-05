@@ -1,13 +1,12 @@
 import _debug from 'debug'
-import { MetadataPayload, SocketEvent } from '../SocketEvent'
+import { SocketEvent, TrackEventType } from '../SocketEvent'
 import * as NotifyActions from '../actions/NotifyActions'
 import * as PeerActions from '../actions/PeerActions'
 import * as constants from '../constants'
 import { ClientSocket } from '../socket'
 import { Dispatch, GetState, Store } from '../store'
 import { removeNickname, setNicknames } from './NicknameActions'
-import { tracksMetadata } from './StreamActions'
-import { insertableStreamsCodec } from '../insertable-streams'
+import { pubTrackEvent } from './StreamActions'
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -18,7 +17,7 @@ export interface SocketHandlerOptions {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
-  userId: string
+  peerId: string
 }
 
 class SocketHandler {
@@ -27,7 +26,7 @@ class SocketHandler {
   stream?: MediaStream
   dispatch: Dispatch
   getState: GetState
-  userId: string
+  peerId: string
 
   constructor (options: SocketHandlerOptions) {
     this.socket = options.socket
@@ -35,26 +34,20 @@ class SocketHandler {
     this.stream = options.stream
     this.dispatch = options.dispatch
     this.getState = options.getState
-    this.userId = options.userId
+    this.peerId = options.peerId
   }
-  handleSignal = ({ userId, signal }: SocketEvent['signal']) => {
+  handleSignal = ({ peerId, signal }: SocketEvent['signal']) => {
     const { getState } = this
-    const peer = getState().peers[userId]
-    sdpDebug('remote signal: userId: %s, signal: %o', userId, signal)
-    if (!peer) return debug('user: %s, no peer found', userId)
+    const peer = getState().peers[peerId]
+    sdpDebug('remote signal: peerId: %s, signal: %o', peerId, signal)
+    if (!peer) return debug('user: %s, no peer found', peerId)
     peer.signal(signal)
   }
   // One user has hung up
-  handleHangUp = ({ userId }: SocketEvent['hangUp']) => {
+  handleHangUp = ({ peerId }: SocketEvent['hangUp']) => {
     const { dispatch } = this
-    debug('socket hangUp, userId: %s', userId)
-    dispatch(removeNickname({ userId }))
-  }
-  handleMetadata = (payload: MetadataPayload) => {
-    const { dispatch } = this
-    debug('metadata', payload)
-    dispatch(tracksMetadata(payload))
-    insertableStreamsCodec.setTrackMetadata(payload.metadata)
+    debug('socket hangUp, peerId: %s', peerId)
+    dispatch(removeNickname({ peerId }))
   }
   handleUsers = ({ initiator, peerIds, nicknames }: SocketEvent['users']) => {
     const { socket, stream, dispatch, getState } = this
@@ -65,21 +58,35 @@ class SocketHandler {
     const { peers } = this.getState()
     debug('active peers: %o', Object.keys(peers))
 
-    const isInitiator = initiator === this.userId
+    const isInitiator = initiator === this.peerId
     debug('isInitiator', isInitiator)
 
     dispatch(setNicknames(nicknames))
 
     peerIds
-    .filter(peerId => !peers[peerId] && peerId !== this.userId)
+    .filter(peerId => !peers[peerId] && peerId !== this.peerId)
     .forEach(peerId => PeerActions.createPeer({
       socket,
-      user: {
+      peer: {
         id: peerId,
       },
       initiator: isInitiator,
       stream,
     })(dispatch, getState))
+  }
+  handlePub = (pubTrack: SocketEvent['pubTrack']) => {
+    const { dispatch } = this
+    const { trackId, pubClientId, type } = pubTrack
+
+    dispatch(pubTrackEvent(pubTrack))
+
+    if (type == TrackEventType.Add) {
+      this.socket.emit(constants.SOCKET_EVENT_SUB_TRACK, {
+        trackId,
+        type: TrackEventType.Sub,
+        pubClientId,
+      })
+    }
   }
 }
 
@@ -88,12 +95,12 @@ export interface HandshakeOptions {
   store: Store
   roomName: string
   nickname: string
-  userId: string
+  peerId: string
   stream?: MediaStream
 }
 
 export function handshake (options: HandshakeOptions) {
-  const { nickname, socket, roomName, stream, userId, store } = options
+  const { nickname, socket, roomName, stream, peerId, store } = options
 
   const handler = new SocketHandler({
     socket,
@@ -101,28 +108,28 @@ export function handshake (options: HandshakeOptions) {
     stream,
     dispatch: store.dispatch,
     getState: store.getState,
-    userId,
+    peerId,
   })
 
   // remove listeneres to make socket reusable
   removeEventListeners(socket)
 
-  socket.on(constants.SOCKET_EVENT_METADATA, handler.handleMetadata)
   socket.on(constants.SOCKET_EVENT_SIGNAL, handler.handleSignal)
   socket.on(constants.SOCKET_EVENT_USERS, handler.handleUsers)
   socket.on(constants.SOCKET_EVENT_HANG_UP, handler.handleHangUp)
+  socket.on(constants.SOCKET_EVENT_PUB_TRACK, handler.handlePub)
 
-  debug('userId: %s', userId)
+  debug('peerId: %s', peerId)
   socket.emit(constants.SOCKET_EVENT_READY, {
     room: roomName,
     nickname,
-    userId,
+    peerId,
   })
 }
 
 export function removeEventListeners (socket: ClientSocket) {
-  socket.removeAllListeners(constants.SOCKET_EVENT_METADATA)
   socket.removeAllListeners(constants.SOCKET_EVENT_SIGNAL)
   socket.removeAllListeners(constants.SOCKET_EVENT_USERS)
   socket.removeAllListeners(constants.SOCKET_EVENT_HANG_UP)
+  socket.removeAllListeners(constants.SOCKET_EVENT_PUB_TRACK)
 }

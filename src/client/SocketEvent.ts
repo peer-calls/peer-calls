@@ -2,36 +2,57 @@ import { SignalData } from 'simple-peer'
 
 export interface Ready {
   room: string
-  userId: string
+  peerId: string
   nickname: string
 }
 
-export interface TrackMetadata {
-  mid: string
-  kind: string
-  userId: string
+export enum TrackEventType {
+  Add = 1,
+  Remove = 2,
+  Sub = 3,
+  Unsub = 4,
+}
+
+// TrackId maps to identifiers.TrackID.
+export interface TrackId {
+  id: string
   streamId: string
 }
 
-export interface MetadataPayload {
-  userId: string
-  metadata: TrackMetadata[]
+export interface PubTrack {
+  trackId: TrackId
+  pubClientId: string
+  peerId: string
+  kind: TrackKind
 }
+
+export interface PubTrackEvent extends PubTrack {
+  type: TrackEventType.Add | TrackEventType.Remove
+}
+
+// TrackKind maps to transport.TrackKind.
+export type TrackKind = 'audio' | 'video'
 
 export interface SocketEvent {
   users: {
     initiator: string
     // peers to connect to
     peerIds: string[]
-    // mapping of userId / nickname
+    // mapping of peerId / nickname
     nicknames: Record<string, string>
   }
-  metadata: MetadataPayload
+  // metadata: MetadataPayload
   hangUp: {
-    userId: string
+    peerId: string
+  }
+  pubTrack: PubTrackEvent
+  subTrack: {
+    trackId: TrackId
+    pubClientId: string
+    type: TrackEventType.Sub | TrackEventType.Unsub
   }
   signal: {
-    userId: string
+    peerId: string
     // eslint-disable-next-line
     signal: SignalData
   }

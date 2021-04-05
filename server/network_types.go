@@ -1,12 +1,18 @@
 package server
 
-import "github.com/pion/webrtc/v3"
+import (
+	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/pion/webrtc/v3"
+)
 
-func NewNetworkTypes(logger Logger, networkTypes []string) (ret []webrtc.NetworkType) {
+func NewNetworkTypes(log logger.Logger, networkTypes []string) (ret []webrtc.NetworkType) {
+	log = log.WithNamespaceAppended("network_types")
+
 	for _, networkType := range networkTypes {
 		nt, err := webrtc.NewNetworkType(networkType)
 		if err != nil {
-			logger.Printf("Invalid network type: %s", networkType)
+			log.Error("NewNetworkType", errors.Trace(err), nil)
 
 			continue
 		}

@@ -68,6 +68,8 @@ window.navigator.mediaDevices.getUserMedia = async () => {
   return new MediaStream() as any
 }
 
+export class RTCRtpReceiver {}
+
 // export const play = jest.fn()
 
 export const valueOf = jest.fn()
@@ -75,8 +77,8 @@ export const valueOf = jest.fn()
 export const config: ClientConfig = {
   baseUrl: '',
   callId: 'call1234',
-  userId: 'user1234',
+  peerId: 'user1234',
   iceServers: [],
-  network: 'mesh',
+  network: 'sfu',
   nickname: 'nick1234',
 }

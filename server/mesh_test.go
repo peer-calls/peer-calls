@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
+	"github.com/pion/webrtc/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -17,33 +21,37 @@ import (
 const timeout = 10 * time.Second
 
 type MockRoomManager struct {
-	enter     chan string
-	exit      chan string
+	enter     chan identifiers.RoomID
+	exit      chan identifiers.RoomID
 	emit      chan Emit
-	broadcast chan server.Message
+	broadcast chan message.Message
 }
 
 type Emit struct {
-	clientID string
-	message  server.Message
+	clientID identifiers.ClientID
+	message  message.Message
 }
 
 func NewMockRoomManager() *MockRoomManager {
 	return &MockRoomManager{
-		enter:     make(chan string, 10),
-		exit:      make(chan string, 10),
+		enter:     make(chan identifiers.RoomID, 10),
+		exit:      make(chan identifiers.RoomID, 10),
 		emit:      make(chan Emit, 10),
-		broadcast: make(chan server.Message, 10),
+		broadcast: make(chan message.Message, 10),
 	}
 }
 
-func (r *MockRoomManager) Enter(room string) server.Adapter {
+var _ server.RoomManager = &MockRoomManager{}
+
+func (r *MockRoomManager) Enter(room identifiers.RoomID) (server.Adapter, bool) {
 	r.enter <- room
-	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}
+
+	return &MockAdapter{room: room, emit: r.emit, broadcast: r.broadcast}, true
 }
 
-func (r *MockRoomManager) Exit(room string) {
+func (r *MockRoomManager) Exit(room identifiers.RoomID) bool {
 	r.exit <- room
+	return false
 }
 
 func (r *MockRoomManager) close() {
@@ -54,30 +62,30 @@ func (r *MockRoomManager) close() {
 }
 
 type MockAdapter struct {
-	room      string
+	room      identifiers.RoomID
 	emit      chan Emit
-	broadcast chan server.Message
+	broadcast chan message.Message
 }
 
 func (m *MockAdapter) Add(client server.ClientWriter) error {
 	return nil
 }
 
-func (m *MockAdapter) Remove(clientID string) error {
+func (m *MockAdapter) Remove(clientID identifiers.ClientID) error {
 	return nil
 }
 
-func (m *MockAdapter) Broadcast(message server.Message) error {
+func (m *MockAdapter) Broadcast(message message.Message) error {
 	m.broadcast <- message
 	return nil
 }
 
-func (m *MockAdapter) SetMetadata(clientID string, metadata string) bool {
+func (m *MockAdapter) SetMetadata(clientID identifiers.ClientID, metadata string) bool {
 	return true
 }
 
-func (m *MockAdapter) Clients() (map[string]string, error) {
-	return map[string]string{"client1": "abc"}, nil
+func (m *MockAdapter) Clients() (map[identifiers.ClientID]string, error) {
+	return map[identifiers.ClientID]string{"client1": "abc"}, nil
 }
 
 func (m *MockAdapter) Close() error {
@@ -88,11 +96,11 @@ func (m *MockAdapter) Size() (int, error) {
 	return 0, nil
 }
 
-func (m *MockAdapter) Metadata(clientID string) (string, bool) {
+func (m *MockAdapter) Metadata(clientID identifiers.ClientID) (string, bool) {
 	return "", true
 }
 
-func (m *MockAdapter) Emit(clientID string, message server.Message) error {
+func (m *MockAdapter) Emit(clientID identifiers.ClientID, message message.Message) error {
 	m.emit <- Emit{
 		clientID: clientID,
 		message:  message,
@@ -100,9 +108,9 @@ func (m *MockAdapter) Emit(clientID string, message server.Message) error {
 	return nil
 }
 
-const roomName = "test-room"
-const clientID = "user1"
-const clientID2 = "user2"
+const roomName = identifiers.RoomID("test-room")
+const clientID = identifiers.ClientID("user1")
+const clientID2 = identifiers.ClientID("user2")
 
 func mustDialWS(t *testing.T, ctx context.Context, url string) *websocket.Conn {
 	t.Helper()
@@ -111,7 +119,7 @@ func mustDialWS(t *testing.T, ctx context.Context, url string) *websocket.Conn {
 	return ws
 }
 
-func mustWriteWS(t *testing.T, ctx context.Context, ws *websocket.Conn, msg server.Message) {
+func mustWriteWS(t *testing.T, ctx context.Context, ws *websocket.Conn, msg message.Message) {
 	t.Helper()
 	data, err := serializer.Serialize(msg)
 	require.Nil(t, err, "Error serializing message")
@@ -119,7 +127,7 @@ func mustWriteWS(t *testing.T, ctx context.Context, ws *websocket.Conn, msg serv
 	require.Nil(t, err, "Error writing message")
 }
 
-func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) server.Message {
+func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) message.Message {
 	t.Helper()
 	messageType, data, err := ws.Read(ctx)
 	require.NoError(t, err, "Error reading text message")
@@ -130,9 +138,10 @@ func mustReadWS(t *testing.T, ctx context.Context, ws *websocket.Conn) server.Me
 }
 
 func setupMeshServer(rooms server.RoomManager) (s *httptest.Server, url string) {
-	handler := server.NewMeshHandler(loggerFactory, server.NewWSS(loggerFactory, rooms))
+	log := logger.New()
+	handler := server.NewMeshHandler(log, server.NewWSS(log, rooms))
 	s = httptest.NewServer(handler)
-	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName + "/" + clientID
+	url = "ws" + strings.TrimPrefix(s.URL, "http") + "/ws/" + roomName.String() + "/" + clientID.String()
 	return
 }
 
@@ -166,21 +175,22 @@ func TestMesh_event_ready(t *testing.T) {
 	ws := mustDialWS(t, ctx, url)
 	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
-	mustWriteWS(t, ctx, ws, server.NewMessage("ready", "test-room", map[string]interface{}{
-		"nickname": "abc",
+	mustWriteWS(t, ctx, ws, message.NewReady("test-room", message.Ready{
+		Nickname: "abc",
 	}))
 	// msg := mustReadWS(t, ctx, ws)
 	msg := <-rooms.broadcast
-	assert.Equal(t, "users", msg.Type)
-	payload, ok := msg.Payload.(map[string]interface{})
-	require.True(t, ok)
-	assert.Equal(t, map[string]interface{}{
-		"initiator": clientID,
-		"peerIds":   []string{"client1"},
-		"nicknames": map[string]string{
+	assert.Equal(t, message.TypeUsers, msg.Type)
+
+	expUsers := message.Users{
+		Initiator: clientID,
+		PeerIDs:   []identifiers.ClientID{"client1"},
+		Nicknames: map[identifiers.ClientID]string{
 			"client1": "abc",
 		},
-	}, payload)
+	}
+
+	require.Equal(t, expUsers, *msg.Payload.Users)
 }
 
 func TestMesh_event_signal(t *testing.T) {
@@ -194,18 +204,23 @@ func TestMesh_event_signal(t *testing.T) {
 	ws := mustDialWS(t, ctx, url)
 	defer func() { <-rooms.exit }()
 	defer ws.Close(websocket.StatusGoingAway, "")
-	otherClientID := "other-user"
-	var signal interface{} = "a-signal"
-	mustWriteWS(t, ctx, ws, server.NewMessage("signal", "test-room", map[string]interface{}{
-		"userId": otherClientID,
-		"signal": signal,
+	otherClientID := identifiers.ClientID("other-user")
+
+	signal := message.Signal{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  "-sdp-",
+	}
+
+	mustWriteWS(t, ctx, ws, message.NewSignal("test-room", message.UserSignal{
+		PeerID: otherClientID,
+		Signal: signal,
 	}))
 	emit, ok := <-rooms.emit
 	require.True(t, ok, "rooms.emit channel is closed")
 	assert.Equal(t, emit.clientID, otherClientID)
-	assert.Equal(t, "signal", emit.message.Type)
-	payload, ok := emit.message.Payload.(map[string]interface{})
-	require.True(t, ok, "unexpected payload type: %s", emit.message.Payload)
-	assert.Equal(t, signal, payload["signal"])
-	assert.Equal(t, clientID, payload["userId"])
+	assert.Equal(t, message.TypeSignal, emit.message.Type)
+
+	require.NotNil(t, emit.message.Payload.Signal)
+	assert.Equal(t, signal, emit.message.Payload.Signal.Signal)
+	assert.Equal(t, clientID, emit.message.Payload.Signal.PeerID)
 }

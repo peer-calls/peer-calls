@@ -1,7 +1,7 @@
 import { NICKNAME_REMOVE, NICKNAMES_SET } from '../constants'
 
 export interface NicknamesSetPayload {
-  [userId: string]: string
+  [peerId: string]: string
 }
 
 export interface NicknamesSetAction {
@@ -17,7 +17,7 @@ export function setNicknames(payload: NicknamesSetPayload): NicknamesSetAction {
 }
 
 export interface NicknameRemovePayload {
-  userId: string
+  peerId: string
 }
 
 export interface NicknameRemoveAction {

@@ -20,7 +20,7 @@ export interface VideosProps {
 interface StreamProps {
   key: string
   stream?: StreamWithURL
-  userId: string
+  peerId: string
   muted?: boolean
   localUser?: boolean
   mirrored?: boolean
@@ -59,15 +59,15 @@ export default class Videos extends React.PureComponent<VideosProps> {
 
     function addStreamsByUser(
       localUser: boolean,
-      userId: string,
+      peerId: string,
       streams: Array<StreamWithURL | LocalStream>,
     ) {
 
       if (!streams.length) {
-        const key = getStreamKey(userId, undefined)
+        const key = getStreamKey(peerId, undefined)
         const props: StreamProps = {
           key,
-          userId,
+          peerId,
           localUser,
           windowState: windowStates[key],
         }
@@ -75,12 +75,12 @@ export default class Videos extends React.PureComponent<VideosProps> {
         return
       }
 
-      streams.forEach((stream, i) => {
-        const key = getStreamKey(userId, stream.streamId)
+      streams.forEach((stream) => {
+        const key = getStreamKey(peerId, stream.streamId)
         const props: StreamProps = {
           key,
           stream: stream,
-          userId,
+          peerId,
           mirrored: localUser && isLocalStream(stream) &&
             stream.type === StreamTypeCamera && stream.mirror,
           muted: localUser,
@@ -94,10 +94,16 @@ export default class Videos extends React.PureComponent<VideosProps> {
     const localStreams = map(streams.localStreams, s => s!)
     addStreamsByUser(true, ME, localStreams)
 
-    forEach(nicknames, (_, userId) => {
-      if (userId != ME) {
-        const s = streams.streamsByUserId[userId]
-        addStreamsByUser(false, userId, s && s.streams || [])
+    forEach(nicknames, (_, peerId) => {
+      if (peerId != ME) {
+        const s = map(
+          streams.pubStreamsKeysByPeerId[peerId],
+          (_, streamId) => streams.pubStreams[streamId],
+        )
+        .map(pubStream => streams.remoteStreams[pubStream.streamId])
+        .filter(s => !!s)
+
+        addStreamsByUser(false, peerId, s)
       }
     })
 
@@ -114,7 +120,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
             key={props.key}
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
-            nickname={getNickname(this.props.nicknames, props.userId)}
+            nickname={getNickname(this.props.nicknames, props.peerId)}
           />
         ))}
       </div>
@@ -128,7 +134,7 @@ export default class Videos extends React.PureComponent<VideosProps> {
             key={props.key}
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
-            nickname={getNickname(this.props.nicknames, props.userId)}
+            nickname={getNickname(this.props.nicknames, props.peerId)}
           />
         ))}
       </div>

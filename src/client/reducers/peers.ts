@@ -167,10 +167,10 @@ export default function peers(
     case constants.PEER_ADD:
       return {
         ...state,
-        [action.payload.userId]: action.payload.peer,
+        [action.payload.peerId]: action.payload.peer,
       }
     case constants.PEER_REMOVE:
-      return omit(state, [action.payload.userId])
+      return omit(state, [action.payload.peerId])
     case constants.HANG_UP:
       localStreams = {
         camera: undefined,

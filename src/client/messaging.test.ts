@@ -33,8 +33,8 @@ describe('messaging', () => {
   describe('MESSAGE_SEND', () => {
     let store: Store
     let encoder: Encoder
-    const userId1 = 'peer-a'
-    const userId2 = 'peer-b'
+    const peerId1 = 'peer-a'
+    const peerId2 = 'peer-b'
     let peer1: Peer.Instance
     let peer2: Peer.Instance
     beforeEach(() => {
@@ -44,11 +44,11 @@ describe('messaging', () => {
       peer2 = new Peer()
       store.dispatch(addPeer({
         peer: peer1,
-        userId: userId1,
+        peerId: peerId1,
       }))
       store.dispatch(addPeer({
         peer: peer2,
-        userId: userId2,
+        peerId: peerId2,
       }))
     })
 
@@ -67,7 +67,7 @@ describe('messaging', () => {
       expect(store.getState().messages).toEqual({
         count: 1,
         list: [{
-          userId: ME,
+          peerId: ME,
           timestamp: jasmine.any(String),
           message: 'hello',
         }],

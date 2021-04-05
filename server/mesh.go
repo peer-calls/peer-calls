@@ -1,23 +1,27 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 )
 
 type ReadyMessage struct {
-	UserID string `json:"userId"`
+	PeerID string `json:"peerId"`
 	Room   string `json:"room"`
 }
 
-func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
-	log := loggerFactory.GetLogger("mesh")
-
+func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		log = log.WithNamespaceAppended("mesh")
+
 		sub, err := wss.Subscribe(w, r)
 		if err != nil {
-			log.Printf("Error subscribing to websocket messages: %s", err)
+			log.Error("Subscribe to websocket", errors.Trace(err), nil)
 		}
 
 		for msg := range sub.Messages {
@@ -25,61 +29,63 @@ func NewMeshHandler(loggerFactory LoggerFactory, wss *WSS) http.Handler {
 			room := sub.Room
 			clientID := sub.ClientID
 
+			log = log.WithCtx(logger.Ctx{
+				"client_id": clientID,
+				"room_id":   room,
+			})
+
 			var (
-				responseEventName string
-				err               error
+				err error
 			)
 
 			switch msg.Type {
-			case "hangUp":
-				log.Printf("[%s] hangUp event", clientID)
+			case message.TypeHangUp:
+				log.Info("hangUp event", nil)
 				adapter.SetMetadata(clientID, "")
-			case "ready":
-				// FIXME check for errors
-				payload, _ := msg.Payload.(map[string]interface{})
-				adapter.SetMetadata(clientID, payload["nickname"].(string))
+			case message.TypeReady:
+				ready := *msg.Payload.Ready
+				adapter.SetMetadata(clientID, ready.Nickname)
 
 				clients, readyClientsErr := getReadyClients(adapter)
 				if readyClientsErr != nil {
-					log.Printf("Error retrieving clients: %s", readyClientsErr)
+					log.Error("Retrieve clients", errors.Trace(err), nil)
 				}
 
-				responseEventName = "users"
-
-				log.Printf("Got clients: %s", clients)
+				log.Info(fmt.Sprintf("Got clients: %s", clients), nil)
 
 				err = adapter.Broadcast(
-					NewMessage(responseEventName, room, map[string]interface{}{
-						"initiator": clientID,
-						"peerIds":   clientsToPeerIDs(clients),
-						"nicknames": clients,
+					message.NewUsers(room, message.Users{
+						Initiator: clientID,
+						PeerIDs:   clientsToPeerIDs(clients),
+						Nicknames: clients,
 					}),
 				)
 				err = errors.Annotatef(err, "ready broadcast")
-			case "signal":
-				payload, _ := msg.Payload.(map[string]interface{})
-				signal := payload["signal"]
-				targetClientID, _ := payload["userId"].(string)
+			case message.TypeSignal:
+				signal := *msg.Payload.Signal
 
-				responseEventName = "signal"
-				log.Printf("Send signal from: %s to %s", clientID, targetClientID)
-				err = adapter.Emit(targetClientID, NewMessage(responseEventName, room, map[string]interface{}{
-					"userId": clientID,
-					"signal": signal,
+				targetClientID := signal.PeerID
+
+				log.Info("Send signal to", logger.Ctx{
+					"target_client_id": targetClientID,
+				})
+				err = adapter.Emit(targetClientID, message.NewSignal(room, message.UserSignal{
+					Signal: signal.Signal,
+					PeerID: clientID,
 				}))
 				err = errors.Annotatef(err, "signal emit")
 			}
 
 			if err != nil {
-				log.Printf("Error sending event (event: %s, room: %s, source: %s)", responseEventName, room, clientID)
+				log.Error("Send event", errors.Trace(err), nil)
 			}
 		}
 	}
 	return http.HandlerFunc(fn)
 }
 
-func getReadyClients(adapter Adapter) (map[string]string, error) {
-	filteredClients := map[string]string{}
+func getReadyClients(adapter Adapter) (map[identifiers.ClientID]string, error) {
+	filteredClients := map[identifiers.ClientID]string{}
 	clients, err := adapter.Clients()
 	if err != nil {
 		return filteredClients, errors.Annotate(err, "ready clients")
@@ -95,7 +101,7 @@ func getReadyClients(adapter Adapter) (map[string]string, error) {
 	return filteredClients, nil
 }
 
-func clientsToPeerIDs(clients map[string]string) (peers []string) {
+func clientsToPeerIDs(clients map[identifiers.ClientID]string) (peers []identifiers.ClientID) {
 	for clientID := range clients {
 		peers = append(peers, clientID)
 	}

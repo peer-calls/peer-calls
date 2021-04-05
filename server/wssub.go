@@ -8,29 +8,29 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"nhooyr.io/websocket"
 )
 
 type WSS struct {
-	log   Logger
+	log   logger.Logger
 	rooms RoomManager
 }
 
-func NewWSS(
-	loggerFactory LoggerFactory,
-	rooms RoomManager,
-) *WSS {
+func NewWSS(log logger.Logger, rooms RoomManager) *WSS {
 	return &WSS{
-		log:   loggerFactory.GetLogger("wss"),
+		log:   log.WithNamespaceAppended("wss"),
 		rooms: rooms,
 	}
 }
 
 type Subscription struct {
 	Adapter  Adapter
-	ClientID string
-	Room     string
-	Messages <-chan Message
+	ClientID identifiers.ClientID
+	Room     identifiers.RoomID
+	Messages <-chan message.Message
 }
 
 func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription, error) {
@@ -46,13 +46,19 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 
 	ctx := r.Context()
 
-	clientID := path.Base(r.URL.Path)
-	room := path.Base(path.Dir(r.URL.Path))
-	adapter := wss.rooms.Enter(room)
-	ch := make(chan Message)
+	clientID := identifiers.ClientID(path.Base(r.URL.Path))
+	room := identifiers.RoomID(path.Base(path.Dir(r.URL.Path)))
+	adapter, _ := wss.rooms.Enter(room)
+	ch := make(chan message.Message)
+
+	log := wss.log.WithCtx(logger.Ctx{
+		"client_id": clientID,
+		"room_id":   room,
+	})
 
 	client := NewClientWithID(c, clientID)
-	wss.log.Printf("[%s] New websocket connection - room: %s", clientID, room)
+
+	log.Info("New websocket connection", nil)
 
 	prometheusWSConnTotal.Inc()
 	prometheusWSConnActive.Inc()
@@ -64,30 +70,32 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 			duration := time.Now().Sub(start)
 			prometheusWSConnDuration.Observe(duration.Seconds())
 
-			wss.log.Printf("[%s] Closing websocket connection - room: %s", clientID, room)
 			err := c.Close(websocket.StatusNormalClosure, "")
 			if err != nil {
-				err = errors.Trace(err)
-				wss.log.Printf("[%s] Error closing websocket connection: %+v", clientID, err)
+				log.Error("Close websocket connection", errors.Trace(err), nil)
+			} else {
+				log.Info("Close websocket connection", nil)
 			}
 		}()
 		defer func() {
-			wss.log.Printf("[%s] wss.rooms.Exit room: %s", clientID, room)
+			log.Info("Exit", nil)
 			wss.rooms.Exit(room)
 		}()
 		err = adapter.Add(client)
 		if err != nil {
-			err = errors.Trace(err)
-			wss.log.Printf("[%s] Error adding client to room: %s: %+v", clientID, room, err)
+			log.Error("Add client", errors.Trace(err), nil)
+
 			close(ch)
+
 			return
 		}
 
 		defer func() {
-			wss.log.Printf("[%s] adapter.Remove room: %s", clientID, room)
 			err := adapter.Remove(clientID)
 			if err != nil {
-				wss.log.Printf("[%s] Error removing client from adapter: %+v", clientID, err)
+				log.Error("Remove", errors.Trace(err), nil)
+			} else {
+				log.Info("Remove", nil)
 			}
 		}()
 
@@ -113,7 +121,7 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 		}
 
 		if err != nil {
-			wss.log.Printf("[%s] Subscription error: %+v", clientID, err)
+			log.Error("Subscribe", errors.Trace(err), nil)
 		}
 	}()
 

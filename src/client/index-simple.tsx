@@ -2,7 +2,7 @@ import Peer from 'simple-peer'
 import socket from './socket'
 import { config } from './window'
 
-const { iceServers, userId, callId } = config
+const { iceServers, peerId, callId } = config
 
 const $container = document.getElementById('container')!
 socket.reconnectTimeout = 0
@@ -11,7 +11,7 @@ socket.on('connect', () => {
 
   socket.on('users', ({initiator, peerIds}) => {
     const peer = new Peer({
-      initiator: initiator === userId,
+      initiator: initiator === peerId,
       config: { iceServers },
       trickle: false,
       // Allow the peer to receive video, even if it's not sending stream:
@@ -24,7 +24,7 @@ socket.on('connect', () => {
 
     peer.on('signal', signal => {
       socket.emit('signal', {
-        userId,
+        peerId,
         signal,
       })
     })
@@ -93,7 +93,7 @@ socket.on('connect', () => {
   socket.emit('ready', {
     room: callId,
     nickname: 'test',
-    userId,
+    peerId,
   })
 
 })

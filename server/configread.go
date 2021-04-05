@@ -49,6 +49,7 @@ func ReadConfig(filenames []string) (c Config, err error) {
 	InitConfig(&c)
 	err = ReadConfigFiles(filenames, &c)
 	ReadConfigFromEnv("PEERCALLS_", &c)
+
 	return c, errors.Trace(err)
 }
 
@@ -57,6 +58,7 @@ func ReadConfigYAML(reader io.Reader, c *Config) error {
 	if err := decoder.Decode(c); err != nil {
 		return errors.Annotatef(err, "decode yaml")
 	}
+
 	return nil
 }
 
@@ -78,6 +80,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvStringArray(&c.Network.SFU.Protocols, prefix+"NETWORK_SFU_PROTOCOLS")
 	setEnvStringArray(&c.Network.SFU.Interfaces, prefix+"NETWORK_SFU_INTERFACES")
 	setEnvBool(&c.Network.SFU.JitterBuffer, prefix+"NETWORK_SFU_JITTER_BUFFER")
+	setEnvStringArray(&c.Network.SFU.Transport.Nodes, prefix+"NETWORK_SFU_TRANSPORT_NODES")
+	setEnvString(&c.Network.SFU.Transport.ListenAddr, prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR")
 	setEnvUint16(&c.Network.SFU.UDP.PortMin, prefix+"NETWORK_SFU_UDP_PORT_MIN")
 	setEnvUint16(&c.Network.SFU.UDP.PortMax, prefix+"NETWORK_SFU_UDP_PORT_MAX")
 

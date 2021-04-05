@@ -6,12 +6,12 @@ export type ActiveState = null | string
 export type WindowState = undefined | 'minimized'
 
 export interface WindowStates {
-  // For example: `${userId}_${index}`
+  // For example: `${peerId}_${index}`
   [streamKey: string]: WindowState
 }
 
-export function getStreamKey(userId: string, streamId?: string) {
-  return userId + '_' + streamId
+export function getStreamKey(peerId: string, streamId?: string) {
+  return peerId + '_' + streamId
 }
 
 function unminimize(state: WindowStates, key: string): WindowStates {
@@ -30,7 +30,7 @@ function minimizeToggle(
   state: WindowStates,
   action: MinimizeToggleAction,
 ): WindowStates {
-  const key = getStreamKey(action.payload.userId, action.payload.streamId)
+  const key = getStreamKey(action.payload.peerId, action.payload.streamId)
   return state[key] ? unminimize(state, key) : minimize(state, key)
 }
 

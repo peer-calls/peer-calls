@@ -2,20 +2,18 @@ package server_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
 
 // This package contains commonly used test variables
 
-var loggerFactory = logger.NewFactoryFromEnv("PEERCALLS_", os.Stdout)
-
-const room = "test-room"
+const room identifiers.RoomID = "test-room"
 
 var serializer server.ByteSerializer
 
@@ -40,7 +38,7 @@ func (w *MockWSWriter) Read(ctx context.Context) (typ websocket.MessageType, msg
 	return
 }
 
-func serialize(t *testing.T, msg server.Message) []byte {
+func serialize(t *testing.T, msg message.Message) []byte {
 	t.Helper()
 	data, err := serializer.Serialize(msg)
 	require.Nil(t, err)

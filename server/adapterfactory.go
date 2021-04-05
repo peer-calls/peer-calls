@@ -6,27 +6,30 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
 )
 
 type AdapterFactory struct {
 	pubClient *redis.Client
 	subClient *redis.Client
 
-	NewAdapter func(room string) Adapter
+	NewAdapter func(room identifiers.RoomID) Adapter
 }
 
-func NewAdapterFactory(
-	loggerFactory LoggerFactory,
-	c StoreConfig,
-) *AdapterFactory {
-	log := loggerFactory.GetLogger("adapterfactory")
+func NewAdapterFactory(log logger.Logger, c StoreConfig) *AdapterFactory {
+	log = log.WithNamespaceAppended("adapterfactory")
 	f := AdapterFactory{}
 
 	switch c.Type {
 	case StoreTypeRedis:
 		addr := net.JoinHostPort(c.Redis.Host, strconv.Itoa(c.Redis.Port))
 		prefix := c.Redis.Prefix
-		log.Printf("Using RedisAdapter: %s with prefix %s", addr, prefix)
+
+		log.Info("Using RedisAdapter", logger.Ctx{
+			"remote_addr": addr,
+			"prefix":      prefix,
+		})
 
 		f.pubClient = redis.NewClient(&redis.Options{
 			Addr: addr,
@@ -36,13 +39,13 @@ func NewAdapterFactory(
 			Addr: addr,
 		})
 
-		f.NewAdapter = func(room string) Adapter {
-			return NewRedisAdapter(loggerFactory, f.pubClient, f.subClient, prefix, room)
+		f.NewAdapter = func(room identifiers.RoomID) Adapter {
+			return NewRedisAdapter(log, f.pubClient, f.subClient, prefix, room)
 		}
 	default:
-		log.Printf("Using MemoryAdapter")
+		log.Info("Using MemoryAdapter", nil)
 
-		f.NewAdapter = func(room string) Adapter {
+		f.NewAdapter = func(room identifiers.RoomID) Adapter {
 			return NewMemoryAdapter(room)
 		}
 	}

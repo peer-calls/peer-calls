@@ -10,6 +10,11 @@ import (
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/pubsub"
+	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,33 +22,48 @@ import (
 var iceServers = []server.ICEServer{}
 
 type addedPeer struct {
-	room      string
-	clientID  string
-	transport *server.WebRTCTransport
+	room      identifiers.RoomID
+	clientID  identifiers.ClientID
+	transport transport.Transport
 }
 
 type mockTracksManager struct {
-	added chan addedPeer
+	added        chan addedPeer
+	subscribed   chan sfu.SubParams
+	unsubscribed chan sfu.SubParams
 }
 
 var _ server.TracksManager = &mockTracksManager{}
 
 func newMockTracksManager() *mockTracksManager {
 	return &mockTracksManager{
-		added: make(chan addedPeer, 10),
+		added:        make(chan addedPeer, 10),
+		subscribed:   make(chan sfu.SubParams, 10),
+		unsubscribed: make(chan sfu.SubParams, 10),
 	}
 }
 
-func (m *mockTracksManager) Add(room string, transport *server.WebRTCTransport) {
+func (m *mockTracksManager) Add(room identifiers.RoomID, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+	ch := make(chan pubsub.PubTrackEvent)
+	close(ch)
+
 	m.added <- addedPeer{
 		room:      room,
 		clientID:  clientID,
 		transport: transport,
 	}
+
+	return ch, nil
 }
 
-func (m *mockTracksManager) GetTracksMetadata(room string, clientID string) ([]server.TrackMetadata, bool) {
-	return nil, true
+func (m *mockTracksManager) Sub(params sfu.SubParams) error {
+	m.subscribed <- params
+	return nil
+}
+
+func (m *mockTracksManager) Unsub(params sfu.SubParams) error {
+	m.unsubscribed <- params
+	return nil
 }
 
 func mesh() (network server.NetworkConfig) {
@@ -62,7 +82,7 @@ func Test_routeIndex(t *testing.T) {
 	trk := newMockTracksManager()
 	prom := server.PrometheusConfig{"test1234"}
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom)
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
 
@@ -76,7 +96,7 @@ func Test_routeIndex_noBaseURL(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -90,7 +110,7 @@ func Test_routeNewCall_name(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("POST", "/test/call", reader)
@@ -106,7 +126,7 @@ func Test_routeNewCall_random(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/test/call", nil)
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -125,7 +145,7 @@ func Test_routeCall(t *testing.T) {
 	iceServers := []server.ICEServer{{
 		URLs: []string{"stun:"},
 	}}
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test/call/abc", nil)
 	mux.ServeHTTP(w, r)
@@ -141,7 +161,7 @@ func Test_routeCall(t *testing.T) {
 	assert.Equal(t, "/test", config.BaseURL)
 	assert.Equal(t, "", config.Nickname)
 	assert.Equal(t, "abc", config.CallID)
-	assert.NotEmpty(t, config.UserID)
+	assert.NotEmpty(t, config.PeerID)
 	assert.NotEmpty(t, config.ICEServers)
 	assert.Equal(t, server.NetworkTypeMesh, config.Network)
 }
@@ -150,7 +170,7 @@ func Test_manifest(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 	w := httptest.NewRecorder()
 	reader := strings.NewReader("call=my room")
 	r := httptest.NewRequest("GET", "/test/manifest.json", reader)
@@ -165,7 +185,7 @@ func Test_Metrics(t *testing.T) {
 	mrm := NewMockRoomManager()
 	trk := newMockTracksManager()
 	defer mrm.close()
-	mux := server.NewMux(loggerFactory, "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
+	mux := server.NewMux(test.NewLogger(), "/test", "v0.0.0", mesh(), iceServers, mrm, trk, prom())
 
 	for _, testCase := range []struct {
 		statusCode    int

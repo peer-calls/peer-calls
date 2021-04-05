@@ -1,0 +1,18 @@
+---
+bind_host: 127.0.0.1
+bind_port: 3001
+store:
+  type: redis
+  redis:
+    host: 127.0.0.1
+    port: 6379
+network:
+  type: sfu
+  sfu:
+    udp:
+      port_min: 8010
+      port_max: 8019
+    transport:
+      listen_addr: 127.0.0.1:4001
+      nodes:
+        - 127.0.0.1:4002

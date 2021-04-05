@@ -1,5 +1,6 @@
-jest.mock('simple-peer')
+jest.mock('../insertable-streams')
 jest.mock('../window')
+jest.mock('simple-peer')
 // jest.mock('../actions/NicknameActions')
 
 import * as NicknameActions from './NicknameActions'
@@ -29,7 +30,7 @@ describe('SocketActions', () => {
   })
 
   const peerA = 'peer-a'
-  const userId = peerA
+  const peerId = peerA
 
   const peerB = 'peer-b'
   const peerC = 'peer-c'
@@ -45,7 +46,7 @@ describe('SocketActions', () => {
   describe('handshake', () => {
     describe('users', () => {
       beforeEach(() => {
-        SocketActions.handshake({ nickname, socket, roomName, userId, store })
+        SocketActions.handshake({ nickname, socket, roomName, peerId, store })
         const payload = {
           initiator: peerA,
           peerIds: [peerA, peerB],
@@ -74,7 +75,7 @@ describe('SocketActions', () => {
       let data: Peer.SignalData
       beforeEach(() => {
         data = {} as any
-        SocketActions.handshake({ nickname, socket, roomName, userId, store })
+        SocketActions.handshake({ nickname, socket, roomName, peerId, store })
         socket.emit('users', {
           initiator: peerA,
           peerIds: [peerA, peerB],
@@ -84,7 +85,7 @@ describe('SocketActions', () => {
 
       it('should forward signal to peer', () => {
         socket.emit('signal', {
-          userId: peerB,
+          peerId: peerB,
           signal: data,
         })
 
@@ -94,7 +95,7 @@ describe('SocketActions', () => {
 
       it('does nothing if no peer', () => {
         socket.emit('signal', {
-          userId: 'a',
+          peerId: 'a',
           signal: data,
         })
 
@@ -110,7 +111,7 @@ describe('SocketActions', () => {
       let ready = false
       socket.once('ready', () => { ready = true })
 
-      SocketActions.handshake({ nickname, socket, roomName, userId, store })
+      SocketActions.handshake({ nickname, socket, roomName, peerId, store })
 
       socket.emit('users', {
         initiator: peerA,
@@ -135,7 +136,7 @@ describe('SocketActions', () => {
         const signal = { bla: 'bla' }
 
         socket.once('signal', (payload: SocketEvent['signal']) => {
-          expect(payload.userId).toEqual(peerB)
+          expect(payload.peerId).toEqual(peerB)
           expect(payload.signal).toBe(signal)
           done()
         })
@@ -163,32 +164,22 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByUserId: {
+          pubStreams: {},
+          pubStreamsKeysByPeerId: {},
+          remoteStreamsKeysByClientId: {
             [peerB]: {
-              streams: [{
-                stream: jasmine.any(MediaStream) as any,
-                streamId: stream.id,
-                url: jasmine.any(String) as any,
-              }],
-              userId: peerB,
+              [stream.id]: undefined,
             },
           },
-          trackIdToPeerIdMid: {
-            [track.id]: peerB + '::0',
-          },
-          tracksByPeerIdMid: {
-            [peerB + '::0']: {
-              association: {
-                streamId: stream.id,
-                userId: peerB,
-              },
-              mid: '0',
-              track,
+          remoteStreams: {
+            [stream.id]: {
+              stream: jasmine.any(MediaStream) as any,
+              streamId: stream.id,
+              url: jasmine.any(String) as any,
             },
           },
         } as StreamsState)
-        const mediaStream = streams.streamsByUserId[peerB].streams[0].stream
+        const mediaStream = streams.remoteStreams[stream.id].stream
         expect(mediaStream.getTracks()).toEqual([ track ])
       })
     })
@@ -206,32 +197,24 @@ describe('SocketActions', () => {
         const { streams } = store.getState()
         expect(streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByUserId: {},
-          trackIdToPeerIdMid: {
-            [track.id]: peerB + '::0',
-          },
-          tracksByPeerIdMid: {
-            [peerB + '::0']: {
-              association: undefined,
-              mid: '0',
-              track,
-            },
-          },
+          pubStreamsKeysByPeerId: {},
+          pubStreams: {},
+          remoteStreamsKeysByClientId: {},
+          remoteStreams: {},
         } as StreamsState)
       })
     })
 
     describe('hangUp', () => {
       beforeEach(() => {
-        SocketActions.handshake({ nickname, socket, roomName, userId, store })
+        SocketActions.handshake({ nickname, socket, roomName, peerId, store })
         store.dispatch(NicknameActions.setNicknames({
           a: 'A',
         }))
       })
 
       it('emits a removeNickname event', () => {
-        socket.emit(constants.SOCKET_EVENT_HANG_UP, { userId: 'a' })
+        socket.emit(constants.SOCKET_EVENT_HANG_UP, { peerId: 'a' })
         expect(store.getState().nicknames).not.toHaveProperty('a')
       })
     })
@@ -242,13 +225,10 @@ describe('SocketActions', () => {
         const track = new MediaStreamTrack()
         const mid = '0'
         peer.emit(constants.PEER_EVENT_TRACK, track, stream, tr(mid))
-        const streams = store.getState().streams.streamsByUserId
-        expect(Object.keys(streams)).toEqual([ peerB ])
-        const userStreams = streams[peerB].streams
-        expect(userStreams.length).toBe(1)
-        expect(userStreams[0].streamId).toBe(stream.id)
-        expect(userStreams[0].stream).not.toBe(stream)
-        expect(userStreams[0].stream.getTracks()).toEqual([ track ])
+        const s = store.getState().streams.remoteStreams[stream.id]
+        expect(s).toBeTruthy()
+        expect(s.streamId).toBe(stream.id)
+        expect(s.stream.getTracks()).toEqual([ track ])
       })
 
       it('removes stream & peer from store', () => {
@@ -256,10 +236,10 @@ describe('SocketActions', () => {
         peer.emit('close')
         expect(store.getState().streams).toEqual({
           localStreams: {},
-          metadataByPeerIdMid: {},
-          streamsByUserId: {},
-          trackIdToPeerIdMid: {},
-          tracksByPeerIdMid: {},
+          pubStreamsKeysByPeerId: {},
+          pubStreams: {},
+          remoteStreamsKeysByClientId: {},
+          remoteStreams: {},
         } as StreamsState)
         expect(store.getState().peers).toEqual({})
       })

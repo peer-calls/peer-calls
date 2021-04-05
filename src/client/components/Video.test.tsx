@@ -29,7 +29,7 @@ describe('components/Video', () => {
         stream={this.state.stream || this.props.stream}
         onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}
-        userId="test"
+        peerId="test"
         muted={this.props.muted}
         mirrored={this.props.mirrored}
         nickname={this.props.nickname}
@@ -74,7 +74,7 @@ describe('components/Video', () => {
           ref={instance => resolve(instance!)}
           stream={stream}
           play={play}
-          userId="test"
+          peerId="test"
           muted={flags.muted}
           mirrored={flags.mirrored}
           onMinimizeToggle={onMinimizeToggle}

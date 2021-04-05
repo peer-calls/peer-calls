@@ -4,13 +4,16 @@ import (
 	"io"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/pion/webrtc/v3"
 )
 
 type DataTransceiver struct {
-	log Logger
+	log logger.Logger
 
-	clientID       string
+	clientID       identifiers.ClientID
 	peerConnection *webrtc.PeerConnection
 
 	// dataChannelChan will receive DataChannels from peer connection
@@ -37,13 +40,15 @@ type DataTransceiver struct {
 }
 
 func NewDataTransceiver(
-	loggerFactory LoggerFactory,
-	clientID string,
+	log logger.Logger,
+	clientID identifiers.ClientID,
 	dataChannel *webrtc.DataChannel,
 	peerConnection *webrtc.PeerConnection,
 ) *DataTransceiver {
 	d := &DataTransceiver{
-		log:            loggerFactory.GetLogger("datatransceiver"),
+		log: log.WithNamespaceAppended("datatransceiver").WithCtx(logger.Ctx{
+			"client_id": clientID,
+		}),
 		clientID:       clientID,
 		peerConnection: peerConnection,
 
@@ -67,11 +72,11 @@ func NewDataTransceiver(
 }
 
 func (d *DataTransceiver) handleDataChannel(dataChannel *webrtc.DataChannel) {
-	if dataChannel.Label() == DataChannelName {
+	if dataChannel.Label() == sfu.DataChannelName {
 		d.dataChannelChan <- dataChannel
 
 		dataChannel.OnMessage(func(message webrtc.DataChannelMessage) {
-			d.log.Printf("[%s] DataTransceiver.handleMessage", d.clientID)
+			d.log.Info("DataTransceiver.handleMessage", nil)
 
 			select {
 			case <-d.torndownChan:
@@ -118,7 +123,7 @@ func (d *DataTransceiver) start() {
 		case msgFuture := <-d.sendMessagesChan:
 			err := handleSendMessage(msgFuture.message)
 			if err != nil {
-				d.log.Printf("[%s] DataTransceiver send error: %+v", d.clientID, err)
+				d.log.Error("Send error", errors.Trace(err), nil)
 
 				msgFuture.errCh <- errors.Trace(err)
 			}
@@ -133,7 +138,7 @@ func (d *DataTransceiver) MessagesChannel() <-chan webrtc.DataChannelMessage {
 }
 
 func (d *DataTransceiver) Close() {
-	d.log.Printf("[%s] DataTransceiver.Close", d.clientID)
+	d.log.Trace("DataTransceiver.Close", nil)
 
 	select {
 	case d.teardownChan <- struct{}{}:

@@ -92,19 +92,20 @@ describe('App', () => {
             type: StreamTypeCamera,
           },
         },
-        streamsByUserId: {
+        pubStreams: {},
+        pubStreamsKeysByPeerId: {},
+        remoteStreamsKeysByClientId: {
           'other-user': {
-            userId: 'other-user',
-            streams: [{
-              stream: remoteStream,
-              streamId: remoteStream.id,
-              url: 'blob://',
-            }],
+            [remoteStream.id]: undefined,
           },
         },
-        metadataByPeerIdMid: {},
-        trackIdToPeerIdMid: {},
-        tracksByPeerIdMid: {},
+        remoteStreams: {
+          [remoteStream.id]: {
+            stream: remoteStream,
+            streamId: remoteStream.id,
+            url: 'blob://',
+          },
+        },
       }
       state.peers = {
         'other-user': {} as any,
@@ -155,7 +156,7 @@ describe('App', () => {
         expect(dispatchSpy.mock.calls).toEqual([[{
           type: constants.MINIMIZE_TOGGLE,
           payload: {
-            userId: constants.ME,
+            peerId: constants.ME,
             streamId: store.getState()
             .streams.localStreams[StreamTypeCamera]!.streamId,
           },

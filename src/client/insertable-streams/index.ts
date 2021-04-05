@@ -1,29 +1,23 @@
 import _debug from 'debug'
-import { TrackMetadata } from '../SocketEvent'
+import { PubTrackEvent as PubTrackEvt, TrackKind } from '../SocketEvent'
 import { WebWorker } from '../webworker'
 import { config } from '../window'
 
+
 const debug = _debug('peercalls')
-const { userId } = config
+const { peerId } = config
 
 interface EncryptStreamEvent {
   type: 'encrypt'
-  readableStream: ReadableStream<RTCEncodedFrame>
-  writableStream: WritableStream<RTCEncodedFrame>
+  readable: ReadableStream<RTCEncodedFrame>
+  writable: WritableStream<RTCEncodedFrame>
 }
 
 interface DecryptStreamEvent {
   type: 'decrypt'
-  // In the case of SFU only transceiver.mid is known at the time of receiving
-  // a track until TrackMetadata array is received.
-  mid: string
-  // In the case of direct P2P connections, userId will be set correctly from
-  // the start, but when SFU is used, mid will have to be used to resolve the
-  // username after the metadata event is received.
-  userId: string
-  // The streams property will be undefined if this is a transceiver reuse,
-  // but a message still needs to be sent to the worker so that it updates
-  // the userId/mid asssociation.
+  streamId: string
+  kind: TrackKind
+  peerId: string
   streams?: RTCInsertableStreams
 }
 
@@ -32,21 +26,21 @@ interface PasswordEvent {
   password: string
 }
 
-interface MetadataEvent {
-  type: 'metadata'
-  metadata: TrackMetadata[]
+interface PubTrackEvent {
+  type: 'pubTrack'
+  pubTrackEvent: PubTrackEvt
 }
 
 interface InitEvent {
   type: 'init'
-  userId: string
+  peerId: string
   url: string
 }
 
 type PostMessageEvent =
   EncryptStreamEvent |
   DecryptStreamEvent |
-  MetadataEvent |
+  PubTrackEvent |
   PasswordEvent |
   InitEvent
 
@@ -54,20 +48,20 @@ export type EncryptionWorker = WebWorker<PostMessageEvent, void>
 
 export interface DecryptParams {
   receiver: RTCRtpReceiver
-  // Only transceiver.mid is known at the time of receiving a track.
-  mid: string
-  userId: string
+  kind: TrackKind
+  streamId: string
+  peerId: string
 }
 
 interface WorkerParams {
-  userId: string
+  peerId: string
   url: string
 }
 
 const workerFunc = () => (self: EncryptionWorker) => {
   const params: WorkerParams = {
     url: '',
-    userId: '',
+    peerId: '',
   }
 
   const tagLength = 128
@@ -75,7 +69,8 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
   interface DecryptContext {
     key?: CryptoKey
-    userId: string
+    streamProps: StreamProps
+    peerId: string
     password: string
   }
 
@@ -86,7 +81,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
   interface Context {
     password: string
-    decryptContextByMid: Record<string, DecryptContext>
+    decryptContextByStreamKey: Record<StreamKey, DecryptContext>
     encryptContext: EncryptContext
   }
 
@@ -97,34 +92,35 @@ const workerFunc = () => (self: EncryptionWorker) => {
     undefined: 1,
   }
 
-  let metadataByMid: Record<string, TrackMetadata> = {}
+  type StreamKey = string
+
+  interface StreamProps {
+    streamId: string
+    kind: TrackKind
+  }
+
+  function newStreamKey(params: StreamProps): StreamKey {
+    const { streamId, kind } = params
+    return (streamId + ':' + kind) as StreamKey
+  }
 
   const context: Context = {
     password: '',
-    decryptContextByMid: {},
+    decryptContextByStreamKey: {},
     encryptContext: {
       password: '',
     },
   }
 
-  function getUserId(mid: string, userId: string) {
-    const metadata = metadataByMid[mid]
-    if (!metadata) {
-      return userId
-    }
-
-    return metadata.userId
-  }
-
-  function createKey(password: string, url: string, userId: string) {
+  function createKey(password: string, url: string, peerId: string) {
     const urlBytes = new TextEncoder().encode(url)
-    const userIdBytes = new TextEncoder().encode(userId)
+    const peerIdBytes = new TextEncoder().encode(peerId)
 
     const salt = new Uint8Array(
-      urlBytes.byteLength + 1 + userIdBytes.byteLength,
+      urlBytes.byteLength + 1 + peerIdBytes.byteLength,
     )
     salt.set(urlBytes)
-    salt.set(userIdBytes, urlBytes.byteLength + 1)
+    salt.set(peerIdBytes, urlBytes.byteLength + 1)
 
     return crypto.subtle.importKey(
       'raw',
@@ -150,21 +146,26 @@ const workerFunc = () => (self: EncryptionWorker) => {
     ))
   }
 
-  function updateDecryptContext(mid: string, userId: string) {
+  function updateDecryptContext(
+    streamProps: StreamProps,
+    peerId: string,
+  ) {
     const { password } = context
     const { url } = params
 
-    userId = getUserId(mid, userId)
+    const streamKey = newStreamKey(streamProps)
 
-    let c = context.decryptContextByMid[mid]
+    let c = context.decryptContextByStreamKey[streamKey]
 
-    if (c && c.userId === userId && c.password === password) {
+    // Check if everything is already configured as it should be
+    if (c && c.peerId === peerId && c.password === password) {
       return
     }
 
-    c = context.decryptContextByMid[mid] = {
-      userId,
+    c = context.decryptContextByStreamKey[streamKey] = {
+      peerId,
       password,
+      streamProps,
     }
 
     if (!password) {
@@ -172,20 +173,20 @@ const workerFunc = () => (self: EncryptionWorker) => {
       return
     }
 
-    return createKey(password, url, userId)
+    return createKey(password, url, peerId)
     .then(key => {
       // Ensure there was no context update in the meantime. This can happen
       // if metadata has changed, or a user has left and another one who just
-      // joined got assigned the same mid.
-      if (context.decryptContextByMid[mid] === c) {
-        context.decryptContextByMid[mid].key = key
+      // joined got assigned the same key.
+      if (context.decryptContextByStreamKey[streamKey] === c) {
+        context.decryptContextByStreamKey[streamKey].key = key
       }
     })
   }
 
   function updateEncryptContext() {
     const { password } = context
-    const { url, userId } = params
+    const { url, peerId } = params
 
     if (context.encryptContext &&
         context.encryptContext.password === password) {
@@ -199,7 +200,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
     context.encryptContext.password = password
 
-    return createKey(password, url, userId)
+    return createKey(password, url, peerId)
     .then(key => {
       // Ensure password has not been changed in the meantime.
       if (context.encryptContext.password === password) {
@@ -281,11 +282,12 @@ const workerFunc = () => (self: EncryptionWorker) => {
   }
 
   function decrypt<T extends RTCEncodedFrame>(
-    mid: string,
+    streamProps: StreamProps,
     frame: T,
     controller: TransformStreamDefaultController<T>,
   ) {
-    const ctx = context.decryptContextByMid[mid]
+    const streamKey = newStreamKey(streamProps)
+    const ctx = context.decryptContextByStreamKey[streamKey]
     if (!ctx) {
       controller.enqueue(frame)
       return
@@ -342,25 +344,22 @@ const workerFunc = () => (self: EncryptionWorker) => {
     })
   }
 
-  function handleMetadata(metadata: TrackMetadata[]) {
-    metadataByMid = metadata.reduce((obj, m) => {
-      obj[m.mid] = m
-      return obj
-    }, {} as Record<string, TrackMetadata>)
+  function handlePubTrackEvent(msg: PubTrackEvent) {
+    const { pubTrackEvent } = msg
+    const { kind, peerId, trackId: { streamId } } = pubTrackEvent
+    const streamProps = { kind, streamId }
+    const streamKey = newStreamKey(streamProps)
 
-    const promises = Object.keys(context.decryptContextByMid).map(mid => {
-      const m = metadataByMid[mid]
+    // We use peerId becaues the peerId is the source of the track and the only
+    // one who might use the insertable streams.
 
-      if (!m) {
-        // Delete old key for user which is no longer there.
-        delete context.decryptContextByMid[mid]
-        return
-      }
-
-      return updateDecryptContext(mid, m.userId)
-    })
-
-    return Promise.all(promises)
+    switch (pubTrackEvent.type) {
+    case 1: // Pub
+      return updateDecryptContext(streamProps, peerId)
+    case 2: // Unpub
+      delete context.decryptContextByStreamKey[streamKey]
+      break
+    }
   }
 
   function handlePassword(msg: PasswordEvent) {
@@ -368,34 +367,35 @@ const workerFunc = () => (self: EncryptionWorker) => {
     // Regenerate all keys
     updateEncryptContext()
     .then(() => Promise.all(
-      Object.keys(context.decryptContextByMid).map(mid => {
-        const decryptContext = context.decryptContextByMid[mid]
-        return updateDecryptContext(mid, decryptContext.userId)
+      Object.keys(context.decryptContextByStreamKey).map(streamKey => {
+        const decryptContext = context.decryptContextByStreamKey[streamKey]
+        const { streamProps } = decryptContext
+        return updateDecryptContext(streamProps, decryptContext.peerId)
       }),
     ))
   }
 
   function handleEncrypt(msg: EncryptStreamEvent) {
-    msg.readableStream
+    msg.readable
     .pipeThrough(new TransformStream({
       transform: (frame, ctrl) => encrypt(frame, ctrl),
     }))
-    .pipeTo(msg.writableStream)
+    .pipeTo(msg.writable)
 
     return updateEncryptContext()
   }
 
   function handleDecrypt(msg: DecryptStreamEvent) {
     if (msg.streams) {
-      msg.streams.readableStream
+      msg.streams.readable
       .pipeThrough(new TransformStream({
         transform: (frame, ctrl) =>
-          decrypt(msg.mid, frame, ctrl),
+          decrypt(msg, frame, ctrl),
       }))
-      .pipeTo(msg.streams.writableStream)
+      .pipeTo(msg.streams.writable)
     }
 
-    return updateDecryptContext(msg.mid, msg.userId)
+    return updateDecryptContext(msg, msg.peerId)
   }
 
   self.onmessage = event => {
@@ -403,21 +403,17 @@ const workerFunc = () => (self: EncryptionWorker) => {
     switch (msg.type) {
       case 'init':
         params.url = msg.url
-        params.userId = msg.userId
+        params.peerId = msg.peerId
         console.log('InsertableStreams worker initialized', params.url)
         break
       case 'password':
         return handlePassword(msg)
-        break
-      case 'metadata':
-        return handleMetadata(msg.metadata)
-        break
+      case 'pubTrack':
+        return handlePubTrackEvent(msg)
       case 'encrypt':
         return handleEncrypt(msg)
-        break
       case 'decrypt':
         return handleDecrypt(msg)
-        break
     }
   }
 }
@@ -456,7 +452,7 @@ export class InsertableStreamsCodec {
     const initMsg: InitEvent = {
       type: 'init',
       url: location.href,
-      userId,
+      peerId,
     }
 
     try {
@@ -488,10 +484,10 @@ export class InsertableStreamsCodec {
     return this.postMessage(message, [])
   }
 
-  setTrackMetadata(metadata: TrackMetadata[]): boolean {
-    const message: MetadataEvent = {
-      type: 'metadata',
-      metadata,
+  postPubTrackEvent(pubTrackEvent: PubTrackEvt) {
+    const message: PubTrackEvent = {
+      type: 'pubTrack',
+      pubTrackEvent,
     }
 
     return this.postMessage(message, [])
@@ -531,13 +527,13 @@ export class InsertableStreamsCodec {
 
     const message: EncryptStreamEvent = {
       type: 'encrypt',
-      readableStream: streams.readableStream,
-      writableStream: streams.writableStream,
+      readable: streams.readable,
+      writable: streams.writable,
     }
 
     this.worker.postMessage(message, [
-      streams.readableStream,
-      streams.writableStream,
+      streams.readable,
+      streams.writable,
     ] as unknown as Transferable[])
 
     return true
@@ -562,20 +558,21 @@ export class InsertableStreamsCodec {
       }
 
       streams = {
-        readableStream: encodedStreams.readableStream,
-        writableStream: encodedStreams.writableStream,
+        readable: encodedStreams.readable,
+        writable: encodedStreams.writable,
       }
 
-      transferables.push(streams.readableStream as unknown as Transferable)
-      transferables.push(streams.writableStream as unknown as Transferable)
+      transferables.push(streams.readable as unknown as Transferable)
+      transferables.push(streams.writable as unknown as Transferable)
 
       this.sendersReceivers.add(params.receiver)
     }
 
     const message: DecryptStreamEvent = {
       type: 'decrypt',
-      mid: params.mid,
-      userId: params.userId,
+      streamId: params.streamId,
+      kind: params.kind,
+      peerId: params.peerId,
       streams,
     }
 

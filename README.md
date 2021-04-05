@@ -43,7 +43,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Support dynamic adding and removing of streams
 - [x] Support RTCP packet Picture Loss Indicator (PLI)
 - [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
-- [ ] Add handling of other RTCP packets besides NACK, PLI and REMB
+- [x] Add handling of other RTCP packets besides NACK, PLI and REMB
 - [x] Add JitterBuffer (experimental, currently without congestion control)
 - [ ] Support multiple Peer Calls nodes when using SFU
 - [x] Add support for passive ICE TCP candidates
@@ -142,6 +142,10 @@ docker run --rm -it -p 3000:3000 peer-calls
 
 ## Environment variables
 
+NOTE: the environment variables `PEERCALLS_NETWORK_SFU_TRANSPORT*` were
+experimental and have been disabled during the upgrade to `pion/webrtc` v3.
+
+They will be enabled once the server-to-server transport is fully implemented.
 
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
@@ -161,6 +165,8 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_SFU_PROTOCOLS`    | csv    | Can be `udp4`, `udp6`, `tcp4` or `tcp6`                                      | `udp4,udp6` |
 | `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address. By default listens on all interfaces.                  |           |
 | `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port. By default uses a random port.                          | `0`       |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_ADDR` | string | When set, will listen for external RTP, Data and Metadata UDP streams |           |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).  |           |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MIN` | int    | Defines ICE UDP range start to use for UDP host candidates.                  | `0`       |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MAX` | int    | Defines ICE UDP range end to use for UDP host candidates.                    | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |

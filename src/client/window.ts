@@ -11,7 +11,7 @@ export interface ClientConfig {
   baseUrl: string
   nickname: string
   callId: string
-  userId: string
+  peerId: string
   iceServers: RTCIceServer[]
   network: 'mesh' | 'sfu'
 }
@@ -20,3 +20,4 @@ export const config: ClientConfig  = JSON.parse(valueOf('config')!)
 
 export const MediaStream = window.MediaStream
 export const MediaStreamTrack = window.MediaStreamTrack
+export const RTCRtpReceiver = window.RTCRtpReceiver

@@ -1,4 +1,5 @@
 jest.mock('simple-peer')
+jest.mock('../insertable-streams')
 jest.mock('../socket')
 jest.mock('../window')
 jest.useFakeTimers()
@@ -144,14 +145,14 @@ describe('media', () => {
           store.dispatch({
             type: PEER_ADD,
             payload: {
-              userId: '1',
+              peerId: '1',
               peer: peer1,
             },
           })
           store.dispatch({
             type: PEER_ADD,
             payload: {
-              userId: '2',
+              peerId: '2',
               peer: peer2,
             },
           })

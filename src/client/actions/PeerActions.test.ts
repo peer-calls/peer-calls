@@ -21,7 +21,7 @@ describe('PeerActions', () => {
 
   let socket: ClientSocket
   let stream: MediaStream
-  let user: { id: string }
+  let peer: { id: string }
   let store: Store
   let instances: Peer.Instance[]
   let dispatch: Dispatch
@@ -33,7 +33,7 @@ describe('PeerActions', () => {
     dispatch = store.dispatch
     getState = store.getState
 
-    user = { id: 'user1' }
+    peer = { id: 'user1' }
     socket = createSocket()
     instances = (Peer as any).instances = [];
     (Peer as unknown as jest.Mock).mockClear()
@@ -43,7 +43,7 @@ describe('PeerActions', () => {
 
   describe('create', () => {
     it('creates a new peer', () => {
-      PeerActions.createPeer({ socket, user, initiator: false, stream })(
+      PeerActions.createPeer({ socket, peer, initiator: false, stream })(
         dispatch, getState)
 
       expect(instances.length).toBe(1)
@@ -55,7 +55,7 @@ describe('PeerActions', () => {
     it('sets initiator correctly', () => {
       PeerActions
       .createPeer({
-        socket, user, initiator: true, stream,
+        socket, peer, initiator: true, stream,
       })(dispatch, getState)
 
       expect(instances.length).toBe(1)
@@ -65,9 +65,9 @@ describe('PeerActions', () => {
     })
 
     it('destroys old peer before creating new one', () => {
-      PeerActions.createPeer({ socket, user, initiator: false, stream })(
+      PeerActions.createPeer({ socket, peer, initiator: false, stream })(
         dispatch, getState)
-      PeerActions.createPeer({ socket, user, initiator: true, stream })(
+      PeerActions.createPeer({ socket, peer, initiator: true, stream })(
         dispatch, getState)
 
       expect(instances.length).toBe(2)
@@ -79,10 +79,10 @@ describe('PeerActions', () => {
 
   describe('events', () => {
     function createPeer() {
-      PeerActions.createPeer({ socket, user, initiator: true, stream })(
+      PeerActions.createPeer({ socket, peer, initiator: true, stream })(
         dispatch, getState)
-      const peer = instances[instances.length - 1]
-      return peer
+      const pc = instances[instances.length - 1]
+      return pc
     }
 
     describe('connect', () => {
@@ -95,19 +95,19 @@ describe('PeerActions', () => {
     describe('data', () => {
 
       it('decodes a message', async () => {
-        const peer = createPeer()
+        const pc = createPeer()
         const message: MessageType = {
           timestamp: new Date().toISOString(),
-          userId: 'test-user',
+          peerId: 'test-user',
           type: 'text',
           payload: 'test',
         }
         const encoder = new Encoder()
         encoder.on('data', event => {
-          peer.emit(PEER_EVENT_DATA, event.chunk)
+          pc.emit(PEER_EVENT_DATA, event.chunk)
         })
         const messageId = encoder.encode({
-          senderId: user.id,
+          senderId: peer.id,
           data: new TextEncoder().encode(JSON.stringify(message)),
         })
         const promise = encoder.waitFor(messageId)
@@ -116,7 +116,7 @@ describe('PeerActions', () => {
         const { list } = store.getState().messages
         expect(list.length).toBeGreaterThan(0)
         expect(list[list.length - 1]).toEqual({
-          userId: 'test-user',
+          peerId: 'test-user',
           timestamp: new Date(message.timestamp).toLocaleString(),
           image: undefined,
           message: 'test',
@@ -128,25 +128,25 @@ describe('PeerActions', () => {
   describe('get', () => {
     it('returns undefined when not found', () => {
       const { peers } = store.getState()
-      expect(peers[user.id]).not.toBeDefined()
+      expect(peers[peer.id]).not.toBeDefined()
     })
 
     it('returns Peer instance when found', () => {
-      PeerActions.createPeer({ socket, user, initiator: false, stream })(
+      PeerActions.createPeer({ socket, peer, initiator: false, stream })(
         dispatch, getState)
 
       const { peers } = store.getState()
-      expect(peers[user.id]).toBe(instances[0])
+      expect(peers[peer.id]).toBe(instances[0])
     })
   })
 
   describe('destroyPeers', () => {
     it('destroys all peers and removes them', () => {
       PeerActions.createPeer({
-        socket, user: { id: 'user2' }, initiator: true, stream,
+        socket, peer: { id: 'user2' }, initiator: true, stream,
       })(dispatch, getState)
       PeerActions.createPeer({
-        socket, user: { id: 'user3' }, initiator: false, stream,
+        socket, peer: { id: 'user3' }, initiator: false, stream,
       })(dispatch, getState)
 
       store.dispatch({

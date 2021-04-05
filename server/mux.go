@@ -9,6 +9,12 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gobuffalo/packr"
+	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/pubsub"
+	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/server/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -43,8 +49,9 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TracksManager interface {
-	Add(room string, transport *WebRTCTransport)
-	GetTracksMetadata(room string, clientID string) ([]TrackMetadata, bool)
+	Add(room identifiers.RoomID, transport transport.Transport) (<-chan pubsub.PubTrackEvent, error)
+	Sub(params sfu.SubParams) error
+	Unsub(params sfu.SubParams) error
 }
 
 func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc {
@@ -55,12 +62,12 @@ func withGauge(counter prometheus.Counter, h http.HandlerFunc) http.HandlerFunc 
 }
 
 type RoomManager interface {
-	Enter(room string) Adapter
-	Exit(room string)
+	Enter(room identifiers.RoomID) (adapter Adapter, isNew bool)
+	Exit(room identifiers.RoomID) (isRemoved bool)
 }
 
 func NewMux(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	baseURL string,
 	version string,
 	network NetworkConfig,
@@ -69,9 +76,11 @@ func NewMux(
 	tracks TracksManager,
 	prom PrometheusConfig,
 ) *Mux {
+	log = log.WithNamespaceAppended("mux")
+
 	box := packr.NewBox("./templates")
 	templates := ParseTemplates(box)
-	renderer := NewRenderer(loggerFactory, templates, baseURL, version)
+	renderer := NewRenderer(log, templates, baseURL, version)
 
 	handler := chi.NewRouter()
 	mux := &Mux{
@@ -90,9 +99,9 @@ func NewMux(
 	}
 
 	wsHandler := newWebSocketHandler(
-		loggerFactory,
+		log,
 		network,
-		NewWSS(loggerFactory, rooms),
+		NewWSS(log, rooms),
 		iceServers,
 		tracks,
 	)
@@ -139,25 +148,25 @@ func NewMux(
 }
 
 func newWebSocketHandler(
-	loggerFactory LoggerFactory,
+	log logger.Logger,
 	network NetworkConfig,
 	wss *WSS,
 	iceServers []ICEServer,
 	tracks TracksManager,
 ) http.Handler {
-	log := loggerFactory.GetLogger("mux")
+	log = log.WithNamespaceAppended("websocket_handler")
 
 	switch network.Type {
 	case NetworkTypeSFU:
-		log.Println("Using network type sfu")
+		log.Info("Using network type sfu", nil)
 
-		return NewSFUHandler(loggerFactory, wss, iceServers, network.SFU, tracks)
+		return NewSFUHandler(log, wss, iceServers, network.SFU, tracks)
 	case NetworkTypeMesh:
 		fallthrough
 	default:
-		log.Println("Using network type mesh")
+		log.Info("Using network type mesh", nil)
 
-		return NewMeshHandler(loggerFactory, wss)
+		return NewMeshHandler(log, wss)
 	}
 }
 
@@ -170,7 +179,7 @@ func static(prefix string, box packr.Box) http.Handler {
 func (mux *Mux) routeNewCall(w http.ResponseWriter, r *http.Request) {
 	callID := r.PostFormValue("call")
 	if callID == "" {
-		callID = NewUUIDBase62()
+		callID = uuid.New()
 	}
 
 	url := mux.BaseURL + "/call/" + url.PathEscape(callID)
@@ -193,14 +202,14 @@ func (mux *Mux) getData() map[string]interface{} {
 
 func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, interface{}, error) {
 	callID := url.PathEscape(path.Base(r.URL.Path))
-	userID := NewUUIDBase62()
+	peerID := uuid.New()
 	iceServers := GetICEAuthServers(mux.iceServers)
 
 	config := ClientConfig{
 		BaseURL:    mux.BaseURL,
 		Nickname:   r.Header.Get("X-Forwarded-User"),
 		CallID:     callID,
-		UserID:     userID,
+		PeerID:     peerID,
 		ICEServers: iceServers,
 		Network:    mux.network.Type,
 	}

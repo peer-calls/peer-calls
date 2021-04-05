@@ -16,8 +16,8 @@ interface RTCRtpReceiver {
 }
 
 interface RTCInsertableStreams {
-  readableStream: ReadableStream<RTCEncodedFrame>
-  writableStream: WritableStream<RTCEncodedFrame>
+  readable: ReadableStream<RTCEncodedFrame>
+  writable: WritableStream<RTCEncodedFrame>
 }
 
 // New enum for video frame types. Will eventually re-use the equivalent

@@ -23,14 +23,14 @@ export interface Peers {
 
 export interface PeerHandlerOptions {
   socket: ClientSocket
-  user: { id: string }
+  peer: { id: string }
   dispatch: Dispatch
   getState: GetState
 }
 
 class PeerHandler {
   socket: ClientSocket
-  user: { id: string }
+  peer: { id: string }
   dispatch: Dispatch
   getState: GetState
   decoder = new Decoder()
@@ -39,38 +39,38 @@ class PeerHandler {
 
   constructor (readonly options: PeerHandlerOptions) {
     this.socket = options.socket
-    this.user = options.user
+    this.peer = options.peer
     this.dispatch = options.dispatch
     this.getState = options.getState
   }
   handleError = (err: Error) => {
-    const { dispatch, getState, user } = this
-    debug('peer: %s, error %s', user.id, err.stack)
+    const { dispatch, getState, peer } = this
+    debug('peer: %s, error %s', peer.id, err.stack)
     dispatch(NotifyActions.error('A peer connection error occurred'))
-    const peer = getState().peers[user.id]
-    peer && peer.destroy()
-    dispatch(removePeer(user.id))
+    const pc = getState().peers[peer.id]
+    pc && pc.destroy()
+    dispatch(removePeer(peer.id))
   }
   handleSignal = (signal: SignalData) => {
-    const { socket, user } = this
-    sdpDebug('local signal: %s, signal: %o', user.id, signal)
+    const { socket, peer } = this
+    sdpDebug('local signal: %s, signal: %o', peer.id, signal)
 
-    const payload = { userId: user.id, signal }
+    const payload = { peerId: peer.id, signal }
     socket.emit('signal', payload)
   }
   handleConnect = () => {
-    const { dispatch, user, getState } = this
-    debug('peer: %s, connect', user.id)
+    const { dispatch, peer, getState } = this
+    debug('peer: %s, connect', peer.id)
     dispatch(NotifyActions.warning('Peer connection established'))
 
     const state = getState()
-    const peer = state.peers[user.id]
+    const pc = state.peers[peer.id]
     forEach(state.streams.localStreams, s => {
       // If the local user pressed join call before this peer has joined the
       // call, now is the time to share local media stream with the peer since
       // we no longer automatically send the stream to the peer.
       s!.stream.getTracks().forEach(track => {
-        const sender = peer.addTrack(track, s!.stream)
+        const sender = pc.addTrack(track, s!.stream)
         insertableStreamsCodec.encrypt(sender)
       })
     })
@@ -80,37 +80,32 @@ class PeerHandler {
     stream: MediaStream,
     transceiver: RTCRtpTransceiver,
   ) => {
-    const { user, dispatch } = this
-    const userId = user.id
+    const { peer, dispatch } = this
+    const peerId = peer.id
+    const streamId = stream.id
     const mid = transceiver.mid!
 
     debug('peer: %s, track: %s, stream: %s, mid: %s',
-          userId, track.id, stream.id, mid)
-
-    insertableStreamsCodec.decrypt({
-      receiver: transceiver.receiver,
-      mid,
-      userId,
-    })
+          peerId, track.id, stream.id, mid)
 
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {
       debug(
         'peer: %s, track mute (id: %s, stream.id: %s)',
-        userId, track.id, stream.id)
-      dispatch(StreamActions.removeTrack({ track }))
+        peerId, track.id, stream.id)
+      dispatch(StreamActions.removeTrack({ peerId, track, streamId }))
     }
 
     function addTrack() {
       debug(
         'peer: %s, track unmute (id: %s, stream.id: %s)',
-        userId, track.id, stream.id)
+        peerId, track.id, stream.id)
       dispatch(StreamActions.addTrack({
-        streamId: stream.id,
-        mid,
-        userId,
+        streamId,
+        peerId,
         track,
+        receiver: transceiver.receiver,
       }))
     }
 
@@ -120,7 +115,7 @@ class PeerHandler {
     track.onunmute = addTrack
   }
   handleData = (buffer: ArrayBuffer) => {
-    const { dispatch, user } = this
+    const { dispatch, peer } = this
 
     const dataContainer = this.decoder.decode(buffer)
     if (!dataContainer) {
@@ -131,56 +126,49 @@ class PeerHandler {
     const { data } = dataContainer
     const message = JSON.parse(this.textDecoder.decode(data))
 
-    debug('peer: %s, message: %o', user.id, message)
+    debug('peer: %s, message: %o', peer.id, message)
     dispatch(addMessage(message))
   }
   handleClose = () => {
-    const { dispatch, user } = this
+    const { dispatch, peer } = this
     dispatch(NotifyActions.error('Peer connection closed'))
-    dispatch(removePeer(user.id))
+    dispatch(removePeer(peer.id))
   }
 }
 
 export interface CreatePeerOptions {
   socket: ClientSocket
-  user: { id: string }
+  peer: { id: string }
   initiator: boolean
   stream?: MediaStream
 }
 
-/**
- * @param {Object} options
- * @param {Socket} options.socket
- * @param {User} options.user
- * @param {String} options.user.id
- * @param {Boolean} [options.initiator=false]
- * @param {MediaStream} [options.stream]
- */
 export function createPeer (options: CreatePeerOptions) {
-  const { socket, user, initiator, stream } = options
+  const { socket, peer, initiator, stream } = options
 
   return (dispatch: Dispatch, getState: GetState) => {
-    const userId = user.id
+    const peerId = peer.id
     debug(
       'create peer: %s, hasStream: %s, initiator: %s',
-      userId, !!stream, initiator)
+      peerId, !!stream, initiator)
     dispatch(NotifyActions.warning('Connecting to peer...'))
 
-    const oldPeer = getState().peers[userId]
+    const oldPeer = getState().peers[peerId]
     if (oldPeer) {
       dispatch(NotifyActions.info('Cleaning up old connection...'))
       oldPeer.destroy()
-      dispatch(removePeer(userId))
+      dispatch(removePeer(peerId))
     }
 
     debug('Using ice servers: %o', iceServers)
 
-    const peer = new Peer({
+    const pc = new Peer({
       initiator,
       config: {
         iceServers,
-        enableInsertableStreams: true,
+        encodedInsertableStreams: true,
         // legacy flags for insertable streams
+        enableInsertableStreams: true,
         forceEncodedVideoInsertableStreams: true,
         forceEncodedAudioInsertableStreams: true,
       },
@@ -197,25 +185,25 @@ export function createPeer (options: CreatePeerOptions) {
 
     const handler = new PeerHandler({
       socket,
-      user,
+      peer,
       dispatch,
       getState,
     })
 
-    peer.once(constants.PEER_EVENT_ERROR, handler.handleError)
-    peer.once(constants.PEER_EVENT_CONNECT, handler.handleConnect)
-    peer.once(constants.PEER_EVENT_CLOSE, handler.handleClose)
-    peer.on(constants.PEER_EVENT_SIGNAL, handler.handleSignal)
-    peer.on(constants.PEER_EVENT_TRACK, handler.handleTrack)
-    peer.on(constants.PEER_EVENT_DATA, handler.handleData)
+    pc.once(constants.PEER_EVENT_ERROR, handler.handleError)
+    pc.once(constants.PEER_EVENT_CONNECT, handler.handleConnect)
+    pc.once(constants.PEER_EVENT_CLOSE, handler.handleClose)
+    pc.on(constants.PEER_EVENT_SIGNAL, handler.handleSignal)
+    pc.on(constants.PEER_EVENT_TRACK, handler.handleTrack)
+    pc.on(constants.PEER_EVENT_DATA, handler.handleData)
 
-    dispatch(addPeer({ peer, userId }))
+    dispatch(addPeer({ peer: pc, peerId }))
   }
 }
 
 export interface AddPeerParams {
   peer: Peer.Instance
-  userId: string
+  peerId: string
 }
 
 export interface AddPeerAction {
@@ -230,12 +218,12 @@ export const addPeer = (payload: AddPeerParams): AddPeerAction => ({
 
 export interface RemovePeerAction {
   type: 'PEER_REMOVE'
-  payload: { userId: string }
+  payload: { peerId: string }
 }
 
-export const removePeer = (userId: string): RemovePeerAction => ({
+export const removePeer = (peerId: string): RemovePeerAction => ({
   type: constants.PEER_REMOVE,
-  payload: { userId },
+  payload: { peerId },
 })
 
 export type PeerAction =

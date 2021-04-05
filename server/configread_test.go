@@ -82,6 +82,8 @@ func TestReadFromEnv(t *testing.T) {
 	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MIN", "9000")
 	os.Setenv(prefix+"NETWORK_SFU_UDP_PORT_MAX", "9010")
 	os.Setenv(prefix+"PROMETHEUS_ACCESS_TOKEN", "at1234")
+	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_NODES", "127.0.0.1:3005,127.0.0.1:3006")
+	os.Setenv(prefix+"NETWORK_SFU_TRANSPORT_LISTEN_ADDR", "127.0.0.1:3004")
 	var c server.Config
 	server.ReadConfigFromEnv(prefix, &c)
 	assert.Equal(t, "/test", c.BaseURL)
@@ -108,4 +110,6 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, uint16(9000), c.Network.SFU.UDP.PortMin)
 	assert.Equal(t, uint16(9010), c.Network.SFU.UDP.PortMax)
 	assert.Equal(t, "at1234", c.Prometheus.AccessToken)
+	assert.Equal(t, "127.0.0.1:3004", c.Network.SFU.Transport.ListenAddr)
+	assert.Equal(t, []string{"127.0.0.1:3005", "127.0.0.1:3006"}, c.Network.SFU.Transport.Nodes)
 }

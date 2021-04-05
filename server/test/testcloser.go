@@ -2,6 +2,7 @@ package test
 
 import "github.com/juju/errors"
 
+// TODO use t.Cleanup instead.
 type Closer struct {
 	cleanups []func() error
 }
