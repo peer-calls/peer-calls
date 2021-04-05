@@ -619,7 +619,7 @@ func (h *playHandler) Handle(ctx context.Context, args []string) error {
 		},
 	})
 	if err != nil {
-		return errors.Annotatef(err, "dial WS", h.wsURL)
+		return errors.Annotatef(err, "dial WS: %s", h.wsURL)
 	}
 
 	wsClient := server.NewClientWithID(ws, h.clientID)

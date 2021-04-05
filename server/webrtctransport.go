@@ -18,12 +18,10 @@ import (
 )
 
 type WebRTCTransportFactory struct {
-	log                 logger.Logger
-	iceServers          []ICEServer
-	codecRegistry       *codecs.Registry
-	interceptorRegistry *interceptor.Registry
-	mediaEngine         *webrtc.MediaEngine
-	settingEngine       webrtc.SettingEngine
+	log           logger.Logger
+	iceServers    []ICEServer
+	codecRegistry *codecs.Registry
+	settingEngine webrtc.SettingEngine
 }
 
 func NewWebRTCTransportFactory(
@@ -103,14 +101,7 @@ func NewWebRTCTransportFactory(
 		})
 	}
 
-	mediaEngine := NewMediaEngine()
-
-	interceptorRegistry, err := NewInterceptorRegistry(mediaEngine)
-	if err != nil {
-		log.Error("New interceptor registry", errors.Trace(err), nil)
-	}
-
-	return &WebRTCTransportFactory{log, iceServers, registry, interceptorRegistry, mediaEngine, settingEngine}
+	return &WebRTCTransportFactory{log, iceServers, registry, settingEngine}
 }
 
 func NewMediaEngine() *webrtc.MediaEngine {
@@ -249,14 +240,23 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(
 	}
 
 	// webrtc.PeerConnection.Close will close the intercetpor of the whole API.
-	// So to keep this clean, we create a new api every time.
+	// Something odd is happneing in pion/webrtc.  So to keep this clean, we
+	// create a new webrtc.MediaEngine, interceptor.Registry and webrtc.API every
+	// time.
+	mediaEngine := NewMediaEngine()
+
+	interceptorRegistry, err := NewInterceptorRegistry(mediaEngine)
+	if err != nil {
+		f.log.Error("New interceptor registry", errors.Trace(err), nil)
+	}
+
 	api := webrtc.NewAPI(
 		// TODO the documenet for this method says that mediaEngine can be changed
 		// after the engine is passed to the API. Perhaps we should keep a separate
 		// mediaEngine for each peer connection?
-		webrtc.WithMediaEngine(f.mediaEngine),
+		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(f.settingEngine),
-		webrtc.WithInterceptorRegistry(f.interceptorRegistry),
+		webrtc.WithInterceptorRegistry(interceptorRegistry),
 	)
 
 	peerConnection, err := api.NewPeerConnection(webrtcConfig)
