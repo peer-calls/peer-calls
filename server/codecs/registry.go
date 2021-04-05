@@ -24,13 +24,23 @@ type HeaderExtension struct {
 const (
 	clockRateOpus   = 48000
 	clockRateVP8    = 90000
-	payloadTypeOpus = 111
-	payloadTypeVP8  = 96
+	PayloadTypeOpus = 111
+	PayloadTypeVP8  = 96
 	channelsOpus    = 2
 )
 
-func NewRegistryDefault() *Registry {
-	videoRTCPFeedback := []webrtc.RTCPFeedback{
+func Opus() webrtc.RTPCodecCapability {
+	return webrtc.RTPCodecCapability{
+		MimeType:     webrtc.MimeTypeOpus,
+		ClockRate:    clockRateOpus,
+		Channels:     channelsOpus,
+		SDPFmtpLine:  "minptime=10;useinbandfec=1",
+		RTCPFeedback: nil,
+	}
+}
+
+func videoRTCPFeedback() []webrtc.RTCPFeedback {
+	return []webrtc.RTCPFeedback{
 		{
 			Type:      "goog-remb",
 			Parameter: "",
@@ -48,19 +58,25 @@ func NewRegistryDefault() *Registry {
 			Parameter: "pli",
 		},
 	}
+}
 
+func VP8() webrtc.RTPCodecCapability {
+	return webrtc.RTPCodecCapability{
+		MimeType:     webrtc.MimeTypeVP8,
+		ClockRate:    clockRateVP8,
+		Channels:     0,
+		SDPFmtpLine:  "",
+		RTCPFeedback: videoRTCPFeedback(),
+	}
+}
+
+func NewRegistryDefault() *Registry {
 	return &Registry{
 		Audio: Props{
 			CodecParameters: []webrtc.RTPCodecParameters{
 				{
-					RTPCodecCapability: webrtc.RTPCodecCapability{
-						MimeType:     webrtc.MimeTypeOpus,
-						ClockRate:    clockRateOpus,
-						Channels:     channelsOpus,
-						SDPFmtpLine:  "minptime=10;useinbandfec=1",
-						RTCPFeedback: nil,
-					},
-					PayloadType: payloadTypeOpus,
+					RTPCodecCapability: Opus(),
+					PayloadType:        PayloadTypeOpus,
 				},
 			},
 			HeaderExtensions: nil,
@@ -68,14 +84,8 @@ func NewRegistryDefault() *Registry {
 		Video: Props{
 			CodecParameters: []webrtc.RTPCodecParameters{
 				{
-					RTPCodecCapability: webrtc.RTPCodecCapability{
-						MimeType:     webrtc.MimeTypeVP8,
-						ClockRate:    clockRateVP8,
-						Channels:     0,
-						SDPFmtpLine:  "",
-						RTCPFeedback: videoRTCPFeedback,
-					},
-					PayloadType: payloadTypeVP8,
+					RTPCodecCapability: VP8(),
+					PayloadType:        PayloadTypeVP8,
 				},
 			},
 			HeaderExtensions: nil,

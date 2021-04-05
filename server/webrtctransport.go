@@ -101,18 +101,15 @@ func NewWebRTCTransportFactory(
 		})
 	}
 
-	var mediaEngine webrtc.MediaEngine
+	mediaEngine := NewMediaEngine()
 
-	RegisterCodecs(&mediaEngine, registry, sfuConfig.JitterBuffer)
-
-	interceptorRegistry := &interceptor.Registry{}
-
-	if err := webrtc.RegisterDefaultInterceptors(&mediaEngine, interceptorRegistry); err != nil {
-		log.Error("Registering default interceptors", errors.Trace(err), nil)
+	interceptorRegistry, err := NewInterceptorRegistry(mediaEngine)
+	if err != nil {
+		log.Error("New interceptor registry", errors.Trace(err), nil)
 	}
 
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(&mediaEngine),
+		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
 		webrtc.WithInterceptorRegistry(interceptorRegistry),
 	)
@@ -120,7 +117,27 @@ func NewWebRTCTransportFactory(
 	return &WebRTCTransportFactory{log, iceServers, api, registry}
 }
 
-func RegisterCodecs(mediaEngine *webrtc.MediaEngine, registry *codecs.Registry, jitterBufferEnabled bool) {
+func NewMediaEngine() *webrtc.MediaEngine {
+	var mediaEngine webrtc.MediaEngine
+
+	registry := codecs.NewRegistryDefault()
+
+	RegisterCodecs(&mediaEngine, registry)
+
+	return &mediaEngine
+}
+
+func NewInterceptorRegistry(mediaEngine *webrtc.MediaEngine) (*interceptor.Registry, error) {
+	interceptorRegistry := &interceptor.Registry{}
+
+	if err := webrtc.RegisterDefaultInterceptors(mediaEngine, interceptorRegistry); err != nil {
+		return nil, errors.Annotatef(err, "registering default interceptors")
+	}
+
+	return interceptorRegistry, nil
+}
+
+func RegisterCodecs(mediaEngine *webrtc.MediaEngine, registry *codecs.Registry) {
 	// TODO handle errors gracefully.
 
 	for _, codec := range registry.Audio.CodecParameters {

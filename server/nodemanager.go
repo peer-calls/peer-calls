@@ -42,6 +42,13 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 		return nil, errors.Annotatef(err, "listen udp: %s", params.ListenAddr)
 	}
 
+	mediaEngine := NewMediaEngine()
+
+	interceptorRegistry, err := NewInterceptorRegistry(mediaEngine)
+	if err != nil {
+		params.Log.Error("New interceptor registry", errors.Trace(err), nil)
+	}
+
 	params.Log.Info("Listen on UDP", nil)
 
 	transportManager := udptransport2.NewManager(udptransport2.ManagerParams{
@@ -50,6 +57,7 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 		Clock:          clock.New(),
 		PingTimeout:    pingTimeout,
 		DestroyTimeout: destroyTimeout,
+		Interceptor:    interceptorRegistry.Build(),
 	})
 
 	nm := &NodeManager{

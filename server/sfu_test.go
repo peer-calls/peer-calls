@@ -161,7 +161,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	require.Nil(t, wsClient.Err())
 
 	var mediaEngine webrtc.MediaEngine
-	server.RegisterCodecs(&mediaEngine, codecs.NewRegistryDefault(), false)
+	server.RegisterCodecs(&mediaEngine, codecs.NewRegistryDefault())
 
 	log := test.NewLogger()
 

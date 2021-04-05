@@ -10,6 +10,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/servertransport"
 	"github.com/peer-calls/peer-calls/server/udpmux"
+	"github.com/pion/interceptor"
 )
 
 type Manager struct {
@@ -30,6 +31,7 @@ type ManagerParams struct {
 	Clock          clock.Clock
 	PingTimeout    time.Duration
 	DestroyTimeout time.Duration
+	Interceptor    interceptor.Interceptor
 }
 
 func NewManager(params ManagerParams) *Manager {
@@ -119,6 +121,7 @@ func (m *Manager) start() {
 				Clock:          m.params.Clock,
 				PingTimeout:    m.params.PingTimeout,
 				DestroyTimeout: m.params.DestroyTimeout,
+				Interceptor:    m.params.Interceptor,
 			})
 
 			select {

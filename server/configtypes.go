@@ -52,7 +52,8 @@ type NetworkConfig struct {
 }
 
 type NetworkConfigSFU struct {
-	Interfaces    []string        `yaml:"interfaces"`
+	Interfaces []string `yaml:"interfaces"`
+	// JitterBuffer is disabled for now.
 	JitterBuffer  bool            `yaml:"jitter_buffer"`
 	Protocols     []string        `yaml:"protocols"`
 	TCPBindAddr   string          `yaml:"tcp_bind_addr"`
