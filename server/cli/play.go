@@ -3,46 +3,160 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 
-	"strconv"
-
-	"net/url"
-
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/server/cli/play"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/command"
+	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/multierr"
+	"github.com/peer-calls/peer-calls/server/pionlogger"
+	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/server/uuid"
+	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v3"
 	"github.com/spf13/pflag"
+	"nhooyr.io/websocket"
 )
 
 type playHandler struct {
 	args struct {
-		streams []string
-		// ffmpeg  string
+		config string
+
+		roomURL  string
+		nickname string
+
+		audioMimeType string
+		audioStream   string
+		audioSSRC     uint32
+		videoMimeType string
+		videoStream   string
+		videoSSRC     uint32
 	}
 
-	log logger.Logger
-	wg  sync.WaitGroup
+	config        server.Config
+	codecRegistry *codecs.Registry
+
+	log      logger.Logger
+	wg       sync.WaitGroup
+	clientID identifiers.ClientID
+	roomID   identifiers.RoomID
+	wsURL    string
+
+	api         *webrtc.API
+	interceptor interceptor.Interceptor
 }
+
+// Sample commands. Run ffmpeg in one terminal:
+//
+//     ffmpeg \
+//       -re \
+//       -stream_loop -1 \
+//       -i "video.mp4" \
+//       -an -c:v libvpx -ssrc 1 -payload_type 96 -crf 10 -b:v 1M -f rtp 'rtp://127.0.0.1:50000?localrtcpport=50002&pkt_size=1200' \
+//       -vn -c:a libopus -ssrc 2 -payload_type 111 -f rtp 'rtp://127.0.0.1:50004?localrtcpport=50006&pkt_size=1200'
+//
+// Then, run the play command:
+//
+//     peer-calls play \
+//       --video-stream 'rtp://127.0.0.1:50000?localrtcpport=50002&pkt_size=1200' \
+//       --video-ssrc 96 \
+//       --video-mime-type video/vp8 \
+//       --audio-stream 'rtp://127.0.0.1:50004?localrtcpport=50006&pkt_size=1200' \
+//       --audio-ssrc 111 \
+//       --audio-mime-type audio/opus \
+//       --nickname Player \
+//       --room-url http://localhost:3000/call/playroom
+//
+// And open the browser on the same URL as `--room-url`. You should see the
+// video playing after joining.
 
 func (h *playHandler) RegisterFlags(c *command.Command, flags *pflag.FlagSet) {
-	flags.StringArrayVarP(&h.args.streams, "streams", "s", nil, "streams to read RTP from")
+	flags.StringVarP(&h.args.config, "config", "c", "", "configuration to use")
+
+	flags.StringVarP(&h.args.videoStream, "video-stream", "v", "", "video stream to read RTP from")
+	flags.StringVar(&h.args.videoMimeType, "video-mime-type", "video/vp8", "video mime type")
+	flags.Uint32Var(&h.args.videoSSRC, "video-ssrc", 1, "video SSRC")
+
+	flags.StringVarP(&h.args.audioStream, "audio-stream", "a", "", "audio stream to read RTP from")
+	flags.StringVar(&h.args.audioMimeType, "audio-mime-type", "audio/opus", "audio mime type")
+	flags.Uint32Var(&h.args.audioSSRC, "audio-ssrc", 2, "audio SSRC")
+
+	flags.StringVarP(&h.args.roomURL, "room-url", "r", "http://localhost:3000/call/playroom", "room URL")
+	flags.StringVarP(&h.args.nickname, "nickname", "n", "player", "nickname")
 }
 
-func (h *playHandler) listenUDP(host string, port int) (*net.UDPConn, error) {
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.ParseIP(host),
-		Port: port,
-	})
-	if err != nil {
-		return nil, errors.Trace(err)
+func (h *playHandler) configure() (err error) {
+	h.codecRegistry = codecs.NewRegistryDefault()
+
+	configFiles := []string{}
+	if h.args.config != "" {
+		configFiles = append(configFiles, h.args.config)
 	}
 
-	return conn, nil
+	h.config, err = server.ReadConfig(configFiles)
+	if err != nil {
+		return errors.Annotate(err, "read config")
+	}
+
+	roomURL, err := url.Parse(h.args.roomURL)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	h.clientID = identifiers.ClientID(uuid.New())
+
+	if roomURL.Scheme != "http" && roomURL.Scheme != "https" {
+		return errors.Errorf("only http:// or https:// supported, but got: %s", h.args.roomURL)
+	}
+
+	roomURL.Scheme = "ws" + strings.TrimPrefix(roomURL.Scheme, "http")
+
+	paths := strings.Split(roomURL.Path, "/")
+	h.roomID = identifiers.RoomID(paths[len(paths)-1])
+
+	roomURL.Path = fmt.Sprintf("/ws/%s/%s", h.roomID, h.clientID)
+
+	h.wsURL = roomURL.String()
+
+	mediaEngine1 := server.NewMediaEngine()
+
+	interceptorRegistry1, err := server.NewInterceptorRegistry(mediaEngine1)
+	if err != nil {
+		h.log.Error("New interceptor registry", errors.Trace(err), nil)
+	}
+
+	mediaEngine2 := server.NewMediaEngine()
+
+	interceptorRegistry2, err := server.NewInterceptorRegistry(mediaEngine2)
+	if err != nil {
+		h.log.Error("New interceptor registry", errors.Trace(err), nil)
+	}
+
+	settingEngine := webrtc.SettingEngine{
+		LoggerFactory: pionlogger.NewFactory(h.log),
+		BufferFactory: nil,
+	}
+
+	h.api = webrtc.NewAPI(
+		webrtc.WithMediaEngine(mediaEngine1),
+		webrtc.WithSettingEngine(settingEngine),
+		webrtc.WithInterceptorRegistry(interceptorRegistry1),
+	)
+
+	h.interceptor = interceptorRegistry2.Build()
+
+	return nil
 }
 
 func (h *playHandler) isDone(ctx context.Context) bool {
@@ -54,60 +168,283 @@ func (h *playHandler) isDone(ctx context.Context) bool {
 	}
 }
 
-func (h *playHandler) startRTPLoop(ctx context.Context, streamURL *url.URL) error {
-	q := streamURL.Query()
-
-	pktSize, _ := strconv.Atoi(q.Get("pkt_size"))
-	if pktSize == 0 {
-		pktSize = 1200
-	}
-
-	port, err := strconv.Atoi(streamURL.Port())
-	if err != nil {
-		return errors.Trace(err)
-	}
-
-	conn, err := h.listenUDP(streamURL.Hostname(), port)
-	if err != nil {
-		return errors.Trace(err)
-	}
-
+func (h *playHandler) startRTPLoop(ctx context.Context, stream *playStream) {
 	h.wg.Add(1)
 
 	go func() {
 		defer h.wg.Done()
 
 		<-ctx.Done()
-		conn.Close()
+		stream.RTPReader.Close()
 	}()
 
-	buf := make([]byte, pktSize)
-
 	for !h.isDone(ctx) {
-		i, _, err := conn.ReadFrom(buf)
+		pkt, _, err := stream.RTPReader.ReadRTP()
 		if err != nil {
-			h.log.Error("read err", err, nil)
+			// h.log.Error("read RTP err", err, nil)
 
 			continue
 		}
 
-		var pkt rtp.Packet
-
-		if err := pkt.Unmarshal(buf[:i]); err != nil {
-			h.log.Error("unmarshal RTP", err, nil)
+		if err := stream.Track.WriteRTP(pkt); err != nil {
+			h.log.Error("write RTP", err, nil)
 
 			continue
 		}
-
-		fmt.Println(pkt)
-
-		// TODO write to peer connection.
 	}
-
-	return nil
 }
 
-func (h *playHandler) startRTCPLoop(ctx context.Context, streamURL *url.URL) error {
+func (h *playHandler) startRTCPLoop(ctx context.Context, stream *playStream) {
+	h.wg.Add(1)
+
+	go func() {
+		defer h.wg.Done()
+
+		<-ctx.Done()
+		stream.RTCPReader.Close()
+	}()
+
+	for !h.isDone(ctx) {
+		// Ensure RTCP interceptor does it work.
+		_, _, err := stream.RTCPReader.ReadRTCP()
+		if err != nil {
+			// h.log.Error("read RTCP err", err, nil)
+
+			continue
+		}
+	}
+}
+
+func (h *playHandler) handleMessages(ctx context.Context, wsClient *server.Client, streams []*playStream) {
+	type peerCtx struct {
+		pc        *webrtc.PeerConnection
+		signaller *server.Signaller
+	}
+
+	messagesChan := wsClient.Subscribe(ctx)
+
+	err := wsClient.Write(message.NewReady(h.roomID, message.Ready{
+		Nickname: h.args.nickname,
+	}))
+	if err != nil {
+		h.log.Error("unable to send ready message", errors.Trace(err), nil)
+	}
+
+	peers := make(map[identifiers.ClientID]*peerCtx)
+
+	defer func() {
+		for _, pCtx := range peers {
+			pCtx.signaller.Close()
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-messagesChan:
+			if !ok {
+				return
+			}
+
+			switch msg.Type {
+			case message.TypeUsers:
+				users := msg.Payload.Users
+
+				initiator := users.Initiator == h.clientID
+
+				pCtxToDelete := make(map[identifiers.ClientID]struct{}, len(users.PeerIDs))
+
+				for _, clientID := range users.PeerIDs {
+					pCtxToDelete[clientID] = struct{}{}
+				}
+
+				for _, clientID := range users.PeerIDs {
+					clientID := clientID
+					delete(pCtxToDelete, clientID)
+
+					if _, ok := peers[clientID]; !ok {
+						webrtcICEServers := []webrtc.ICEServer{}
+
+						for _, iceServer := range server.GetICEAuthServers(h.config.ICEServers) {
+							var c webrtc.ICECredentialType
+							if iceServer.Username != "" && iceServer.Credential != "" {
+								c = webrtc.ICECredentialTypePassword
+							}
+
+							webrtcICEServers = append(webrtcICEServers, webrtc.ICEServer{
+								URLs:           iceServer.URLs,
+								CredentialType: c,
+								Username:       iceServer.Username,
+								Credential:     iceServer.Credential,
+							})
+						}
+
+						pc, err := h.api.NewPeerConnection(webrtc.Configuration{
+							ICEServers: webrtcICEServers,
+						})
+
+						if err != nil {
+							h.log.Error("Create peer connection", errors.Trace(err), nil)
+							continue
+						}
+
+						signaller, err := server.NewSignaller(h.log, initiator, pc)
+						if err != nil {
+							pc.Close()
+							h.log.Error("Create signaller connection", errors.Trace(err), nil)
+							continue
+						}
+
+						peers[clientID] = &peerCtx{
+							pc:        pc,
+							signaller: signaller,
+						}
+
+						h.wg.Add(1)
+
+						signalChan := signaller.SignalChannel()
+
+						go func() {
+							defer h.wg.Done()
+
+							for signal := range signalChan {
+								userSignal := message.UserSignal{
+									PeerID: h.clientID,
+									Signal: signal,
+								}
+
+								err := wsClient.Write(message.NewSignal(h.roomID, userSignal))
+								if err != nil {
+									// Sometimes there are late signals created even after the test has
+									// finished successfully, so ignore the errors, but log them.
+									h.log.Error("send signal to ws", errors.Trace(err), nil)
+								}
+							}
+						}()
+
+						for _, stream := range streams {
+							h.log.Info("Add track", logger.Ctx{
+								"kind": stream.Track.Kind(),
+							})
+
+							stream := stream
+							sender, err := pc.AddTrack(stream.Track)
+							if err != nil {
+								h.log.Error("error adding track", errors.Trace(err), nil)
+
+								continue
+							}
+
+							if signaller.Initiator() {
+								signaller.Negotiate()
+							} else {
+								signaller.SendTransceiverRequest(stream.Track.Kind(), webrtc.RTPTransceiverDirectionRecvonly)
+							}
+
+							h.wg.Add(1)
+
+							go func() {
+								defer h.wg.Done()
+
+								for {
+									// ReadRTCP to make interceptors do their jobs.
+									packets, _, err := sender.ReadRTCP()
+									if err != nil && multierr.Is(err, io.EOF) {
+										return
+									}
+
+									for _, p := range packets {
+										switch p.(type) {
+										case *rtcp.PictureLossIndication:
+											p = &rtcp.PictureLossIndication{
+												SenderSSRC: uint32(stream.OriginalSSRC),
+												MediaSSRC:  uint32(stream.OriginalSSRC),
+											}
+
+											h.log.Info(fmt.Sprintf("Write RTCP: %s", p), nil)
+
+											// TODO congestion control, debounce.
+											err := stream.RTCPWriter.WriteRTCP([]rtcp.Packet{p})
+											if err != nil {
+												h.log.Error("write RTCP", errors.Trace(err), nil)
+											}
+										default:
+										}
+									}
+								}
+							}()
+						}
+					}
+				}
+
+				for clientID := range pCtxToDelete {
+					pCtx, ok := peers[clientID]
+					if ok {
+						delete(peers, clientID)
+						pCtx.signaller.Close()
+					}
+				}
+			case message.TypeSignal:
+				peerID := msg.Payload.Signal.PeerID
+				pCtx, ok := peers[peerID]
+				if !ok {
+					h.log.Error("got signal for non-existing peer", nil, logger.Ctx{
+						"peer_id": peerID,
+					})
+				}
+
+				err := pCtx.signaller.Signal(msg.Payload.Signal.Signal)
+				if err != nil {
+					h.log.Error("signaling error", errors.Trace(err), logger.Ctx{
+						"peer_id": peerID,
+					})
+				}
+			}
+		}
+	}
+}
+
+type playStream struct {
+	RTCPReader *play.RTCPReader
+	RTCPWriter *play.RTCPWriter
+	RTPReader  *play.RTPReader
+	// Codec      webrtc.RTPCodecCapability
+	Track        *webrtc.TrackLocalStaticRTP
+	OriginalSSRC webrtc.SSRC
+}
+
+func (h *playHandler) newPlayStream(
+	stream string,
+	mimeType string,
+	trackID string,
+	streamID string,
+	ssrc webrtc.SSRC,
+) (*playStream, error) {
+	streamURL, err := url.Parse(stream)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	if streamURL.Scheme != "rtp" {
+		return nil, errors.Errorf("only rtp:// is supported, but got: %s", stream)
+	}
+
+	codec, ok := h.codecRegistry.FindByMimeType(mimeType)
+	if !ok {
+		return nil, errors.Errorf("codec not found: %s", mimeType)
+	}
+
+	track, err := webrtc.NewTrackLocalStaticRTP(codec.RTPCodecCapability, trackID, streamID)
+	if err != nil {
+		return nil, errors.Annotatef(err, "new track")
+	}
+
+	interceptorParams, err := h.codecRegistry.InterceptorParamsForMimeType(mimeType)
+	if err != nil {
+		return nil, errors.Errorf("codec not found: %s", mimeType)
+	}
+
 	q := streamURL.Query()
 
 	pktSize, _ := strconv.Atoi(q.Get("pkt_size"))
@@ -115,86 +452,145 @@ func (h *playHandler) startRTCPLoop(ctx context.Context, streamURL *url.URL) err
 		pktSize = 1200
 	}
 
-	rtpPort, err := strconv.Atoi(streamURL.Port())
+	localRTPPort, err := strconv.Atoi(streamURL.Port())
 	if err != nil {
-		return errors.Trace(err)
+		return nil, errors.Trace(err)
 	}
 
-	port, _ := strconv.Atoi(q.Get("rtcpport"))
-	if port == 0 {
-		port = rtpPort + 1
+	localRTCPPort, _ := strconv.Atoi(q.Get("rtcpport"))
+	if localRTCPPort == 0 {
+		localRTCPPort = localRTPPort + 1
 	}
 
-	conn, err := h.listenUDP(streamURL.Hostname(), port)
+	hrkljuz, err := strconv.Atoi(q.Get("localrtcpport"))
 	if err != nil {
-		return errors.Trace(err)
+		return nil, errors.Errorf("no local rtcp port")
 	}
 
-	h.wg.Add(1)
-
-	go func() {
-		defer h.wg.Done()
-
-		<-ctx.Done()
-		conn.Close()
-	}()
-
-	buf := make([]byte, pktSize)
-
-	for !h.isDone(ctx) {
-		i, _, err := conn.ReadFrom(buf)
-		if err != nil {
-			h.log.Error("read err", err, nil)
-
-			continue
-		}
-
-		pkt, err := rtcp.Unmarshal(buf[:i])
-		if err != nil {
-			h.log.Error("unmarshal RTCP", err, nil)
-
-			continue
-		}
-
-		fmt.Println(pkt)
-
-		// TODO write to sender.
+	localRTCPAddr := &net.UDPAddr{
+		IP:   net.ParseIP("127.0.0.1"),
+		Port: localRTCPPort,
+		Zone: "",
 	}
 
-	return nil
+	remoteRTCPAddr := &net.UDPAddr{
+		IP:   net.ParseIP(streamURL.Hostname()),
+		Port: hrkljuz,
+		Zone: "",
+	}
+
+	localRTPAddr := &net.UDPAddr{
+		IP:   net.ParseIP(streamURL.Hostname()),
+		Port: localRTPPort,
+		Zone: "",
+	}
+
+	rtcpConn, err := net.DialUDP("udp", localRTCPAddr, remoteRTCPAddr)
+	if err != nil {
+		return nil, errors.Annotatef(err, "dial RTCP udp")
+	}
+
+	rtpConn, err := net.ListenUDP("udp", localRTPAddr)
+	if err != nil {
+		rtcpConn.Close()
+
+		return nil, errors.Annotatef(err, "dial RTP udp")
+	}
+
+	rtcpReader := play.NewRTCPReader(play.RTCPReaderParams{
+		Conn:        rtcpConn,
+		Interceptor: h.interceptor,
+		MTU:         pktSize,
+	})
+
+	rtcpWriter := play.NewRTCPWriter(play.RTCPWriterParams{
+		Conn:        rtcpConn,
+		Interceptor: h.interceptor,
+		MTU:         pktSize,
+	})
+
+	rtpReader := play.NewRTPReader(play.RTPReaderParams{
+		Conn:        rtpConn,
+		Interceptor: h.interceptor,
+		SSRC:        ssrc,
+		Codec: transport.Codec{
+			MimeType:    mimeType,
+			ClockRate:   codec.ClockRate,
+			Channels:    codec.Channels,
+			SDPFmtpLine: codec.SDPFmtpLine,
+		},
+		InterceptorParams: interceptorParams,
+		MTU:               pktSize,
+	})
+
+	s := playStream{
+		RTCPReader:   rtcpReader,
+		RTCPWriter:   rtcpWriter,
+		RTPReader:    rtpReader,
+		Track:        track,
+		OriginalSSRC: ssrc,
+	}
+
+	return &s, nil
 }
 
 func (h *playHandler) Handle(ctx context.Context, args []string) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	if err := h.configure(); err != nil {
+		return errors.Annotatef(err, "configure")
+	}
 
 	var errs multierr.Sync
 
-	for _, stream := range h.args.streams {
-		streamURL, err := url.Parse(stream)
+	streamID := uuid.New()
+
+	streams := make([]*playStream, 0, 2)
+
+	if h.args.audioStream != "" {
+		stream, err := h.newPlayStream(
+			h.args.audioStream,
+			h.args.audioMimeType,
+			"audio",
+			streamID,
+			webrtc.SSRC(h.args.audioSSRC),
+		)
 		if err != nil {
-			errs.Add(errors.Annotatef(err, "stream: %s", streamURL))
-			cancel()
-
-			continue
+			return errors.Annotate(err, "create audio stream")
 		}
 
-		if streamURL.Scheme != "rtp" {
-			errs.Add(errors.Errorf("only rtp:// is supported, but got: %s", stream))
-			cancel()
+		streams = append(streams, stream)
+	}
 
-			continue
+	if h.args.videoStream != "" {
+		stream, err := h.newPlayStream(
+			h.args.videoStream,
+			h.args.videoMimeType,
+			"video",
+			streamID,
+			webrtc.SSRC(h.args.videoSSRC),
+		)
+		if err != nil {
+			return errors.Annotate(err, "create video stream")
 		}
+
+		streams = append(streams, stream)
+	}
+
+	if len(streams) == 0 {
+		return errors.Errorf("no audio or video streams defined")
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for _, stream := range streams {
+		stream := stream
 
 		h.wg.Add(1)
 
 		go func() {
 			defer h.wg.Done()
 
-			if err := h.startRTPLoop(ctx, streamURL); err != nil {
-				errs.Add(errors.Annotate(err, "read RTP"))
-				cancel()
-			}
+			h.startRTPLoop(ctx, stream)
 		}()
 
 		h.wg.Add(1)
@@ -202,12 +598,25 @@ func (h *playHandler) Handle(ctx context.Context, args []string) error {
 		go func() {
 			defer h.wg.Done()
 
-			if err := h.startRTCPLoop(ctx, streamURL); err != nil {
-				errs.Add(errors.Annotate(err, "read RTCP"))
-				cancel()
-			}
+			h.startRTCPLoop(ctx, stream)
 		}()
 	}
+
+	ws, _, err := websocket.Dial(ctx, h.wsURL, nil)
+	if err != nil {
+		return errors.Annotatef(err, "dial WS")
+	}
+
+	wsClient := server.NewClientWithID(ws, h.clientID)
+
+	h.wg.Add(1)
+
+	go func() {
+		defer h.wg.Done()
+		defer cancel()
+
+		h.handleMessages(ctx, wsClient, streams)
+	}()
 
 	h.wg.Wait()
 

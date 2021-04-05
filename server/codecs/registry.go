@@ -33,7 +33,7 @@ const (
 	channelsOpus    = 2
 )
 
-func Opus() webrtc.RTPCodecCapability {
+func opus() webrtc.RTPCodecCapability {
 	return webrtc.RTPCodecCapability{
 		MimeType:     webrtc.MimeTypeOpus,
 		ClockRate:    clockRateOpus,
@@ -64,7 +64,7 @@ func videoRTCPFeedback() []webrtc.RTCPFeedback {
 	}
 }
 
-func VP8() webrtc.RTPCodecCapability {
+func vp8() webrtc.RTPCodecCapability {
 	return webrtc.RTPCodecCapability{
 		MimeType:     webrtc.MimeTypeVP8,
 		ClockRate:    clockRateVP8,
@@ -79,7 +79,7 @@ func NewRegistryDefault() *Registry {
 		Audio: Props{
 			CodecParameters: []webrtc.RTPCodecParameters{
 				{
-					RTPCodecCapability: Opus(),
+					RTPCodecCapability: opus(),
 					PayloadType:        PayloadTypeOpus,
 				},
 			},
@@ -88,7 +88,7 @@ func NewRegistryDefault() *Registry {
 		Video: Props{
 			CodecParameters: []webrtc.RTPCodecParameters{
 				{
-					RTPCodecCapability: VP8(),
+					RTPCodecCapability: vp8(),
 					PayloadType:        PayloadTypeVP8,
 				},
 			},

@@ -63,7 +63,7 @@ func New(log logger.Logger) *PubSub {
 func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 	track := reader.Track()
 
-	p.log.Trace("Pub", logger.Ctx{
+	p.log.Info("Pub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  track.TrackID(),
 	})
@@ -90,7 +90,7 @@ func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 
 // Unpub unpublishes a track as well as unsubs all subscribers.
 func (p *PubSub) Unpub(pubClientID identifiers.ClientID, trackID identifiers.TrackID) {
-	p.log.Trace("Unpub", logger.Ctx{
+	p.log.Info("Unpub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  trackID,
 	})
@@ -117,7 +117,7 @@ func (p *PubSub) Unpub(pubClientID identifiers.ClientID, trackID identifiers.Tra
 
 // Sub subscribes to a published track.
 func (p *PubSub) Sub(pubClientID identifiers.ClientID, trackID identifiers.TrackID, transport Transport) (transport.RTCPReader, error) {
-	p.log.Trace("Sub", logger.Ctx{
+	p.log.Info("Sub", logger.Ctx{
 		"client_id":     transport.ClientID(),
 		"track_id":      trackID,
 		"pub_client_id": pubClientID,
@@ -173,7 +173,7 @@ func (p *PubSub) sub(pub publisher, tr Transport) (transport.RTCPReader, error) 
 
 // Unsub unsubscribes from a published track.
 func (p *PubSub) Unsub(pubClientID identifiers.ClientID, trackID identifiers.TrackID, subClientID identifiers.ClientID) error {
-	p.log.Trace("Unsub", logger.Ctx{
+	p.log.Info("Unsub", logger.Ctx{
 		"client_id":     subClientID,
 		"track_id":      trackID,
 		"pub_client_id": pubClientID,

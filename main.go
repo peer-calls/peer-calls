@@ -35,7 +35,6 @@ func main() {
 				"**:pion:**":      logger.LevelWarn,
 				"**:pubsub":       logger.LevelTrace,
 				"**:factory":      logger.LevelTrace,
-				"**:sdp:**":       logger.LevelInfo,
 				"":                logger.LevelInfo,
 			}),
 		).
