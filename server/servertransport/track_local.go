@@ -7,6 +7,7 @@ import (
 
 	"github.com/juju/errors"
 	atomicInternal "github.com/peer-calls/peer-calls/server/atomic"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
@@ -29,11 +30,9 @@ func newTrackLocal(
 	track transport.Track,
 	writer io.Writer,
 	ssrc webrtc.SSRC,
-	payloadType webrtc.PayloadType,
 	codec transport.Codec,
 	ceptor interceptor.Interceptor,
-	rtpHeaderExtensions []interceptor.RTPHeaderExtension,
-	rtcpFeedback []interceptor.RTCPFeedback,
+	interceptorParameters codecs.InterceptorParams,
 ) *trackLocal {
 	t := &trackLocal{
 		track:       track,
@@ -47,13 +46,13 @@ func newTrackLocal(
 		ID:                  "",
 		Attributes:          nil,
 		SSRC:                uint32(ssrc),
-		PayloadType:         uint8(payloadType),
-		RTPHeaderExtensions: rtpHeaderExtensions,
+		PayloadType:         uint8(interceptorParameters.PayloadType),
+		RTPHeaderExtensions: interceptorParameters.RTPHeaderExtensions,
 		MimeType:            codec.MimeType,
 		ClockRate:           codec.ClockRate,
 		Channels:            codec.Channels,
 		SDPFmtpLine:         codec.SDPFmtpLine,
-		RTCPFeedback:        rtcpFeedback,
+		RTCPFeedback:        interceptorParameters.RTCPFeedback,
 	}
 
 	t.interceptorRTPWriter = ceptor.BindLocalStream(t.streamInfo, interceptor.RTPWriterFunc(t.write))

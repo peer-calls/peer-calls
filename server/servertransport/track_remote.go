@@ -3,6 +3,7 @@ package servertransport
 import (
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/atomic"
+	"github.com/peer-calls/peer-calls/server/codecs"
 	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtp"
@@ -26,10 +27,6 @@ type trackRemote struct {
 	interceptorRTPReader interceptor.RTPReader
 }
 
-// TODO we'll get track events but without SSRC. How to associate SSRC packets
-// with TrackID??
-// Maybe send t
-
 func newTrackRemote(
 	track transport.Track,
 	ssrc webrtc.SSRC,
@@ -37,6 +34,7 @@ func newTrackRemote(
 	buffer *packetio.Buffer,
 	codec transport.Codec,
 	ceptor interceptor.Interceptor,
+	interceptorParameters codecs.InterceptorParams,
 	onSub func() error,
 	onUnsub func() error,
 ) *trackRemote {
@@ -54,13 +52,13 @@ func newTrackRemote(
 		ID:                  "",
 		Attributes:          nil,
 		SSRC:                uint32(ssrc),
-		PayloadType:         0,   // FIXME
-		RTPHeaderExtensions: nil, // FIXME
+		PayloadType:         uint8(interceptorParameters.PayloadType),
+		RTPHeaderExtensions: interceptorParameters.RTPHeaderExtensions,
 		MimeType:            codec.MimeType,
 		ClockRate:           codec.ClockRate,
 		Channels:            codec.Channels,
 		SDPFmtpLine:         codec.SDPFmtpLine,
-		RTCPFeedback:        nil, // FIXME
+		RTCPFeedback:        interceptorParameters.RTCPFeedback,
 	}
 
 	interceptorRTPReader := ceptor.BindRemoteStream(

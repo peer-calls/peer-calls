@@ -207,25 +207,32 @@ func (t *MetadataTransport) startReadLoop() {
 				if _, ok := t.remoteTracks[trackID]; ok {
 					t.params.Log.Warn("Track already added", logCtx)
 				} else {
-					remoteTrack = newTrackRemote(
-						track,
-						trackEv.SSRC,
-						"",
-						t.params.MediaStream.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEv.SSRC),
-						track.Codec(),
-						t.params.Interceptor,
-						subscribe,
-						unsubscribe,
-					)
+					codec := track.Codec()
+					interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForMimeType(codec.MimeType)
+					if err != nil {
+						t.params.Log.Error("Unsupported codec", errors.Trace(err), nil)
+					} else {
+						remoteTrack = newTrackRemote(
+							track,
+							trackEv.SSRC,
+							"", // TODO simulcast
+							t.params.MediaStream.GetOrCreateBuffer(packetio.RTPBufferPacket, trackEv.SSRC),
+							track.Codec(),
+							t.params.Interceptor,
+							interceptorParams,
+							subscribe,
+							unsubscribe,
+						)
 
-					rtcpReader = newRTCPReader(
-						t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, trackEv.SSRC),
-						t.params.Interceptor,
-					)
+						rtcpReader = newRTCPReader(
+							t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, trackEv.SSRC),
+							t.params.Interceptor,
+						)
 
-					t.remoteTracks[trackID] = &trackRemoteWithRTCPReader{
-						trackRemote: remoteTrack,
-						rtcpReader:  rtcpReader,
+						t.remoteTracks[trackID] = &trackRemoteWithRTCPReader{
+							trackRemote: remoteTrack,
+							rtcpReader:  rtcpReader,
+						}
 					}
 				}
 
@@ -305,21 +312,6 @@ func (t *MetadataTransport) LocalTracks() []transport.TrackWithMID {
 	return localTracks
 }
 
-// func (t *MetadataTransport) RemoteTracks() []transport.Track {
-// 	t.mu.RLock()
-// 	defer t.mu.RUnlock()
-
-// 	remoteTracks := make([]transport.Track, len(t.remoteTracks))
-
-// 	i := -1
-// 	for _, track := range t.remoteTracks {
-// 		i++
-// 		remoteTracks[i] = track
-// 	}
-
-// 	return remoteTracks
-// }
-
 func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLocal, transport.RTCPReader, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -327,49 +319,18 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 	ssrc := webrtc.SSRC(RandUint32())
 	codec := track.Codec()
 
-	codecParameters, ok := t.params.CodecRegistry.FindByMimeType(codec.MimeType)
-	if !ok {
-		return nil, nil, errors.Errorf("unsupported mimeType: %s", codec.MimeType)
+	interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForMimeType(codec.MimeType)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
 	}
 
-	var rtcpFeedback []interceptor.RTCPFeedback
-
-	if codecParameters.RTCPFeedback != nil {
-		rtcpFeedback := make([]interceptor.RTCPFeedback, len(codecParameters.RTCPFeedback))
-
-		for i, fb := range codecParameters.RTCPFeedback {
-			rtcpFeedback[i] = interceptor.RTCPFeedback{
-				Type:      fb.Type,
-				Parameter: fb.Parameter,
-			}
-		}
-	}
-
-	headerExtensions := t.params.CodecRegistry.RTPHeaderExtensionsForMimeType(codec.MimeType)
-
-	var rtpHeaderExtensions []interceptor.RTPHeaderExtension
-
-	if headerExtensions != nil {
-		rtpHeaderExtensions = make([]interceptor.RTPHeaderExtension, len(headerExtensions))
-
-		for i, h := range headerExtensions {
-			rtpHeaderExtensions[i] = interceptor.RTPHeaderExtension{
-				ID:  h.Parameter.ID,
-				URI: h.Parameter.URI,
-			}
-		}
-	}
-
-	// FIXME Find parameters by mime type.
 	// TODO I'm not sure if this is enough for simulcast.
 	localTrack := newTrackLocal(
 		track, t.params.MediaStream.Writer(),
 		ssrc,
-		codecParameters.PayloadType,
 		track.Codec(),
 		t.params.Interceptor,
-		rtpHeaderExtensions,
-		rtcpFeedback,
+		interceptorParams,
 	)
 
 	rtcpBuffer := t.params.MediaStream.GetOrCreateBuffer(packetio.RTCPBufferPacket, ssrc)
@@ -387,7 +348,7 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 		Type:     transport.TrackEventTypeAdd,
 	}
 
-	err := t.sendTrackEvent(event)
+	err = t.sendTrackEvent(event)
 
 	return localTrack, sender, errors.Trace(err)
 }

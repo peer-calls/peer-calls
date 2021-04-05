@@ -3,8 +3,12 @@ package codecs
 import (
 	"strings"
 
+	"github.com/juju/errors"
+	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v3"
 )
+
+var ErrUnsupportedMimeType = errors.Errorf("unsupported mime type")
 
 type Registry struct {
 	Audio Props
@@ -160,10 +164,57 @@ func (r *Registry) getCodecsByMimeType(mimeType string) []webrtc.RTPCodecParamet
 	return r.Video.CodecParameters
 }
 
+func (r *Registry) InterceptorParamsForMimeType(mimeType string) (InterceptorParams, error) {
+	codecParameters, ok := r.FindByMimeType(mimeType)
+	if !ok {
+		return InterceptorParams{}, errors.Annotate(ErrUnsupportedMimeType, mimeType)
+	}
+
+	var rtcpFeedback []interceptor.RTCPFeedback
+
+	if codecParameters.RTCPFeedback != nil {
+		rtcpFeedback := make([]interceptor.RTCPFeedback, len(codecParameters.RTCPFeedback))
+
+		for i, fb := range codecParameters.RTCPFeedback {
+			rtcpFeedback[i] = interceptor.RTCPFeedback{
+				Type:      fb.Type,
+				Parameter: fb.Parameter,
+			}
+		}
+	}
+
+	headerExtensions := r.RTPHeaderExtensionsForMimeType(mimeType)
+
+	var rtpHeaderExtensions []interceptor.RTPHeaderExtension
+
+	if headerExtensions != nil {
+		rtpHeaderExtensions = make([]interceptor.RTPHeaderExtension, len(headerExtensions))
+
+		for i, h := range headerExtensions {
+			rtpHeaderExtensions[i] = interceptor.RTPHeaderExtension{
+				ID:  h.Parameter.ID,
+				URI: h.Parameter.URI,
+			}
+		}
+	}
+
+	return InterceptorParams{
+		PayloadType:         codecParameters.PayloadType,
+		RTCPFeedback:        rtcpFeedback,
+		RTPHeaderExtensions: rtpHeaderExtensions,
+	}, nil
+}
+
 func TypeFromMimeType(mimeType string) webrtc.RTPCodecType {
 	if strings.HasPrefix(mimeType, "audio/") {
 		return webrtc.RTPCodecTypeAudio
 	}
 
 	return webrtc.RTPCodecTypeVideo
+}
+
+type InterceptorParams struct {
+	PayloadType         webrtc.PayloadType
+	RTCPFeedback        []interceptor.RTCPFeedback
+	RTPHeaderExtensions []interceptor.RTPHeaderExtension
 }
