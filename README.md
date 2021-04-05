@@ -142,11 +142,6 @@ docker run --rm -it -p 3000:3000 peer-calls
 
 ## Environment variables
 
-NOTE: the environment variables `PEERCALLS_NETWORK_SFU_TRANSPORT*` were
-experimental and have been disabled during the upgrade to `pion/webrtc` v3.
-
-They will be enabled once the server-to-server transport is fully implemented.
-
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
 | `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-rtp,-rtcp,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
