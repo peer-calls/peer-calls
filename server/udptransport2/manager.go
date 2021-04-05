@@ -26,12 +26,12 @@ type Manager struct {
 }
 
 type ManagerParams struct {
-	Conn           net.PacketConn
-	Log            logger.Logger
-	Clock          clock.Clock
-	PingTimeout    time.Duration
-	DestroyTimeout time.Duration
-	Interceptor    interceptor.Interceptor
+	Conn                net.PacketConn
+	Log                 logger.Logger
+	Clock               clock.Clock
+	PingTimeout         time.Duration
+	DestroyTimeout      time.Duration
+	InterceptorRegistry *interceptor.Registry
 }
 
 func NewManager(params ManagerParams) *Manager {
@@ -116,12 +116,12 @@ func (m *Manager) start() {
 			})
 
 			factory, err := NewFactory(FactoryParams{
-				Log:            log,
-				Conn:           conn,
-				Clock:          m.params.Clock,
-				PingTimeout:    m.params.PingTimeout,
-				DestroyTimeout: m.params.DestroyTimeout,
-				Interceptor:    m.params.Interceptor,
+				Log:                 log,
+				Conn:                conn,
+				Clock:               m.params.Clock,
+				PingTimeout:         m.params.PingTimeout,
+				DestroyTimeout:      m.params.DestroyTimeout,
+				InterceptorRegistry: m.params.InterceptorRegistry,
 			})
 
 			select {

@@ -18,10 +18,12 @@ import (
 )
 
 type WebRTCTransportFactory struct {
-	log           logger.Logger
-	iceServers    []ICEServer
-	webrtcAPI     *webrtc.API
-	codecRegistry *codecs.Registry
+	log                 logger.Logger
+	iceServers          []ICEServer
+	codecRegistry       *codecs.Registry
+	interceptorRegistry *interceptor.Registry
+	mediaEngine         *webrtc.MediaEngine
+	settingEngine       webrtc.SettingEngine
 }
 
 func NewWebRTCTransportFactory(
@@ -108,13 +110,7 @@ func NewWebRTCTransportFactory(
 		log.Error("New interceptor registry", errors.Trace(err), nil)
 	}
 
-	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(mediaEngine),
-		webrtc.WithSettingEngine(settingEngine),
-		webrtc.WithInterceptorRegistry(interceptorRegistry),
-	)
-
-	return &WebRTCTransportFactory{log, iceServers, api, registry}
+	return &WebRTCTransportFactory{log, iceServers, registry, interceptorRegistry, mediaEngine, settingEngine}
 }
 
 func NewMediaEngine() *webrtc.MediaEngine {
@@ -252,7 +248,18 @@ func (f WebRTCTransportFactory) NewWebRTCTransport(
 		ICEServers: webrtcICEServers,
 	}
 
-	peerConnection, err := f.webrtcAPI.NewPeerConnection(webrtcConfig)
+	// webrtc.PeerConnection.Close will close the intercetpor of the whole API.
+	// So to keep this clean, we create a new api every time.
+	api := webrtc.NewAPI(
+		// TODO the documenet for this method says that mediaEngine can be changed
+		// after the engine is passed to the API. Perhaps we should keep a separate
+		// mediaEngine for each peer connection?
+		webrtc.WithMediaEngine(f.mediaEngine),
+		webrtc.WithSettingEngine(f.settingEngine),
+		webrtc.WithInterceptorRegistry(f.interceptorRegistry),
+	)
+
+	peerConnection, err := api.NewPeerConnection(webrtcConfig)
 	if err != nil {
 		return nil, errors.Annotate(err, "new peer connection")
 	}

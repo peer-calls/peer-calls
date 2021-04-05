@@ -52,12 +52,12 @@ func NewNodeManager(params NodeManagerParams) (*NodeManager, error) {
 	params.Log.Info("Listen on UDP", nil)
 
 	transportManager := udptransport2.NewManager(udptransport2.ManagerParams{
-		Conn:           conn,
-		Log:            params.Log,
-		Clock:          clock.New(),
-		PingTimeout:    pingTimeout,
-		DestroyTimeout: destroyTimeout,
-		Interceptor:    interceptorRegistry.Build(),
+		Conn:                conn,
+		Log:                 params.Log,
+		Clock:               clock.New(),
+		PingTimeout:         pingTimeout,
+		DestroyTimeout:      destroyTimeout,
+		InterceptorRegistry: interceptorRegistry,
 	})
 
 	nm := &NodeManager{

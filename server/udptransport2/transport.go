@@ -23,7 +23,7 @@ func NewTransport(
 	mediaConn stringmux.Conn,
 	dataConn stringmux.Conn,
 	metadataConn stringmux.Conn,
-	ceptor interceptor.Interceptor,
+	interceptorRegistry *interceptor.Registry,
 ) *Transport {
 	closeWrite := func() {
 		mediaConn.CloseWrite()
@@ -32,12 +32,12 @@ func NewTransport(
 	}
 
 	serverTransportParams := servertransport.Params{
-		Log:           log,
-		MediaConn:     mediaConn,
-		DataConn:      dataConn,
-		MetadataConn:  metadataConn,
-		Interceptor:   ceptor,
-		CodecRegistry: nil,
+		Log:                 log,
+		MediaConn:           mediaConn,
+		DataConn:            dataConn,
+		MetadataConn:        metadataConn,
+		InterceptorRegistry: interceptorRegistry,
+		CodecRegistry:       nil,
 	}
 
 	return &Transport{

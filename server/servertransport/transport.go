@@ -55,20 +55,24 @@ type Transport struct {
 	clientID  identifiers.ClientID
 	closeChan chan struct{}
 	closeOnce sync.Once
+
+	interceptor interceptor.Interceptor
 }
 
 type Params struct {
-	Log           logger.Logger
-	MediaConn     io.ReadWriteCloser
-	DataConn      io.ReadWriteCloser
-	MetadataConn  io.ReadWriteCloser
-	Interceptor   interceptor.Interceptor
-	CodecRegistry *codecs.Registry
+	Log                 logger.Logger
+	MediaConn           io.ReadWriteCloser
+	DataConn            io.ReadWriteCloser
+	MetadataConn        io.ReadWriteCloser
+	CodecRegistry       *codecs.Registry
+	InterceptorRegistry *interceptor.Registry
 }
 
 func New(params Params) *Transport {
-	if params.Interceptor == nil {
-		params.Interceptor = &interceptor.NoOp{}
+	var interceptor interceptor.Interceptor = &interceptor.NoOp{}
+
+	if params.InterceptorRegistry != nil {
+		interceptor = params.InterceptorRegistry.Build()
 	}
 
 	if params.CodecRegistry == nil {
@@ -84,7 +88,7 @@ func New(params Params) *Transport {
 	mediaStream := NewMediaStream(MediaStreamParams{
 		Log:           log,
 		Conn:          params.MediaConn,
-		Interceptor:   params.Interceptor,
+		Interceptor:   interceptor,
 		BufferFactory: nil,
 	})
 
@@ -93,7 +97,7 @@ func New(params Params) *Transport {
 		Conn:          params.MetadataConn,
 		MediaStream:   mediaStream,
 		ClientID:      clientID,
-		Interceptor:   params.Interceptor,
+		Interceptor:   interceptor,
 		CodecRegistry: params.CodecRegistry,
 	}
 
@@ -108,6 +112,7 @@ func New(params Params) *Transport {
 		DataTransport:     NewDataTransport(dataTransportParams),
 		clientID:          clientID,
 		closeChan:         make(chan struct{}),
+		interceptor:       interceptor,
 	}
 }
 
@@ -127,6 +132,8 @@ func (t *Transport) Close() (err error) {
 	errs.Add(errors.Trace(t.DataTransport.Close()))
 	errs.Add(errors.Trace(t.MediaStream.Close()))
 	errs.Add(errors.Trace(t.MetadataTransport.Close()))
+
+	errs.Add(errors.Trace(t.interceptor.Close()))
 
 	t.closeOnce.Do(func() {
 		close(t.closeChan)

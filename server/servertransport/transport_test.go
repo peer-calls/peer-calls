@@ -110,21 +110,21 @@ func createTransportPairs(t *testing.T) (transport.Transport, transport.Transpor
 	})
 
 	params1 := Params{
-		Log:           log,
-		MediaConn:     media1,
-		DataConn:      data1,
-		MetadataConn:  metadata1,
-		Interceptor:   nil,
-		CodecRegistry: nil,
+		Log:                 log,
+		MediaConn:           media1,
+		DataConn:            data1,
+		MetadataConn:        metadata1,
+		InterceptorRegistry: nil,
+		CodecRegistry:       nil,
 	}
 
 	params2 := Params{
-		Log:           log,
-		MediaConn:     media2,
-		DataConn:      data2,
-		MetadataConn:  metadata2,
-		Interceptor:   nil,
-		CodecRegistry: nil,
+		Log:                 log,
+		MediaConn:           media2,
+		DataConn:            data2,
+		MetadataConn:        metadata2,
+		InterceptorRegistry: nil,
+		CodecRegistry:       nil,
 	}
 
 	t1 := New(params1)
