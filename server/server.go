@@ -29,11 +29,13 @@ func New(params Params, handler http.Handler) *Server {
 	}
 }
 
-func (s Server) Start(ctx context.Context, l net.Listener) (err error) {
+func (s Server) Start(ctx context.Context, l net.Listener) error {
 	startErrCh := make(chan error, 1)
 
 	go func() {
 		defer close(startErrCh)
+
+		var err error
 
 		if s.params.TLSCertFile != "" {
 			err = s.server.ServeTLS(l, s.params.TLSCertFile, s.params.TLSKeyFile)
@@ -52,7 +54,7 @@ func (s Server) Start(ctx context.Context, l net.Listener) (err error) {
 		return errors.Trace(err)
 	}
 
-	err = errors.Trace(s.server.Close())
+	err := errors.Trace(s.server.Close())
 
 	if startErr := <-startErrCh; startErr != nil {
 		err = errors.Trace(startErr)
