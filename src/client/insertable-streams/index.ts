@@ -1,5 +1,5 @@
 import _debug from 'debug'
-import { PubTrackEvent as PubTrackEvt, TrackEventType, TrackKind } from '../SocketEvent'
+import { PubTrackEvent as PubTrackEvt, TrackKind } from '../SocketEvent'
 import { WebWorker } from '../webworker'
 import { config } from '../window'
 
@@ -9,8 +9,8 @@ const { peerId } = config
 
 interface EncryptStreamEvent {
   type: 'encrypt'
-  readableStream: ReadableStream<RTCEncodedFrame>
-  writableStream: WritableStream<RTCEncodedFrame>
+  readable: ReadableStream<RTCEncodedFrame>
+  writable: WritableStream<RTCEncodedFrame>
 }
 
 interface DecryptStreamEvent {
@@ -69,6 +69,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
 
   interface DecryptContext {
     key?: CryptoKey
+    streamProps: StreamProps
     peerId: string
     password: string
   }
@@ -101,12 +102,6 @@ const workerFunc = () => (self: EncryptionWorker) => {
   function newStreamKey(params: StreamProps): StreamKey {
     const { streamId, kind } = params
     return (streamId + ':' + kind) as StreamKey
-  }
-
-  function newStreamProps(streamKey: StreamKey): StreamProps {
-    const [streamId, kindStr ] = streamKey.split(':')
-    const kind = kindStr as TrackKind
-    return { streamId, kind }
   }
 
   const context: Context = {
@@ -170,6 +165,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
     c = context.decryptContextByStreamKey[streamKey] = {
       peerId,
       password,
+      streamProps,
     }
 
     if (!password) {
@@ -181,7 +177,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
     .then(key => {
       // Ensure there was no context update in the meantime. This can happen
       // if metadata has changed, or a user has left and another one who just
-      // joined got assigned the same mid.
+      // joined got assigned the same key.
       if (context.decryptContextByStreamKey[streamKey] === c) {
         context.decryptContextByStreamKey[streamKey].key = key
       }
@@ -373,30 +369,30 @@ const workerFunc = () => (self: EncryptionWorker) => {
     .then(() => Promise.all(
       Object.keys(context.decryptContextByStreamKey).map(streamKey => {
         const decryptContext = context.decryptContextByStreamKey[streamKey]
-        const streamProps = newStreamProps(streamKey)
+        const { streamProps } = decryptContext
         return updateDecryptContext(streamProps, decryptContext.peerId)
       }),
     ))
   }
 
   function handleEncrypt(msg: EncryptStreamEvent) {
-    msg.readableStream
+    msg.readable
     .pipeThrough(new TransformStream({
       transform: (frame, ctrl) => encrypt(frame, ctrl),
     }))
-    .pipeTo(msg.writableStream)
+    .pipeTo(msg.writable)
 
     return updateEncryptContext()
   }
 
   function handleDecrypt(msg: DecryptStreamEvent) {
     if (msg.streams) {
-      msg.streams.readableStream
+      msg.streams.readable
       .pipeThrough(new TransformStream({
         transform: (frame, ctrl) =>
           decrypt(msg, frame, ctrl),
       }))
-      .pipeTo(msg.streams.writableStream)
+      .pipeTo(msg.streams.writable)
     }
 
     return updateDecryptContext(msg, msg.peerId)
@@ -531,13 +527,13 @@ export class InsertableStreamsCodec {
 
     const message: EncryptStreamEvent = {
       type: 'encrypt',
-      readableStream: streams.readableStream,
-      writableStream: streams.writableStream,
+      readable: streams.readable,
+      writable: streams.writable,
     }
 
     this.worker.postMessage(message, [
-      streams.readableStream,
-      streams.writableStream,
+      streams.readable,
+      streams.writable,
     ] as unknown as Transferable[])
 
     return true
@@ -562,12 +558,12 @@ export class InsertableStreamsCodec {
       }
 
       streams = {
-        readableStream: encodedStreams.readableStream,
-        writableStream: encodedStreams.writableStream,
+        readable: encodedStreams.readable,
+        writable: encodedStreams.writable,
       }
 
-      transferables.push(streams.readableStream as unknown as Transferable)
-      transferables.push(streams.writableStream as unknown as Transferable)
+      transferables.push(streams.readable as unknown as Transferable)
+      transferables.push(streams.writable as unknown as Transferable)
 
       this.sendersReceivers.add(params.receiver)
     }

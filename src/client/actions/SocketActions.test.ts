@@ -1,5 +1,6 @@
-jest.mock('simple-peer')
+jest.mock('../insertable-streams')
 jest.mock('../window')
+jest.mock('simple-peer')
 // jest.mock('../actions/NicknameActions')
 
 import * as NicknameActions from './NicknameActions'

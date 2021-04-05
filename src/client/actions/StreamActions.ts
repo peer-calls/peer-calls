@@ -45,6 +45,7 @@ export interface AddTrackPayload {
   streamId: string
   peerId: string
   track: MediaStreamTrack
+  receiver: RTCRtpReceiver
 }
 
 export interface AddTrackAction {

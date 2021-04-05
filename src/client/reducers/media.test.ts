@@ -1,4 +1,5 @@
 jest.mock('simple-peer')
+jest.mock('../insertable-streams')
 jest.mock('../socket')
 jest.mock('../window')
 jest.useFakeTimers()

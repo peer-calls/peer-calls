@@ -68,6 +68,8 @@ window.navigator.mediaDevices.getUserMedia = async () => {
   return new MediaStream() as any
 }
 
+export class RTCRtpReceiver {}
+
 // export const play = jest.fn()
 
 export const valueOf = jest.fn()

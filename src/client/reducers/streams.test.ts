@@ -1,7 +1,8 @@
+jest.mock('../insertable-streams')
 jest.mock('../window')
 
 import * as StreamActions from '../actions/StreamActions'
-import { createObjectURL, MediaStream, MediaStreamTrack } from '../window'
+import { createObjectURL, MediaStream, MediaStreamTrack, RTCRtpReceiver } from '../window'
 import { MediaStreamAction } from '../actions/MediaActions'
 import { MEDIA_STREAM } from '../constants'
 import { createStore, Store } from '../store'
@@ -93,6 +94,7 @@ describe('reducers/alerts', () => {
     it('creates a new stream and adds a track to it', () => {
       const track = new MediaStreamTrack()
       store.dispatch(StreamActions.addTrack({
+        receiver: new RTCRtpReceiver(),
         streamId: 'stream-123',
         track,
         peerId,
@@ -126,11 +128,13 @@ describe('reducers/alerts', () => {
       const track1 = new MediaStreamTrack()
       const track2 = new MediaStreamTrack()
       store.dispatch(StreamActions.addTrack({
+        receiver: new RTCRtpReceiver(),
         streamId: 'stream-123',
         track: track1,
         peerId,
       }))
       store.dispatch(StreamActions.addTrack({
+        receiver: new RTCRtpReceiver(),
         streamId: 'stream-123',
         track: track2,
         peerId,
@@ -168,6 +172,7 @@ describe('reducers/alerts', () => {
     beforeEach(() => {
       stream = new MediaStream()
       store.dispatch(StreamActions.addTrack({
+        receiver: new RTCRtpReceiver(),
         streamId: 'stream-1',
         track: track1,
         peerId,
@@ -193,6 +198,7 @@ describe('reducers/alerts', () => {
 
     it('removes a track from stream when there are more tracks', () => {
       store.dispatch(StreamActions.addTrack({
+        receiver: new RTCRtpReceiver(),
         streamId: 'stream-1',
         track: track2,
         peerId,

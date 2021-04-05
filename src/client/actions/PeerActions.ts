@@ -12,8 +12,6 @@ import { addMessage } from './ChatActions'
 import * as NotifyActions from './NotifyActions'
 import * as StreamActions from './StreamActions'
 
-import { TrackKind } from '../SocketEvent'
-
 const { iceServers } = config
 
 const debug = _debug('peercalls')
@@ -90,13 +88,6 @@ class PeerHandler {
     debug('peer: %s, track: %s, stream: %s, mid: %s',
           peerId, track.id, stream.id, mid)
 
-    insertableStreamsCodec.decrypt({
-      receiver: transceiver.receiver,
-      kind: track.kind as TrackKind,
-      streamId,
-      peerId,
-    })
-
     // Listen to mute event to know when a track was removed
     // https://github.com/feross/simple-peer/issues/512
     track.onmute = () => {
@@ -114,6 +105,7 @@ class PeerHandler {
         streamId,
         peerId,
         track,
+        receiver: transceiver.receiver,
       }))
     }
 
@@ -174,8 +166,9 @@ export function createPeer (options: CreatePeerOptions) {
       initiator,
       config: {
         iceServers,
-        enableInsertableStreams: true,
+        encodedInsertableStreams: true,
         // legacy flags for insertable streams
+        enableInsertableStreams: true,
         forceEncodedVideoInsertableStreams: true,
         forceEncodedAudioInsertableStreams: true,
       },

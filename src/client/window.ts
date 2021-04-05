@@ -20,3 +20,4 @@ export const config: ClientConfig  = JSON.parse(valueOf('config')!)
 
 export const MediaStream = window.MediaStream
 export const MediaStreamTrack = window.MediaStreamTrack
+export const RTCRtpReceiver = window.RTCRtpReceiver

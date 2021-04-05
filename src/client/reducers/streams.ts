@@ -35,6 +35,7 @@ export interface StreamsState {
 
 interface PubStream {
   streamId: string
+  peerId: string
   pubTracks: {
     [t in TrackKind]?: PubTrack
   }
@@ -179,7 +180,7 @@ function addTrack (
   state: Readonly<StreamsState>,
   payload: AddTrackPayload,
 ): StreamsState {
-  const { streamId, track, peerId } = payload
+  const { streamId, track, peerId, receiver } = payload
 
   let remoteStream = state.remoteStreams[streamId]
 
@@ -198,6 +199,16 @@ function addTrack (
       type: TrackEventType.Add,
     })
   }
+
+  const pubStream = state.pubStreams[streamId]
+
+  const originalPeerId = pubStream ? pubStream.peerId : peerId
+  insertableStreamsCodec.decrypt({
+    receiver,
+    kind: track.kind as TrackKind,
+    streamId,
+    peerId: originalPeerId,
+  })
 
   const remoteStreamsKeysByClientId = setChild(
     state.remoteStreamsKeysByClientId,
@@ -255,10 +266,10 @@ function pubTrackAdd (
 ): StreamsState {
   const { kind, peerId } = payload
   const { streamId } = payload.trackId
-  const { pubStreams } = state
 
   const pubStream = state.pubStreams[streamId] || {
     streamId,
+    peerId,
     pubTracks: {},
   }
 
@@ -273,7 +284,7 @@ function pubTrackAdd (
     ...state,
     pubStreamsKeysByPeerId,
     pubStreams: {
-      ...pubStreams,
+      ...state.pubStreams,
       [streamId]: {
         ...pubStream,
         pubTracks: {
