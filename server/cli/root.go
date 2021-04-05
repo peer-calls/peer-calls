@@ -32,6 +32,7 @@ func NewRootCommand(props Props) *command.Command {
 		}),
 		SubCommands: []*command.Command{
 			newServerCmd(props),
+			newPlayCmd(props),
 		},
 	})
 }
