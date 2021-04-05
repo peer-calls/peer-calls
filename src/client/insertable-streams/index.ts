@@ -358,9 +358,9 @@ const workerFunc = () => (self: EncryptionWorker) => {
     // one who might use the insertable streams.
 
     switch (pubTrackEvent.type) {
-    case TrackEventType.Add:
+    case 1: // Pub
       return updateDecryptContext(streamProps, peerId)
-    case TrackEventType.Remove:
+    case 2: // Unpub
       delete context.decryptContextByStreamKey[streamKey]
       break
     }
