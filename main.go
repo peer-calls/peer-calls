@@ -12,12 +12,12 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const gitDescribe string = "v0.0.0"
+var GitDescribe = "v0.0.0"
 
 func start(ctx context.Context, log logger.Logger, args []string) error {
 	err := cli.Exec(ctx, cli.Props{
 		Log:     log,
-		Version: gitDescribe,
+		Version: GitDescribe,
 		Args:    args,
 	})
 
