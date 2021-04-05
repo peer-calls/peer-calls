@@ -45,7 +45,7 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Support RTCP packet Receiver Estimated Maximum Bitrate (REMB)
 - [x] Add handling of other RTCP packets besides NACK, PLI and REMB
 - [x] Add JitterBuffer (experimental, currently without congestion control)
-- [ ] Support multiple Peer Calls nodes when using SFU
+- [x] Support multiple Peer Calls nodes when using SFU
 - [x] Add support for passive ICE TCP candidates
 - [x] End-to-End Encryption (E2EE) using Insertable Streams. See [#142](https://github.com/peer-calls/peer-calls/pull/142).
 
