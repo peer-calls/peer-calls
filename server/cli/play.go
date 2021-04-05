@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -35,6 +37,7 @@ type playHandler struct {
 
 		roomURL  string
 		nickname string
+		insecure bool
 
 		audioMimeType string
 		audioStream   string
@@ -63,8 +66,11 @@ type playHandler struct {
 //       -re \
 //       -stream_loop -1 \
 //       -i "video.mp4" \
-//       -an -c:v libvpx -ssrc 1 -payload_type 96 -crf 10 -b:v 1M -f rtp 'rtp://127.0.0.1:50000?localrtcpport=50002&pkt_size=1200' \
-//       -vn -c:a libopus -ssrc 2 -payload_type 111 -f rtp 'rtp://127.0.0.1:50004?localrtcpport=50006&pkt_size=1200'
+//       -an -c:v libvpx -ssrc 1 -payload_type 96 -crf 10 -b:v 1M -cpu-used 5 \
+//         -deadline 1 -g 10 -error-resilient 1 -auto-alt-ref 1 -f rtp -max_delay 0 \
+//         'rtp://127.0.0.1:50000?localrtcpport=50002&pkt_size=1200' \
+//       -vn -c:a libopus -ssrc 2 -b:a 48000 -payload_type 111 -f rtp -max_delay 0 \
+//         -application lowdelay 'rtp://127.0.0.1:50004?localrtcpport=50006&pkt_size=1200'
 //
 // Then, run the play command:
 //
@@ -94,6 +100,7 @@ func (h *playHandler) RegisterFlags(c *command.Command, flags *pflag.FlagSet) {
 
 	flags.StringVarP(&h.args.roomURL, "room-url", "r", "http://localhost:3000/call/playroom", "room URL")
 	flags.StringVarP(&h.args.nickname, "nickname", "n", "player", "nickname")
+	flags.BoolVarP(&h.args.insecure, "insecure", "k", false, "do not validate TLS certificates")
 }
 
 func (h *playHandler) configure() (err error) {
@@ -602,9 +609,17 @@ func (h *playHandler) Handle(ctx context.Context, args []string) error {
 		}()
 	}
 
-	ws, _, err := websocket.Dial(ctx, h.wsURL, nil)
+	ws, _, err := websocket.Dial(ctx, h.wsURL, &websocket.DialOptions{
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: h.args.insecure,
+				},
+			},
+		},
+	})
 	if err != nil {
-		return errors.Annotatef(err, "dial WS")
+		return errors.Annotatef(err, "dial WS", h.wsURL)
 	}
 
 	wsClient := server.NewClientWithID(ws, h.clientID)

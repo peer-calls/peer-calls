@@ -2,7 +2,6 @@ package message
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
@@ -110,7 +109,6 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(j.Payload, m.Payload.RoomJoin)
 		err = errors.Trace(err)
 	case TypeRoomLeave:
-		fmt.Println("unmarshal", string(j.Payload))
 		err = json.Unmarshal(j.Payload, &m.Payload.RoomLeave)
 		err = errors.Trace(err)
 	case TypeUsers:
