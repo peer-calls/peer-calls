@@ -438,7 +438,8 @@ func (t *PeerManager) Sub(params SubParams) error {
 
 			if pliTooSoon {
 				// Congestion control.
-				return errors.Errorf("too many PLI packets received, ignoring")
+				// return errors.Errorf("too many PLI packets received, ignoring")
+				return nil
 			}
 
 			// Important: set the correct SSRC before sending the packet to source.
