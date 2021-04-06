@@ -4,7 +4,7 @@ import omit from 'lodash/omit'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
 import * as constants from '../constants'
-import { MediaStreamAction, MediaTrackAction, MediaTrackEnableAction, MediaKind } from '../actions/MediaActions'
+import { MediaStreamAction, MediaTrackAction, MediaTrackEnableAction, getTracksByKind } from '../actions/MediaActions'
 import { RemoveLocalStreamAction, StreamType } from '../actions/StreamActions'
 import { HangUpAction } from '../actions/CallActions'
 import { insertableStreamsCodec } from '../insertable-streams'
@@ -74,10 +74,6 @@ function handleLocalMediaStream(
   localStreams[streamType] = action.payload.stream
 
   return state
-}
-
-function getTracksByKind(stream: MediaStream, kind: MediaKind) {
-  return kind === 'video' ? stream.getVideoTracks() : stream.getAudioTracks()
 }
 
 export function handleLocalMediaTrack(

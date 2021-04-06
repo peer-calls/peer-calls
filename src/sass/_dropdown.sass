@@ -51,6 +51,29 @@
     & + li
       border-top: 1px solid #e6e6e6
 
+    ul.horizontal
+      padding: 0
+      margin: -0.5rem
+      display: flex
+      flex-direction: row
+
+      & > li
+        text-align: center;
+        flex-grow: 1
+        border: none
+        border-right: 1px solid #e6e6e6
+
+        &.selected
+          color: white
+          background-color: $color-blue
+
+        &:first-child
+          border-radius: 5px 0 0 0
+
+        &:last-child
+          border-right: none
+          border-radius: 0 5px 0 0
+
   &.dropdown-list-open
     visibility: visible
     opacity: 1

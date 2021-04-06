@@ -8,10 +8,12 @@ import SimplePeer from 'simple-peer'
 import { dial, hangUp } from '../actions/CallActions'
 import * as MediaActions from '../actions/MediaActions'
 import { StreamTypeCamera, StreamTypeDesktop } from '../actions/StreamActions'
-import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, PEER_ADD, SOCKET_EVENT_HANG_UP } from '../constants'
+import { DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_ENUMERATE, MEDIA_STREAM, PEER_ADD, SOCKET_EVENT_HANG_UP } from '../constants'
 import socket from '../socket'
 import { createStore, Store } from '../store'
 import { MediaStream, MediaStreamTrack } from '../window'
+import { MediaConstraint } from './media'
+
 
 describe('media', () => {
 
@@ -82,21 +84,138 @@ describe('media', () => {
     })
   })
 
-  describe(MEDIA_VIDEO_CONSTRAINT_SET, () => {
-    it('sets constraints for video device', () => {
-      expect(store.getState().media.video).toEqual({ facingMode: 'user' })
-      const constraint: MediaActions.VideoConstraint = true
-      store.dispatch(MediaActions.setVideoConstraint(constraint))
-      expect(store.getState().media.video).toEqual(constraint)
+  describe('media constraints: video', () => {
+    type Action = MediaActions.MediaDeviceToggleAction |
+      MediaActions.MediaSizeConstraintAction |
+      MediaActions.MediaDeviceIdAction
+
+    const tests: {
+      name: string
+      action: Action
+      wantState: MediaConstraint
+    }[] = [
+      {
+        name: 'disable video',
+        action: MediaActions.toggleDevice({ kind: 'video', enabled: false }),
+        wantState: {
+          enabled: false,
+          constraints: { facingMode: 'user' },
+        },
+      },
+      {
+        name: 'set deviceId',
+        action: MediaActions.setDeviceId({ kind: 'video', deviceId: 'abcd' }),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'abcd' },
+        },
+      },
+      {
+        name: 'set size constraint',
+        action: MediaActions.setSizeConstraint({ width: 640, height: 480 }),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'abcd', width: 640, height: 480 },
+        },
+      },
+      {
+        name: 'disable video',
+        action: MediaActions.toggleDevice({ kind: 'video', enabled: false }),
+        wantState: {
+          enabled: false,
+          constraints: { deviceId: 'abcd', width: 640, height: 480 },
+        },
+      },
+      {
+        name: 'set default deviceId',
+        action: MediaActions.setDeviceId({ kind: 'video', deviceId: '' }),
+        wantState: {
+          enabled: true,
+          constraints: { facingMode: 'user', width: 640, height: 480 },
+        },
+      },
+      {
+        name: 'set deviceId again',
+        action: MediaActions.setDeviceId({ kind: 'video', deviceId: 'efgh' }),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'efgh', width: 640, height: 480 },
+        },
+      },
+      {
+        name: 'unset size constraint',
+        action: MediaActions.setSizeConstraint(null),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'efgh' },
+        },
+      },
+    ]
+
+    it('test', () => {
+      tests.forEach(test => {
+        store.dispatch(test.action)
+        expect(store.getState().media.video).toEqual(test.wantState)
+      })
     })
   })
 
-  describe(MEDIA_AUDIO_CONSTRAINT_SET, () => {
-    it('sets constraints for audio device', () => {
-      expect(store.getState().media.audio).toBe(true)
-      const constraint: MediaActions.AudioConstraint = { deviceId: 'abcd' }
-      store.dispatch(MediaActions.setAudioConstraint(constraint))
-      expect(store.getState().media.audio).toEqual(constraint)
+  describe('media constraints: audio', () => {
+    type Action = MediaActions.MediaDeviceToggleAction |
+      MediaActions.MediaDeviceIdAction
+
+    const tests: {
+      name: string
+      action: Action
+      wantState: MediaConstraint
+    }[] = [
+      {
+        name: 'disable audio',
+        action: MediaActions.toggleDevice({ kind: 'audio', enabled: false }),
+        wantState: {
+          enabled: false,
+          constraints: {},
+        },
+      },
+      {
+        name: 'set deviceId',
+        action: MediaActions.setDeviceId({ kind: 'audio', deviceId: 'abcd' }),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'abcd' },
+        },
+      },
+      {
+        name: 'disable audio',
+        action: MediaActions.toggleDevice({ kind: 'audio', enabled: false }),
+        wantState: {
+          enabled: false,
+          constraints: { deviceId: 'abcd' },
+        },
+      },
+      {
+        name: 'set default deviceId',
+        action: MediaActions.setDeviceId({ kind: 'audio', deviceId: '' }),
+        wantState: {
+          enabled: true,
+          constraints: {},
+        },
+      },
+      {
+        name: 'set deviceId again',
+        action: MediaActions.setDeviceId({ kind: 'audio', deviceId: 'efgh' }),
+        wantState: {
+          enabled: true,
+          constraints: { deviceId: 'efgh' },
+        },
+      },
+    ]
+
+    it('test', () => {
+      tests.forEach(test => {
+        store.dispatch(test.action)
+        expect(store.getState().media.audio).toEqual(test.wantState)
+      })
     })
   })
 

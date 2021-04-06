@@ -370,7 +370,9 @@ function removePeer(
 
   streamIds.forEach(streamId => {
     const stream = state.remoteStreams[streamId]
-    stopStream(stream)
+    if (stream) {
+      stopStream(stream)
+    }
   })
 
   const remoteStreamsKeysByClientId =

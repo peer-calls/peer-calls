@@ -7,7 +7,7 @@ import TestUtils from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { applyMiddleware, createStore } from 'redux'
 import SimplePeer from 'simple-peer'
-import { getDesktopStream, MediaKind, setAudioConstraint, setVideoConstraint, DisplayMediaConstraints } from '../actions/MediaActions'
+import { getDesktopStream, MediaKind, DisplayMediaConstraints, toggleDevice } from '../actions/MediaActions'
 import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop, AddLocalStreamPayload } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, PEER_ADD } from '../constants'
 import reducers from '../reducers'
@@ -18,6 +18,8 @@ import Toolbar, { ToolbarProps } from './Toolbar'
 import { deferred } from '../deferred'
 import { insertableStreamsCodec } from '../insertable-streams'
 import { makeAction } from '../async'
+
+import { MediaConstraint } from '../reducers/media'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -352,9 +354,16 @@ describe('components/Toolbar track dropdowns', () => {
         }
     })
 
-    function getDevices(kind: MediaKind): HTMLLIElement[] {
+    function getDevices(kind: MediaKind): Element[] {
       const button = node.querySelector('.dropdown .' + kind)!
-      const items = button.parentElement!.querySelectorAll('li')
+      const items = button.parentElement!.querySelectorAll('li.device')
+      expect(items).toBeDefined()
+      return Array.from(items)
+    }
+
+    function getQualityButtons(): Element[] {
+      const button = node.querySelector('.dropdown .video')!
+      const items = button.parentElement!.querySelectorAll('li.quality')
       expect(items).toBeDefined()
       return Array.from(items)
     }
@@ -394,8 +403,8 @@ describe('components/Toolbar track dropdowns', () => {
 
       describe('no old track => new track', () => {
         beforeEach(() => {
-          store.dispatch(setVideoConstraint(false))
-          store.dispatch(setAudioConstraint(false))
+          store.dispatch(toggleDevice({ kind: 'audio', enabled: false }))
+          store.dispatch(toggleDevice({ kind: 'video', enabled: false }))
         })
         it('adds a track to existing peer stream', async () => {
           const device = getDevices('video')[2]
@@ -408,10 +417,10 @@ describe('components/Toolbar track dropdowns', () => {
 
       describe('old track => ', () => {
         let oldTrack: MediaStreamTrack
-        let devices: HTMLLIElement[]
+        let devices: Element[]
         beforeEach(async () => {
-          store.dispatch(setVideoConstraint(false))
-          store.dispatch(setAudioConstraint(false))
+          store.dispatch(toggleDevice({ kind: 'audio', enabled: false }))
+          store.dispatch(toggleDevice({ kind: 'video', enabled: false }))
           devices = getDevices('video')
           TestUtils.Simulate.click(devices[1])
           await promise
@@ -459,10 +468,35 @@ describe('components/Toolbar track dropdowns', () => {
           })
         })
 
+        describe('change quality', () => {
+          it('changes constraint and replaces track', async () => {
+            const quality = getQualityButtons()
+            expect(quality.length).toBe(4)
+            TestUtils.Simulate.click(quality[0])
+            await promise
+            const replaceTrack =
+              store.getState().peers[peerId].replaceTrack as jest.Mock
+            expect(replaceTrack.mock.calls)
+            .toEqual([[ oldTrack, videoTrack, stream ]])
+            expect(store.getState().media.video).toEqual({
+              constraints: {
+                facingMode: 'user',
+                width: 320,
+                height: 240,
+              },
+              enabled: true,
+            })
+          })
+        })
+
       })
 
       describe('mic', () => {
-        const expected = [false, true, {deviceId: 'mic1'}]
+        const expected: MediaConstraint[] = [
+          {enabled: false, constraints: {}},
+          {enabled: true, constraints: {}},
+          {enabled: true, constraints: {deviceId: 'mic1'}},
+        ]
         it('switches microphone', () => {
           const button = node.querySelector('.dropdown .audio')!
           const items = getDevices('audio')
@@ -478,10 +512,10 @@ describe('components/Toolbar track dropdowns', () => {
       })
 
       describe('camera', () => {
-        const expected = [
-          false,
-          {facingMode: 'user'},
-          {deviceId: 'cam1'},
+        const expected: MediaConstraint[] = [
+          {enabled: false, constraints: {facingMode:'user'}},
+          {enabled: true, constraints: {facingMode:'user'}},
+          {enabled: true, constraints: {deviceId: 'cam1'}},
         ]
         it('switches camera', () => {
           const button = node.querySelector('.dropdown .video')!
