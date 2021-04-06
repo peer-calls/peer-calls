@@ -197,8 +197,6 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 		initiator = clientID
 	}
 
-	start := time.Now()
-
 	sh.log.Info("ready event", logger.Ctx{
 		"initiator": initiator,
 	})
@@ -232,9 +230,6 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 
 	sh.webRTCTransport = webRTCTransport
 
-	prometheusWebRTCConnTotal.Inc()
-	prometheusWebRTCConnActive.Inc()
-
 	pubTrackEventsCh, err := sh.tracksManager.Add(roomID, webRTCTransport)
 	if err != nil {
 		return errors.Trace(err)
@@ -255,7 +250,7 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 		}
 	}()
 
-	go sh.processLocalSignals(webRTCTransport.SignalChannel(), start)
+	go sh.processLocalSignals(webRTCTransport.SignalChannel())
 
 	return nil
 }
@@ -269,7 +264,17 @@ func (sh *SocketHandler) handleSignal(signal message.UserSignal) error {
 	return errors.Annotate(err, "handleSignal")
 }
 
-func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, startTime time.Time) {
+func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal) {
+	startTime := time.Now()
+
+	prometheusWebRTCConnTotal.Inc()
+	prometheusWebRTCConnActive.Inc()
+
+	defer func() {
+		prometheusWebRTCConnActive.Dec()
+		prometheusWebRTCConnDuration.Observe(time.Since(startTime).Seconds())
+	}()
+
 	room := sh.room
 	adapter := sh.adapter
 	clientID := sh.clientID
@@ -286,9 +291,6 @@ func (sh *SocketHandler) processLocalSignals(signals <-chan message.Signal, star
 			// TODO abort connection
 		}
 	}
-
-	prometheusWebRTCConnActive.Dec()
-	prometheusWebRTCConnDuration.Observe(time.Since(startTime).Seconds())
 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()

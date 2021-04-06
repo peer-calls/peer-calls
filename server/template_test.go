@@ -3,7 +3,6 @@ package server_test
 import (
 	"testing"
 
-	"github.com/gobuffalo/packr"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,8 +10,7 @@ import (
 func TestParseTemplates(t *testing.T) {
 	t.Parallel()
 
-	box := packr.NewBox("./templates")
-	templates := server.ParseTemplates(box)
+	templates := server.ParseTemplates(embed.Templates)
 	t1, ok := templates["index.html"]
 	assert.Equal(t, true, ok)
 	assert.NotNil(t, t1)
@@ -24,8 +22,7 @@ func TestParseTemplates(t *testing.T) {
 func TestParseTemplates_noHTML(t *testing.T) {
 	t.Parallel()
 
-	box := packr.NewBox("../res")
-	templates := server.ParseTemplates(box)
+	templates := server.ParseTemplates(embed.Resources)
 	t1, ok := templates["index.html"]
 	assert.Equal(t, false, ok)
 	assert.Nil(t, t1)

@@ -5,8 +5,6 @@ go 1.16
 require (
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/go-redis/redis/v7 v7.2.0
-	github.com/gobuffalo/packd v0.3.0
-	github.com/gobuffalo/packr v1.30.1
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.2.0
