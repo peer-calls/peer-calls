@@ -2,13 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 
 	"github.com/go-chi/chi"
-	"github.com/gobuffalo/packr"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/pubsub"
@@ -75,11 +75,11 @@ func NewMux(
 	rooms RoomManager,
 	tracks TracksManager,
 	prom PrometheusConfig,
+	embed Embed,
 ) *Mux {
 	log = log.WithNamespaceAppended("mux")
 
-	box := packr.NewBox("./templates")
-	templates := ParseTemplates(box)
+	templates := ParseTemplates(embed.Templates)
 	renderer := NewRenderer(log, templates, baseURL, version)
 
 	handler := chi.NewRouter()
@@ -109,8 +109,8 @@ func NewMux(
 	manifest := buildManifest(baseURL)
 	handler.Route(root, func(router chi.Router) {
 		router.Get("/", withGauge(prometheusHomeViewsTotal, renderer.Render(mux.routeIndex)))
-		router.Handle("/static/*", static(baseURL+"/static", packr.NewBox("../build")))
-		router.Handle("/res/*", static(baseURL+"/res", packr.NewBox("../res")))
+		router.Handle("/static/*", static(baseURL+"/static", embed.Static))
+		router.Handle("/res/*", static(baseURL+"/res", embed.Resources))
 		router.Post("/call", withGauge(prometheusCallJoinTotal, mux.routeNewCall))
 		router.Get("/call/{callID}", withGauge(prometheusCallViewsTotal, renderer.Render(mux.routeCall)))
 		router.Get("/probes/liveness", func(w http.ResponseWriter, r *http.Request) {
@@ -170,8 +170,8 @@ func newWebSocketHandler(
 	}
 }
 
-func static(prefix string, box packr.Box) http.Handler {
-	fileServer := http.FileServer(http.FileSystem(box))
+func static(prefix string, box fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(box))
 
 	return http.StripPrefix(prefix, fileServer)
 }

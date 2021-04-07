@@ -1,6 +1,6 @@
 {
   "name": "peer-calls",
-  "version": "4.0.0-alpha.0",
+  "version": "4.0.0",
   "private": true,
   "description": "Group peer to peer video calls for anybody.",
   "repository": "https://github.com/peer-calls/peer-calls",
@@ -16,8 +16,8 @@
     "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
     "build": "npm run css && npm run js",
-    "build:go:linux": "make pack-linux",
-    "build:go": "make pack",
+    "build:go:linux": "make build-linux",
+    "build:go": "make build",
     "test": "jest",
     "test:go": "go test ./...",
     "test:coverage": "jest --coverage",

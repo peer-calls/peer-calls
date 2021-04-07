@@ -22,8 +22,7 @@ ENV CGO_ENABLED=0
 
 RUN set -ex \
  && apk add --no-cache \
-      git \
- && GOPATH=/usr/local go get -u github.com/gobuffalo/packr/packr
+      git
 
 # Add dependencies into mod cache
 COPY go.mod go.sum /src/
@@ -37,7 +36,7 @@ COPY                  ./          /src/
 COPY --from=frontend  /src/build/ /src/build/
 
 RUN set -ex \
- && packr build \
+ && go build \
       -ldflags "-X main.GitDescribe=$(git describe --always --tags --dirty)" \
       -mod=readonly \
       -o peer-calls

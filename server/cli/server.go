@@ -19,11 +19,11 @@ type serverHandler struct {
 		config string
 	}
 
-	log     logger.Logger
-	config  server.Config
-	version string
-	server  *server.Server
-	mux     *server.Mux
+	log    logger.Logger
+	config server.Config
+	props  Props
+	server *server.Server
+	mux    *server.Mux
 }
 
 func (h *serverHandler) RegisterFlags(c *command.Command, flags *pflag.FlagSet) {
@@ -62,8 +62,8 @@ func (h *serverHandler) Handle(ctx context.Context, args []string) error {
 
 func newServerCmd(props Props) *command.Command {
 	h := &serverHandler{
-		log:     props.Log,
-		version: props.Version,
+		log:   props.Log,
+		props: props,
 	}
 
 	return command.New(command.Params{
@@ -99,7 +99,7 @@ func (h *serverHandler) configure() (err error) {
 	})
 	rooms, _ := roomManagerFactory.NewRoomManager(c.Network)
 
-	h.mux = server.NewMux(log, c.BaseURL, h.version, c.Network, c.ICEServers, rooms, tracks, c.Prometheus)
+	h.mux = server.NewMux(log, c.BaseURL, h.props.Version, c.Network, c.ICEServers, rooms, tracks, c.Prometheus, h.props.Embed)
 
 	return nil
 }

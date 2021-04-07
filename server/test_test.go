@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/peer-calls/peer-calls/server"
@@ -15,6 +16,7 @@ import (
 
 const room identifiers.RoomID = "test-room"
 
+// nolint:gochecknoglobals
 var serializer server.ByteSerializer
 
 type MockWSWriter struct {
@@ -43,4 +45,11 @@ func serialize(t *testing.T, msg message.Message) []byte {
 	data, err := serializer.Serialize(msg)
 	require.Nil(t, err)
 	return data
+}
+
+// nolint:gochecknoglobals
+var embed = server.Embed{
+	Templates: os.DirFS("templates"),
+	Static:    os.DirFS("../build"),
+	Resources: os.DirFS("../res"),
 }

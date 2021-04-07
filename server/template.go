@@ -2,10 +2,8 @@ package server
 
 import (
 	"html/template"
+	"io/fs"
 	"strings"
-
-	"github.com/gobuffalo/packd"
-	"github.com/gobuffalo/packr"
 )
 
 type Templates map[string]*template.Template
@@ -16,27 +14,23 @@ func (t Templates) Get(name string) (tpl *template.Template, ok bool) {
 	return
 }
 
-func ParseTemplates(box packr.Box) Templates {
+func ParseTemplates(templatesFS fs.FS) Templates {
 	templates := Templates{}
 
-	_ = box.Walk(func(filename string, file packd.File) error {
-		if !strings.HasSuffix(filename, ".html") {
-			return nil
+	entries, err := fs.ReadDir(templatesFS, ".")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, entry := range entries {
+		fname := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(fname, ".html") {
+			continue
 		}
-		t := template.New(filename)
 
-		base, err := box.FindString("_header.html")
-		template.Must(t, err)
-		template.Must(t.Parse(base))
-
-		body, err := box.FindString(filename)
-		template.Must(t, err)
-		template.Must(t.Parse(body))
-
-		templates[filename] = t
-
-		return nil
-	})
+		t := template.New(fname)
+		templates[fname] = template.Must(t.ParseFS(templatesFS, "_header.html", fname))
+	}
 
 	return templates
 }
