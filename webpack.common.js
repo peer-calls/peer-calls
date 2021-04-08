@@ -39,6 +39,13 @@ module.exports = {
           ],
         },
       },
+    },
+    {
+      test: /\.(png)$/i,
+      loader: 'file-loader',
+      options: {
+          name: '/res/[name].[ext]',
+      }
     }],
   },
   resolve: {

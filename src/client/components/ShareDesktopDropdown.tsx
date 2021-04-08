@@ -7,6 +7,7 @@ import { removeLocalStream } from '../actions/StreamActions'
 import { LocalStream } from '../reducers/streams'
 import { Backdrop } from './Backdrop'
 import { ToolbarButton } from './ToolbarButton'
+import FirefoxShareImg from '../../../res/ff_share.png'
 
 export interface ShareDesktopConfig {
   video: true
@@ -37,6 +38,8 @@ export interface ShareDesktopDropdownProps {
 export interface ShareDesktopDropdownState {
   open: boolean
   shareConfig: ShareDesktopConfig | false
+  rejectedShare: boolean
+  popupContent: any
 }
 
 export class ShareDesktopDropdown extends
@@ -44,6 +47,8 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
   state: ShareDesktopDropdownState = {
     open: false,
     shareConfig: false,
+    rejectedShare: false,
+    popupContent: null
   }
   toggleOpen = (e: React.SyntheticEvent) => {
     e.stopPropagation()
@@ -96,13 +101,39 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
       })
     })
     .catch(() => {
+      const browser = navigator.userAgent.toLowerCase();
+      if (browser.indexOf('firefox') > -1) {
+        this.handleFirefoxRejection()
+      }
+
       this.setState({
         shareConfig: false,
       })
     })
   }
+
+  handleFirefoxRejection() {
+    if (!this.state.rejectedShare) {
+      return this.setState({rejectedShare: true})
+    }
+
+    this.setState({
+      popupContent: <>
+        <div style={{paddingBottom: "2em"}}>
+          If you dismissed a sharing dialog previously, you have to remove the resource restriction.
+          Click on site permissions in the address bar and remove the blocked resource you want to use.
+        </div>
+        <img src={FirefoxShareImg}/>
+      </>
+    })
+  }
+
+  closePopup = () => {
+    this.setState({popupContent: null})
+  }
+
   render() {
-    const { shareConfig } = this.state
+    const { shareConfig, popupContent } = this.state
 
     const classNames = classnames(
       'stream-desktop-menu dropdown-list dropdown-center',
@@ -112,37 +143,48 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
     )
 
     return (
-      <div className='dropdown'>
-        <ToolbarButton
-          className={this.props.className}
-          icon={this.props.icon}
-          offIcon={this.props.offIcon}
-          on={shareConfig !== false}
-          onClick={this.toggleOpen}
-          title={this.props.title}
-        />
-        <Backdrop visible={this.state.open} onClick={this.close} />
-        <ul className={classNames}>
-          <DesktopShareOption
-            config={false}
-            name={'Off'}
-            onClick={this.handleShareDesktop}
-            selected={shareConfig === false}
+      <>
+        {popupContent && (<div className='popup-overlay'>
+          <div className='popup-window'>
+            <div onClick={this.closePopup} className='popup-close'>&times;</div>
+            <div className='popup-content'>
+              {popupContent}
+            </div>
+          </div>
+        </div>)}
+
+        <div className='dropdown'>
+          <ToolbarButton
+            className={this.props.className}
+            icon={this.props.icon}
+            offIcon={this.props.offIcon}
+            on={shareConfig !== false}
+            onClick={this.toggleOpen}
+            title={this.props.title}
           />
-          <DesktopShareOption
-            config={configDesktopAudioVideo}
-            name={'Screen with Audio'}
-            onClick={this.handleShareDesktop}
-            selected={shareConfig === configDesktopAudioVideo}
-          />
-          <DesktopShareOption
-            config={configDesktopOnly}
-            name={'Screen only'}
-            onClick={this.handleShareDesktop}
-            selected={shareConfig === configDesktopOnly}
-          />
-        </ul>
-      </div>
+          <Backdrop visible={this.state.open} onClick={this.close}/>
+          <ul className={classNames}>
+            <DesktopShareOption
+              config={false}
+              name={'Off'}
+              onClick={this.handleShareDesktop}
+              selected={shareConfig === false}
+            />
+            <DesktopShareOption
+              config={configDesktopAudioVideo}
+              name={'Screen with Audio'}
+              onClick={this.handleShareDesktop}
+              selected={shareConfig === configDesktopAudioVideo}
+            />
+            <DesktopShareOption
+              config={configDesktopOnly}
+              name={'Screen only'}
+              onClick={this.handleShareDesktop}
+              selected={shareConfig === configDesktopOnly}
+            />
+          </ul>
+        </div>
+      </>
     )
   }
 }

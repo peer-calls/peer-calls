@@ -23,3 +23,38 @@
   opacity: 0
   visibility: hidden
 
+.popup-overlay
+  position: fixed
+  top: 0
+  left: 0
+  width: 100%
+  height: 100%
+  background: rgba(0, 0, 0, 0.7)
+  transition: opacity 500ms
+  z-index: 10
+  align-items: center
+  justify-content: center
+  display: flex
+
+.popup-window
+  position: relative
+  width: 50%
+
+  .popup-close
+    position: absolute
+    top: 0
+    right: 10px
+    color: white
+    font-size: 3em
+    cursor: pointer
+    text-align: center
+
+  .popup-content
+    background-color: rgba(50, 50, 50, 0.95)
+    border: 1px solid #aaa
+    padding: 3em
+    border-radius: 1em
+    color: white
+
+  img
+    width: 100%
