@@ -1,8 +1,9 @@
 import _debug from 'debug'
 import { AsyncAction, makeAction } from '../async'
-import { MEDIA_AUDIO_CONSTRAINT_SET, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_VIDEO_CONSTRAINT_SET, MEDIA_TRACK, MEDIA_TRACK_ENABLE } from '../constants'
+import { DEVICE_DISABLED_ID, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, MEDIA_SIZE_CONSTRAINT, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, DEVICE_DEFAULT_ID } from '../constants'
 import { AddLocalStreamPayload, StreamTypeCamera, StreamTypeDesktop, StreamType } from './StreamActions'
 import { MediaStream } from '../window'
+import uniqBy from 'lodash/uniqBy'
 
 const debug = _debug('peercalls')
 
@@ -39,7 +40,7 @@ export const enumerateDevices = makeAction(MEDIA_ENUMERATE, async () => {
     stream.getTracks().forEach(track => track.stop())
   }
 
-  return devices
+  const mappedDevices = devices
   .filter(
     device => device.kind === 'audioinput' || device.kind === 'videoinput')
   .map(device => ({
@@ -48,25 +49,8 @@ export const enumerateDevices = makeAction(MEDIA_ENUMERATE, async () => {
     name: device.label,
   }) as MediaDevice)
 
+  return uniqBy(mappedDevices, item => item.id)
 })
-
-export type FacingMode = 'user' | 'environment'
-
-export interface DeviceConstraint {
-  deviceId: string
-}
-
-export interface FacingConstraint {
-  facingMode: FacingMode | { exact: FacingMode }
-}
-
-export type VideoConstraint = DeviceConstraint | boolean | FacingConstraint
-export type AudioConstraint = DeviceConstraint | boolean
-
-export interface GetMediaConstraints {
-  video: VideoConstraint
-  audio: AudioConstraint
-}
 
 declare global {
   interface Navigator {
@@ -110,32 +94,74 @@ async function getDisplayMedia(
   return mediaDevices.getDisplayMedia(constraints)
 }
 
-export interface MediaVideoConstraintAction {
-  type: 'MEDIA_VIDEO_CONSTRAINT_SET'
-  payload: VideoConstraint
+export interface SizeConstraint {
+  width: number
+  height: number
 }
 
-export interface MediaAudioConstraintAction {
-  type: 'MEDIA_AUDIO_CONSTRAINT_SET'
-  payload: AudioConstraint
+export interface MediaSizeConstraintAction {
+  type: 'MEDIA_SIZE_CONSTRAINT'
+  payload: SizeConstraint | null
 }
 
-export function setVideoConstraint(
-  payload: VideoConstraint,
-): MediaVideoConstraintAction {
+export interface DeviceId {
+  kind: MediaKind
+  deviceId: string
+}
+
+export interface MediaDeviceIdAction {
+  type: 'MEDIA_DEVICE_ID'
+  payload: DeviceId
+}
+
+export interface MediaDeviceToggle {
+  kind: MediaKind
+  enabled: boolean
+}
+
+export interface MediaDeviceToggleAction {
+  type: 'MEDIA_DEVICE_TOGGLE'
+  payload: MediaDeviceToggle
+}
+
+export function toggleDevice(
+  payload: MediaDeviceToggle,
+): MediaDeviceToggleAction {
   return {
-    type: MEDIA_VIDEO_CONSTRAINT_SET,
+    type: MEDIA_DEVICE_TOGGLE,
     payload,
   }
 }
 
-export function setAudioConstraint(
-  payload: AudioConstraint,
-): MediaAudioConstraintAction {
+export function setSizeConstraint(
+  payload: SizeConstraint | null,
+): MediaSizeConstraintAction {
   return {
-    type: MEDIA_AUDIO_CONSTRAINT_SET,
+    type: MEDIA_SIZE_CONSTRAINT,
     payload,
   }
+}
+
+export function setDeviceId(
+  payload: DeviceId,
+): MediaDeviceIdAction {
+  return {
+    type: MEDIA_DEVICE_ID,
+    payload,
+  }
+}
+
+export function setDeviceIdOrDisable(
+  payload: DeviceId,
+): MediaDeviceIdAction | MediaDeviceToggleAction {
+  if (payload.deviceId === DEVICE_DISABLED_ID) {
+    return toggleDevice({
+      kind: payload.kind,
+      enabled: false,
+    })
+  }
+
+  return setDeviceId(payload)
 }
 
 export const play = makeAction('MEDIA_PLAY', async () => {
@@ -147,11 +173,8 @@ export const play = makeAction('MEDIA_PLAY', async () => {
 })
 
 export type GetMediaTrackParams = {
-  kind: 'audio'
-  constraint: AudioConstraint
-} | {
-  kind: 'video'
-  constraint: VideoConstraint
+  kind: MediaKind
+  constraint: MediaTrackConstraints | false
 }
 
 export interface MediaTrackPayload {
@@ -211,7 +234,7 @@ export function enableMediaTrack(kind: MediaKind): MediaTrackEnableAction {
 
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
-  async (constraints: GetMediaConstraints) => {
+  async (constraints: MediaStreamConstraints) => {
     if (!constraints.audio && !constraints.video) {
       const payload: AddLocalStreamPayload = {
         stream: new MediaStream(),
@@ -242,6 +265,26 @@ export const getDesktopStream = makeAction(
   },
 )
 
+// getDeviceId is a helper for figuring out the correct device ID.
+export function getDeviceId(
+  enabled: boolean,
+  constraint: MediaTrackConstraints,
+): string {
+  if (!enabled) {
+    return DEVICE_DISABLED_ID
+  }
+
+  if (typeof constraint.deviceId !== 'string') {
+    return DEVICE_DEFAULT_ID
+  }
+
+  return constraint.deviceId
+}
+
+export function getTracksByKind(stream: MediaStream, kind: MediaKind) {
+  return kind === 'video' ? stream.getVideoTracks() : stream.getAudioTracks()
+}
+
 export type MediaEnumerateAction = AsyncAction<'MEDIA_ENUMERATE', MediaDevice[]>
 export type MediaStreamAction =
   AsyncAction<'MEDIA_STREAM', AddLocalStreamPayload>
@@ -249,8 +292,9 @@ export type MediaPlayAction = AsyncAction<'MEDIA_PLAY', void>
 export type MediaTrackAction = AsyncAction<'MEDIA_TRACK', MediaTrackPayload>
 
 export type MediaAction =
-  MediaVideoConstraintAction |
-  MediaAudioConstraintAction |
+  MediaDeviceToggleAction |
+  MediaDeviceIdAction |
+  MediaSizeConstraintAction |
   MediaEnumerateAction |
   MediaStreamAction |
   MediaTrackAction |

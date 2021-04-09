@@ -3,9 +3,9 @@ import React from 'react'
 import { MdError } from 'react-icons/md'
 import { connect } from 'react-redux'
 import { dial } from '../actions/CallActions'
-import { AudioConstraint, enumerateDevices, getMediaStream, MediaDevice, play, setAudioConstraint, setVideoConstraint, VideoConstraint } from '../actions/MediaActions'
+import { enumerateDevices, getDeviceId, getMediaStream, MediaDevice, MediaKind, play, setDeviceIdOrDisable, toggleDevice } from '../actions/MediaActions'
 import { error, info, warning } from '../actions/NotifyActions'
-import { DialState, DIAL_STATE_HUNG_UP, ME } from '../constants'
+import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, DialState, DIAL_STATE_HUNG_UP, ME } from '../constants'
 import { MediaState } from '../reducers/media'
 import { State } from '../store'
 import { config } from '../window'
@@ -21,8 +21,7 @@ export type MediaProps = MediaState & {
   dialState: DialState
   visible: boolean
   enumerateDevices: typeof enumerateDevices
-  onSetVideoConstraint: typeof setVideoConstraint
-  onSetAudioConstraint: typeof setAudioConstraint
+  setDeviceId: typeof setDeviceIdOrDisable
   getMediaStream: typeof getMediaStream
   play: typeof play
   logInfo: typeof info
@@ -51,8 +50,8 @@ function mapStateToProps(state: State) {
 const mapDispatchToProps = {
   enumerateDevices,
   dial,
-  onSetVideoConstraint: setVideoConstraint,
-  onSetAudioConstraint: setAudioConstraint,
+  toggleDevice,
+  setDeviceId: setDeviceIdOrDisable,
   getMediaStream,
   play,
   logInfo: info,
@@ -80,8 +79,22 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
     event.preventDefault()
     const { props } = this
     const { audio, video } = props
+
+    const constraints: MediaStreamConstraints = {
+      audio: false,
+      video: false,
+    }
+
+    if (audio.enabled) {
+      constraints.audio = audio.constraints
+    }
+
+    if (video.enabled) {
+      constraints.video = video.constraints
+    }
+
     try {
-      await props.getMediaStream({ audio, video })
+      await props.getMediaStream(constraints)
     } catch (err) {
       this.setState({ error: true })
       return
@@ -98,26 +111,31 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
     }
   }
   handleVideoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const constraint: VideoConstraint = JSON.parse(event.target.value)
-    this.props.onSetVideoConstraint(constraint)
+    this.handleChange('video', event.target.value)
   }
 
   handleAudioChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const constraint: AudioConstraint = JSON.parse(event.target.value)
-    this.props.onSetAudioConstraint(constraint)
+    this.handleChange('audio', event.target.value)
   }
   handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     this.setState({ nickname: event.target.value })
   }
+  handleChange = (kind: MediaKind, deviceId: string) => {
+    this.props.setDeviceId({
+      kind,
+      deviceId,
+    })
+  }
   render() {
     const { props } = this
+    const { audio, video } = props
     const { nickname } = this.state
     if (!props.visible) {
       return null
     }
 
-    const videoId = JSON.stringify(props.video)
-    const audioId = JSON.stringify(props.audio)
+    const videoId = getDeviceId(video.enabled, video.constraints)
+    const audioId = getDeviceId(audio.enabled, audio.constraints)
 
     return (
       <form className='media' onSubmit={this.handleSubmit}>
@@ -146,7 +164,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
           >
             <Options
               devices={props.devices}
-              default='{"facingMode":"user"}'
+              default={DEVICE_DEFAULT_ID}
               type='videoinput'
             />
           </select>
@@ -161,7 +179,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
           >
             <Options
               devices={props.devices}
-              default='true'
+              default={DEVICE_DEFAULT_ID}
               type='audioinput'
             />
           </select>
@@ -241,8 +259,8 @@ function Options(props: OptionsProps) {
   const label = labels[props.type]
   return (
     <React.Fragment>
-      <option value='false'>No {label}</option>
-      <option value={props.default}>Default {label}</option>
+      <option value={DEVICE_DISABLED_ID}>No {label}</option>
+      <option value={DEVICE_DEFAULT_ID}>Default {label}</option>
       {
         props.devices
         .filter(device => device.type === props.type)

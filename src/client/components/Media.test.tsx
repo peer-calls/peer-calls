@@ -11,6 +11,8 @@ import { MEDIA_ENUMERATE, ME, DIAL, DIAL_STATE_IN_CALL, DIAL_STATE_HUNG_UP } fro
 import { dial } from '../actions/CallActions'
 import { MediaStream } from '../window'
 
+import { MediaConstraint } from '../reducers/media'
+
 describe('Media', () => {
 
   beforeEach(() => {
@@ -130,28 +132,56 @@ describe('Media', () => {
   })
 
   describe('onVideoChange', () => {
-    it('calls onSetVideoConstraint', async () => {
+    it('calls setVideoConstraint', async () => {
       const node = await render()
       const select = node.querySelector('select[name=video-input]')!
-      TestUtils.Simulate.change(select, {
-        target: {
-          value: '{"deviceId":123}',
-        } as any,
+
+      const tests: {value: string, expected: MediaConstraint}[] = [{
+        value: 'disabled',
+        expected: {enabled: false, constraints: {facingMode: 'user'}},
+      }, {
+        value: '',
+        expected: {enabled: true, constraints: {facingMode: 'user'}},
+      }, {
+        value: 'abcd',
+        expected: {enabled: true, constraints: {deviceId: 'abcd'}},
+      }]
+
+      tests.forEach(test => {
+        TestUtils.Simulate.change(select, {
+          target: {
+            value: test.value,
+          } as any,
+        })
+        expect(store.getState().media.video).toEqual(test.expected)
       })
-      expect(store.getState().media.video).toEqual({ deviceId: 123 })
     })
   })
 
   describe('onAudioChange', () => {
-    it('calls onSetAudioConstraint', async () => {
+    it('calls setAudioConstraint', async () => {
       const node = await render()
-      const select = node.querySelector('select[name="audio-input"]')!
-      TestUtils.Simulate.change(select, {
-        target: {
-          value: '{"deviceId":456}',
-        } as any,
+      const select = node.querySelector('select[name=audio-input]')!
+
+      const tests: {value: string, expected: MediaConstraint}[] = [{
+        value: 'disabled',
+        expected: {enabled: false, constraints: {}},
+      }, {
+        value: '',
+        expected: {enabled: true, constraints: {}},
+      }, {
+        value: 'abcd',
+        expected: {enabled: true, constraints: {deviceId: 'abcd'}},
+      }]
+
+      tests.forEach(test => {
+        TestUtils.Simulate.change(select, {
+          target: {
+            value: test.value,
+          } as any,
+        })
+        expect(store.getState().media.audio).toEqual(test.expected)
       })
-      expect(store.getState().media.audio).toEqual({ deviceId: 456 })
     })
   })
 
