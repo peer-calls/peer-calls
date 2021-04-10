@@ -70,7 +70,6 @@
     "eslint-plugin-import": "^2.20.2",
     "eslint-plugin-react": "^7.19.0",
     "fastestsmallesttextencoderdecoder": "^1.0.21",
-    "file-loader": "^6.2.0",
     "jest": "^25.5.4",
     "lodash": "^4.17.19",
     "node-sass": "^4.14.1",

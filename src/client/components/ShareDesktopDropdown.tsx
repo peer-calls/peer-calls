@@ -1,5 +1,5 @@
 import classnames from 'classnames'
-import React from 'react'
+import React, {ReactFragment} from 'react'
 import { IconType } from 'react-icons'
 import { MdRadioButtonChecked, MdRadioButtonUnchecked } from 'react-icons/md'
 import { getDesktopStream } from '../actions/MediaActions'
@@ -7,7 +7,8 @@ import { removeLocalStream } from '../actions/StreamActions'
 import { LocalStream } from '../reducers/streams'
 import { Backdrop } from './Backdrop'
 import { ToolbarButton } from './ToolbarButton'
-import FirefoxShareImg from '../../../res/ff_share.png'
+import { config } from '../window'
+import { RES_IMG_FIREFOX_SHARE } from '../constants'
 
 export interface ShareDesktopConfig {
   video: true
@@ -39,7 +40,7 @@ export interface ShareDesktopDropdownState {
   open: boolean
   shareConfig: ShareDesktopConfig | false
   rejectedShare: boolean
-  popupContent: any
+  popupContent: ReactFragment | null
 }
 
 export class ShareDesktopDropdown extends
@@ -48,7 +49,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
     open: false,
     shareConfig: false,
     rejectedShare: false,
-    popupContent: null
+    popupContent: null,
   }
   toggleOpen = (e: React.SyntheticEvent) => {
     e.stopPropagation()
@@ -101,7 +102,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
       })
     })
     .catch(() => {
-      const browser = navigator.userAgent.toLowerCase();
+      const browser = navigator.userAgent.toLowerCase()
       if (browser.indexOf('firefox') > -1) {
         this.handleFirefoxRejection()
       }
@@ -119,12 +120,14 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
 
     this.setState({
       popupContent: <>
-        <div style={{paddingBottom: "2em"}}>
-          If you dismissed a sharing dialog previously, you have to remove the resource restriction.
-          Click on site permissions in the address bar and remove the blocked resource you want to use.
+        <div style={{paddingBottom: '2em'}}>
+          If you dismissed a sharing dialog previously,
+          you have to remove the resource restriction.<br/>
+          Click on site permissions in the address bar
+          and remove the blocked resource you want to use.
         </div>
-        <img src={FirefoxShareImg}/>
-      </>
+        <img src={config.baseUrl + RES_IMG_FIREFOX_SHARE} />
+      </>,
     })
   }
 
