@@ -1,9 +1,8 @@
 import _debug from 'debug'
 import { AsyncAction, makeAction } from '../async'
-import { DEVICE_DISABLED_ID, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, MEDIA_SIZE_CONSTRAINT, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, DEVICE_DEFAULT_ID } from '../constants'
-import { AddLocalStreamPayload, StreamTypeCamera, StreamTypeDesktop, StreamType } from './StreamActions'
+import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, MEDIA_ENUMERATE, MEDIA_SIZE_CONSTRAINT, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE } from '../constants'
 import { MediaStream } from '../window'
-import uniqBy from 'lodash/uniqBy'
+import { AddLocalStreamPayload, StreamType, StreamTypeCamera, StreamTypeDesktop } from './StreamActions'
 
 const debug = _debug('peercalls')
 
@@ -41,15 +40,13 @@ export const enumerateDevices = makeAction(MEDIA_ENUMERATE, async () => {
   }
 
   const mappedDevices = devices
-  .filter(
-    device => device.kind === 'audioinput' || device.kind === 'videoinput')
   .map(device => ({
     id: device.deviceId,
     type: device.kind,
     name: device.label,
   }) as MediaDevice)
 
-  return uniqBy(mappedDevices, item => item.id)
+  return mappedDevices
 })
 
 declare global {
