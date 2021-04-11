@@ -67,3 +67,5 @@ export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'
 export const STREAM_TRACK_ADD = 'PEER_STREAM_TRACK_ADD'
 export const STREAM_TRACK_REMOVE = 'PEER_STREAM_TRACK_REMOVE'
+
+export const RES_IMG_FIREFOX_SHARE = '/res/ff_share.png'
