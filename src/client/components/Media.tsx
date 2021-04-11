@@ -163,7 +163,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
             autoComplete='off'
           >
             <Options
-              devices={props.devices}
+              devices={props.devices.video}
               default={DEVICE_DEFAULT_ID}
               type='videoinput'
             />
@@ -178,7 +178,7 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
             autoComplete='off'
           >
             <Options
-              devices={props.devices}
+              devices={props.devices.audio}
               default={DEVICE_DEFAULT_ID}
               type='audioinput'
             />
@@ -263,7 +263,6 @@ function Options(props: OptionsProps) {
       <option value={DEVICE_DEFAULT_ID}>Default {label}</option>
       {
         props.devices
-        .filter(device => device.type === props.type)
         .map(device =>
           <option
             key={device.id}

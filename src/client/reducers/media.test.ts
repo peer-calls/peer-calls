@@ -49,6 +49,14 @@ describe('media', () => {
           label: 'Audio Input',
           toJSON,
         }, {
+          // duplicate device should be filtered out.
+          // sometimes cameras have two devices with different label (e.g. IR)
+          deviceId: 'abcdef2',
+          groupId: 'group1',
+          kind: 'audioinput',
+          label: 'Audio Input',
+          toJSON,
+        }, {
           deviceId: 'abcdef3',
           groupId: 'group2',
           kind: 'audiooutput',
@@ -61,15 +69,18 @@ describe('media', () => {
 
     it('retrieves a list of audioinput/videoinput devices', async () => {
       await store.dispatch(MediaActions.enumerateDevices())
-      expect(store.getState().media.devices).toEqual([{
-        id: 'abcdef1',
-        name: 'Video Input',
-        type: 'videoinput',
-      }, {
-        id: 'abcdef2',
-        name: 'Audio Input',
-        type: 'audioinput',
-      }])
+      expect(store.getState().media.devices).toEqual({
+        audio: [{
+          id: 'abcdef2',
+          name: 'Audio Input',
+          type: 'audioinput',
+        }],
+        video: [{
+          id: 'abcdef1',
+          name: 'Video Input',
+          type: 'videoinput',
+        }],
+      })
     })
 
     it('handles errors', async () => {
@@ -79,7 +90,7 @@ describe('media', () => {
       } catch (err) {
         // do nothing
       }
-      expect(store.getState().media.devices).toEqual([])
+      expect(store.getState().media.devices).toEqual({ audio: [], video: [] })
       expect(store.getState().media.error).toBeTruthy()
     })
   })

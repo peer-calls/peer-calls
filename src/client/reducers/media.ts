@@ -1,9 +1,8 @@
 import omit from 'lodash/omit'
+import uniqBy from 'lodash/uniqBy'
 import { ConnectedAction, DialAction, DisconnectedAction, HangUpAction } from '../actions/CallActions'
 import { DeviceId, MediaAction, MediaDevice, MediaDeviceToggle, MediaEnumerateAction, MediaPlayAction, MediaStreamAction, SizeConstraint } from '../actions/MediaActions'
 import { DIAL, DialState, DIAL_STATE_DIALLING, DIAL_STATE_HUNG_UP, DIAL_STATE_IN_CALL, HANG_UP, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, MEDIA_ENUMERATE, MEDIA_PLAY, MEDIA_SIZE_CONSTRAINT, MEDIA_STREAM, SOCKET_CONNECTED, SOCKET_DISCONNECTED } from '../constants'
-
-
 
 export interface MediaConstraint {
   constraints: MediaTrackConstraints
@@ -12,7 +11,10 @@ export interface MediaConstraint {
 
 export interface MediaState {
   socketConnected: boolean
-  devices: MediaDevice[]
+  devices: {
+    audio: MediaDevice[]
+    video: MediaDevice[]
+  }
   video: MediaConstraint
   audio: MediaConstraint
   dialState: DialState
@@ -28,7 +30,10 @@ const defaultConstraints = {
 
 const defaultState: MediaState = {
   socketConnected: false,
-  devices: [],
+  devices: {
+    audio: [],
+    video: [],
+  },
   video: {
     enabled: true,
     constraints: defaultConstraints.video,
@@ -43,6 +48,26 @@ const defaultState: MediaState = {
   autoplayError: false,
 }
 
+function createDevices(devices: MediaDevice[]): MediaState['devices'] {
+  const ret: MediaState['devices']  = {
+    audio: [],
+    video: [],
+  }
+
+  devices.forEach(device => {
+    if (device.type === 'audioinput') {
+      ret.audio.push(device)
+    } else if (device.type === 'videoinput') {
+      ret.video.push(device)
+    }
+  })
+
+  ret.audio = uniqBy(ret.audio, d => d.id)
+  ret.video = uniqBy(ret.video, d => d.id)
+
+  return ret
+}
+
 export function handleEnumerate(
   state: MediaState,
   action: MediaEnumerateAction,
@@ -52,7 +77,7 @@ export function handleEnumerate(
       return {
         ...state,
         loading: false,
-        devices: action.payload,
+        devices: createDevices(action.payload),
       }
       case 'pending':
         return {

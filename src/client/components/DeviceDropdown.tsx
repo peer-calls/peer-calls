@@ -36,11 +36,6 @@ const labels = {
   video: 'Video',
 }
 
-const kindToDeviceType = {
-  audio: 'audioinput',
-  video: 'videoinput',
-}
-
 const qualityLow: SizeConstraint  = {
   width: 320,
   height: 240,
@@ -149,10 +144,7 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
   render() {
     const { mediaConstraint } = this.props
 
-    const deviceType = kindToDeviceType[this.props.kind]
-
     const devices = this.props.devices
-    .filter(device => device.type === deviceType)
 
     const { height } = mediaConstraint.constraints
 
@@ -295,7 +287,7 @@ function mapVideoStateToProps(state: State) {
     offIcon: MdVideocam,
     title: 'Camera',
     kind: 'video' as 'video',
-    devices: state.media.devices,
+    devices: state.media.devices.video,
     mediaConstraint: state.media.video,
     cameraStream,
   }
@@ -310,7 +302,7 @@ function mapAudioStateToProps(state: State) {
     offIcon: MdMic,
     title: 'Microphone',
     kind: 'audio' as 'audio',
-    devices: state.media.devices,
+    devices: state.media.devices.audio,
     mediaConstraint: state.media.audio,
     cameraStream,
   }
