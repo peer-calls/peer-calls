@@ -96,6 +96,10 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
         t.onended = () => {
           activeTracks--
           if (activeTracks === 0) {
+            this.setState({
+              shareConfig: false,
+            })
+
             this.props.onRemoveLocalStream(payload.stream, payload.type)
           }
         }
