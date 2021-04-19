@@ -20,7 +20,7 @@ import (
 var templatesFS embed.FS
 
 //nolint:gochecknoglobals
-//go:embed build/index.js index.js.LICENSE.txt build/style.css
+//go:embed build/index.js build/style.css
 var staticFS embed.FS
 
 //nolint:gochecknoglobals

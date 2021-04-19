@@ -6,6 +6,7 @@ module.exports = {
   ...common,
   devtool: 'inline-source-map',
   plugins: [
+    ...common.plugins,
     new webpack.SourceMapDevToolPlugin({
       filename: null,
       exclude: [/node_modules/],

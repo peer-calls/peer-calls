@@ -1,4 +1,5 @@
 const path = require('path')
+const webpack = require('webpack')
 
 module.exports = {
   entry: './src/client/index.tsx',
@@ -52,5 +53,10 @@ module.exports = {
     maxEntrypointSize: 650000,
     maxAssetSize: 650000,
   },
+  plugins: [
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
+    }),
+  ],
   mode: 'development',
 }
