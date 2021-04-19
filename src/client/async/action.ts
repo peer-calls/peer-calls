@@ -44,7 +44,7 @@ export type GetAllActions<T> = {
 export type GetAllAsyncActions<T> = GetAsyncAction<GetAllActions<T>>
 
 function isPromise(value: unknown): value is Promise<unknown> {
-  return value && typeof value === 'object' &&
+  return !!value && typeof value === 'object' &&
     typeof (value as Promise<unknown>).then === 'function'
 }
 

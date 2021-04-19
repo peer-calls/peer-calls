@@ -33,7 +33,9 @@ export function removeChild<
   parentKey: Parent,
   childKey: Child,
 ): Record<Parent, Record<Child, Value>> {
-  let inner = obj[parentKey] || {}
+  let inner = (obj[parentKey] || {}) as Record<Child, Value>
+  // I don't want to fight with you TypeScript, but sometimes you make my life
+  // damn hard.
   inner = omit(inner, childKey) as Record<Child, Value>
 
 

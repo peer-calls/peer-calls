@@ -2,10 +2,10 @@
 
 export function deferred<T>(): [
   Promise<T>,
-  (value: T | PromiseLike<T> | undefined) => void,
+  (value: T | PromiseLike<T>) => void,
   (reason?: any) => void
 ] {
-  let resolve: (value: T | PromiseLike<T> | undefined) => void
+  let resolve: (value: T | PromiseLike<T>) => void
   let reject: (reason?: any) => void
   const promise = new Promise<T>((res, rej) => {
     resolve = res

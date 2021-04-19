@@ -8,6 +8,9 @@ const debug = _debug('peercalls')
 
 export type MediaKind = 'audio' | 'video'
 
+export const MediaKindVideo: MediaKind = 'video'
+export const MediaKindAudio: MediaKind = 'audio'
+
 export interface MediaDevice {
   id: string
   name: string

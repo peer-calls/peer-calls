@@ -37,17 +37,7 @@ export interface ToolbarState {
   encrypted: boolean
 }
 
-interface ShareData {
-  title: string
-  text: string
-  url: string
-}
-
-interface ShareNavigator extends Navigator {
-  share: (data: ShareData) => Promise<void>
-}
-
-function canShare(navigator: Navigator): navigator is ShareNavigator {
+function canShare(navigator: Navigator): boolean {
   return 'share' in navigator
 }
 

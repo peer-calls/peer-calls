@@ -108,7 +108,7 @@ describe('components/Video', () => {
     describe('src', () => {
       beforeEach(async () => {
         await render()
-        delete video.videoRef.current!.srcObject
+        delete (video.videoRef.current! as {srcObject?: unknown}).srcObject
       })
       it('updates src only when changed', () => {
         mediaStream = new MediaStream()
