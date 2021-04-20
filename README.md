@@ -161,7 +161,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address. By default listens on all interfaces.                  |           |
 | `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port. By default uses a random port.                          | `0`       |
 | `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_ADDR` | string | When set, will listen for external RTP, Data and Metadata UDP streams |           |
-| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).  |           |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).  |           |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MIN` | int    | Defines ICE UDP range start to use for UDP host candidates.                  | `0`       |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MAX` | int    | Defines ICE UDP range end to use for UDP host candidates.                    | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |
