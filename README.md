@@ -49,9 +49,9 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Add support for passive ICE TCP candidates
 - [x] End-to-End Encryption (E2EE) using Insertable Streams. See [#142](https://github.com/peer-calls/peer-calls/pull/142).
 
-# Requirements
+# Requirements for Development
 
- - [Node.js 8][node] or [Node.js 12][node]
+ - [Node.js 14][node]
  - [Go 1.16][go]
 
 Alternatively, [Docker][docker] can be used to run Peer Calls.

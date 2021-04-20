@@ -90,6 +90,7 @@
     "webpack": "^5.33.2",
     "webpack-bundle-analyzer": "^4.4.1",
     "webpack-cli": "^4.6.0",
-    "webrtc-adapter": "^7.7.1"
+    "webrtc-adapter": "^7.7.1",
+    "worker-loader": "^3.0.8"
   }
 }
