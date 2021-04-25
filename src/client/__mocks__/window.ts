@@ -82,3 +82,29 @@ export const config: ClientConfig = {
   network: 'sfu',
   nickname: 'nick1234',
 }
+
+export class AudioContext {
+  audioWorklet: AudioWorklet
+
+  createMediaStreamSource: (
+    stream: MediaStream) => MediaStreamTrackAudioSourceNode
+
+  constructor() {
+    this.audioWorklet = {
+      addModule: jest.fn(),
+    }
+
+    this.createMediaStreamSource = jest.fn().mockImplementation(() => {
+      return {
+        connect: jest.fn(),
+        disconnect: jest.fn(),
+      }
+    })
+  }
+}
+
+export class AudioWorkletNode {
+  port = {}
+
+  constructor(readonly context: BaseAudioContext, readonly name: string) {}
+}

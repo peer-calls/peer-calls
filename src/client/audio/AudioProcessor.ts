@@ -1,6 +1,6 @@
 import _debug from 'debug'
 import { AudioMessage, VUMeter } from './types'
-import { config } from '../window'
+import { AudioContext, AudioWorkletNode, config, MediaStream } from '../window'
 
 const debug = _debug('peercalls')
 
@@ -29,7 +29,7 @@ export class AudioProcessor {
     }
   }
 
-  private async unsafeInit() {
+  async unsafeInit() {
     if (this.ctx) {
       return
     }
@@ -60,6 +60,7 @@ export class AudioProcessor {
       debug('AudioProcessor.unsafeAddTrack, track is not audio: %s', streamId)
       return
     }
+
 
     const stream = new MediaStream()
     stream.addTrack(track)
