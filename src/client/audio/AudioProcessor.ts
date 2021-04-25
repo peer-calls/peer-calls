@@ -61,7 +61,6 @@ export class AudioProcessor {
       return
     }
 
-
     const stream = new MediaStream()
     stream.addTrack(track)
 
