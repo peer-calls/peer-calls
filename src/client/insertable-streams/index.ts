@@ -213,8 +213,7 @@ const workerFunc = () => (self: EncryptionWorker) => {
     // cannot use typeof here because TypeScript converts it into a function
     // and this function call fails.
 
-    // eslint-disable-next-line
-    return frame && !!(frame as any).type
+    return !!frame && !!(frame as {type: RTCEncodedVideoFrameType}).type
   }
 
   function getCryptoOffset<T extends RTCEncodedFrame>(frame: T): number {

@@ -71,8 +71,11 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
+		log.Info("Remove peer", nil)
+
 		peerManager.Remove(tr.ClientID())
 
+		// FIXME if we have server transports PeerManager will never be closed.
 		if peerManager.Size() == 0 {
 			peerManager.Close()
 			delete(m.peerManagers, room)
@@ -83,6 +86,9 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 }
 
 func (m *TracksManager) Sub(params SubParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	peerManager, ok := m.peerManagers[params.Room]
 	if !ok {
 		return errors.Errorf("room not found: %s", params.Room)
@@ -94,6 +100,9 @@ func (m *TracksManager) Sub(params SubParams) error {
 }
 
 func (m *TracksManager) Unsub(params SubParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	peerManager, ok := m.peerManagers[params.Room]
 	if !ok {
 		return errors.Errorf("room not found: %s", params.Room)

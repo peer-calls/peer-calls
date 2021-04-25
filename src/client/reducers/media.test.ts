@@ -84,7 +84,9 @@ describe('media', () => {
     })
 
     it('handles errors', async () => {
-      delete navigator.mediaDevices.enumerateDevices
+      delete (
+        navigator.mediaDevices as {enumerateDevices?: unknown}
+      ).enumerateDevices
       try {
         await store.dispatch(MediaActions.enumerateDevices())
       } catch (err) {

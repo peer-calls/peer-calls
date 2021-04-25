@@ -60,6 +60,7 @@ func TestMessage_JSON(t *testing.T) {
 				Signal: &message.UserSignal{
 					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
+						Type: message.SignalTypeTransceiverRequest,
 						TransceiverRequest: &message.TransceiverRequest{
 							Kind: transport.TrackKindAudio,
 							Init: message.TransceiverInit{
@@ -77,6 +78,7 @@ func TestMessage_JSON(t *testing.T) {
 				Signal: &message.UserSignal{
 					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
+						Type:        message.SignalTypeRenegotiate,
 						Renegotiate: true,
 					},
 				},
@@ -89,7 +91,7 @@ func TestMessage_JSON(t *testing.T) {
 				Signal: &message.UserSignal{
 					PeerID: identifiers.ClientID("client123"),
 					Signal: message.Signal{
-						Type: webrtc.SDPTypeOffer,
+						Type: message.SignalTypeOffer,
 						SDP:  "-sdp-",
 					},
 				},

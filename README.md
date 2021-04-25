@@ -49,9 +49,9 @@ published on NPM since the server is no longer written in NodeJS.
 - [x] Add support for passive ICE TCP candidates
 - [x] End-to-End Encryption (E2EE) using Insertable Streams. See [#142](https://github.com/peer-calls/peer-calls/pull/142).
 
-# Requirements
+# Requirements for Development
 
- - [Node.js 8][node] or [Node.js 12][node]
+ - [Node.js 14][node]
  - [Go 1.16][go]
 
 Alternatively, [Docker][docker] can be used to run Peer Calls.
@@ -145,6 +145,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 | Variable                             | Type   | Description                                                                  | Default   |
 |--------------------------------------|--------|------------------------------------------------------------------------------|-----------|
 | `PEERCALLS_LOG`                      | csv    | Enables or disables logging for certain modules                              | `-sdp,-ws,-nack,-rtp,-rtcp,-pion:*:trace,-pion:*:debug,-pion:*:info,*` |
+| `PEERCALLS_FS`                       | string | When set to a non-empty value, use the path to find resource files           |           |
 | `PEERCALLS_BASE_URL`                 | string | Base URL of the application                                                  |           |
 | `PEERCALLS_BIND_HOST`                | string | IP to listen to                                                              | `0.0.0.0` |
 | `PEERCALLS_BIND_PORT`                | int    | Port to listen to                                                            | `3000`    |
@@ -161,7 +162,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_NETWORK_SFU_TCP_BIND_ADDR`| string | ICE TCP bind address. By default listens on all interfaces.                  |           |
 | `PEERCALLS_NETWORK_SFU_TCP_LISTEN_PORT`| int  | ICE TCP listen port. By default uses a random port.                          | `0`       |
 | `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_ADDR` | string | When set, will listen for external RTP, Data and Metadata UDP streams |           |
-| `PEERCALLS_NETWORK_SFU_TRANSPORT_LISTEN_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).  |           |
+| `PEERCALLS_NETWORK_SFU_TRANSPORT_NODES`| csv    | When set, will transmit media and data to designated `host:port`(s).  |           |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MIN` | int    | Defines ICE UDP range start to use for UDP host candidates.                  | `0`       |
 | `PEERCALLS_NETWORK_SFU_UDP_PORT_MAX` | int    | Defines ICE UDP range end to use for UDP host candidates.                    | `0`       |
 | `PEERCALLS_ICE_SERVER_URLS`          | csv    | List of ICE Server URLs                                                      |           |

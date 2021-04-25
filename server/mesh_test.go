@@ -11,7 +11,6 @@ import (
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/message"
-	"github.com/pion/webrtc/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -207,7 +206,7 @@ func TestMesh_event_signal(t *testing.T) {
 	otherClientID := identifiers.ClientID("other-user")
 
 	signal := message.Signal{
-		Type: webrtc.SDPTypeOffer,
+		Type: message.SignalTypeOffer,
 		SDP:  "-sdp-",
 	}
 

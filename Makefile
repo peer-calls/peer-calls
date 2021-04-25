@@ -13,3 +13,8 @@ coverage:
 
 report:
 	go tool cover -html=coverage.out
+
+lint: lint-env-variables
+
+lint-env-variables:
+	scripts/lint-env-variables.sh

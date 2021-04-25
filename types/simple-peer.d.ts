@@ -1,3 +1,5 @@
+// Fix eslint complaining about Instance not being used here.
+// eslint-disable-next-line
 import { Instance } from 'simple-peer'
 
 declare module 'simple-peer' {

@@ -1,10 +1,11 @@
 import classnames from 'classnames'
 import isEqual from 'lodash/isEqual'
-import React from 'react'
+import React, { Context } from 'react'
 import { IconType } from 'react-icons'
 import { MdMic, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked, MdVideocam, MdVideocamOff } from 'react-icons/md'
-import { connect, ReactReduxContext } from 'react-redux'
-import { enableMediaTrack, enumerateDevices, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint } from '../actions/MediaActions'
+import { connect, ReactReduxContext, ReactReduxContextValue } from 'react-redux'
+import { AnyAction } from 'redux'
+import { enableMediaTrack, enumerateDevices, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio } from '../actions/MediaActions'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID } from '../constants'
 import { MediaConstraint } from '../reducers/media'
 import { LocalStream } from '../reducers/streams'
@@ -63,7 +64,8 @@ export interface DeviceDropdownState {
 export class DeviceDropdown
 extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
   // hacky way to access the store.getState()
-  static contextType = ReactReduxContext
+  static contextType: Context<ReactReduxContextValue<Store, AnyAction>> =
+    ReactReduxContext
 
   state: DeviceDropdownState = {
     open: false,
@@ -286,7 +288,7 @@ function mapVideoStateToProps(state: State) {
     icon: MdVideocamOff,
     offIcon: MdVideocam,
     title: 'Camera',
-    kind: 'video' as 'video',
+    kind: MediaKindVideo,
     devices: state.media.devices.video,
     mediaConstraint: state.media.video,
     cameraStream,
@@ -301,7 +303,7 @@ function mapAudioStateToProps(state: State) {
     icon: MdMicOff,
     offIcon: MdMic,
     title: 'Microphone',
-    kind: 'audio' as 'audio',
+    kind: MediaKindAudio,
     devices: state.media.devices.audio,
     mediaConstraint: state.media.audio,
     cameraStream,

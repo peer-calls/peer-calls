@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"path"
 	"strconv"
 
 	"github.com/juju/errors"
@@ -90,6 +92,15 @@ func (h *serverHandler) configure() (err error) {
 	c := h.config
 
 	log.Info(fmt.Sprintf("Using config: %+v", c), nil)
+
+	if c.FS != "" {
+		h.props.Embed = server.Embed{
+			Templates: os.DirFS(path.Join(c.FS, "server", "templates")),
+			Static:    os.DirFS(path.Join(c.FS, "build")),
+			Resources: os.DirFS(path.Join(c.FS, "res")),
+		}
+	}
+
 	tracks := sfu.NewTracksManager(log, c.Network.SFU.JitterBuffer)
 
 	roomManagerFactory := server.NewRoomManagerFactory(server.RoomManagerFactoryParams{

@@ -3,6 +3,12 @@ import _debug from 'debug'
 const debug = _debug('peercalls')
 
 export function getBrowserFeatures() {
+  const audioWorklets =
+    typeof AudioContext === 'function' &&
+    typeof AudioContext.prototype.createMediaStreamSource === 'function' &&
+    typeof AudioWorklet === 'function' &&
+    typeof AudioWorklet.prototype.addModule === 'function' &&
+    typeof AudioWorkletNode === 'function'
   const media =
     'mediaDevices' in navigator &&
     typeof navigator.mediaDevices === 'object' &&
@@ -25,8 +31,8 @@ export function getBrowserFeatures() {
   const webworkers =
     typeof Worker === 'function'
 
-
   const features = {
+    audioWorklets,
     media,
     mediaStream,
     buffers,

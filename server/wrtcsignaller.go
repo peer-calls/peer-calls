@@ -171,6 +171,7 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 
 	payload := message.Signal{
 		Candidate: &candidate,
+		Type:      message.SignalTypeCandidate,
 	}
 
 	s.log.Debug("Got ICE candidate from server peer", logger.Ctx{
@@ -181,6 +182,8 @@ func (s *Signaller) handleICECandidate(c *webrtc.ICECandidate) {
 }
 
 func (s *Signaller) Signal(signal message.Signal) error {
+	sdpType, sdpTypeOK := signal.Type.SDPType()
+
 	switch {
 	case signal.Candidate != nil:
 		s.log.Debug("Remote candidate", logger.Ctx{
@@ -203,14 +206,14 @@ func (s *Signaller) Signal(signal message.Signal) error {
 		})
 		s.handleTransceiverRequest(*signal.TransceiverRequest)
 		return nil
-	case signal.Type > 0:
+	case sdpTypeOK:
 		s.log.Trace("Remote sdp", logger.Ctx{
 			"signal_type": signal.Type,
 			"sdp":         signal.SDP,
 		})
 
 		sessionDescription := webrtc.SessionDescription{
-			Type: signal.Type,
+			Type: sdpType,
 			SDP:  signal.SDP,
 		}
 
@@ -259,8 +262,13 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 		"sdp":         answer.SDP,
 	})
 
+	signalType, ok := message.NewSignalTypeFromSDPType(answer.Type)
+	if !ok {
+		return errors.Errorf("unknown answer type: %s", answer.Type)
+	}
+
 	s.onSignal(message.Signal{
-		Type: answer.Type,
+		Type: signalType,
 		SDP:  answer.SDP,
 	})
 
@@ -272,6 +280,7 @@ func (s *Signaller) handleRemoteOffer(sessionDescription webrtc.SessionDescripti
 func (s *Signaller) handleLocalRequestNegotiation() {
 	s.log.Trace("Send negotiation request to initiator", nil)
 	s.onSignal(message.Signal{
+		Type:        message.SignalTypeRenegotiate,
 		Renegotiate: true,
 	})
 }
@@ -295,8 +304,14 @@ func (s *Signaller) handleLocalOffer(offer webrtc.SessionDescription, err error)
 		return
 	}
 
+	signalType, ok := message.NewSignalTypeFromSDPType(offer.Type)
+	if !ok {
+		s.log.Error("Unfamiliar offer type", errors.Errorf("type: %s", offer.Type.String()), nil)
+		return
+	}
+
 	s.onSignal(message.Signal{
-		Type: offer.Type,
+		Type: signalType,
 		SDP:  offer.SDP,
 	})
 
@@ -317,6 +332,7 @@ func (s *Signaller) SendTransceiverRequest(kind webrtc.RTPCodecType, direction w
 	if !s.initiator {
 		s.log.Trace("Send transceiver request to initiator", nil)
 		s.onSignal(message.Signal{
+			Type: message.SignalTypeTransceiverRequest,
 			TransceiverRequest: &message.TransceiverRequest{
 				Kind: transport.NewTrackKind(kind),
 				Init: message.TransceiverInit{

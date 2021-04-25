@@ -1,5 +1,6 @@
 import _debug from 'debug'
 import { AsyncAction, makeAction } from '../async'
+import { audioProcessor } from '../audio'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, MEDIA_ENUMERATE, MEDIA_SIZE_CONSTRAINT, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE } from '../constants'
 import { MediaStream } from '../window'
 import { AddLocalStreamPayload, StreamType, StreamTypeCamera, StreamTypeDesktop } from './StreamActions'
@@ -7,6 +8,9 @@ import { AddLocalStreamPayload, StreamType, StreamTypeCamera, StreamTypeDesktop 
 const debug = _debug('peercalls')
 
 export type MediaKind = 'audio' | 'video'
+
+export const MediaKindVideo: MediaKind = 'video'
+export const MediaKindAudio: MediaKind = 'audio'
 
 export interface MediaDevice {
   id: string
@@ -232,6 +236,9 @@ export function enableMediaTrack(kind: MediaKind): MediaTrackEnableAction {
 export const getMediaStream = makeAction(
   MEDIA_STREAM,
   async (constraints: MediaStreamConstraints) => {
+    // Need to init audioProcessor on user action (e.g. click).
+    await audioProcessor.init()
+
     if (!constraints.audio && !constraints.video) {
       const payload: AddLocalStreamPayload = {
         stream: new MediaStream(),

@@ -116,8 +116,8 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(j.Payload, m.Payload.Users)
 		err = errors.Trace(err)
 	default:
-		err = errors.Annotatef(ErrUnknownMessageType, "message: %+v", m)
+		err = errors.Trace(ErrUnknownMessageType)
 	}
 
-	return errors.Trace(err)
+	return errors.Annotatef(err, "payload: %s", j.Payload)
 }

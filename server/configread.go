@@ -69,6 +69,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvString(&c.TLS.Cert, prefix+"TLS_CERT")
 	setEnvString(&c.TLS.Key, prefix+"TLS_KEY")
 
+	setEnvString(&c.FS, prefix+"FS")
+
 	setEnvStoreType(&c.Store.Type, prefix+"STORE_TYPE")
 	setEnvString(&c.Store.Redis.Host, prefix+"STORE_REDIS_HOST")
 	setEnvInt(&c.Store.Redis.Port, prefix+"STORE_REDIS_PORT")
