@@ -1,0 +1,33 @@
+.vu-meter
+  height: 12px;
+  width: 12px;
+  // background-color: #bbb
+  border-radius: 50%
+  display: inline-block
+
+  transition-property: background-color, box-shadow, opacity
+  transition-duration: 200ms
+  transition-timing-function: linear
+
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5)
+
+  &.vu-meter-level-0
+    background-color: $color-info
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.0)
+    opacity: 0
+  &.vu-meter-level-1
+    background-color: $color-info
+    opacity: 0.4
+  &.vu-meter-level-2
+    background-color: $color-info
+    opacity: 0.6
+  &.vu-meter-level-3
+    background-color: $color-warning
+    opacity: 0.8
+  &.vu-meter-level-4
+    background-color: $color-warning
+    opacity: 1.0
+  &.vu-meter-level-5
+    opacity: 1.0
+    background-color: $color-error
+

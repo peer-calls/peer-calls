@@ -11,6 +11,7 @@ import { PubTrack, PubTrackEvent, TrackEventType, TrackKind } from '../SocketEve
 import { createObjectURL, MediaStream, revokeObjectURL, config } from '../window'
 
 import { insertableStreamsCodec } from '../insertable-streams'
+import { audioProcessor } from '../audio'
 
 import { RecordSet, setChild, removeChild } from './recordSet'
 
@@ -93,6 +94,11 @@ function addLocalStream (
     stopStream(existingStream)
   }
 
+  stream.getAudioTracks().forEach(track => {
+    // We expect just one audio track in stream.
+    audioProcessor.replaceTrack(payload.stream.id, track)
+  })
+
   return {
     ...state,
     localStreams: {
@@ -112,6 +118,8 @@ function removeLocalStream (
   if (!existing) {
     return state
   }
+
+  audioProcessor.removeTrack(existing.stream.id)
 
   stopStream(existing)
   return {
@@ -152,6 +160,10 @@ function removeTrack (
   // NOTE: we do not remove event listeners from the track because it is
   // possible that it was just temporarily muted.
   remoteStream.stream.removeTrack(track)
+
+  if (track.kind === 'audio') {
+    audioProcessor.removeTrack(streamId)
+  }
 
   if (remoteStream.stream.getTracks().length === 0) {
     stopStream(remoteStream)
@@ -209,6 +221,10 @@ function addTrack (
     streamId,
     peerId: originalPeerId,
   })
+
+  if (track.kind === 'audio') {
+    audioProcessor.addTrack(streamId, track)
+  }
 
   const remoteStreamsKeysByClientId = setChild(
     state.remoteStreamsKeysByClientId,
@@ -411,6 +427,10 @@ function setLocalStreamMirror(
         },
       },
     }
+  }
+
+  if (track && track.kind === 'audio') {
+    audioProcessor.replaceTrack(type, track)
   }
 
   return state

@@ -6,6 +6,8 @@ import { WindowState } from '../reducers/windowStates'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { MdCrop, MdZoomIn, MdZoomOut, MdMenu } from 'react-icons/md'
 
+import VUMeter from './VUMeter'
+
 export interface VideoProps {
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
   nickname: string
@@ -25,7 +27,7 @@ export default class Video extends React.PureComponent<VideoProps> {
     muted: false,
     mirrored: false,
   }
-  handleClick: ReactEventHandler<HTMLVideoElement> = e => {
+  handleClick: ReactEventHandler<HTMLVideoElement> = () => {
     this.props.play()
   }
   componentDidMount () {
@@ -67,6 +69,8 @@ export default class Video extends React.PureComponent<VideoProps> {
       mirrored,
     })
 
+    const streamId = this.props.stream && this.props.stream.streamId
+
     return (
       <div className={className}>
         <video
@@ -78,6 +82,7 @@ export default class Video extends React.PureComponent<VideoProps> {
           ref={this.videoRef}
         />
         <div className='video-footer'>
+          <VUMeter streamId={streamId} />
           <span className='nickname'>{this.props.nickname}</span>
           <Dropdown label={<MdMenu />}>
             <li className='action-minimize' onClick={this.handleMinimize}>

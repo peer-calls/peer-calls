@@ -75,9 +75,11 @@ type PrometheusConfig struct {
 }
 
 type Config struct {
-	BaseURL    string           `yaml:"base_url"`
-	BindHost   string           `yaml:"bind_host"`
-	BindPort   int              `yaml:"bind_port"`
+	BaseURL  string `yaml:"base_url"`
+	BindHost string `yaml:"bind_host"`
+	BindPort int    `yaml:"bind_port"`
+	// When FS is non empty, it will be used as a root path to the resource files.
+	FS         string           `yaml:"fs"`
 	ICEServers []ICEServer      `yaml:"ice_servers"`
 	TLS        TLSConfig        `yaml:"tls"`
 	Store      StoreConfig      `yaml:"store"`

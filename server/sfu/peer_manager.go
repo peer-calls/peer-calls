@@ -566,7 +566,9 @@ func (t *PeerManager) Size() int {
 }
 
 func (t *PeerManager) Close() <-chan struct{} {
-	ch := make(chan struct{}, 1)
+	t.log.Info("Close PeerManager", nil)
+
+	ch := make(chan struct{})
 
 	t.mu.Lock()
 
@@ -585,6 +587,10 @@ func (t *PeerManager) Close() <-chan struct{} {
 
 	go func() {
 		t.wg.Wait()
+		// TODO there is a race condition here but I was unable to reproduce it the
+		// second time. This method will get called twice if we allow two clients
+		// with the same id to join. It panics because it tries to close the closed
+		// channel twice.
 		t.pubsub.Close()
 
 		close(ch)
