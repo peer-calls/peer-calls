@@ -1,6 +1,6 @@
 BUILD_FLAGS := -ldflags "-X main.GitDescribe=$(shell git describe --always --tags --dirty)" -o peer-calls
 
-.PHONY: coverage report build pack pack-linux
+.PHONY: coverage report build build-linux lint lint-env-variables
 
 build:
 	go build $(BUILD_FLAGS)
