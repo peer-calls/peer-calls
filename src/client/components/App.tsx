@@ -11,9 +11,9 @@ import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
 import { StreamsState } from '../reducers/streams'
 import { WindowStates } from '../reducers/windowStates'
-import Chat from './Chat'
 import { Media } from './Media'
 import Notifications from './Notifications'
+import Sidebar from './Sidebar'
 import Toolbar from './Toolbar'
 import Videos from './Videos'
 
@@ -50,14 +50,14 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       chatVisible: true,
     })
   }
-  handleHideChat = () => {
+  handleHideSidebar = () => {
     this.setState({
       chatVisible: false,
     })
   }
-  handleToggleChat = () => {
+  handleToggleSidebar = () => {
     return this.state.chatVisible
-      ? this.handleHideChat()
+      ? this.handleHideSidebar()
       : this.handleShowChat()
   }
   componentDidMount () {
@@ -95,7 +95,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           dialState={this.props.dialState}
           messagesCount={messagesCount}
           nickname={nicknames[constants.ME]}
-          onToggleChat={this.handleToggleChat}
+          onToggleChat={this.handleToggleSidebar}
           onHangup={this.onHangup}
           desktopStream={localStreams[StreamTypeDesktop]}
           onGetDesktopStream={this.props.getDesktopStream}
@@ -106,10 +106,10 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           dismiss={dismissNotification}
           notifications={notifications}
         />
-        <Chat
+        <Sidebar
           messages={messages}
           nicknames={nicknames}
-          onClose={this.handleHideChat}
+          onClose={this.handleHideSidebar}
           sendText={sendText}
           sendFile={sendFile}
           visible={this.state.chatVisible}
