@@ -40,6 +40,10 @@ export default class Videos extends React.PureComponent<VideosProps> {
     })
   }
   private getStreams() {
+    // FIXME use reselect and allow this information to be
+    // passed on to these components:
+    //   1. Users
+    //   2. Videos (this)
     const { windowStates, nicknames, streams } = this.props
 
     const minimized: StreamProps[] = []

@@ -1,41 +1,13 @@
-.chat-header
-  background: #42a7a1
-  color: #fff
-  height: 52px
-  line-height: 52px
-
-  .chat-close
-    font-size: 24px
-    height: 100%
-    line-height: 35px
-    padding: 12px
-    text-align: center
-    float: left
-    width: 64px
-    cursor: pointer
-
-    .chat-button
-      float: right
-      a
-        font-size: 24px
-        color: #fff
-
-  .chat-title
-    font-size: 18px
-    font-weight: 500
-    color: #fff
-    text-overflow: ellipsis
-    text-transform: uppercase
+.chat
+  display: flex
+  flex-direction: column
+  width: 100%
 
 .chat-history
-  left: 0
   overflow-y: auto
-  position: absolute
-  right: 0
-  top: 52px
-  bottom: 130px
   padding: 20px 20px 0
-  background-color: #fff
+  // 0 is important, it ensures the scrollbar appears.
+  flex: 1 1 0
 
   .chat-empty
     color: #f6f6f6
@@ -149,10 +121,7 @@
           top: 10px
 
 .chat-controls
-  position: absolute
-  bottom: 0
-  left: 0
-  right: 0
+  flex-grow: 0
   margin-top: 10px
   background-color: #fff
   border-top: 1px solid #f6f6f6

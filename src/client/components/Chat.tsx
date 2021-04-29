@@ -45,7 +45,7 @@ function MessageEntry (props: MessageProps) {
 export interface ChatProps {
   messages: Message[]
   nicknames: Nicknames
-  // visible: boolean
+  visible: boolean
   sendFile: (file: File) => void
   sendText: (message: string) => void
 }
@@ -60,17 +60,17 @@ export default class Chat extends React.PureComponent<ChatProps> {
   }
   componentDidMount () {
     this.scrollToBottom()
-    // this.focus()
+    this.focus()
   }
   componentDidUpdate () {
     this.scrollToBottom()
-    // this.focus()
+    this.focus()
   }
-  // focus() {
-  //   if (this.props.visible) {
-  //     this.inputRef.current?.textArea.current?.focus()
-  //   }
-  // }
+  focus() {
+    if (this.props.visible) {
+      this.inputRef.current?.textArea.current?.focus()
+    }
+  }
   render () {
     const { messages, sendFile, sendText } = this.props
     return (

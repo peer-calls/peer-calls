@@ -15,7 +15,10 @@ class User extends React.PureComponent<UserProps> {
   render() {
     return (
       <li>
-        {this.props.nickname}
+        <label>
+          <input type='checkbox' />
+          {this.props.nickname}
+        </label>
       </li>
     )
   }

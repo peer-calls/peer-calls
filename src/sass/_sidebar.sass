@@ -10,6 +10,10 @@
   width: 320px
   margin: 0 auto
   z-index: $z-index-sidebar
+  background-color: #fff
+
+  display: flex
+  flex-direction: column
 
   &.show
     -ms-transform: none
@@ -26,6 +30,7 @@
   color: #fff
   height: 52px
   line-height: 52px
+  flex-grow: 0
 
   .sidebar-close
     font-size: 24px
@@ -43,10 +48,44 @@
         font-size: 24px
         color: #fff
 
-  .sidebar-title
+  .sidebar-menu
     font-size: 18px
     font-weight: 500
     color: #fff
     text-overflow: ellipsis
     text-transform: uppercase
 
+    padding: 0
+    margin: 0
+    display: flex
+    list-style-type: none
+
+    li
+      cursor: pointer
+      position: relative
+
+      svg
+        line-height: 1rem
+
+      &::after
+        content: ' '
+        position: absolute
+        left: 50%
+        right: 50%
+        bottom: 0
+        height: 2px
+        background-color: transparent
+        transition: left 100ms ease-in, right 100ms ease-out;
+
+      &.active::after
+        background-color: #fff
+        left: 0
+        right: 0
+
+    li + li
+      padding-left: 0.5rem
+
+.sidebar-content
+  display: flex
+  flex-grow: 1
+  flex-shrink: 1

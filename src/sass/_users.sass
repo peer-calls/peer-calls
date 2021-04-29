@@ -1,0 +1,21 @@
+.users
+  list-style-type: none
+  padding: 0
+  margin: 0
+  display: flex
+  flex-direction: column
+
+  // 0 is important, it ensures the scrollbar appears.
+  flex: 1 1 0
+  overflow-y: auto
+
+  li
+    input[type='checkbox']
+      margin-right: 1rem
+    label
+      display: block
+      padding: 1rem
+      width: 100%
+      border-bottom: 1px solid #e6e6e6
+      user-select: none
+      cursor: pointer

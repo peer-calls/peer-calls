@@ -95,7 +95,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           dialState={this.props.dialState}
           messagesCount={messagesCount}
           nickname={nicknames[constants.ME]}
-          onToggleChat={this.handleToggleSidebar}
+          onToggleSidebar={this.handleToggleSidebar}
           onHangup={this.onHangup}
           desktopStream={localStreams[StreamTypeDesktop]}
           onGetDesktopStream={this.props.getDesktopStream}

@@ -150,6 +150,7 @@ body.call
   @import '_video'
   @import '_sidebar'
   @import '_chat'
+  @import '_users'
   @import '_media'
   @import '_message'
   @import '_toolbar'
@@ -171,8 +172,12 @@ body.call
   opacity: 0.01
   transition: opacity 100ms ease-in
 
+// TODO rename to sidebar-visible
 .app .chat-visible
   right: 320px
+
+  @media (max-width: 375.98px)
+    right: 0
 
 noscript
   position: absolute
