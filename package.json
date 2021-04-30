@@ -81,6 +81,7 @@
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.3.0",
     "regenerator-runtime": "^0.13.7",
+    "reselect": "^4.0.0",
     "rimraf": "^3.0.2",
     "sass": "^1.32.11",
     "screenfull": "^5.1.0",

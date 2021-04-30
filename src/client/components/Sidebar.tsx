@@ -1,6 +1,7 @@
 import classnames from 'classnames'
 import React from 'react'
 import { MdClose } from 'react-icons/md'
+import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
 import Chat from './Chat'
@@ -15,6 +16,9 @@ export interface SidebarProps {
   nicknames: Nicknames
   sendFile: (file: File) => void
   sendText: (message: string) => void
+
+  // Users
+  onMinimizeToggle: (payload: MinimizeTogglePayload) => void
 }
 
 export interface SidebarState {
@@ -38,6 +42,7 @@ extends React.PureComponent<SidebarProps, SidebarState> {
   }
   render () {
     const { messages, nicknames, sendFile, sendText } = this.props
+    const { onMinimizeToggle } = this.props
     const { panel } = this.state
     return (
       <div className={classnames('sidebar', {
@@ -73,7 +78,9 @@ extends React.PureComponent<SidebarProps, SidebarState> {
             />
           )}
           {panel === panelUsers && (
-            <Users nicknames={nicknames} />
+            <Users
+              onMinimizeToggle={onMinimizeToggle}
+            />
           )}
         </div>
       </div>

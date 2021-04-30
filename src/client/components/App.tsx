@@ -78,6 +78,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       nicknames,
       messages,
       messagesCount,
+      minimizeToggle,
       sendFile,
       sendText,
     } = this.props
@@ -110,6 +111,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           messages={messages}
           nicknames={nicknames}
           onClose={this.handleHideSidebar}
+          onMinimizeToggle={minimizeToggle}
           sendText={sendText}
           sendFile={sendFile}
           visible={this.state.chatVisible}
@@ -117,11 +119,8 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         <Media />
         {this.props.dialState !== constants.DIAL_STATE_HUNG_UP &&
           <Videos
-            onMinimizeToggle={this.props.minimizeToggle}
-            streams={this.props.streams}
+            onMinimizeToggle={minimizeToggle}
             play={this.props.play}
-            nicknames={this.props.nicknames}
-            windowStates={this.props.windowStates}
           />
         }
       </div>
