@@ -174,7 +174,7 @@ export default class Toolbar extends React.PureComponent<
             <React.Fragment>
               <ToolbarButton
                 badge={unreadCount}
-                className='chat'
+                className='toolbar-btn-chat'
                 key='chat'
                 icon={MdQuestionAnswer}
                 blink={!this.props.chatVisible && hasUnread}

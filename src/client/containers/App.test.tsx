@@ -73,7 +73,7 @@ describe('App', () => {
     it('toggles chat state', async () => {
       state.media!.dialState = constants.DIAL_STATE_IN_CALL
       await render()
-      const chatButton = node.querySelector('.toolbar .button.chat')!
+      const chatButton = node.querySelector('.toolbar .toolbar-btn-chat')!
       expect(chatButton).toBeTruthy()
       TestUtils.Simulate.click(chatButton)
       TestUtils.Simulate.click(chatButton)

@@ -94,7 +94,7 @@ describe('components/Toolbar', () => {
   describe('handleChatClick', () => {
     it('toggle chat', () => {
       expect(onToggleChat.mock.calls.length).toBe(0)
-      const button = node.querySelector('.chat')!
+      const button = node.querySelector('.toolbar-btn-chat')!
       TestUtils.Simulate.click(button)
       expect(onToggleChat.mock.calls.length).toBe(1)
     })
