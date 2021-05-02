@@ -4,7 +4,6 @@ import { connect } from 'react-redux'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { getStreamsByState, StreamProps } from '../selectors'
 import { State } from '../store'
-import Video from './Video'
 import uniqueId from 'lodash/uniqueId'
 
 export interface UsersProps {
@@ -36,14 +35,14 @@ class User extends React.PureComponent<UserProps> {
   render() {
     return (
       <li>
-        <input
-          id={this.uniqueId}
-          type='checkbox'
-          checked={this.props.windowState !== 'minimized' }
-          onChange={this.handleChange}
-        />
         <label htmlFor={this.uniqueId}>
-          <Video {...this.props} />
+          <input
+            id={this.uniqueId}
+            type='checkbox'
+            checked={this.props.windowState !== 'minimized' }
+            onChange={this.handleChange}
+          />
+          {this.props.nickname}
         </label>
       </li>
     )
@@ -53,17 +52,21 @@ class User extends React.PureComponent<UserProps> {
 class Users extends React.PureComponent<UsersProps> {
   render() {
     const { onMinimizeToggle, play, streams } = this.props
+
     return (
-      <ul className='users'>
-        {map(streams, (stream) => (
-          <User
-            {...stream}
-            key={stream.key}
-            onMinimizeToggle={onMinimizeToggle}
-            play={play}
-          />
-        ))}
-      </ul>
+      <div className='users'>
+        <ul className='users-list'>
+          {map(streams, (stream) => (
+            <User
+              {...stream}
+              key={stream.key}
+              onMinimizeToggle={onMinimizeToggle}
+              play={play}
+            />
+          ))}
+        </ul>
+        <div></div>
+      </div>
     )
   }
 }
