@@ -3,19 +3,27 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { getStreamsByState, StreamProps } from '../selectors'
-
 import { State } from '../store'
+import Video from './Video'
+import uniqueId from 'lodash/uniqueId'
 
 export interface UsersProps {
   streams: StreamProps[]
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  play: () => void
 }
 
 interface UserProps extends StreamProps {
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  play: () => void
 }
 
 class User extends React.PureComponent<UserProps> {
+  uniqueId: string
+  constructor(props: UserProps) {
+    super(props)
+    this.uniqueId = uniqueId('user-')
+  }
   handleChange = () => {
     const { peerId, stream } = this.props
     const streamId = stream && stream.streamId
@@ -28,13 +36,14 @@ class User extends React.PureComponent<UserProps> {
   render() {
     return (
       <li>
-        <label>
-          <input
-            type='checkbox'
-            checked={this.props.windowState !== 'minimized' }
-            onClick={this.handleChange}
-          />
-          {this.props.nickname}
+        <input
+          id={this.uniqueId}
+          type='checkbox'
+          checked={this.props.windowState !== 'minimized' }
+          onChange={this.handleChange}
+        />
+        <label htmlFor={this.uniqueId}>
+          <Video {...this.props} />
         </label>
       </li>
     )
@@ -43,7 +52,7 @@ class User extends React.PureComponent<UserProps> {
 
 class Users extends React.PureComponent<UsersProps> {
   render() {
-    const { onMinimizeToggle, streams } = this.props
+    const { onMinimizeToggle, play, streams } = this.props
     return (
       <ul className='users'>
         {map(streams, (stream) => (
@@ -51,6 +60,7 @@ class Users extends React.PureComponent<UsersProps> {
             {...stream}
             key={stream.key}
             onMinimizeToggle={onMinimizeToggle}
+            play={play}
           />
         ))}
       </ul>

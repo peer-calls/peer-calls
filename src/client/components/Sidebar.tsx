@@ -18,6 +18,7 @@ export interface SidebarProps {
   sendText: (message: string) => void
 
   // Users
+  play: () => void
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
 }
 
@@ -55,12 +56,14 @@ extends React.PureComponent<SidebarProps, SidebarState> {
           <ul className='sidebar-menu'>
             <SidebarButton
               activePanel={panel}
+              className='sidebar-menu-chat'
               label='Chat'
               onClick={this.focusPanel}
               panel={panelChat}
             />
             <SidebarButton
               activePanel={panel}
+              className='sidebar-menu-users'
               label='Users'
               onClick={this.focusPanel}
               panel={panelUsers}
@@ -80,6 +83,7 @@ extends React.PureComponent<SidebarProps, SidebarState> {
           {panel === panelUsers && (
             <Users
               onMinimizeToggle={onMinimizeToggle}
+              play={this.props.play}
             />
           )}
         </div>
@@ -90,6 +94,7 @@ extends React.PureComponent<SidebarProps, SidebarState> {
 
 interface SidebarButtonProps {
   activePanel: Panel
+  className?: string
   label: string
   panel: Panel
   onClick: (panel: Panel) => void
@@ -102,7 +107,7 @@ class SidebarButton extends React.PureComponent<SidebarButtonProps> {
   render() {
     const { activePanel, label, panel } = this.props
 
-    const className = classnames('sidebar-button', {
+    const className = classnames(this.props.className, 'sidebar-button', {
       active: activePanel === panel,
     })
 

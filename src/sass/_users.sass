@@ -10,12 +10,26 @@
   overflow-y: auto
 
   li
-    input[type='checkbox']
+    input[type=checkbox]
       margin-right: 1rem
+      position: absolute
+      left: -9999px
+
     label
-      display: block
-      padding: 1rem
+      display: flex
+      align-items: center
+      padding: 0
       width: 100%
       border-bottom: 1px solid #e6e6e6
       user-select: none
       cursor: pointer
+
+      overflow: hidden
+      text-overflow: ellipsis
+
+      .video-container
+        min-height: 200px
+        border:3px solid white
+
+    input[type=checkbox]:checked + label .video-container
+      border:3px solid $color-info

@@ -145,8 +145,6 @@ describe('App', () => {
       })
 
       it('minimizes the video on "Maximize" click', () => {
-        let minimized = node.querySelectorAll('.videos-toolbar video')
-        expect(minimized.length).toBe(0)
         let maximized = node.querySelectorAll('.videos-grid video')
         expect(maximized.length).toBe(2)
 
@@ -162,10 +160,17 @@ describe('App', () => {
           },
         }]])
 
-        minimized = node.querySelectorAll('.videos-toolbar video')
-        expect(minimized.length).toBe(1)
         maximized = node.querySelectorAll('.videos-grid video')
         expect(maximized.length).toBe(1)
+
+        TestUtils.Simulate.click(node.querySelector('.sidebar-menu-users')!)
+
+        const checkbox = node.querySelector('.sidebar .users li input')!
+        expect(checkbox).toBeTruthy()
+        TestUtils.Simulate.change(checkbox)
+
+        maximized = node.querySelectorAll('.videos-grid video')
+        expect(maximized.length).toBe(2)
       })
 
       it('toggles object-fit on "Toggle Fit" click', () => {

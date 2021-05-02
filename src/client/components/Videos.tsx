@@ -25,20 +25,7 @@ export class Videos extends React.PureComponent<VideosProps> {
     })
   }
   render() {
-    const { minimized, maximized } = this.props
-
-     const videosToolbar = (
-       <div className="videos videos-toolbar" key="videos-toolbar">
-         {minimized.map(props => (
-           <Video
-             {...props}
-             key={props.key}
-             onMinimizeToggle={this.props.onMinimizeToggle}
-             play={this.props.play}
-           />
-         ))}
-       </div>
-    )
+    const { maximized } = this.props
 
     const videosGrid = (
       <div className="videos videos-grid" key="videos-grid" ref={this.gridRef}>
@@ -53,7 +40,7 @@ export class Videos extends React.PureComponent<VideosProps> {
       </div>
     )
 
-    return [videosToolbar, videosGrid]
+    return videosGrid
   }
 }
 

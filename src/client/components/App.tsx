@@ -112,6 +112,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           nicknames={nicknames}
           onClose={this.handleHideSidebar}
           onMinimizeToggle={minimizeToggle}
+          play={this.props.play}
           sendText={sendText}
           sendFile={sendFile}
           visible={this.state.chatVisible}
