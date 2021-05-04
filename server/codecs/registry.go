@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/server/transport"
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v3"
 )
@@ -99,54 +100,54 @@ func NewRegistryDefault() *Registry {
 
 // Below code is borrowed from pion/webrtc and a little modified.
 
-type CodecMatchType int
+type MatchType int
 
 const (
-	CodecMatchNone    CodecMatchType = 0
-	CodecMatchPartial CodecMatchType = 1
-	CodecMatchExact   CodecMatchType = 2
+	MatchNone    MatchType = 0
+	MatchPartial MatchType = 1
+	MatchExact   MatchType = 2
 )
 
 // Do a fuzzy find for a codec in the list of codecs. Used to look up a codec
 // in an existing list to find a match Returns CodecMatchExact,
 // CodecMatchPartial, or CodecMatchNone.
 func (r *Registry) FuzzySearch(
-	needle webrtc.RTPCodecParameters,
-) (webrtc.RTPCodecParameters, CodecMatchType) {
+	needle transport.Codec,
+) (webrtc.RTPCodecParameters, MatchType) {
 	haystack := r.getCodecsByMimeType(needle.MimeType)
 
-	needleFmtp := parseFmtp(needle.RTPCodecCapability.SDPFmtpLine)
+	needleFmtp := parseFmtp(needle.SDPFmtpLine)
 
 	// First attempt to match on MimeType + SDPFmtpLine
 	for _, c := range haystack {
-		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.RTPCodecCapability.MimeType) &&
+		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.MimeType) &&
 			fmtpConsist(needleFmtp, parseFmtp(c.RTPCodecCapability.SDPFmtpLine)) {
-			return c, CodecMatchExact
+			return c, MatchExact
 		}
 	}
 
 	// Fallback to just MimeType
 	for _, c := range haystack {
-		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.RTPCodecCapability.MimeType) {
-			return c, CodecMatchPartial
+		if strings.EqualFold(c.RTPCodecCapability.MimeType, needle.MimeType) {
+			return c, MatchPartial
 		}
 	}
 
-	return webrtc.RTPCodecParameters{}, CodecMatchNone
+	return webrtc.RTPCodecParameters{}, MatchNone
 }
 
-func (r *Registry) FindByMimeType(mimeType string) (webrtc.RTPCodecParameters, bool) {
-	haystack := r.getCodecsByMimeType(mimeType)
+// func (r *Registry) FindByMimeType(mimeType string) (webrtc.RTPCodecParameters, bool) {
+// 	haystack := r.getCodecsByMimeType(mimeType)
 
-	// Fallback to just MimeType
-	for _, c := range haystack {
-		if strings.EqualFold(c.RTPCodecCapability.MimeType, mimeType) {
-			return c, true
-		}
-	}
+// 	// Fallback to just MimeType
+// 	for _, c := range haystack {
+// 		if strings.EqualFold(c.RTPCodecCapability.MimeType, mimeType) {
+// 			return c, true
+// 		}
+// 	}
 
-	return webrtc.RTPCodecParameters{}, false
-}
+// 	return webrtc.RTPCodecParameters{}, false
+// }
 
 func (r *Registry) RTPHeaderExtensionsForMimeType(mimeType string) []HeaderExtension {
 	if TypeFromMimeType(mimeType) == webrtc.RTPCodecTypeAudio {
@@ -164,10 +165,10 @@ func (r *Registry) getCodecsByMimeType(mimeType string) []webrtc.RTPCodecParamet
 	return r.Video.CodecParameters
 }
 
-func (r *Registry) InterceptorParamsForMimeType(mimeType string) (InterceptorParams, error) {
-	codecParameters, ok := r.FindByMimeType(mimeType)
-	if !ok {
-		return InterceptorParams{}, errors.Annotate(ErrUnsupportedMimeType, mimeType)
+func (r *Registry) InterceptorParamsForCodec(codec transport.Codec) (InterceptorParams, error) {
+	codecParameters, codecMatch := r.FuzzySearch(codec)
+	if codecMatch == MatchNone {
+		return InterceptorParams{}, errors.Annotatef(ErrUnsupportedMimeType, "codec: %v", codec)
 	}
 
 	var rtcpFeedback []interceptor.RTCPFeedback
@@ -183,7 +184,7 @@ func (r *Registry) InterceptorParamsForMimeType(mimeType string) (InterceptorPar
 		}
 	}
 
-	headerExtensions := r.RTPHeaderExtensionsForMimeType(mimeType)
+	headerExtensions := r.RTPHeaderExtensionsForMimeType(codec.MimeType)
 
 	var rtpHeaderExtensions []interceptor.RTPHeaderExtension
 

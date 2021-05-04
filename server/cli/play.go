@@ -40,9 +40,11 @@ type playHandler struct {
 		insecure bool
 
 		audioMimeType string
+		audioFmtp     string
 		audioStream   string
 		audioSSRC     uint32
 		videoMimeType string
+		videoFmtp     string
 		videoStream   string
 		videoSSRC     uint32
 	}
@@ -92,10 +94,12 @@ func (h *playHandler) RegisterFlags(c *command.Command, flags *pflag.FlagSet) {
 
 	flags.StringVarP(&h.args.videoStream, "video-stream", "v", "", "video stream to read RTP from")
 	flags.StringVar(&h.args.videoMimeType, "video-mime-type", "video/vp8", "video mime type")
+	flags.StringVar(&h.args.videoFmtp, "video-fmtp", "", "video media format parameters")
 	flags.Uint32Var(&h.args.videoSSRC, "video-ssrc", 1, "video SSRC")
 
 	flags.StringVarP(&h.args.audioStream, "audio-stream", "a", "", "audio stream to read RTP from")
 	flags.StringVar(&h.args.audioMimeType, "audio-mime-type", "audio/opus", "audio mime type")
+	flags.StringVar(&h.args.audioFmtp, "audio-fmtp", "", "audio media format parameters")
 	flags.Uint32Var(&h.args.audioSSRC, "audio-ssrc", 2, "audio SSRC")
 
 	flags.StringVarP(&h.args.roomURL, "room-url", "r", "http://localhost:3000/call/playroom", "room URL")
@@ -423,7 +427,7 @@ type playStream struct {
 
 func (h *playHandler) newPlayStream(
 	stream string,
-	mimeType string,
+	codec transport.Codec,
 	trackID string,
 	streamID string,
 	ssrc webrtc.SSRC,
@@ -437,19 +441,19 @@ func (h *playHandler) newPlayStream(
 		return nil, errors.Errorf("only rtp:// is supported, but got: %s", stream)
 	}
 
-	codec, ok := h.codecRegistry.FindByMimeType(mimeType)
-	if !ok {
-		return nil, errors.Errorf("codec not found: %s", mimeType)
+	codecParameters, codecMatch := h.codecRegistry.FuzzySearch(codec)
+	if codecMatch == codecs.MatchNone {
+		return nil, errors.Errorf("codec not found: %s", codec.MimeType)
 	}
 
-	track, err := webrtc.NewTrackLocalStaticRTP(codec.RTPCodecCapability, trackID, streamID)
+	track, err := webrtc.NewTrackLocalStaticRTP(codecParameters.RTPCodecCapability, trackID, streamID)
 	if err != nil {
 		return nil, errors.Annotatef(err, "new track")
 	}
 
-	interceptorParams, err := h.codecRegistry.InterceptorParamsForMimeType(mimeType)
+	interceptorParams, err := h.codecRegistry.InterceptorParamsForCodec(codec)
 	if err != nil {
-		return nil, errors.Errorf("codec not found: %s", mimeType)
+		return nil, errors.Errorf("codec not found: %s", codec.MimeType)
 	}
 
 	q := streamURL.Query()
@@ -521,10 +525,10 @@ func (h *playHandler) newPlayStream(
 		Interceptor: h.interceptor,
 		SSRC:        ssrc,
 		Codec: transport.Codec{
-			MimeType:    mimeType,
-			ClockRate:   codec.ClockRate,
-			Channels:    codec.Channels,
-			SDPFmtpLine: codec.SDPFmtpLine,
+			MimeType:    codec.MimeType,
+			ClockRate:   codecParameters.ClockRate,
+			Channels:    codecParameters.Channels,
+			SDPFmtpLine: codecParameters.SDPFmtpLine,
 		},
 		InterceptorParams: interceptorParams,
 		MTU:               pktSize,
@@ -553,9 +557,14 @@ func (h *playHandler) Handle(ctx context.Context, args []string) error {
 	streams := make([]*playStream, 0, 2)
 
 	if h.args.audioStream != "" {
+		audioCodec := transport.Codec{
+			MimeType:    h.args.audioMimeType,
+			SDPFmtpLine: h.args.audioFmtp,
+		}
+
 		stream, err := h.newPlayStream(
 			h.args.audioStream,
-			h.args.audioMimeType,
+			audioCodec,
 			"audio",
 			streamID,
 			webrtc.SSRC(h.args.audioSSRC),
@@ -568,9 +577,14 @@ func (h *playHandler) Handle(ctx context.Context, args []string) error {
 	}
 
 	if h.args.videoStream != "" {
+		videoCodec := transport.Codec{
+			MimeType:    h.args.videoMimeType,
+			SDPFmtpLine: h.args.videoFmtp,
+		}
+
 		stream, err := h.newPlayStream(
 			h.args.videoStream,
-			h.args.videoMimeType,
+			videoCodec,
 			"video",
 			streamID,
 			webrtc.SSRC(h.args.videoSSRC),

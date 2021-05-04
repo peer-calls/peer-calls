@@ -208,7 +208,7 @@ func (t *MetadataTransport) startReadLoop() {
 					t.params.Log.Warn("Track already added", logCtx)
 				} else {
 					codec := track.Codec()
-					interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForMimeType(codec.MimeType)
+					interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForCodec(codec)
 					if err != nil {
 						t.params.Log.Error("Unsupported codec", errors.Trace(err), nil)
 					} else {
@@ -319,7 +319,7 @@ func (t *MetadataTransport) AddTrack(track transport.Track) (transport.TrackLoca
 	ssrc := webrtc.SSRC(RandUint32())
 	codec := track.Codec()
 
-	interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForMimeType(codec.MimeType)
+	interceptorParams, err := t.params.CodecRegistry.InterceptorParamsForCodec(codec)
 	if err != nil {
 		return nil, nil, errors.Trace(err)
 	}
