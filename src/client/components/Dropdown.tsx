@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { ReactEventHandler } from 'react'
 import classnames from 'classnames'
 import { Backdrop } from './Backdrop'
 
 export interface DropdownProps {
   label: string | React.ReactElement
-  children: React.ReactElement<{onClick: () => void}>[]
+  children: React.ReactElement<{onClick: ReactEventHandler<Element>}>[]
 }
 
 export interface DropdownState {
@@ -33,9 +33,11 @@ extends React.PureComponent<DropdownProps, DropdownState> {
         const onClick = child.props.onClick
         return React.cloneElement(child, {
           ...child.props,
-          onClick: () => {
+          onClick: (e: React.SyntheticEvent<Element>) => {
+            e.preventDefault()
+
             handleClick()
-            onClick()
+            onClick(e)
           },
         })
       },

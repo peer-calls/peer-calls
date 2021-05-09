@@ -1,11 +1,12 @@
-import windowStates from './windowStates'
-import notifications from './notifications'
-import messages from './messages'
-import peers from './peers'
-import media from './media'
-import streams from './streams'
-import nicknames from './nicknames'
 import { combineReducers } from 'redux'
+import media from './media'
+import messages from './messages'
+import nicknames from './nicknames'
+import notifications from './notifications'
+import peers from './peers'
+import settings from './settings'
+import streams from './streams'
+import windowStates from './windowStates'
 
 export default combineReducers({
   notifications,
@@ -13,6 +14,7 @@ export default combineReducers({
   media,
   nicknames,
   peers,
+  settings,
   streams,
   windowStates,
 })

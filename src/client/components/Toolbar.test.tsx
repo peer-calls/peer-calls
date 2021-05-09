@@ -36,7 +36,7 @@ class ToolbarWrapper extends React.PureComponent<ToolbarProps, StreamState> {
       chatVisible={this.props.chatVisible}
       dialState={this.props.dialState}
       nickname={this.props.nickname}
-      onToggleChat={this.props.onToggleChat}
+      onToggleSidebar={this.props.onToggleSidebar}
       onHangup={this.props.onHangup}
       onGetDesktopStream={this.props.onGetDesktopStream}
       onRemoveLocalStream={this.props.onRemoveLocalStream}
@@ -69,7 +69,7 @@ async function render (store: Store) {
           dialState={dialState}
           chatVisible
           onHangup={onHangup}
-          onToggleChat={onToggleChat}
+          onToggleSidebar={onToggleChat}
           messagesCount={1}
           nickname={nickname}
           desktopStream={desktopStream}
@@ -94,7 +94,7 @@ describe('components/Toolbar', () => {
   describe('handleChatClick', () => {
     it('toggle chat', () => {
       expect(onToggleChat.mock.calls.length).toBe(0)
-      const button = node.querySelector('.chat')!
+      const button = node.querySelector('.toolbar-btn-chat')!
       TestUtils.Simulate.click(button)
       expect(onToggleChat.mock.calls.length).toBe(1)
     })

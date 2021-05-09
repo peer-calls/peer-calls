@@ -20,7 +20,7 @@ export interface ToolbarProps {
   nickname: string
   messagesCount: number
   desktopStream: LocalStream | undefined
-  onToggleChat: () => void
+  onToggleSidebar: () => void
   onGetDesktopStream: typeof getDesktopStream
   onRemoveLocalStream: typeof removeLocalStream
   onHangup: () => void
@@ -140,11 +140,11 @@ export default class Toolbar extends React.PureComponent<
     const value = `${text}. \nRoom: ${callId} \nLink: ${link}`
     await navigator.clipboard.writeText(value)
   }
-  handleToggleChat = () => {
+  handleToggleSidebar = () => {
     this.setState({
       readMessages: this.props.messagesCount,
     })
-    this.props.onToggleChat()
+    this.props.onToggleSidebar()
   }
   render() {
     const { messagesCount } = this.props
@@ -174,13 +174,13 @@ export default class Toolbar extends React.PureComponent<
             <React.Fragment>
               <ToolbarButton
                 badge={unreadCount}
-                className='chat'
+                className='toolbar-btn-chat'
                 key='chat'
                 icon={MdQuestionAnswer}
                 blink={!this.props.chatVisible && hasUnread}
-                onClick={this.handleToggleChat}
+                onClick={this.handleToggleSidebar}
                 on={this.props.chatVisible}
-                title='Toggle Chat'
+                title='Toggle Sidebar'
               />
             </React.Fragment>
           )}

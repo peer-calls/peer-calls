@@ -66,6 +66,7 @@ func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 	p.log.Info("Pub", logger.Ctx{
 		"client_id": pubClientID,
 		"track_id":  track.TrackID(),
+		"mime_type": track.Codec().MimeType,
 	})
 
 	trackID := track.TrackID()

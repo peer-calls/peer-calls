@@ -17,6 +17,7 @@ function mapStateToProps (state: State) {
     messages: state.messages.list,
     messagesCount: state.messages.count,
     windowStates: state.windowStates,
+    settings: state.settings,
   }
 }
 

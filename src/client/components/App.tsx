@@ -9,11 +9,12 @@ import { MinimizeTogglePayload, removeLocalStream, StreamTypeDesktop } from '../
 import * as constants from '../constants'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
+import { SettingsState } from '../reducers/settings'
 import { StreamsState } from '../reducers/streams'
 import { WindowStates } from '../reducers/windowStates'
-import Chat from './Chat'
 import { Media } from './Media'
 import Notifications from './Notifications'
+import Sidebar from './Sidebar'
 import Toolbar from './Toolbar'
 import Videos from './Videos'
 
@@ -35,6 +36,7 @@ export interface AppProps {
   windowStates: WindowStates
   minimizeToggle: (payload: MinimizeTogglePayload) => void
   hangUp: typeof hangUp
+  settings: SettingsState
 }
 
 export interface AppState {
@@ -50,14 +52,14 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       chatVisible: true,
     })
   }
-  handleHideChat = () => {
+  handleHideSidebar = () => {
     this.setState({
       chatVisible: false,
     })
   }
-  handleToggleChat = () => {
+  handleToggleSidebar = () => {
     return this.state.chatVisible
-      ? this.handleHideChat()
+      ? this.handleHideSidebar()
       : this.handleShowChat()
   }
   componentDidMount () {
@@ -78,8 +80,10 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       nicknames,
       messages,
       messagesCount,
+      minimizeToggle,
       sendFile,
       sendText,
+      settings,
     } = this.props
 
     const chatVisibleClassName = classnames({
@@ -95,7 +99,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           dialState={this.props.dialState}
           messagesCount={messagesCount}
           nickname={nicknames[constants.ME]}
-          onToggleChat={this.handleToggleChat}
+          onToggleSidebar={this.handleToggleSidebar}
           onHangup={this.onHangup}
           desktopStream={localStreams[StreamTypeDesktop]}
           onGetDesktopStream={this.props.getDesktopStream}
@@ -106,10 +110,12 @@ export default class App extends React.PureComponent<AppProps, AppState> {
           dismiss={dismissNotification}
           notifications={notifications}
         />
-        <Chat
+        <Sidebar
           messages={messages}
           nicknames={nicknames}
-          onClose={this.handleHideChat}
+          onClose={this.handleHideSidebar}
+          onMinimizeToggle={minimizeToggle}
+          play={this.props.play}
           sendText={sendText}
           sendFile={sendFile}
           visible={this.state.chatVisible}
@@ -117,11 +123,9 @@ export default class App extends React.PureComponent<AppProps, AppState> {
         <Media />
         {this.props.dialState !== constants.DIAL_STATE_HUNG_UP &&
           <Videos
-            onMinimizeToggle={this.props.minimizeToggle}
-            streams={this.props.streams}
+            onMinimizeToggle={minimizeToggle}
             play={this.props.play}
-            nicknames={this.props.nicknames}
-            windowStates={this.props.windowStates}
+            showMinimizedToolbar={settings.showMinimizedToolbar}
           />
         }
       </div>

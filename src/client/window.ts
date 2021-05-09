@@ -24,3 +24,5 @@ export const RTCRtpReceiver = window.RTCRtpReceiver
 
 export const AudioContext = window.AudioContext
 export const AudioWorkletNode = window.AudioWorkletNode
+
+export const localStorage = window.localStorage

@@ -471,7 +471,7 @@ func (p *WebRTCTransport) AddTrack(t transport.Track) (transport.TrackLocal, tra
 
 	var rtcpFeedback []webrtc.RTCPFeedback
 
-	codecParameters, _ := p.codecRegistry.FindByMimeType(codec.MimeType)
+	codecParameters, _ := p.codecRegistry.FuzzySearch(codec)
 
 	if strings.HasPrefix(codec.MimeType, "video/") {
 		rtcpFeedback = codecParameters.RTCPFeedback

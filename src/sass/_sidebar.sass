@@ -1,0 +1,95 @@
+.sidebar
+  position: fixed
+  top: 0
+  bottom: 0
+  right: 0
+  -ms-transform: translateX(100%)
+  -webkit-transform: translateX(100%)
+  transform: translateX(100%)
+  transition: transform 0.5s cubic-bezier(0.55, 0, 0, 1), box-shadow 0.5s cubic-bezier(0.55, 0, 0, 1)
+  width: 320px
+  margin: 0 auto
+  z-index: $z-index-sidebar
+  background-color: #fff
+
+  display: flex
+  flex-direction: column
+
+  &.show
+    -ms-transform: none
+    -webkit-transform: none
+    transform: none
+    box-shadow: 0 5px 5px 5px rgba(0, 0, 0, 0.19), 0 1px 6px rgba(0, 0, 0, 0.12)
+
+  @media (max-width: 375.98px)
+    &.show
+      width: 100% !important
+
+.sidebar-header
+  background: #42a7a1
+  color: #fff
+  height: 52px
+  line-height: 52px
+  flex-grow: 0
+
+  .sidebar-close
+    font-size: 24px
+    height: 100%
+    line-height: 35px
+    padding: 12px
+    text-align: center
+    float: left
+    width: 64px
+    cursor: pointer
+
+    .sidebar-button
+      float: right
+      a
+        font-size: 24px
+        color: #fff
+
+  .sidebar-menu
+    font-size: 18px
+    font-weight: 500
+    color: #fff
+    text-overflow: ellipsis
+    text-transform: uppercase
+
+    padding: 0
+    margin: 0
+    display: flex
+    list-style-type: none
+
+    overflow: hidden
+    overflow-x: auto
+
+    li
+      cursor: pointer
+      position: relative
+      white-space: nowrap
+
+      svg
+        line-height: 1rem
+
+      &::after
+        content: ' '
+        position: absolute
+        left: 50%
+        right: 50%
+        bottom: 0
+        height: 2px
+        background-color: transparent
+        transition: left 100ms ease-in, right 100ms ease-out
+
+      &.active::after
+        background-color: #fff
+        left: 0
+        right: 0
+
+    li + li
+      padding-left: 0.5rem
+
+.sidebar-content
+  display: flex
+  flex-grow: 1
+  flex-shrink: 1
