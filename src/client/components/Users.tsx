@@ -65,7 +65,7 @@ class Users extends React.PureComponent<UsersProps> {
             />
           ))}
         </ul>
-        <div></div>
+        <div></div> {/*necessary for flex to stretch */}
       </div>
     )
   }

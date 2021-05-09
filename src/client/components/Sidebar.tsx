@@ -5,6 +5,7 @@ import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
 import Chat from './Chat'
+import Settings from './Settings'
 import Users from './Users'
 
 export interface SidebarProps {
@@ -26,9 +27,10 @@ export interface SidebarState {
   panel: Panel
 }
 
-type Panel = 'chat' | 'users'
+type Panel = 'chat' | 'users' | 'settings'
 
 const panelChat: Panel = 'chat'
+const panelSettings: Panel = 'settings'
 const panelUsers: Panel = 'users'
 
 export default class Sidebar
@@ -68,6 +70,13 @@ extends React.PureComponent<SidebarProps, SidebarState> {
               onClick={this.focusPanel}
               panel={panelUsers}
             />
+            <SidebarButton
+              activePanel={panel}
+              className='sidebar-menu-settings'
+              label='Settings'
+              onClick={this.focusPanel}
+              panel={panelSettings}
+            />
           </ul>
         </div>
         <div className='sidebar-content'>
@@ -85,6 +94,9 @@ extends React.PureComponent<SidebarProps, SidebarState> {
               onMinimizeToggle={onMinimizeToggle}
               play={this.props.play}
             />
+          )}
+          {panel === panelSettings && (
+            <Settings />
           )}
         </div>
       </div>

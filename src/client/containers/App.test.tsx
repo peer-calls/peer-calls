@@ -148,6 +148,9 @@ describe('App', () => {
         let maximized = node.querySelectorAll('.videos-grid video')
         expect(maximized.length).toBe(2)
 
+        let minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(0)
+
         const item = node.querySelector('.dropdown .action-minimize')!
         expect(item).toBeTruthy()
         TestUtils.Simulate.click(item)
@@ -163,14 +166,37 @@ describe('App', () => {
         maximized = node.querySelectorAll('.videos-grid video')
         expect(maximized.length).toBe(1)
 
+        minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(1)
+
+        TestUtils.Simulate.click(node.querySelector('.sidebar-menu-settings')!)
+
+        // Test that the toolbra shows and hides on checkbox click
+        let checkbox = node.querySelector(
+          '.sidebar .settings .settings-show-minimized-toolbar-toggle')!
+        expect(checkbox).toBeTruthy()
+        TestUtils.Simulate.change(checkbox)
+
+        minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(0)
+
+        TestUtils.Simulate.change(checkbox)
+
+        minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(1)
+
+        // Test that the video can be unminimized
         TestUtils.Simulate.click(node.querySelector('.sidebar-menu-users')!)
 
-        const checkbox = node.querySelector('.sidebar .users li input')!
+        checkbox = node.querySelector('.sidebar .users li input')!
         expect(checkbox).toBeTruthy()
         TestUtils.Simulate.change(checkbox)
 
         maximized = node.querySelectorAll('.videos-grid video')
         expect(maximized.length).toBe(2)
+
+        minimized = node.querySelectorAll('.videos-toolbar video')
+        expect(minimized.length).toBe(0)
       })
 
       it('toggles object-fit on "Toggle Fit" click', () => {

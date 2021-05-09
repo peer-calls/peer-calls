@@ -10,6 +10,7 @@ export interface VideosProps {
   minimized: StreamProps[]
   play: () => void
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  showMinimizedToolbar: boolean
 }
 
 export class Videos extends React.PureComponent<VideosProps> {
@@ -25,7 +26,21 @@ export class Videos extends React.PureComponent<VideosProps> {
     })
   }
   render() {
-    const { maximized } = this.props
+    const { minimized, maximized, showMinimizedToolbar } = this.props
+
+    const videosToolbar = showMinimizedToolbar
+    ? (
+      <div className="videos videos-toolbar" key="videos-toolbar">
+        {minimized.map(props => (
+          <Video
+            {...props}
+            key={props.key}
+            onMinimizeToggle={this.props.onMinimizeToggle}
+            play={this.props.play}
+          />
+        ))}
+      </div>
+    ) : undefined
 
     const videosGrid = (
       <div className="videos videos-grid" key="videos-grid" ref={this.gridRef}>
@@ -40,7 +55,7 @@ export class Videos extends React.PureComponent<VideosProps> {
       </div>
     )
 
-    return videosGrid
+    return [videosToolbar, videosGrid]
   }
 }
 
