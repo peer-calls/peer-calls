@@ -7,6 +7,7 @@ import TestUtils from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { applyMiddleware, createStore } from 'redux'
 import SimplePeer from 'simple-peer'
+import { clear, mockUserAgent } from 'jest-useragent-mock'
 import { getDesktopStream, MediaKind, DisplayMediaConstraints, toggleDevice } from '../actions/MediaActions'
 import { removeLocalStream, StreamTypeCamera, StreamTypeDesktop, AddLocalStreamPayload } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL, MEDIA_ENUMERATE, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE, PEER_ADD } from '../constants'
@@ -87,9 +88,23 @@ describe('components/Toolbar', () => {
 
   let store: Store
   beforeEach(async () => {
+    if (expect.getState().currentTestName
+      .indexOf('attempts desktop sharing on mobile') !== -1) {
+      mockUserAgent('iPhone')
+    }
+
     store = createStore(reducers, applyMiddleware(...middlewares))
     await render(store)
   })
+
+  afterEach(async () => {
+    if (expect.getState().currentTestName
+      .indexOf('attempts desktop sharing on mobile') !== -1) {
+      // revert user agent mock
+      clear()
+    }
+  })
+
 
   describe('handleChatClick', () => {
     it('toggle chat', () => {
@@ -168,10 +183,28 @@ describe('components/Toolbar', () => {
       } ]])
     })
 
+    it('attempts desktop sharing on mobile', async () => {
+      const menu = node.querySelector('.stream-desktop')!
+      expect(menu).toBeDefined()
+      expect(menu.className.indexOf('disabled')).toBeGreaterThan(-1)
+
+      TestUtils.Simulate.click(menu)
+
+      const shareDropdown = node.querySelector('.stream-desktop-menu')!
+      expect(shareDropdown.className.indexOf('dropdown-list-open')).toBe(-1)
+    })
+
+
     it('starts video-only desktop sharing', async () => {
       const menu = node.querySelector('.stream-desktop')!
       expect(menu).toBeDefined()
+      expect(menu.className.indexOf('disabled')).toBe(-1)
+
       TestUtils.Simulate.click(menu)
+
+      const shareDropdown = node.querySelector('.stream-desktop-menu')!
+      expect(shareDropdown.className.indexOf('dropdown-list-open'))
+        .toBeGreaterThan(-1)
 
       const shareDesktop = node.querySelectorAll('.stream-desktop-menu li')[2]
       expect(shareDesktop).toBeTruthy()

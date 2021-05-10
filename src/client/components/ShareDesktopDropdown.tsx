@@ -41,19 +41,32 @@ export interface ShareDesktopDropdownState {
   shareConfig: ShareDesktopConfig | false
   rejectedShare: boolean
   popupContent: ReactFragment | null
+  isDisabled: boolean
 }
 
 export class ShareDesktopDropdown extends
 React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
-  state: ShareDesktopDropdownState = {
-    open: false,
-    shareConfig: false,
-    rejectedShare: false,
-    popupContent: null,
+
+  constructor(props: ShareDesktopDropdownProps) {
+    super(props)
+    // mobile devices don't support screen sharing
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(
+      window.navigator.userAgent,
+    )
+    this.state = {
+      open: false,
+      shareConfig: false,
+      rejectedShare: false,
+      popupContent: null,
+      isDisabled: isMobile,
+    }
   }
+
   toggleOpen = (e: React.SyntheticEvent) => {
     e.stopPropagation()
-    this.setOpen(!this.state.open)
+    if (!this.state.isDisabled) {
+      this.setOpen(!this.state.open)
+    }
   }
   close = () => {
     this.setOpen(false)
@@ -106,7 +119,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
       })
     })
     .catch(() => {
-      const browser = navigator.userAgent.toLowerCase()
+      const browser = window.navigator.userAgent.toLowerCase()
       if (browser.indexOf('firefox') > -1) {
         this.handleFirefoxRejection()
       }
@@ -140,7 +153,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
   }
 
   render() {
-    const { shareConfig, popupContent } = this.state
+    const { shareConfig, popupContent, isDisabled } = this.state
 
     const classNames = classnames(
       'stream-desktop-menu dropdown-list dropdown-center',
@@ -162,7 +175,7 @@ React.PureComponent<ShareDesktopDropdownProps, ShareDesktopDropdownState> {
 
         <div className='dropdown'>
           <ToolbarButton
-            className={this.props.className}
+            className={this.props.className + (isDisabled ? ' disabled' : '')}
             icon={this.props.icon}
             offIcon={this.props.offIcon}
             on={shareConfig !== false}
