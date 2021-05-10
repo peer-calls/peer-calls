@@ -51,7 +51,7 @@
   .sidebar-menu
     font-size: 18px
     font-weight: 500
-    color: #fff
+    color: #ccc
     text-overflow: ellipsis
     text-transform: uppercase
 
@@ -67,6 +67,8 @@
       cursor: pointer
       position: relative
       white-space: nowrap
+      flex-grow: 1
+      text-align: center
 
       svg
         line-height: 1rem
@@ -81,10 +83,13 @@
         background-color: transparent
         transition: left 100ms ease-in, right 100ms ease-out
 
-      &.active::after
-        background-color: #fff
-        left: 0
-        right: 0
+      &.active
+        color: #fff
+
+        &::after
+          background-color: #fff
+          left: 0
+          right: 0
 
     li + li
       padding-left: 0.5rem

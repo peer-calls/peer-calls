@@ -180,7 +180,7 @@ export default class Toolbar extends React.PureComponent<
                 blink={!this.props.chatVisible && hasUnread}
                 onClick={this.handleToggleSidebar}
                 on={this.props.chatVisible}
-                title='Toggle Sidebar'
+                title='Show Sidebar'
               />
             </React.Fragment>
           )}
