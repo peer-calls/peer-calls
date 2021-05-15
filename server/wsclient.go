@@ -117,18 +117,33 @@ func (c *Client) Subscribe(ctx context.Context) <-chan message.Message {
 	msgChan := make(chan message.Message)
 
 	go func() {
+		var (
+			err error
+			msg message.Message
+		)
+
+	loop:
 		for {
-			message, err := c.read(ctx)
+			msg, err = c.read(ctx)
 			if err != nil {
-				c.errMu.Lock()
-				close(msgChan)
-				c.err = errors.Trace(err)
-				c.errMu.Unlock()
-				return
+				err = errors.Trace(err)
+
+				break loop
 			}
 
-			msgChan <- message
+			select {
+			case msgChan <- msg:
+			case <-ctx.Done():
+				err = errors.Trace(ctx.Err())
+
+				break loop
+			}
 		}
+
+		c.errMu.Lock()
+		close(msgChan)
+		c.err = errors.Trace(err)
+		c.errMu.Unlock()
 	}()
 
 	return msgChan

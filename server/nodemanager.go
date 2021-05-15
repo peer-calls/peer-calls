@@ -134,6 +134,7 @@ func (nm *NodeManager) handleTransport(transport *udptransport2.Transport) error
 
 	ch, err := nm.params.TracksManager.Add(streamID, transport)
 	if err != nil {
+		transport.Close()
 		return errors.Annotatef(err, "add transport: %s", streamID)
 	}
 

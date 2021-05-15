@@ -75,7 +75,9 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 
 		peerManager.Remove(tr.ClientID())
 
-		// FIXME if we have server transports PeerManager will never be closed.
+		// Since the server transports are created when room is created, and
+		// removed when a room is removed, we don't need to do anything special
+		// to count the number of non-server peers here.
 		if peerManager.Size() == 0 {
 			peerManager.Close()
 			delete(m.peerManagers, room)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -42,6 +43,11 @@ type SFU struct {
 }
 
 func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	r = r.WithContext(ctx)
+
+	defer cancel()
+
 	sub, err := sfu.wss.Subscribe(w, r)
 	if err != nil {
 		sfu.log.Error("Accept websocket connection", errors.Trace(err), nil)
@@ -66,6 +72,8 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for message := range sub.Messages {
 		err := socketHandler.HandleMessage(message)
 		if err != nil {
+			// Cancel the read loop so that the messages chan is closed.
+			cancel()
 			log.Error("Handle websocket message", errors.Trace(err), nil)
 		}
 	}
@@ -228,12 +236,13 @@ func (sh *SocketHandler) handleReady(msg message.Ready) error {
 		return errors.Annotatef(err, "create new WebRTCTransport")
 	}
 
-	sh.webRTCTransport = webRTCTransport
-
 	pubTrackEventsCh, err := sh.tracksManager.Add(roomID, webRTCTransport)
 	if err != nil {
+		webRTCTransport.Close()
 		return errors.Trace(err)
 	}
+
+	sh.webRTCTransport = webRTCTransport
 
 	go func() {
 		for pubTrackEvent := range pubTrackEventsCh {
