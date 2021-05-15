@@ -127,6 +127,8 @@ func (d *DataTransceiver) start() {
 
 				msgFuture.errCh <- errors.Trace(err)
 			}
+
+			close(msgFuture.errCh)
 		case <-d.teardownChan:
 			return
 		}
@@ -158,9 +160,8 @@ func (d *DataTransceiver) Send(message webrtc.DataChannelMessage) <-chan error {
 	}:
 	case <-d.torndownChan:
 		errCh <- errors.Trace(io.ErrClosedPipe)
+		close(errCh)
 	}
-
-	close(errCh)
 
 	return errCh
 }
