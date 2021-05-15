@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "npm run css && npm run js && npm run start:server",
-    "start:server": "go run main.go",
+    "start:server": "PEERCALLS_FS=. go run main.go",
     "start:sfu": "PEERCALLS_NETWORK_TYPE=sfu go run main.go",
     "start:watch": "chastifol [ npm run js:watch ] [ npm run css:watch ] [ npm run start:server ]",
     "prepublishOnly": "npm run build",
