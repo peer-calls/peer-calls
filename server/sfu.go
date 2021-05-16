@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/peer-calls/peer-calls/server/sfu"
 	"github.com/peer-calls/peer-calls/server/transport"
+	"nhooyr.io/websocket"
 )
 
 const IOSH264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
@@ -43,42 +43,42 @@ type SFU struct {
 }
 
 func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
-	r = r.WithContext(ctx)
-
-	defer cancel()
-
-	sub, err := sfu.wss.Subscribe(w, r)
+	sub, err := sfu.wss.NewWebsocketContext(w, r)
 	if err != nil {
-		sfu.log.Error("Accept websocket connection", errors.Trace(err), nil)
-		w.WriteHeader(http.StatusInternalServerError)
+		sfu.log.Error("Create websocket context", errors.Trace(err), nil)
 		return
 	}
 
+	roomID := sub.RoomID()
+	clientID := sub.ClientID()
+
 	log := sfu.log.WithCtx(logger.Ctx{
-		"room_id":   sub.Room,
-		"client_id": sub.ClientID,
+		"room_id":   roomID,
+		"client_id": clientID,
 	})
 
 	socketHandler := NewSocketHandler(
 		log,
 		sfu.tracksManager,
 		sfu.webRTCTransportFactory,
-		sub.ClientID,
-		sub.Room,
-		sub.Adapter,
+		clientID,
+		roomID,
+		sub.Adapter(),
 	)
 
-	for message := range sub.Messages {
+	// Just in case. I'm actually not sure if this is necessary since if the
+	// reading stops, it most likely means the connection has already been
+	// closed.
+	defer sub.Close(websocket.StatusNormalClosure, "")
+
+	for message := range sub.Messages() {
 		err := socketHandler.HandleMessage(message)
 		if err != nil {
-			// Cancel the read loop so that the messages chan is closed.
-			cancel()
 			log.Error("Handle websocket message", errors.Trace(err), nil)
 		}
 	}
 
-	socketHandler.Cleanup()
+	socketHandler.HangUp()
 }
 
 type SocketHandler struct {
@@ -134,7 +134,7 @@ func (sh *SocketHandler) HandleMessage(msg message.Message) error {
 	return errors.Trace(err)
 }
 
-func (sh *SocketHandler) Cleanup() {
+func (sh *SocketHandler) HangUp() {
 	if sh.webRTCTransport != nil {
 		if err := sh.webRTCTransport.Close(); err != nil {
 			sh.log.Error("Cleanup: close WebRTCTransport", errors.Trace(err), nil)

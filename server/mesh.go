@@ -8,6 +8,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/message"
+	"nhooyr.io/websocket"
 )
 
 type ReadyMessage struct {
@@ -19,24 +20,29 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log = log.WithNamespaceAppended("mesh")
 
-		sub, err := wss.Subscribe(w, r)
+		websocketCtx, err := wss.NewWebsocketContext(w, r)
 		if err != nil {
-			log.Error("Subscribe to websocket", errors.Trace(err), nil)
+			log.Error("Create websocket context", errors.Trace(err), nil)
+			return
 		}
 
-		for msg := range sub.Messages {
-			adapter := sub.Adapter
-			room := sub.Room
-			clientID := sub.ClientID
+		roomID := websocketCtx.RoomID()
+		clientID := websocketCtx.ClientID()
+
+		// Just in case. I'm actually not sure if this is necessary since if the
+		// reading stops, it most likely means the connection has already been
+		// closed.
+		defer websocketCtx.Close(websocket.StatusNormalClosure, "")
+
+		for msg := range websocketCtx.Messages() {
+			adapter := websocketCtx.Adapter()
 
 			log = log.WithCtx(logger.Ctx{
 				"client_id": clientID,
-				"room_id":   room,
+				"room_id":   roomID,
 			})
 
-			var (
-				err error
-			)
+			var err error
 
 			switch msg.Type {
 			case message.TypeHangUp:
@@ -54,7 +60,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 				log.Info(fmt.Sprintf("Got clients: %s", clients), nil)
 
 				err = adapter.Broadcast(
-					message.NewUsers(room, message.Users{
+					message.NewUsers(roomID, message.Users{
 						Initiator: clientID,
 						PeerIDs:   clientsToPeerIDs(clients),
 						Nicknames: clients,
@@ -69,7 +75,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 				log.Info("Send signal to", logger.Ctx{
 					"target_client_id": targetClientID,
 				})
-				err = adapter.Emit(targetClientID, message.NewSignal(room, message.UserSignal{
+				err = adapter.Emit(targetClientID, message.NewSignal(roomID, message.UserSignal{
 					Signal: signal.Signal,
 					PeerID: clientID,
 				}))

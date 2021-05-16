@@ -1,16 +1,16 @@
 package server
 
 import (
-	"context"
-	pkgErrors "errors"
 	"net/http"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/logger"
 	"github.com/peer-calls/peer-calls/server/message"
+	"github.com/peer-calls/peer-calls/server/multierr"
 	"nhooyr.io/websocket"
 )
 
@@ -26,35 +26,82 @@ func NewWSS(log logger.Logger, rooms RoomManager) *WSS {
 	}
 }
 
-type Subscription struct {
-	Adapter  Adapter
-	ClientID identifiers.ClientID
-	Room     identifiers.RoomID
-	Messages <-chan message.Message
+type WebsocketContext struct {
+	adapter   Adapter
+	roomID    identifiers.RoomID
+	client    *Client
+	onClose   func()
+	closeOnce sync.Once
 }
 
-func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription, error) {
-	var c *websocket.Conn
+// NewWebsocketContext initializes the new websocket context. Users must call
+// the Close method once they are done.
+func NewWebsocketContext(
+	adapter Adapter, client *Client, roomID identifiers.RoomID, onClose func(),
+) *WebsocketContext {
+	return &WebsocketContext{
+		adapter: adapter,
+		roomID:  roomID,
+		client:  client,
+		onClose: onClose,
+	}
+}
+
+// Adapter returns the websocket adapter.
+func (w *WebsocketContext) Adapter() Adapter {
+	return w.adapter
+}
+
+// RoomID returns the room identifier.
+func (w *WebsocketContext) RoomID() identifiers.RoomID {
+	return w.roomID
+}
+
+// ClientID return sthe client identifier.
+func (w *WebsocketContext) ClientID() identifiers.ClientID {
+	return w.client.ID()
+}
+
+// Messages returns the parsed messages channel.
+func (w *WebsocketContext) Messages() <-chan message.Message {
+	return w.client.Messages()
+}
+
+// Close invokes the Close method on the underlying connection. It also invokes
+// the onClose handler.
+func (w *WebsocketContext) Close(statusCode websocket.StatusCode, reason string) error {
+	err := w.client.Close(statusCode, reason)
+
+	w.closeOnce.Do(w.onClose)
+
+	return errors.Trace(err)
+}
+
+// NewWebsocketContext initializes a new websocket connection. Users must
+// remember to call WebsocketContext.Close after they are done with the
+// connection.
+func (wss *WSS) NewWebsocketContext(w http.ResponseWriter, r *http.Request) (*WebsocketContext, error) {
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		CompressionMode: websocket.CompressionDisabled,
 	})
-
 	if err != nil {
 		prometheusWSConnErrTotal.Inc()
+
+		w.WriteHeader(http.StatusInternalServerError)
+
 		return nil, errors.Annotatef(err, "accept websocket connection")
 	}
 
-	ctx := r.Context()
-
 	clientID := identifiers.ClientID(path.Base(r.URL.Path))
 	room := identifiers.RoomID(path.Base(path.Dir(r.URL.Path)))
-	adapter, _ := wss.rooms.Enter(room)
-	ch := make(chan message.Message)
 
 	log := wss.log.WithCtx(logger.Ctx{
 		"client_id": clientID,
 		"room_id":   room,
 	})
+
+	log.Info("Enter", nil)
+	adapter, _ := wss.rooms.Enter(room)
 
 	client := NewClientWithID(c, clientID)
 
@@ -64,73 +111,30 @@ func (wss *WSS) Subscribe(w http.ResponseWriter, r *http.Request) (*Subscription
 	prometheusWSConnActive.Inc()
 	start := time.Now()
 
-	go func() {
-		defer func() {
-			prometheusWSConnActive.Dec()
-			duration := time.Now().Sub(start)
-			prometheusWSConnDuration.Observe(duration.Seconds())
-
-			err := c.Close(websocket.StatusNormalClosure, "")
-			if err != nil {
-				log.Error("Close websocket connection", errors.Trace(err), nil)
-			} else {
-				log.Info("Close websocket connection", nil)
-			}
-		}()
-		defer func() {
-			log.Info("Exit", nil)
-			wss.rooms.Exit(room)
-		}()
-		err = adapter.Add(client)
-		if err != nil {
-			log.Error("Add client", errors.Trace(err), nil)
-
-			close(ch)
-
-			return
-		}
-
-		defer func() {
-			err := adapter.Remove(clientID)
-			if err != nil {
-				log.Error("Remove", errors.Trace(err), nil)
-			} else {
-				log.Info("Remove", nil)
-			}
-		}()
-
-		msgChan := client.Subscribe(ctx)
-
-		for message := range msgChan {
-			ch <- message
-		}
-
-		close(ch)
-
-		err = errors.Trace(client.Err())
-		cause := errors.Cause(err)
-
-		if pkgErrors.Is(cause, context.Canceled) {
-			err = nil
-			return
-		}
-		if websocket.CloseStatus(cause) == websocket.StatusNormalClosure ||
-			websocket.CloseStatus(cause) == websocket.StatusGoingAway {
-			err = nil
-			return
-		}
-
-		if err != nil {
-			log.Error("Subscribe", errors.Trace(err), nil)
-		}
-	}()
-
-	stream := &Subscription{
-		Adapter:  adapter,
-		ClientID: clientID,
-		Room:     room,
-		Messages: ch,
+	err = adapter.Add(client)
+	if multierr.Is(err, ErrDuplicateClientID) {
+		client.Close(websocket.StatusPolicyViolation, ErrDuplicateClientID.Error())
+		return nil, errors.Annotatef(err, "adapter add - duplicate client id")
+	} else if err != nil {
+		client.Close(websocket.StatusInternalError, "internal error")
+		return nil, errors.Annotatef(err, "adapter add")
 	}
 
-	return stream, nil
+	websocketCtx := NewWebsocketContext(adapter, client, room, func() {
+		prometheusWSConnActive.Dec()
+		duration := time.Since(start)
+		prometheusWSConnDuration.Observe(duration.Seconds())
+
+		err := adapter.Remove(clientID)
+		if err != nil {
+			log.Error("Remove", errors.Trace(err), nil)
+		} else {
+			log.Info("Remove", nil)
+		}
+
+		log.Info("Exit", nil)
+		wss.rooms.Exit(room)
+	})
+
+	return websocketCtx, nil
 }

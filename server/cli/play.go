@@ -232,7 +232,7 @@ func (h *playHandler) handleMessages(ctx context.Context, wsClient *server.Clien
 		signaller *server.Signaller
 	}
 
-	messagesChan := wsClient.Subscribe(ctx)
+	messagesChan := wsClient.Messages()
 
 	err := wsClient.Write(message.NewReady(h.roomID, message.Ready{
 		Nickname: h.args.nickname,
@@ -252,6 +252,7 @@ func (h *playHandler) handleMessages(ctx context.Context, wsClient *server.Clien
 	for {
 		select {
 		case <-ctx.Done():
+			wsClient.Close(websocket.StatusNormalClosure, "")
 			return
 		case msg, ok := <-messagesChan:
 			if !ok {

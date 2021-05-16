@@ -22,9 +22,14 @@ type WSReader interface {
 	Read(ctx context.Context) (websocket.MessageType, []byte, error)
 }
 
+type WSCloser interface {
+	Close(statusCode websocket.StatusCode, reason string) error
+}
+
 type WSReadWriter interface {
 	WSReader
 	WSWriter
+	WSCloser
 }
 
 // An abstraction for sending out to websocket using channels.
@@ -33,6 +38,10 @@ type Client struct {
 	conn       WSReadWriter
 	metadata   string
 	serializer ByteSerializer
+
+	messages  chan message.Message
+	closed    chan struct{}
+	closeOnce sync.Once
 
 	errMu sync.RWMutex
 	err   error
@@ -47,10 +56,17 @@ func NewClientWithID(conn WSReadWriter, id identifiers.ClientID) *Client {
 	if id == "" {
 		id = identifiers.ClientID(uuid.New())
 	}
-	return &Client{
-		id:   id,
-		conn: conn,
+
+	c := &Client{
+		id:       id,
+		conn:     conn,
+		messages: make(chan message.Message),
+		closed:   make(chan struct{}),
 	}
+
+	go c.readLoop()
+
+	return c
 }
 
 func (c *Client) SetMetadata(metadata string) {
@@ -61,10 +77,8 @@ func (c *Client) Metadata() string {
 	return c.metadata
 }
 
-// Writes a message to websocket with timeout.
-func (c *Client) WriteTimeout(ctx context.Context, timeout time.Duration, msg message.Message) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+// Writes a message to websocket.
+func (c *Client) WriteCtx(ctx context.Context, msg message.Message) error {
 	data, err := c.serializer.Serialize(msg)
 	if err != nil {
 		return errors.Annotate(err, "serialize")
@@ -78,9 +92,12 @@ func (c *Client) ID() identifiers.ClientID {
 	return c.id
 }
 
-// Write writes a message to client socket
+// Write writes a message to client socket with the default timeout.
 func (c *Client) Write(msg message.Message) error {
-	err := c.WriteTimeout(context.Background(), defaultWSTimeout, msg)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWSTimeout)
+	defer cancel()
+
+	err := c.WriteCtx(ctx, msg)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -106,6 +123,8 @@ func (c *Client) read(ctx context.Context) (msg message.Message, err error) {
 	return msg, nil
 }
 
+// Err returns the read error that might have occurred. It should be called
+// after the Messages channel is closed.
 func (c *Client) Err() error {
 	c.errMu.RLock()
 	defer c.errMu.RUnlock()
@@ -113,38 +132,50 @@ func (c *Client) Err() error {
 	return errors.Trace(c.err)
 }
 
-func (c *Client) Subscribe(ctx context.Context) <-chan message.Message {
-	msgChan := make(chan message.Message)
+// Messages returns the read messages.
+func (c *Client) Messages() <-chan message.Message {
+	return c.messages
+}
 
-	go func() {
-		var (
-			err error
-			msg message.Message
-		)
+func (c *Client) readLoop() {
+	defer close(c.messages)
 
-	loop:
-		for {
-			msg, err = c.read(ctx)
-			if err != nil {
-				err = errors.Trace(err)
+	var (
+		err error
+		msg message.Message
+	)
 
-				break loop
-			}
+	for {
+		msg, err = c.read(context.Background())
+		if err != nil {
+			c.errMu.Lock()
+			c.err = errors.Trace(err)
+			c.errMu.Unlock()
 
-			select {
-			case msgChan <- msg:
-			case <-ctx.Done():
-				err = errors.Trace(ctx.Err())
-
-				break loop
-			}
+			break
 		}
 
-		c.errMu.Lock()
-		close(msgChan)
-		c.err = errors.Trace(err)
-		c.errMu.Unlock()
-	}()
+		select {
+		case c.messages <- msg:
+		case <-c.closed:
+			// Do not block on send after calling Close. But we must keep reading
+			// for graceful closure. So only break the loop after read returns an
+			// error.
+		}
+	}
+}
 
-	return msgChan
+// Close invokes Close on the underlying websocket connection.
+func (c *Client) Close(statusCode websocket.StatusCode, reason string) error {
+	var err error
+
+	c.closeOnce.Do(func() {
+		err = c.conn.Close(statusCode, reason)
+
+		close(c.closed)
+
+		err = errors.Trace(err)
+	})
+
+	return errors.Trace(err)
 }

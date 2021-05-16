@@ -16,6 +16,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
+	"nhooyr.io/websocket"
 )
 
 func errIs(err error, target error) bool {
@@ -50,21 +51,21 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 	adapter1 := server.NewRedisAdapter(test.NewLogger(), pub, sub, "peercalls", room)
 	mockWriter1 := NewMockWriter()
 	defer close(mockWriter1.out)
+
 	client1 := server.NewClient(mockWriter1)
 	client1.SetMetadata("a")
 	mockWriter2 := NewMockWriter()
 	defer close(mockWriter2.out)
+
 	client2 := server.NewClient(mockWriter2)
 	client2.SetMetadata("b")
-	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	for _, client := range []*server.Client{client1, client2} {
 		go func(client *server.Client) {
-			msgChan := client.Subscribe(ctx)
-			for range msgChan {
+			for range client.Messages() {
 			}
 			err := client.Err()
 			assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected error to be context.Canceled, but was: %s", err)
@@ -132,6 +133,12 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 		err := stop()
 		assert.Equal(t, nil, err)
 	}
-	cancel()
+
+	err = client1.Close(websocket.StatusNormalClosure, "")
+	assert.NoError(t, err, "closing websocket client1")
+
+	err = client2.Close(websocket.StatusNormalClosure, "")
+	assert.NoError(t, err, "closing websocket client2")
+
 	wg.Wait()
 }

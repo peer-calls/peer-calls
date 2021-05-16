@@ -70,7 +70,7 @@ func (f *LogFormatter) Format(message logger.Message) ([]byte, error) {
 			message.Level,
 			namespace,
 			clientID,
-			message.Body,
+			strings.TrimRight(message.Body, "\n"),
 			b.String(),
 		)
 	} else {
@@ -78,7 +78,7 @@ func (f *LogFormatter) Format(message logger.Message) ([]byte, error) {
 			message.Timestamp.Format(timeLayout),
 			message.Level,
 			namespace,
-			message.Body,
+			strings.TrimRight(message.Body, "\n"),
 			b.String(),
 		)
 	}

@@ -220,6 +220,9 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 	// the peer counting in a room. So it's better to error out than to replace
 	// a transport.
 	if _, existing := t.transports[clientID]; existing {
+		// This should actually never happen, because the adapter should prevent
+		// a duplicate clientID from being added to the room in the first place.
+		// However, we return the error as a sanity check.
 		err = errors.Annotatef(ErrDuplicateTransport, "clientID: %s", clientID)
 	} else {
 		t.transports[clientID] = tr

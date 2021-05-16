@@ -210,7 +210,7 @@ func (l *logger) Warn(message string, ctx Ctx) (int, error) {
 func (l *logger) Error(message string, err error, ctx Ctx) (int, error) {
 	if err != nil {
 		if message != "" {
-			message = fmt.Sprintf("%s: %+v", message, err)
+			message = fmt.Sprintf("%s\n%+v", message, err)
 		} else {
 			message = fmt.Sprintf("%+v", err)
 		}

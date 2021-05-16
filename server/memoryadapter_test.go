@@ -11,6 +11,7 @@ import (
 	"github.com/peer-calls/peer-calls/server/message"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
+	"nhooyr.io/websocket"
 )
 
 func TestMemoryAdapter_add_remove_clients(t *testing.T) {
@@ -18,21 +19,30 @@ func TestMemoryAdapter_add_remove_clients(t *testing.T) {
 	adapter := server.NewMemoryAdapter(room)
 	mockWriter := NewMockWriter()
 	client := server.NewClient(mockWriter)
+
+	defer client.Close(websocket.StatusNormalClosure, "")
+
 	client.SetMetadata("a")
 	clientID := client.ID()
+
 	err := adapter.Add(client)
 	assert.Nil(t, err)
+
 	clientIDs, err := adapter.Clients()
 	assert.Nil(t, err)
 	assert.Equal(t, map[identifiers.ClientID]string{clientID: "a"}, clientIDs)
+
 	size, err := adapter.Size()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, size)
+
 	err = adapter.Remove(clientID)
 	assert.Nil(t, err)
 	clientIDs, err = adapter.Clients()
+
 	assert.Nil(t, err)
 	assert.Equal(t, map[identifiers.ClientID]string{}, clientIDs)
+
 	size, err = adapter.Size()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, size)
@@ -45,11 +55,10 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 	defer close(mockWriter.out)
 	client := server.NewClient(mockWriter)
 	adapter.Add(client)
-	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		msgChan := client.Subscribe(ctx)
+		msgChan := client.Messages()
 		for range msgChan {
 		}
 		err := client.Err()
@@ -70,7 +79,9 @@ func TestMemoryAdapter_emitFound(t *testing.T) {
 
 	assert.Equal(t, joinMessage, msg1)
 	msg2 := <-mockWriter.out
-	cancel()
+
+	client.Close(websocket.StatusNormalClosure, "")
+
 	assert.Equal(t, serialize(t, msg), msg2)
 	wg.Wait()
 }
@@ -93,24 +104,24 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 	client1 := server.NewClient(mockWriter1)
 	mockWriter2 := NewMockWriter()
 	client2 := server.NewClient(mockWriter2)
+
 	defer close(mockWriter1.out)
 	defer close(mockWriter2.out)
+
 	assert.Nil(t, adapter.Add(client1))
 	assert.Nil(t, adapter.Add(client2))
-	ctx, cancel := context.WithCancel(context.Background())
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		msgChan := client1.Subscribe(ctx)
-		for range msgChan {
+		for range client1.Messages() {
 		}
 		err := client1.Err()
 		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
 		wg.Done()
 	}()
 	go func() {
-		msgChan := client2.Subscribe(ctx)
-		for range msgChan {
+		for range client2.Messages() {
 		}
 		err := client2.Err()
 		assert.True(t, errIs(errors.Cause(err), context.Canceled), "expected context.Canceled, but got: %s", err)
@@ -129,6 +140,12 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 	serializedMsg := serialize(t, msg)
 	assert.Equal(t, serializedMsg, <-mockWriter1.out)
 	assert.Equal(t, serializedMsg, <-mockWriter2.out)
-	cancel()
+
+	err := client1.Close(websocket.StatusNormalClosure, "")
+	assert.NoError(t, err, "closing websocket client1")
+
+	err = client2.Close(websocket.StatusNormalClosure, "")
+	assert.NoError(t, err, "closing websocket client2")
+
 	wg.Wait()
 }
