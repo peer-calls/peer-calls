@@ -149,6 +149,12 @@ export function handleLocalMediaTrackEnable(
   return state
 }
 
+export function removeAllPeers(state: PeersState): PeersState {
+  forEach(state, peer => peer.destroy())
+
+  return defaultState
+}
+
 export default function peers(
   state = defaultState,
   action:
@@ -172,10 +178,10 @@ export default function peers(
         camera: undefined,
         desktop: undefined,
       }
-      setTimeout(() => {
-        forEach(state, peer => peer.destroy())
-      })
-      return defaultState
+
+      return removeAllPeers(state)
+    case constants.PEER_REMOVE_ALL:
+      return removeAllPeers(state)
     case constants.STREAM_REMOVE:
       return handleRemoveLocalStream(state, action)
     case constants.MEDIA_STREAM:
