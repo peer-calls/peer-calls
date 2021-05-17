@@ -73,14 +73,24 @@ func (t *PeerManager) broadcast(clientID identifiers.ClientID, msg webrtc.DataCh
 	}
 }
 
+// Add adds a transport with ClientID. If there was already an existing
+// Transport with the same ClientID, it will be closed and removed before a new
+// one is added.
 func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+	clientID := tr.ClientID()
+
 	log := t.log.WithCtx(logger.Ctx{
-		"client_id": tr.ClientID(),
+		"client_id": clientID,
 	})
 
-	pubTrackEventSub, err := t.pubsub.SubscribeToEvents(tr.ClientID())
+	t.mu.Lock()
+
+	pubTrackEventSub, err := t.add(tr)
+
+	t.mu.Unlock()
+
 	if err != nil {
-		return nil, errors.Annotatef(err, "subscribe to events: %s", tr.ClientID())
+		return nil, errors.Annotatef(err, "subscribe to events: %s", clientID)
 	}
 
 	pubTracks := t.pubsub.Tracks()
@@ -97,7 +107,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		defer close(pubTrackEventsCh)
 
 		for _, pubTrack := range pubTracks {
-			if pubTrack.ClientID != tr.ClientID() {
+			if pubTrack.ClientID != clientID {
 				pubTrackEventsCh <- pubsub.PubTrackEvent{
 					PubTrack: pubTrack,
 					Type:     transport.TrackEventTypeAdd,
@@ -106,7 +116,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 		}
 
 		for event := range pubTrackEventSub {
-			if event.PubTrack.ClientID != tr.ClientID() {
+			if event.PubTrack.ClientID != clientID {
 				pubTrackEventsCh <- event
 			}
 		}
@@ -124,12 +134,12 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 			done := make(chan struct{})
 
-			t.pubsub.Pub(tr.ClientID(), pubsub.NewTrackReader(remoteTrack, func() {
+			t.pubsub.Pub(clientID, pubsub.NewTrackReader(remoteTrack, func() {
 				t.mu.Lock()
 
 				close(done)
 
-				t.pubsub.Unpub(tr.ClientID(), trackID)
+				t.pubsub.Unpub(clientID, trackID)
 
 				t.mu.Unlock()
 			}))
@@ -203,8 +213,6 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.wg.Add(1)
 
-	clientID := tr.ClientID()
-
 	go func() {
 		defer t.wg.Done()
 
@@ -215,21 +223,36 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 	t.wg.Done()
 
-	t.mu.Lock()
-	// We don't ever want to replace an existing transport. This could mess up
-	// the peer counting in a room. So it's better to error out than to replace
-	// a transport.
-	if _, existing := t.transports[clientID]; existing {
-		// This should actually never happen, because the adapter should prevent
-		// a duplicate clientID from being added to the room in the first place.
-		// However, we return the error as a sanity check.
-		err = errors.Annotatef(ErrDuplicateTransport, "clientID: %s", clientID)
-	} else {
-		t.transports[clientID] = tr
-	}
-	t.mu.Unlock()
+	return pubTrackEventsCh, nil
+}
 
-	return pubTrackEventsCh, errors.Trace(err)
+// add removes and closes any existing transport with the same clientID and
+// subscribes to events and adds the new transport. The caller must hold the
+// lock.
+func (t *PeerManager) add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, error) {
+	clientID := tr.ClientID()
+
+	// Remove and close an existing transport so we don't have troubling cleaning
+	// up.
+	if existing, ok := t.transports[clientID]; ok {
+		// TODO perhaps it would be wise to wait for all the previously spinned
+		// goroutines created in the past call to this method to exit before we
+		// remove the transport to prevent any stale tracks from being added.
+		existing.Close()
+
+		t.remove(clientID)
+	}
+
+	pubTrackEventSub, err := t.pubsub.SubscribeToEvents(clientID)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	// Add the transport only if there was no error. This awkward check is here
+	// because we're still under a lock.
+	t.transports[clientID] = tr
+
+	return pubTrackEventSub, nil
 }
 
 func (t *PeerManager) Sub(params SubParams) error {
@@ -362,14 +385,37 @@ func (t *PeerManager) Unsub(params SubParams) error {
 	return errors.Trace(err)
 }
 
-// Remove removes the transport and unsubscribes it from track events.
-func (t *PeerManager) Remove(clientID identifiers.ClientID) {
+// Remove removes the transport and unsubscribes it from track events. To
+// qualify for removal, the registered transport must have the same reference,
+// otherwise it will not be removed. This is to prevent a transport with the
+// same ID from messing up with another transport. This means that Remove can
+// be called after a transport was already replaced in Add to ease the cleanup
+// logic.
+func (t *PeerManager) Remove(tr transport.Transport) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	clientID := tr.ClientID()
+
+	if existing, ok := t.transports[clientID]; !ok {
+		return errors.Errorf("transport not found: %s", clientID)
+	} else if existing != tr {
+		// Most likely a transport was already removed after a reconnect.
+		return errors.Errorf("transport found, but has changed: %s", clientID)
+	}
+
+	t.remove(clientID)
+
+	return nil
+}
+
+// remove unsubscribes the transport from track events and removes any
+// published published tracks. The transport should be closed by the time this
+// method is called. The caller must hold the lock.
+func (t *PeerManager) remove(clientID identifiers.ClientID) {
 	t.log.Trace("Remove", logger.Ctx{
 		"client_id": clientID,
 	})
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
 
 	if err := t.pubsub.UnsubscribeFromEvents(clientID); err != nil {
 		t.log.Error("Unsubscribe from events", errors.Trace(err), logger.Ctx{
@@ -381,38 +427,6 @@ func (t *PeerManager) Remove(clientID identifiers.ClientID) {
 
 	delete(t.transports, clientID)
 }
-
-// func (t *PeerManager) removeTrack(clientID string, track transport.Track) {
-// 	trackID := track.TrackID()
-
-// 	t.log.Trace("Remove track", logger.Ctx{
-// 		"client_id": clientID,
-// 		"track_id":  trackID,
-// 	})
-
-// 	t.mu.Lock()
-// 	defer t.mu.Unlock()
-
-// 	t.pubsub.Unpub(clientID, trackID)
-
-// 	// FIXME re-enable REMB
-// 	// t.trackBitrateEstimators.Remove(ssrc)
-
-// 	// Let the server transports know the track has been removed.
-// 	for subClientID, subTransport := range t.serverTransports {
-// 		if subClientID != clientID {
-// 			if err := subTransport.RemoveTrack(trackID); err != nil {
-// 				t.log.Error("Remove track", errors.Trace(err), logger.Ctx{
-// 					"pub_client_id": clientID,
-// 					"sub_client_id": subClientID,
-// 					"track_id":      trackID,
-// 				})
-
-// 				continue
-// 			}
-// 		}
-// 	}
-// }
 
 // Size returns the total size of transports in the room.
 func (t *PeerManager) Size() int {
