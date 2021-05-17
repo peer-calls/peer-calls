@@ -221,11 +221,20 @@ export interface RemovePeerAction {
   payload: { peerId: string }
 }
 
+export interface RemoveAllPeersAction {
+  type: 'PEER_REMOVE_ALL'
+}
+
 export const removePeer = (peerId: string): RemovePeerAction => ({
   type: constants.PEER_REMOVE,
   payload: { peerId },
 })
 
+export const removeAllPeers = (): RemoveAllPeersAction => ({
+  type: constants.PEER_REMOVE_ALL,
+})
+
 export type PeerAction =
   AddPeerAction |
-  RemovePeerAction
+  RemovePeerAction |
+  RemoveAllPeersAction
