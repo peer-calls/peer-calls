@@ -67,11 +67,13 @@ func (s *events) start(in <-chan PubTrackEvent) {
 			}
 
 		case req := <-s.subRequestsChan:
+			// Unsubscribe existing subscription.
 			if out, ok := subs[req.clientID]; ok {
 				delete(subs, req.clientID)
 				close(out)
 			}
 
+			// Subscribe if necessary.
 			if req.typ == subRequestTypeSubscribe {
 				sub := make(chan PubTrackEvent, s.bufferSize)
 				subs[req.clientID] = sub

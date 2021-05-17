@@ -109,8 +109,22 @@ func (a *RedisAdapter) Add(client ClientWriter) (err error) {
 	})
 
 	a.clientsMu.Lock()
-	a.clients[clientID] = client
+
+	// TODO what if a client with the same ID has joined another
+	// node? We need to be smarter about this.
+	//
+	// Perhaps an easy solution is to add a node ID as a key prefix.
+	if _, ok := a.clients[clientID]; ok {
+		err = errors.Annotatef(ErrDuplicateClientID, "%s", clientID)
+	} else {
+		a.clients[clientID] = client
+	}
+
 	a.clientsMu.Unlock()
+
+	if err != nil {
+		return errors.Trace(err)
+	}
 
 	join := message.RoomJoin{
 		ClientID: clientID,
@@ -187,7 +201,7 @@ func (a *RedisAdapter) SetMetadata(clientID identifiers.ClientID, metadata strin
 	_, err := a.pubRedis.HSet(a.keys.roomClients, clientID.String(), metadata).Result()
 	if err != nil {
 		// FIXME return error
-		a.log.Error("Setmetadata", errors.Trace(err), logCtx)
+		a.log.Error("SetMetadata", errors.Trace(err), logCtx)
 	}
 
 	return err == nil

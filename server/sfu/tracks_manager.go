@@ -47,6 +47,8 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 
 	peerManager, ok := m.peerManagers[room]
 	if !ok {
+		log.Info("Add peer manager", nil)
+
 		jitterHandler := NewJitterHandler(
 			log,
 			m.jitterBufferEnabled,
@@ -71,13 +73,26 @@ func (m *TracksManager) Add(room identifiers.RoomID, tr transport.Transport) (<-
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		log.Info("Remove peer", nil)
+		// Note: if this transport was already replaced in a previous call to Add,
+		// Remove won't actually do anything - it will just return an error, but
+		// there's no need to handle it.
+		if err := peerManager.Remove(tr); err != nil {
+			log.Error("Remove peer", errors.Trace(err), nil)
+		} else {
+			log.Info("Remove peer", nil)
+		}
 
-		peerManager.Remove(tr.ClientID())
-
-		// FIXME if we have server transports PeerManager will never be closed.
+		// Since the server transports are created when room is created, and
+		// removed when a room is removed, we don't need to do anything special
+		// to count the number of non-server peers here.
+		//
+		// It is fine to check for the size because peerManager is only ever
+		// modified from this component, and we are under a lock.
 		if peerManager.Size() == 0 {
+			log.Info("Remove peer manager", nil)
+
 			peerManager.Close()
+
 			delete(m.peerManagers, room)
 		}
 	}()

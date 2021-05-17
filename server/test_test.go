@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/message"
@@ -20,12 +21,18 @@ const room identifiers.RoomID = "test-room"
 var serializer server.ByteSerializer
 
 type MockWSWriter struct {
-	out chan []byte
+	out      chan []byte
+	closeCtx context.Context
+	cancel   context.CancelFunc
 }
 
 func NewMockWriter() *MockWSWriter {
+	closeCtx, cancel := context.WithCancel(context.Background())
+
 	return &MockWSWriter{
-		out: make(chan []byte, 16),
+		closeCtx: closeCtx,
+		cancel:   cancel,
+		out:      make(chan []byte, 16),
 	}
 }
 
@@ -35,9 +42,19 @@ func (w *MockWSWriter) Write(ctx context.Context, typ websocket.MessageType, msg
 }
 
 func (w *MockWSWriter) Read(ctx context.Context) (typ websocket.MessageType, msg []byte, err error) {
-	<-ctx.Done()
-	err = ctx.Err()
+	select {
+	case <-ctx.Done():
+		err = errors.Trace(ctx.Err())
+	case <-w.closeCtx.Done():
+		err = errors.Trace(w.closeCtx.Err())
+	}
+
 	return
+}
+
+func (w *MockWSWriter) Close(statusCode websocket.StatusCode, reason string) error {
+	w.cancel()
+	return nil
 }
 
 func serialize(t *testing.T, msg message.Message) []byte {

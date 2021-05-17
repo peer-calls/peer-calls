@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/server/identifiers"
 	"github.com/peer-calls/peer-calls/server/message"
 )
@@ -23,3 +24,5 @@ type Adapter interface {
 	Size() (int, error)
 	Close() error
 }
+
+var ErrDuplicateClientID = errors.New("duplicate client id")

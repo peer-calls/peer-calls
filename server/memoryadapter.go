@@ -24,18 +24,30 @@ func NewMemoryAdapter(room identifiers.RoomID) *MemoryAdapter {
 	}
 }
 
-// Add a client to the room
+// Add a client to the room. Will return an error on duplicate client ID.
 func (m *MemoryAdapter) Add(client ClientWriter) (err error) {
 	m.clientsMu.Lock()
+
 	clientID := client.ID()
-	m.clients[clientID] = client
+
+	if _, ok := m.clients[clientID]; ok {
+		err = errors.Annotatef(ErrDuplicateClientID, "%s", clientID)
+	} else {
+		m.clients[clientID] = client
+	}
+
+	m.clientsMu.Unlock()
+
+	if err != nil {
+		return errors.Trace(err)
+	}
+
 	err = m.broadcast(
 		message.NewRoomJoin(m.room, message.RoomJoin{
 			ClientID: clientID,
 			Metadata: client.Metadata(),
 		}),
 	)
-	m.clientsMu.Unlock()
 	return errors.Annotatef(err, "add client: %s", clientID)
 }
 

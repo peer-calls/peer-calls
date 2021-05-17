@@ -78,7 +78,7 @@ func (f *StringFormatter) Format(message Message) ([]byte, error) {
 		message.Timestamp.Format(f.params.DateLayout),
 		message.Level,
 		message.Namespace,
-		message.Body,
+		strings.TrimRight(message.Body, "\n"),
 		b.String(),
 	)
 

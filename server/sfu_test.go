@@ -150,7 +150,7 @@ func createPeerConnection(t *testing.T, ctx context.Context, url string, clientI
 	})
 
 	wsClient := server.NewClientWithID(wsc, clientID)
-	msgChan := wsClient.Subscribe(ctx)
+	msgChan := wsClient.Messages()
 
 	err := wsClient.Write(message.NewReady(roomName, message.Ready{
 		Nickname: "some-user",
@@ -229,16 +229,66 @@ func TestSFU_PeerConnection(t *testing.T) {
 	log := test.NewLogger()
 
 	defer goleak.VerifyNone(t)
+
 	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
 	defer newAdapter.Close()
+
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms, false)
 	defer srv.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
 	peerCtx := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID.String(), clientID)
 	defer peerCtx.close()
+
 	waitPeerConnected(t, ctx, peerCtx.pc)
+}
+
+func TestSFU_PeerConnection_DuplicateClientID(t *testing.T) {
+	log := test.NewLogger()
+
+	defer goleak.VerifyNone(t)
+
+	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
+	defer newAdapter.Close()
+
+	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
+	srv, wsBaseURL := setupSFUServer(rooms, false)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	url := wsBaseURL + roomName.String() + "/" + clientID.String()
+
+	peerCtx1 := createPeerConnection(t, ctx, url, clientID)
+	defer peerCtx1.close()
+
+	waitPeerConnected(t, ctx, peerCtx1.pc)
+
+	wsc2 := mustDialWS(t, ctx, url)
+	defer wsc2.Close(websocket.StatusNormalClosure, "")
+
+	client2 := server.NewClientWithID(wsc2, clientID)
+
+	err := client2.Write(message.NewReady(roomName, message.Ready{
+		Nickname: "some-other-user",
+	}))
+	require.NoError(t, err, "error sending ready message")
+
+	select {
+	case msg, ok := <-client2.Messages():
+		assert.False(t, ok, "expected ws connection to be closed, but got: %+v", msg)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for connection 2 to be closed.")
+	}
+
+	require.NotNil(t, client2.Err(), "expected a client error")
+	assert.Contains(t, client2.Err().Error(), "duplicate client id")
+
+	// assert.EqualErrorf(t, client2.Err(), "duplicate client id", "ha")
 }
 
 func TestSFU_OnTrack(t *testing.T) {
@@ -252,18 +302,22 @@ func TestSFU_OnTrack(t *testing.T) {
 	defer newAdapter.Close()
 	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms, false)
+
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
 	defer cancel()
 
 	peerCtx1 := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID.String(), clientID)
 	defer peerCtx1.close()
+
 	waitPeerConnected(t, ctx, peerCtx1.pc)
 
 	fmt.Println("PEER 1 CONNECTED")
 
 	peerCtx2 := createPeerConnection(t, ctx, wsBaseURL+roomName.String()+"/"+clientID2.String(), clientID2)
 	defer peerCtx2.close()
+
 	waitPeerConnected(t, ctx, peerCtx2.pc)
 
 	fmt.Println("PEER 2 CONNECTED")
