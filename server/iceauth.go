@@ -8,11 +8,14 @@ import (
 	"time"
 )
 
-func GetICEAuthServers(servers []ICEServer) (result []ICEAuthServer) {
-	for _, server := range servers {
-		result = append(result, newICEServer(server))
+func GetICEAuthServers(servers []ICEServer) []ICEAuthServer {
+	result := make([]ICEAuthServer, len(servers))
+
+	for i, server := range servers {
+		result[i] = newICEServer(server)
 	}
-	return
+
+	return result
 }
 
 func newICEServer(server ICEServer) ICEAuthServer {

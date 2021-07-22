@@ -38,11 +38,7 @@ func InitConfig(c *Config) {
 	c.BindPort = 3000
 	c.Network.Type = NetworkTypeMesh
 	c.Store.Type = StoreTypeMemory
-	c.ICEServers = []ICEServer{{
-		URLs: []string{"stun:stun.l.google.com:19302"},
-	}, {
-		URLs: []string{"stun:global.stun.twilio.com:3478?transport=udp"},
-	}}
+	c.ICEServers = []ICEServer{}
 }
 
 func ReadConfig(filenames []string) (c Config, err error) {
