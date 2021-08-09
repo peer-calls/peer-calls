@@ -191,8 +191,8 @@ base_url: ''
 bind_host: '0.0.0.0'
 bind_port: 3005
 ice_servers:
- - urls:
-   - 'stun:stun.l.google.com:19302'
+- urls:
+  - 'stun:stun.l.google.com:19302'
 - urls:
   - 'stun:global.stun.twilio.com:3478?transport=udp'
 #- urls:
