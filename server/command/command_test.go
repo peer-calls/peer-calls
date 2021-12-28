@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/command"
+	"github.com/peer-calls/peer-calls/v4/server/command"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )

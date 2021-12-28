@@ -1,6 +1,6 @@
 package pubsub
 
-import "github.com/peer-calls/peer-calls/server/identifiers"
+import "github.com/peer-calls/peer-calls/v4/server/identifiers"
 
 // BitrateEstimator estimates minimum, maximum and average bitrate. It is not
 // safe for concurrent use.

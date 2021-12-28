@@ -4,7 +4,7 @@ import (
 	pkgErrors "errors"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/multierr"
+	"github.com/peer-calls/peer-calls/v4/server/multierr"
 )
 
 type MultiErrorHandler = multierr.MultiErr

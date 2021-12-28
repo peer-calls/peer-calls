@@ -9,10 +9,10 @@ import (
 	"strconv"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/command"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/sfu"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/command"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/sfu"
 	"github.com/spf13/pflag"
 )
 

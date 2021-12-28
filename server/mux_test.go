@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/pubsub"
-	"github.com/peer-calls/peer-calls/server/sfu"
-	"github.com/peer-calls/peer-calls/server/test"
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/pubsub"
+	"github.com/peer-calls/peer-calls/v4/server/sfu"
+	"github.com/peer-calls/peer-calls/v4/server/test"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

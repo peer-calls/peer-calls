@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/test"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/test"
 	"github.com/stretchr/testify/assert"
 )
 

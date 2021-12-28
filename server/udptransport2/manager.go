@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/clock"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/servertransport"
-	"github.com/peer-calls/peer-calls/server/udpmux"
+	"github.com/peer-calls/peer-calls/v4/server/clock"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/servertransport"
+	"github.com/peer-calls/peer-calls/v4/server/udpmux"
 	"github.com/pion/interceptor"
 )
 

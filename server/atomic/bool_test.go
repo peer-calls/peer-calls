@@ -3,7 +3,7 @@ package atomic_test
 import (
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/atomic"
+	"github.com/peer-calls/peer-calls/v4/server/atomic"
 	"github.com/stretchr/testify/assert"
 )
 

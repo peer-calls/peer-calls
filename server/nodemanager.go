@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/clock"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/sfu"
-	"github.com/peer-calls/peer-calls/server/udptransport2"
+	"github.com/peer-calls/peer-calls/v4/server/clock"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/sfu"
+	"github.com/peer-calls/peer-calls/v4/server/udptransport2"
 )
 
 const (

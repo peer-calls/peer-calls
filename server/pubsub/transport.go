@@ -1,8 +1,8 @@
 package pubsub
 
 import (
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
 )
 
 // Transport only defines a subset of methods from transport.Transport to make

@@ -1,8 +1,8 @@
 package message
 
 import (
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
 )
 
 type Message struct {

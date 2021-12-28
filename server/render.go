@@ -5,7 +5,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/oxtoacart/bpool"
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
 )
 
 const defaultBufferPoolSize = 128

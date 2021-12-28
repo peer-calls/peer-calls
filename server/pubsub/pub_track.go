@@ -1,8 +1,8 @@
 package pubsub
 
 import (
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
 )
 
 // PubTrack will be emitted as an event after a track is published or

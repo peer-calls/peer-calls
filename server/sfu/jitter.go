@@ -1,7 +1,7 @@
 package sfu
 
 import (
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 )

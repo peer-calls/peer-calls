@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/message"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/message"
 	"github.com/stretchr/testify/require"
 	"nhooyr.io/websocket"
 )
