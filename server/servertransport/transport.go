@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/codecs"
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/multierr"
-	"github.com/peer-calls/peer-calls/server/transport"
-	"github.com/peer-calls/peer-calls/server/uuid"
+	"github.com/peer-calls/peer-calls/v4/server/codecs"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/multierr"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server/uuid"
 	"github.com/pion/interceptor"
 )
 

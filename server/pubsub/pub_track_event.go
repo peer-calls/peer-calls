@@ -1,7 +1,7 @@
 package pubsub
 
 import (
-	"github.com/peer-calls/peer-calls/server/transport"
+	"github.com/peer-calls/peer-calls/v4/server/transport"
 )
 
 type PubTrackEvent struct {

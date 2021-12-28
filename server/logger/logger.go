@@ -158,6 +158,8 @@ func (l *logger) WithNamespaceAppended(newNamespace string) Logger {
 		newNamespace = fmt.Sprintf("%s:%s", oldNamespace, newNamespace)
 	}
 
+	fmt.Println("namespace", newNamespace)
+
 	return l.WithNamespace(newNamespace)
 }
 

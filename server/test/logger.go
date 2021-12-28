@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/peer-calls/peer-calls/server/logformatter"
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/logformatter"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
 )
 
 func NewLogger() logger.Logger {

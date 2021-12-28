@@ -3,10 +3,10 @@ package udptransport2
 import (
 	"sync"
 
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/servertransport"
-	"github.com/peer-calls/peer-calls/server/stringmux"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/servertransport"
+	"github.com/peer-calls/peer-calls/v4/server/stringmux"
 	"github.com/pion/interceptor"
 )
 

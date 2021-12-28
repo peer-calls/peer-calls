@@ -7,11 +7,11 @@ import (
 	"os"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/cli"
-	"github.com/peer-calls/peer-calls/server/logformatter"
-	"github.com/peer-calls/peer-calls/server/logger"
-	"github.com/peer-calls/peer-calls/server/multierr"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/cli"
+	"github.com/peer-calls/peer-calls/v4/server/logformatter"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/multierr"
 	"github.com/spf13/pflag"
 )
 

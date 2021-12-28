@@ -3,7 +3,7 @@ package stats
 // import (
 // 	"time"
 
-// 	"github.com/peer-calls/peer-calls/server/clock"
+// 	"github.com/peer-calls/peer-calls/v4/server/clock"
 // )
 
 // type Timer struct {

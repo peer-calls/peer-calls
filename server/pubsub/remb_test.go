@@ -3,8 +3,8 @@ package pubsub_test
 import (
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server/identifiers"
-	"github.com/peer-calls/peer-calls/server/pubsub"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/pubsub"
 	"github.com/stretchr/testify/assert"
 )
 

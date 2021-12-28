@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server/identifiers"
+	"github.com/peer-calls/peer-calls/v4/server/identifiers"
 )
 
 // controlStateTracker ensures that local and remote transports are both

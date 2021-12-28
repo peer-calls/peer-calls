@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
 )
 
 // LogFormatter adds special peer-calls specific formatting for console output.

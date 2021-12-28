@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/juju/errors"
-	"github.com/peer-calls/peer-calls/server"
-	"github.com/peer-calls/peer-calls/server/logger"
+	"github.com/peer-calls/peer-calls/v4/server"
+	"github.com/peer-calls/peer-calls/v4/server/logger"
 )
 
 type Props struct {

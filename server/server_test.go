@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/peer-calls/peer-calls/server"
+	"github.com/peer-calls/peer-calls/v4/server"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
