@@ -35,6 +35,8 @@ RUN set -ex \
 COPY                  ./          /src/
 COPY --from=frontend  /src/build/ /src/build/
 
+ARG VERSION
+
 RUN set -ex \
  && go build \
       -ldflags "-X main.GitDescribe=$(git describe --always --tags --dirty)" \
