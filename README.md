@@ -51,14 +51,13 @@ published on NPM since the server is no longer written in NodeJS.
 
 # Requirements for Development
 
- - [Node.js 14][node]
- - [Go 1.16][go]
+ - [Node.js 16][node]
+ - [Go 1.17.6][go]
 
-Alternatively, [Docker][docker] can be used to run Peer Calls.
+Alternatively, Docker  can be used to run Peer Calls.
 
 [node]: https://nodejs.org
 [go]: https://golang.org/
-[docker]: https://www.docker.com/
 
 # Stack
 
@@ -106,13 +105,13 @@ kubectl apply -k github.com/peer-calls/peer-calls
 
 ## Using Docker
 
-Use the [`peercalls/peercalls`][hub] image from Docker Hub:
+Use the [`https://ghcr.io/peer-calls/peer-calls`][hub] image from Docker Hub:
 
 ```bash
-docker run --rm -it -p 3000:3000 peercalls/peercalls:latest
+docker run --rm -it -p 3000:3000 ghcr.io/peer-calls/peer-calls:latest
 ```
 
-[hub]: https://hub.docker.com/r/peercalls/peercalls
+[hub]: https://ghcr.io/peer-calls/peer-calls
 
 ## Building from Source
 
@@ -400,12 +399,6 @@ like enterprise on-site support or become a sponsor, please contact
 [hello@rondomoon.com](mailto:hello@rondomoon.com).
 
 [rondomoon]: https://rondomoon.com
-
-If you wish to support future development of Peer Calls, you can donate here:
-
-[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=364CXPNDPK2YG&source=url)
-
-Thank you ❤️
 
 # License
 
