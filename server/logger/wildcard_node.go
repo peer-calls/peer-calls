@@ -74,7 +74,7 @@ func (n *wildcardNode) levelForNamespace(names []string) (Level, bool) {
 				node = child
 			}
 		}
-		// fmt.Println("returning")
+
 		return node.level, node.level != LevelUnknown
 	}
 
@@ -133,6 +133,5 @@ func (n *wildcardNode) LevelForNamespace(namespace string) Level {
 		return level
 	}
 
-	// fmt.Println("fallback", c.level)
 	return n.level
 }
