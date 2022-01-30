@@ -1,5 +1,5 @@
 import * as constants from '../constants'
-import { MinimizeToggleAction, StreamAction } from '../actions/StreamActions'
+import { MaximizeAction, MinimizeToggleAction, StreamAction } from '../actions/StreamActions'
 
 export type ActiveState = null | string
 
@@ -35,6 +35,18 @@ function minimizeToggle(
 }
 
 
+function maximize(
+  state: WindowStates,
+  action: MaximizeAction,
+): WindowStates {
+  return action.payload.others.reduce((newState, stream) => {
+    const key = getStreamKey(stream.peerId, stream.streamId)
+    newState[key] = 'minimized'
+    return newState
+  }, {} as WindowStates)
+}
+
+
 export default function windowStates (
   state: WindowStates = {},
   action: StreamAction,
@@ -42,6 +54,8 @@ export default function windowStates (
   switch (action.type) {
     case constants.MINIMIZE_TOGGLE:
       return minimizeToggle(state, action)
+    case constants.MAXIMIZE:
+      return maximize(state, action)
     default:
       return state
   }

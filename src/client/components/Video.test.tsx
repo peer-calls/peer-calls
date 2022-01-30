@@ -2,7 +2,7 @@ jest.mock('../window')
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-dom/test-utils'
-import { MinimizeTogglePayload } from '../actions/StreamActions'
+import { MaximizeParams, MinimizeTogglePayload } from '../actions/StreamActions'
 import { StreamWithURL } from '../reducers/streams'
 import { WindowState } from '../reducers/windowStates'
 import { MediaStream } from '../window'
@@ -27,6 +27,7 @@ describe('components/Video', () => {
       return <Video
         ref={this.ref}
         stream={this.state.stream || this.props.stream}
+        onMaximize={this.props.onMaximize}
         onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}
         peerId="test"
@@ -42,6 +43,8 @@ describe('components/Video', () => {
   let video: Video
   let onMinimizeToggle:
     jest.MockedFunction<(payload: MinimizeTogglePayload) => void>
+  let onMaximize:
+    jest.MockedFunction<(payload: MaximizeParams) => void>
   let mediaStream: MediaStream
   let url: string
   let wrapper: Element
@@ -61,6 +64,7 @@ describe('components/Video', () => {
     nickname = 'john'
     const flags: Flags = Object.assign({}, defaultFlags, args)
     onMinimizeToggle = jest.fn()
+    onMaximize = jest.fn()
     mediaStream = new MediaStream()
     const div = document.createElement('div')
     component = await new Promise<VideoWrapper>(resolve => {
@@ -78,6 +82,7 @@ describe('components/Video', () => {
           muted={flags.muted}
           mirrored={flags.mirrored}
           onMinimizeToggle={onMinimizeToggle}
+          onMaximize={onMaximize}
           nickname={nickname}
           windowState={flags.windowState}
         />,

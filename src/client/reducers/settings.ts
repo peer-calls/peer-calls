@@ -1,9 +1,10 @@
-import { SettingsAction } from '../actions/SettingsActions'
-import { SETTINGS_SHOW_MINIMIZED_TOOLBAR_TOGGLE } from '../constants'
+import { GridKind, GridKinds, SettingsAction } from '../actions/SettingsActions'
+import { SETTINGS_GRID_AUTO, SETTINGS_GRID_SET, SETTINGS_SHOW_MINIMIZED_TOOLBAR_TOGGLE } from '../constants'
 import { localStorage } from '../window'
 
 export interface SettingsState {
   showMinimizedToolbar: boolean
+  gridKind: GridKind
 }
 
 const settingsKey = 'settings'
@@ -11,6 +12,7 @@ const settingsKey = 'settings'
 function init(): SettingsState {
   return {
     showMinimizedToolbar: true,
+    gridKind: SETTINGS_GRID_AUTO,
   }
 }
 
@@ -24,8 +26,10 @@ function withDefault(
 
   return {
     showMinimizedToolbar:
-      typeof state.showMinimizedToolbar === 'boolean' ?
-      state.showMinimizedToolbar : init.showMinimizedToolbar,
+      typeof state.showMinimizedToolbar === 'boolean'
+        ? state.showMinimizedToolbar
+        : init.showMinimizedToolbar,
+    gridKind : GridKinds[state.gridKind as string] || SETTINGS_GRID_AUTO,
   }
 }
 
@@ -66,6 +70,11 @@ export default function settings(
     return save({
       ...state,
       showMinimizedToolbar: !state.showMinimizedToolbar,
+    })
+  case SETTINGS_GRID_SET:
+    return save({
+      ...state,
+      gridKind: action.payload.gridKind,
     })
   default:
     return state

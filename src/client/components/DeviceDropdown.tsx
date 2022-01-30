@@ -22,6 +22,7 @@ export interface DeviceDropdownProps {
   offIcon: IconType
   devices: MediaDevice[]
   title: string
+  dropdownTitle: string
   kind: MediaKind
   cameraStream?: LocalStream
 
@@ -223,7 +224,7 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
             icon={MdArrowDropUp}
             on={mediaConstraint.enabled}
             onClick={this.toggleOpen}
-            title={this.props.title + ' Settings'}
+            title={this.props.dropdownTitle}
           />
         </div>
 
@@ -345,7 +346,8 @@ function mapVideoStateToProps(state: State) {
     className: 'video',
     icon: MdVideocam,
     offIcon: MdVideocamOff,
-    title: 'Camera',
+    title: 'Toggle video',
+    dropdownTitle: 'Camera',
     kind: MediaKindVideo,
     devices: state.media.devices.video,
     mediaConstraint: state.media.video,
@@ -361,6 +363,7 @@ function mapAudioStateToProps(state: State) {
     icon: MdMic,
     offIcon: MdMicOff,
     title: 'Microphone',
+    dropdownTitle: 'Toggle mic',
     kind: MediaKindAudio,
     devices: state.media.devices.audio,
     mediaConstraint: state.media.audio,

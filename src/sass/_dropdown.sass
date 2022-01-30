@@ -20,7 +20,6 @@
   visibility: hidden
   opacity: 0
   position: absolute
-  bottom: 100%
   right: 0
   list-style-type: none
   padding: 0
@@ -28,6 +27,13 @@
   box-shadow: 0 0 3px rgba(black, 0.1)
   user-select: none
   z-index: $z-index-dropdown
+
+  bottom: 100%
+
+  &.dropdown-list-fixed
+    position: fixed
+    bottom: auto
+    right: auto
 
   li
     display: block
