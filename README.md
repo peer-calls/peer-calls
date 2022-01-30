@@ -105,13 +105,17 @@ kubectl apply -k github.com/peer-calls/peer-calls
 
 ## Using Docker
 
-Use the [`https://ghcr.io/peer-calls/peer-calls`][hub] image from Docker Hub:
+The automated builds on Docker Hub now require a subscription, and approval is
+required even for open source projects. We recently switched to using GitHub
+Container Registry instead:
+
+Use the [`ghcr.io/peer-calls/peer-calls`][ghcr] image:
 
 ```bash
 docker run --rm -it -p 3000:3000 ghcr.io/peer-calls/peer-calls:latest
 ```
 
-[hub]: https://ghcr.io/peer-calls/peer-calls
+[ghcr]: https://ghcr.io/peer-calls/peer-calls
 
 ## Building from Source
 
