@@ -23,7 +23,7 @@ spec:
           name: peercalls-config
       containers:
       - name: peercalls
-        image: peercalls/peercalls
+        image: ghcr.io/peer-calls/peer-calls
         imagePullPolicy: IfNotPresent
         command: ["peer-calls", "-c", "/etc/peercalls/config.yaml"]
         ports:

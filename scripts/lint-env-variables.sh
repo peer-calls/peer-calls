@@ -13,8 +13,8 @@ diff \
 exit_code=$?
 
 if [[ $exit_code -ne 0 ]]; then
-  echo "Documented environment variables in README.md and thos defined in"
-  echo "configread.go do not match. Please fix the issue!"
+  echo "Documented environment variables in README.md and those defined in"
+  echo "server/configread.go do not match. Please fix the issue!"
 fi
 
 exit $exit_code
