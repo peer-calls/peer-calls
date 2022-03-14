@@ -17,9 +17,9 @@ type ReadyMessage struct {
 }
 
 func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		log = log.WithNamespaceAppended("mesh")
+	log = log.WithNamespaceAppended("mesh")
 
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		websocketCtx, err := wss.NewWebsocketContext(w, r)
 		if err != nil {
 			log.Error("Create websocket context", errors.Trace(err), nil)
@@ -87,6 +87,7 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 			}
 		}
 	}
+
 	return http.HandlerFunc(fn)
 }
 
