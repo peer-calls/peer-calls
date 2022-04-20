@@ -20,7 +20,7 @@ spec:
       volumes:
       - name: config-volume
         configMap:
-          name: peercalls-config
+          name: peercalls
       containers:
       - name: peercalls
         image: ghcr.io/peer-calls/peer-calls
