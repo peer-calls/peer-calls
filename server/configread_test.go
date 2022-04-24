@@ -94,14 +94,19 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, 6379, c.Store.Redis.Port)
 	assert.Equal(t, "peercalls", c.Store.Redis.Prefix)
 	assert.Equal(t, 1, len(c.ICEServers))
-	ice := c.ICEServers[0]
-	assert.Equal(t, []string{
-		"stun:stun.l.google.com:19302",
-		"stuns:stun.l.google.com:19302",
-	}, ice.URLs)
-	assert.Equal(t, server.AuthTypeSecret, ice.AuthType)
-	assert.Equal(t, "test_user", ice.AuthSecret.Username)
-	assert.Equal(t, "test_secret", ice.AuthSecret.Secret)
+	assert.Equal(t, []server.ICEServer{
+		{
+			URLs: []string{
+				"stun:stun.l.google.com:19302",
+				"stuns:stun.l.google.com:19302",
+			},
+			AuthType: server.AuthTypeSecret,
+			AuthSecret: struct {
+				Username string `yaml:"username"`
+				Secret   string `yaml:"secret"`
+			}{"test_user", "test_secret"},
+		},
+	}, c.ICEServers)
 	assert.Equal(t, []string{"tcp6", "udp4"}, c.Network.SFU.Protocols)
 	assert.Equal(t, 8443, c.Network.SFU.TCPListenPort)
 	assert.Equal(t, server.NetworkType("sfu"), c.Network.Type)
@@ -112,4 +117,31 @@ func TestReadFromEnv(t *testing.T) {
 	assert.Equal(t, "at1234", c.Prometheus.AccessToken)
 	assert.Equal(t, "127.0.0.1:3004", c.Network.SFU.Transport.ListenAddr)
 	assert.Equal(t, []string{"127.0.0.1:3005", "127.0.0.1:3006"}, c.Network.SFU.Transport.Nodes)
+
+	t.Run("disable default ICE servers", func(t *testing.T) {
+		prefix := "PEERCALLSTEST_"
+		defer test.UnsetEnvPrefix(prefix)
+
+		var c server.Config
+
+		server.InitConfig(&c)
+
+		assert.Equal(t, []server.ICEServer{
+			{
+				URLs: []string{
+					"stun:stun.l.google.com:19302",
+				},
+			},
+			{
+				URLs: []string{
+					"stun:global.stun.twilio.com:3478?transport=udp",
+				},
+			},
+		}, c.ICEServers)
+
+		os.Setenv(prefix+"ICE_SERVER_URLS", "")
+		server.ReadConfigFromEnv(prefix, &c)
+
+		assert.Equal(t, []server.ICEServer{}, c.ICEServers)
+	})
 }
