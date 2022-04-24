@@ -168,7 +168,6 @@ func RegisterCodecs(mediaEngine *webrtc.MediaEngine, registry *codecs.Registry) 
 
 type WebRTCTransport struct {
 	mu sync.RWMutex
-	wg sync.WaitGroup
 
 	log logger.Logger
 
@@ -319,10 +318,8 @@ func NewWebRTCTransport(
 	go func() {
 		// wait for peer connection to be closed
 		<-signaller.Done()
-		// do not close channels before all writing goroutines exit
-		transport.wg.Wait()
+		peerConnection.OnTrack(nil)
 		transport.dataTransceiver.Close()
-		close(transport.remoteTracksChannel)
 	}()
 	return transport, nil
 }

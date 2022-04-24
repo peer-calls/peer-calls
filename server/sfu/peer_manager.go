@@ -127,87 +127,95 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 	go func() {
 		defer t.wg.Done()
 
-		for remoteTrackWithReceiver := range tr.RemoteTracksChannel() {
-			remoteTrack := remoteTrackWithReceiver.TrackRemote
-			rtcpReader := remoteTrackWithReceiver.RTCPReader
-			trackID := remoteTrack.Track().TrackID()
+		remoteTracksCh := tr.RemoteTracksChannel()
+		doneCh := tr.Done()
 
-			done := make(chan struct{})
+		for {
+			select {
+			case remoteTrackWithReceiver := <-remoteTracksCh:
+				remoteTrack := remoteTrackWithReceiver.TrackRemote
+				rtcpReader := remoteTrackWithReceiver.RTCPReader
+				trackID := remoteTrack.Track().TrackID()
 
-			t.pubsub.Pub(clientID, pubsub.NewTrackReader(remoteTrack, func() {
-				t.mu.Lock()
+				done := make(chan struct{})
 
-				close(done)
+				t.pubsub.Pub(clientID, pubsub.NewTrackReader(remoteTrack, func() {
+					t.mu.Lock()
 
-				t.pubsub.Unpub(clientID, trackID)
+					close(done)
 
-				t.mu.Unlock()
-			}))
+					t.pubsub.Unpub(clientID, trackID)
 
-			t.wg.Add(1)
+					t.mu.Unlock()
+				}))
 
-			go func() {
-				defer t.wg.Done()
+				t.wg.Add(1)
 
-				for {
-					// ReadRTCP ensures interceptors will do their work.
-					_, _, err := rtcpReader.ReadRTCP()
-					if err != nil {
-						if !multierr.Is(err, io.EOF) {
-							log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
+				go func() {
+					defer t.wg.Done()
+
+					for {
+						// ReadRTCP ensures interceptors will do their work.
+						_, _, err := rtcpReader.ReadRTCP()
+						if err != nil {
+							if !multierr.Is(err, io.EOF) {
+								log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
+							}
+
+							return
 						}
-
-						return
 					}
-				}
-			}()
-
-			t.wg.Add(1)
-
-			ticker := time.NewTicker(time.Second)
-
-			go func() {
-				defer func() {
-					t.wg.Done()
-					ticker.Stop()
 				}()
 
-				getBitrateEstimate := func() (uint64, bool) {
-					t.mu.Lock()
-					defer t.mu.Unlock()
+				t.wg.Add(1)
 
-					estimator, ok := t.pubsub.BitrateEstimator(trackID)
+				ticker := time.NewTicker(time.Second)
 
-					if !ok || estimator.Empty() {
-						return 0, false
+				go func() {
+					defer func() {
+						t.wg.Done()
+						ticker.Stop()
+					}()
+
+					getBitrateEstimate := func() (uint64, bool) {
+						t.mu.Lock()
+						defer t.mu.Unlock()
+
+						estimator, ok := t.pubsub.BitrateEstimator(trackID)
+
+						if !ok || estimator.Empty() {
+							return 0, false
+						}
+
+						return estimator.Min(), true
 					}
 
-					return estimator.Min(), true
-				}
+					select {
+					case <-ticker.C:
+						bitrate, ok := getBitrateEstimate()
+						if !ok {
+							break
+						}
 
-				select {
-				case <-ticker.C:
-					bitrate, ok := getBitrateEstimate()
-					if !ok {
-						break
+						ssrc := uint32(remoteTrack.SSRC())
+
+						// FIXME simulcast?
+
+						err := tr.WriteRTCP([]rtcp.Packet{
+							&rtcp.ReceiverEstimatedMaximumBitrate{
+								SenderSSRC: ssrc,
+								Bitrate:    bitrate,
+								SSRCs:      []uint32{ssrc},
+							},
+						})
+						_ = err // FIXME handle error
+
+					case <-done:
 					}
-
-					ssrc := uint32(remoteTrack.SSRC())
-
-					// FIXME simulcast?
-
-					err := tr.WriteRTCP([]rtcp.Packet{
-						&rtcp.ReceiverEstimatedMaximumBitrate{
-							SenderSSRC: ssrc,
-							Bitrate:    bitrate,
-							SSRCs:      []uint32{ssrc},
-						},
-					})
-					_ = err // FIXME handle error
-
-				case <-done:
-				}
-			}()
+				}()
+			case <-doneCh:
+				return
+			}
 		}
 	}()
 
