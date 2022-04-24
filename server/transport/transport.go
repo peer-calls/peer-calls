@@ -21,6 +21,8 @@ type Transport interface {
 
 	DataTransport
 
+	// RemoteTracksChannel might never be closed.
+	// Use Done() in select when reading from this channel to prevent deadlocks.
 	RemoteTracksChannel() <-chan TrackRemoteWithRTCPReader
 
 	LocalTracks() []TrackWithMID
