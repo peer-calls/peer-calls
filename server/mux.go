@@ -37,11 +37,12 @@ func buildManifest(baseURL string) []byte {
 }
 
 type Mux struct {
-	BaseURL    string
-	handler    *chi.Mux
-	iceServers []ICEServer
-	network    NetworkConfig
-	version    string
+	BaseURL                  string
+	handler                  *chi.Mux
+	iceServers               []ICEServer
+	network                  NetworkConfig
+	version                  string
+	encodedInsertableStreams bool
 }
 
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +73,7 @@ func NewMux(
 	version string,
 	network NetworkConfig,
 	iceServers []ICEServer,
+	encodedInsertableStreams bool,
 	rooms RoomManager,
 	tracks TracksManager,
 	prom PrometheusConfig,
@@ -84,11 +86,12 @@ func NewMux(
 
 	handler := chi.NewRouter()
 	mux := &Mux{
-		BaseURL:    baseURL,
-		handler:    handler,
-		iceServers: iceServers,
-		network:    network,
-		version:    version,
+		BaseURL:                  baseURL,
+		handler:                  handler,
+		iceServers:               iceServers,
+		network:                  network,
+		version:                  version,
+		encodedInsertableStreams: encodedInsertableStreams,
 	}
 
 	var root string
@@ -206,12 +209,15 @@ func (mux *Mux) routeCall(w http.ResponseWriter, r *http.Request) (string, inter
 	iceServers := GetICEAuthServers(mux.iceServers)
 
 	config := ClientConfig{
-		BaseURL:    mux.BaseURL,
-		Nickname:   r.Header.Get("X-Forwarded-User"),
-		CallID:     callID,
-		PeerID:     peerID,
-		ICEServers: iceServers,
-		Network:    mux.network.Type,
+		BaseURL:  mux.BaseURL,
+		Nickname: r.Header.Get("X-Forwarded-User"),
+		CallID:   callID,
+		PeerID:   peerID,
+		PeerConfig: PeerConfig{
+			ICEServers:               iceServers,
+			EncodedInsertableStreams: mux.encodedInsertableStreams,
+		},
+		Network: mux.network.Type,
 	}
 
 	configJSON, _ := json.Marshal(config)

@@ -78,6 +78,7 @@ type Config struct {
 	BaseURL  string `yaml:"base_url"`
 	BindHost string `yaml:"bind_host"`
 	BindPort int    `yaml:"bind_port"`
+
 	// When FS is non empty, it will be used as a root path to the resource files.
 	FS         string           `yaml:"fs"`
 	ICEServers []ICEServer      `yaml:"ice_servers"`
@@ -85,6 +86,12 @@ type Config struct {
 	Store      StoreConfig      `yaml:"store"`
 	Network    NetworkConfig    `yaml:"network"`
 	Prometheus PrometheusConfig `yaml:"prometheus"`
+
+	Frontend Frontend `yaml:"frontend"`
+}
+
+type Frontend struct {
+	EncodedInsertableStreams bool `yaml:"encodedInsertableStreams"`
 }
 
 type ICEAuthServer struct {
@@ -94,10 +101,15 @@ type ICEAuthServer struct {
 }
 
 type ClientConfig struct {
-	BaseURL    string          `json:"baseUrl"`
-	Nickname   string          `json:"nickname"`
-	CallID     string          `json:"callId"`
-	PeerID     string          `json:"peerId"`
-	ICEServers []ICEAuthServer `json:"iceServers"`
-	Network    NetworkType     `json:"network"`
+	BaseURL    string      `json:"baseUrl"`
+	Nickname   string      `json:"nickname"`
+	CallID     string      `json:"callId"`
+	PeerID     string      `json:"peerId"`
+	PeerConfig PeerConfig  `json:"peerConfig"`
+	Network    NetworkType `json:"network"`
+}
+
+type PeerConfig struct {
+	ICEServers               []ICEAuthServer `json:"iceServers"`
+	EncodedInsertableStreams bool            `json:"encodedInsertableStreams"`
 }
