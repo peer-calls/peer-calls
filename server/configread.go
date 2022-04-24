@@ -87,15 +87,20 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	setEnvUint16(&c.Network.SFU.UDP.PortMin, prefix+"NETWORK_SFU_UDP_PORT_MIN")
 	setEnvUint16(&c.Network.SFU.UDP.PortMax, prefix+"NETWORK_SFU_UDP_PORT_MAX")
 
-	var ice ICEServer
+	if value, ok := os.LookupEnv(prefix + "ICE_SERVER_URLS"); ok {
+		// Do not use the default servers, even if value is empty.
+		c.ICEServers = make([]ICEServer, 0, 1)
+		// Do not use the d
+		var ice ICEServer
 
-	setEnvSlice(&ice.URLs, prefix+"ICE_SERVER_URLS")
+		setSlice(&ice.URLs, value)
 
-	if len(ice.URLs) > 0 {
-		setEnvAuthType(&ice.AuthType, prefix+"ICE_SERVER_AUTH_TYPE")
-		setEnvString(&ice.AuthSecret.Secret, prefix+"ICE_SERVER_SECRET")
-		setEnvString(&ice.AuthSecret.Username, prefix+"ICE_SERVER_USERNAME")
-		c.ICEServers = append(c.ICEServers, ice)
+		if len(ice.URLs) > 0 {
+			setEnvAuthType(&ice.AuthType, prefix+"ICE_SERVER_AUTH_TYPE")
+			setEnvString(&ice.AuthSecret.Secret, prefix+"ICE_SERVER_SECRET")
+			setEnvString(&ice.AuthSecret.Username, prefix+"ICE_SERVER_USERNAME")
+			c.ICEServers = append(c.ICEServers, ice)
+		}
 	}
 
 	setEnvString(&c.Prometheus.AccessToken, prefix+"PROMETHEUS_ACCESS_TOKEN")
@@ -103,6 +108,10 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 
 func setEnvSlice(dest *[]string, name string) {
 	value := os.Getenv(name)
+	setSlice(dest, value)
+}
+
+func setSlice(dest *[]string, value string) {
 	for _, v := range strings.Split(value, ",") {
 		if v != "" {
 			*dest = append(*dest, v)
