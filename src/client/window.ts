@@ -12,8 +12,13 @@ export interface ClientConfig {
   nickname: string
   callId: string
   peerId: string
-  iceServers: RTCIceServer[]
+  peerConfig: PeerConfig
   network: 'mesh' | 'sfu'
+}
+
+export interface PeerConfig {
+  iceServers: RTCIceServer[]
+  encodedInsertableStreams: boolean
 }
 
 export const config: ClientConfig  = JSON.parse(valueOf('config')!)

@@ -110,7 +110,9 @@ func (h *serverHandler) configure() (err error) {
 	})
 	rooms, _ := roomManagerFactory.NewRoomManager(c.Network)
 
-	h.mux = server.NewMux(log, c.BaseURL, h.props.Version, c.Network, c.ICEServers, rooms, tracks, c.Prometheus, h.props.Embed)
+	encodedInsertableStreams := c.Frontend.EncodedInsertableStreams
+
+	h.mux = server.NewMux(log, c.BaseURL, h.props.Version, c.Network, c.ICEServers, encodedInsertableStreams, rooms, tracks, c.Prometheus, h.props.Embed)
 
 	return nil
 }

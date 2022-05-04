@@ -12,7 +12,7 @@ import { addMessage } from './ChatActions'
 import * as NotifyActions from './NotifyActions'
 import * as StreamActions from './StreamActions'
 
-const { iceServers } = config
+const { peerConfig } = config
 
 const debug = _debug('peercalls')
 const sdpDebug = _debug('peercalls:sdp')
@@ -160,17 +160,19 @@ export function createPeer (options: CreatePeerOptions) {
       dispatch(removePeer(peerId))
     }
 
-    debug('Using ice servers: %o', iceServers)
+    debug('Using ice servers: %o', peerConfig.iceServers)
 
     const pc = new Peer({
       initiator,
       config: {
-        iceServers,
-        encodedInsertableStreams: true,
+        iceServers: peerConfig.iceServers,
+        encodedInsertableStreams: peerConfig.encodedInsertableStreams,
         // legacy flags for insertable streams
-        enableInsertableStreams: true,
-        forceEncodedVideoInsertableStreams: true,
-        forceEncodedAudioInsertableStreams: true,
+        enableInsertableStreams: peerConfig.encodedInsertableStreams,
+        forceEncodedVideoInsertableStreams:
+          peerConfig.encodedInsertableStreams,
+        forceEncodedAudioInsertableStreams:
+          peerConfig.encodedInsertableStreams,
       },
       channelName: constants.PEER_DATA_CHANNEL_NAME,
       // trickle: false,

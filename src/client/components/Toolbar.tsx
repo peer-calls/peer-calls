@@ -185,46 +185,49 @@ export default class Toolbar extends React.PureComponent<
             </React.Fragment>
           )}
 
-          <div className='encryption-wrapper'>
-            <ToolbarButton
-              onClick={this.toggleEncryptionDialog}
-              key='encryption'
-              className={classnames('encryption', {
-                'encryption-enabled': this.state.encrypted,
-              })}
-              on={this.state.encryptionDialogVisible || this.state.encrypted}
-              icon={encryptionIcon}
-              title='Setup Encryption'
-            />
-            <div
-              className={classnames('encryption-dialog', {
-                'encryption-dialog-visible': this.state.encryptionDialogVisible,
-              })}
-            >
-              <div className='encryption-form'>
-                <input
-                  autoComplete='off'
-                  name='encryption-key'
-                  className='encryption-key'
-                  placeholder='Enter Passphrase'
-                  ref={this.encryptionKeyInputRef}
-                  type='password'
-                  onKeyUp={this.setPasswordOnEnter}
-                />
-                <button onClick={this.setPassword}>Save</button>
+          {config.peerConfig.encodedInsertableStreams && (
+            <div className='encryption-wrapper'>
+              <ToolbarButton
+                onClick={this.toggleEncryptionDialog}
+                key='encryption'
+                className={classnames('encryption', {
+                  'encryption-enabled': this.state.encrypted,
+                })}
+                on={this.state.encryptionDialogVisible || this.state.encrypted}
+                icon={encryptionIcon}
+                title='Setup Encryption'
+              />
+              <div
+                className={classnames('encryption-dialog', {
+                  'encryption-dialog-visible':
+                    this.state.encryptionDialogVisible,
+                })}
+              >
+                <div className='encryption-form'>
+                  <input
+                    autoComplete='off'
+                    name='encryption-key'
+                    className='encryption-key'
+                    placeholder='Enter Passphrase'
+                    ref={this.encryptionKeyInputRef}
+                    type='password'
+                    onKeyUp={this.setPasswordOnEnter}
+                  />
+                  <button onClick={this.setPassword}>Save</button>
+                </div>
+                <div className='note'>
+                  <p><MdWarning /> Experimental functionality for A/V only.</p>
+                  {!this.supportsInsertableStreams && (
+                    <p>
+                      Your browser does not support Insertable Streams;
+                      currently only Chrome has support. If you are using
+                      Chrome, please make sure Experimental Web Platform
+                      Features are enabled in chrome://flags.
+                    </p>
+                  )} </div>
               </div>
-              <div className='note'>
-                <p><MdWarning /> Experimental functionality for A/V only.</p>
-                {!this.supportsInsertableStreams && (
-                  <p>
-                    Your browser does not support Insertable Streams;
-                    currently only Chrome has support. If you are using Chrome,
-                    please make sure Experimental Web Platform Features are
-                    enabled in chrome://flags.
-                  </p>
-                )} </div>
             </div>
-          </div>
+          )}
 
         </div>
 

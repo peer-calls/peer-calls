@@ -78,7 +78,10 @@ export const config: ClientConfig = {
   baseUrl: '',
   callId: 'call1234',
   peerId: 'user1234',
-  iceServers: [],
+  peerConfig: {
+    iceServers: [],
+    encodedInsertableStreams: true,
+  },
   network: 'sfu',
   nickname: 'nick1234',
 }

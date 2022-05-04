@@ -173,6 +173,7 @@ docker run --rm -it -p 3000:3000 peer-calls
 | `PEERCALLS_ICE_SERVER_SECRET`        | string | Secret for coturn                                                            |           |
 | `PEERCALLS_ICE_SERVER_USERNAME`      | string | Username for coturn                                                          |           |
 | `PEERCALLS_PROMETHEUS_ACCESS_TOKEN`  | string | Access token for prometheus `/metrics` URL                                   |           |
+| `PEERCALLS_FRONTEND_ENCODED_INSERTABLE_STREAMS` | bool | Enable insertable streams                                           | `false`   |
 
 The default ICE servers in use are:
 
@@ -222,6 +223,8 @@ network:
   #   - eth0
 prometheus:
   access_token: "mytoken"
+frontend:
+  encodedInsertableStreams: false
 ```
 
 Prometheus `/metrics` URL will not be accessible without an access token set.

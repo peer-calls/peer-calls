@@ -104,6 +104,8 @@ func ReadConfigFromEnv(prefix string, c *Config) {
 	}
 
 	setEnvString(&c.Prometheus.AccessToken, prefix+"PROMETHEUS_ACCESS_TOKEN")
+
+	setEnvBool(&c.Frontend.EncodedInsertableStreams, prefix+"FRONTEND_ENCODED_INSERTABLE_STREAMS")
 }
 
 func setEnvSlice(dest *[]string, name string) {
