@@ -19,9 +19,6 @@ export class SocketClient<E extends Events> extends SimpleEmitter<E> {
   protected connected = false
   reconnectTimeout = 2000
 
-  pingIntervalTimeout = 5000
-  protected pingInterval: NodeJS.Timeout | undefined
-
   constructor(readonly url: string) {
     super()
     this.connect()
@@ -45,10 +42,6 @@ export class SocketClient<E extends Events> extends SimpleEmitter<E> {
       debug('websocket failed to connect')
     }
 
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval)
-    }
-
     if (this.reconnectTimeout) {
       setTimeout(() => this.connect(), this.reconnectTimeout)
     }
@@ -58,18 +51,25 @@ export class SocketClient<E extends Events> extends SimpleEmitter<E> {
     debug('websocket connected')
     this.connected = true
     this.emitter.emit('connect')
-
-    if (this.pingIntervalTimeout) {
-      this.pingInterval = setInterval(this.ping, this.pingIntervalTimeout)
-    }
   }
 
-  protected ping = () => {
-    this.emit('ping', undefined as E[keyof E])
+  protected wsHandlePing = (message: Message) => {
+    const pong = {
+      ...message,
+      type: 'pong',
+    }
+
+    this.ws.send(JSON.stringify(pong))
   }
 
   protected wsHandleMessage = (e: MessageEvent) => {
     const message: Message = JSON.parse(e.data)
+
+    if (message.type === 'ping') {
+      this.wsHandlePing(message)
+      return
+    }
+
     this.emitter.emit(message.type, message.payload)
   }
 

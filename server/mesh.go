@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/v4/server/identifiers"
@@ -20,6 +22,9 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 	log = log.WithNamespaceAppended("mesh")
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+
 		websocketCtx, err := wss.NewWebsocketContext(w, r)
 		if err != nil {
 			log.Error("Create websocket context", errors.Trace(err), nil)
@@ -34,9 +39,13 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 		// closed.
 		defer websocketCtx.Close(websocket.StatusNormalClosure, "")
 
-		for msg := range websocketCtx.Messages() {
-			adapter := websocketCtx.Adapter()
+		adapter := websocketCtx.Adapter()
 
+		pinger := NewPinger(ctx, 5*time.Second, func() {
+			adapter.Emit(clientID, message.NewPing(roomID))
+		})
+
+		for msg := range websocketCtx.Messages() {
 			log = log.WithCtx(logger.Ctx{
 				"client_id": clientID,
 				"room_id":   roomID,
@@ -80,6 +89,8 @@ func NewMeshHandler(log logger.Logger, wss *WSS) http.Handler {
 					PeerID: clientID,
 				}))
 				err = errors.Annotatef(err, "signal emit")
+			case message.TypePong:
+				pinger.ReceivePong()
 			}
 
 			if err != nil {

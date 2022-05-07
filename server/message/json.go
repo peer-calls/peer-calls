@@ -34,8 +34,11 @@ func (m Message) MarshalJSON() ([]byte, error) {
 		payload, err = json.Marshal(m.Payload.Signal)
 		err = errors.Trace(err)
 	case TypePing:
-		// payload, err = json.Marshal(m.Payload.Ping)
-		// err = errors.Trace(err)
+		payload, err = json.Marshal(m.Payload.Ping)
+		err = errors.Trace(err)
+	case TypePong:
+		payload, err = json.Marshal(m.Payload.Pong)
+		err = errors.Trace(err)
 	case TypePubTrack:
 		payload, err = json.Marshal(m.Payload.PubTrack)
 		err = errors.Trace(err)
@@ -96,6 +99,8 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		err = errors.Trace(err)
 	case TypePing:
 		m.Payload.Ping = &Ping{}
+	case TypePong:
+		m.Payload.Pong = &Pong{}
 	case TypePubTrack:
 		m.Payload.PubTrack = &PubTrack{}
 		err = json.Unmarshal(j.Payload, m.Payload.PubTrack)
