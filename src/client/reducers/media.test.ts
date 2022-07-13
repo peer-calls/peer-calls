@@ -187,7 +187,7 @@ describe('media', () => {
         action: MediaActions.toggleDevice({ kind: 'audio', enabled: false }),
         wantState: {
           enabled: false,
-          constraints: {},
+          constraints: { echoCancellation: true },
         },
       },
       {
@@ -195,7 +195,7 @@ describe('media', () => {
         action: MediaActions.setDeviceId({ kind: 'audio', deviceId: 'abcd' }),
         wantState: {
           enabled: true,
-          constraints: { deviceId: 'abcd' },
+          constraints: { deviceId: 'abcd', echoCancellation: true },
         },
       },
       {
@@ -203,7 +203,7 @@ describe('media', () => {
         action: MediaActions.toggleDevice({ kind: 'audio', enabled: false }),
         wantState: {
           enabled: false,
-          constraints: { deviceId: 'abcd' },
+          constraints: { deviceId: 'abcd', echoCancellation: true },
         },
       },
       {
@@ -211,7 +211,7 @@ describe('media', () => {
         action: MediaActions.setDeviceId({ kind: 'audio', deviceId: '' }),
         wantState: {
           enabled: true,
-          constraints: {},
+          constraints: { echoCancellation: true },
         },
       },
       {
@@ -219,7 +219,7 @@ describe('media', () => {
         action: MediaActions.setDeviceId({ kind: 'audio', deviceId: 'efgh' }),
         wantState: {
           enabled: true,
-          constraints: { deviceId: 'efgh' },
+          constraints: { deviceId: 'efgh', echoCancellation: true },
         },
       },
     ]

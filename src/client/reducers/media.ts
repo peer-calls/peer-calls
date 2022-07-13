@@ -25,7 +25,17 @@ export interface MediaState {
 
 const defaultConstraints = {
   video: { facingMode: 'user' },
-  audio: {},
+  audio: {
+    echoCancellation: true,
+  },
+}
+
+// constraintsToOmit contains a list of constraints to omit when deviceId is
+// set. For example, for video we want to omit facingMode because the camera
+// might have a different facingMode than the default one.
+const constraintsToOmit = {
+  video: Object.keys(defaultConstraints.video),
+  audio: [],
 }
 
 const defaultState: MediaState = {
@@ -182,8 +192,8 @@ export function handleDeviceId(
   let { constraints } = state[payload.kind]
 
   if (payload.deviceId !== '') {
-    const defaultKeys = Object.keys(defaultConstraints[payload.kind])
-    constraints = omit(constraints, defaultKeys)
+    const keysToOmit = constraintsToOmit[payload.kind]
+    constraints = omit(constraints, keysToOmit)
     constraints.deviceId = payload.deviceId
   } else {
     constraints = omit(constraints, 'deviceId')

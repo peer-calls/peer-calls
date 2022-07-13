@@ -492,10 +492,11 @@ describe('components/Toolbar track dropdowns', () => {
       })
 
       describe('mic', () => {
+        const constraints = {echoCancellation: true}
         const expected: MediaConstraint[] = [
-          {enabled: false, constraints: {}},
-          {enabled: true, constraints: {}},
-          {enabled: true, constraints: {deviceId: 'mic1'}},
+          {enabled: false, constraints: constraints},
+          {enabled: true, constraints: constraints},
+          {enabled: true, constraints: {deviceId: 'mic1', ...constraints}},
         ]
         it('switches microphone', () => {
           const button = node.querySelector('.dropdown .audio')!
