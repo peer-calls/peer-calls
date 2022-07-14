@@ -1,6 +1,6 @@
 module github.com/peer-calls/peer-calls/v4
 
-go 1.17
+go 1.18
 
 require (
 	github.com/go-chi/chi v4.0.3+incompatible

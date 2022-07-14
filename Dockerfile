@@ -16,7 +16,7 @@ RUN set -ex \
  && npm run build
 
 
-FROM golang:alpine as server
+FROM golang:1.18.4-alpine as server
 
 ENV CGO_ENABLED=0
 
