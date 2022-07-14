@@ -1,4 +1,4 @@
-FROM node:16-alpine as frontend
+FROM node:16.16-alpine as frontend
 
 # Add dependency instructions and fetch node_modules
 COPY package.json package-lock.json /src/
@@ -16,7 +16,7 @@ RUN set -ex \
  && npm run build
 
 
-FROM golang:alpine as server
+FROM golang:1.18.4-alpine as server
 
 ENV CGO_ENABLED=0
 
