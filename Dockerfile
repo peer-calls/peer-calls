@@ -1,4 +1,4 @@
-FROM node:16-alpine as frontend
+FROM node:16.16-alpine as frontend
 
 # Add dependency instructions and fetch node_modules
 COPY package.json package-lock.json /src/
