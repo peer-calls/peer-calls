@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -43,6 +44,9 @@ type SFU struct {
 }
 
 func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	sub, err := sfu.wss.NewWebsocketContext(w, r)
 	if err != nil {
 		sfu.log.Error("Create websocket context", errors.Trace(err), nil)
@@ -58,6 +62,7 @@ func (sfu *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 
 	socketHandler := NewSocketHandler(
+		ctx,
 		log,
 		sfu.tracksManager,
 		sfu.webRTCTransportFactory,
@@ -89,11 +94,13 @@ type SocketHandler struct {
 	adapter                Adapter
 	clientID               identifiers.ClientID
 	room                   identifiers.RoomID
+	pinger                 *Pinger
 
 	mu sync.Mutex
 }
 
 func NewSocketHandler(
+	ctx context.Context,
 	log logger.Logger,
 	tracksManager TracksManager,
 	webRTCTransportFactory *WebRTCTransportFactory,
@@ -101,8 +108,15 @@ func NewSocketHandler(
 	room identifiers.RoomID,
 	adapter Adapter,
 ) *SocketHandler {
+	pinger := NewPinger(ctx, 5*time.Second, func() {
+		if err := adapter.Emit(clientID, message.NewPing(room)); err != nil {
+			log.Error("Sending ping", errors.Trace(err), nil)
+		}
+	})
+
 	return &SocketHandler{
 		log:                    log.WithNamespaceAppended("sfu"),
+		pinger:                 pinger,
 		tracksManager:          tracksManager,
 		webRTCTransportFactory: webRTCTransportFactory,
 		clientID:               clientID,
@@ -127,6 +141,8 @@ func (sh *SocketHandler) HandleMessage(msg message.Message) error {
 	case message.TypeSubTrack:
 		err = errors.Trace(sh.handleSubTrackEvent(*msg.Payload.SubTrack))
 	case message.TypePing:
+	case message.TypePong:
+		sh.pinger.ReceivePong()
 	default:
 		err = errors.Errorf("Unhandled event: %+v", msg)
 	}

@@ -15,6 +15,16 @@ type Message struct {
 	Payload Payload
 }
 
+func NewPing(roomID identifiers.RoomID) Message {
+	return Message{
+		Type: TypePing,
+		Room: roomID,
+		Payload: Payload{
+			Ping: &Ping{},
+		},
+	}
+}
+
 func NewReady(roomID identifiers.RoomID, payload Ready) Message {
 	return Message{
 		Type: TypeReady,
@@ -108,6 +118,7 @@ type Payload struct {
 	Ready  *Ready
 	Signal *UserSignal
 	Ping   *Ping
+	Pong   *Pong
 
 	PubTrack *PubTrack
 	SubTrack *SubTrack
@@ -134,6 +145,7 @@ const (
 	TypeReady  Type = "ready"
 	TypeSignal Type = "signal"
 	TypePing   Type = "ping"
+	TypePong   Type = "pong"
 
 	TypePubTrack Type = "pubTrack"
 	TypeSubTrack Type = "subTrack"
@@ -153,6 +165,8 @@ type Ready struct {
 }
 
 type Ping struct{}
+
+type Pong struct{}
 
 // The only thing that's not easy to handle this way are nicknames.
 type Users struct {
