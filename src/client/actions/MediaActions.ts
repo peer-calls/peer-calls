@@ -1,8 +1,9 @@
 import _debug from 'debug'
-import { AsyncAction, makeAction } from '../async'
+import { AsyncAction, makeAction, ResolvedAction } from '../async'
 import { audioProcessor } from '../audio'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, MEDIA_DEVICE_ID, MEDIA_DEVICE_TOGGLE, MEDIA_ENUMERATE, MEDIA_SIZE_CONSTRAINT, MEDIA_STREAM, MEDIA_TRACK, MEDIA_TRACK_ENABLE } from '../constants'
 import { MediaStream } from '../window'
+import { createBlackVideoTrack } from '../window'
 import { AddLocalStreamPayload, StreamType, StreamTypeCamera, StreamTypeDesktop } from './StreamActions'
 
 const debug = _debug('peercalls')
@@ -211,6 +212,41 @@ export const getMediaTrack = makeAction(
     return payload
   },
 )
+
+// getBlankVideoTrack is a workaround that allows us to use replaceTrack with a
+// dummy track before we can call getUserMedia on some phones which don't
+// support simultaneous streams from multiple cameras.
+export const getBlankVideoTrack = (
+  params: GetMediaTrackParams,
+): ResolvedAction<'MEDIA_TRACK', MediaTrackPayload> => {
+  let width = 640
+  let height = 480
+
+  if (params.kind !== 'video') {
+    throw new Error('kind must be video')
+  }
+
+  if (typeof params.constraint !== 'boolean') {
+    if (params.constraint.width && params.constraint.height) {
+      width = params.constraint.width as number
+      height = params.constraint.height as number
+    }
+  }
+
+  const track = createBlackVideoTrack(width, height)
+
+  const payload: MediaTrackPayload = {
+    kind: params.kind,
+    track: track,
+    type: StreamTypeCamera,
+  }
+
+  return {
+    status: 'resolved',
+    payload: payload,
+    type: MEDIA_TRACK,
+  }
+}
 
 export interface MediaTrackEnablePayload {
   kind: MediaKind

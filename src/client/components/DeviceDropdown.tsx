@@ -1,17 +1,20 @@
 import classnames from 'classnames'
+import _debug from 'debug'
 import isEqual from 'lodash/isEqual'
 import React, { Context } from 'react'
 import { IconType } from 'react-icons'
 import { MdMic, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked, MdVideocam, MdVideocamOff } from 'react-icons/md'
 import { connect, ReactReduxContext, ReactReduxContextValue } from 'react-redux'
 import { AnyAction } from 'redux'
-import { enableMediaTrack, enumerateDevices, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio } from '../actions/MediaActions'
+import { enableMediaTrack, enumerateDevices, getBlankVideoTrack, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio, GetMediaTrackParams } from '../actions/MediaActions'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID } from '../constants'
 import { MediaConstraint } from '../reducers/media'
 import { LocalStream } from '../reducers/streams'
 import { State, Store } from '../store'
 import { Backdrop } from './Backdrop'
 import { ToolbarButton } from './ToolbarButton'
+
+const debug = _debug('peercalls')
 
 export interface DeviceDropdownProps {
   className: string
@@ -26,6 +29,7 @@ export interface DeviceDropdownProps {
 
   enumerateDevices: typeof enumerateDevices
   getMediaTrack: typeof getMediaTrack
+  getBlankVideoTrack: typeof getBlankVideoTrack
   enableMediaTrack: typeof enableMediaTrack
 
   setDeviceId: typeof setDeviceIdOrDisable
@@ -138,10 +142,37 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
       return
     }
 
-    await this.props.getMediaTrack({
+    const params: GetMediaTrackParams = {
       constraint: newState.enabled ? newState.constraints : false,
       kind,
-    })
+    }
+
+    if (
+      hasExistingTrack &&
+      newState.enabled &&
+      kind === 'video'
+    ) {
+      debug('calling getBlankVideoTrack')
+      // Synchronously create a blank media track, which should replace the
+      // existing video track and stop it before we request a new video track.
+      // This is a workaround for some phones like Samsung Galaxy A52s which
+      // sometimes fail to call getUserMedia multiple times. This fixes an
+      // issue with Firefox Fenix 109.1.1 crashing on the same device.
+      //
+      // Since it relies on calling HTMLCanvasElement.createStream, which is
+      // experimental and might be missing on some implementations, we catch
+      // the error.
+      //
+      // A better fix would be to simply remove the existing peer track, and
+      // add another one, but that would require renegotiation which is slow.
+      try {
+        this.props.getBlankVideoTrack(params)
+      } catch (err) {
+        debug('getBlankVideoTrack failed', err)
+      }
+    }
+
+    await this.props.getMediaTrack(params)
   }
   render() {
     const { mediaConstraint } = this.props
@@ -313,6 +344,7 @@ function mapAudioStateToProps(state: State) {
 const avDispatch = {
   enumerateDevices,
   getMediaTrack,
+  getBlankVideoTrack,
   enableMediaTrack,
   setDeviceId: setDeviceIdOrDisable,
   setSizeConstraint,

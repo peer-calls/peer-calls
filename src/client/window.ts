@@ -23,6 +23,10 @@ export interface PeerConfig {
 
 export const config: ClientConfig  = JSON.parse(valueOf('config')!)
 
+interface CanvasElement extends HTMLCanvasElement {
+  captureStream(): MediaStream
+}
+
 export const MediaStream = window.MediaStream
 export const MediaStreamTrack = window.MediaStreamTrack
 export const RTCRtpReceiver = window.RTCRtpReceiver
@@ -31,3 +35,27 @@ export const AudioContext = window.AudioContext
 export const AudioWorkletNode = window.AudioWorkletNode
 
 export const localStorage = window.localStorage
+
+// createBlackVideoTrack is in window so it can be easily mocked, for example
+// jest requires canvas, which requires python to be installed, and that's
+// just too much for a simple workaround.
+//
+// Idea from: https://blog.mozilla.org/webrtc/warm-up-with-replacetrack/
+export const createBlackVideoTrack = (
+  width: number,
+  height: number,
+) => {
+  const canvas = document.createElement('canvas') as CanvasElement
+
+  canvas.width = width
+  canvas.height = height
+
+  canvas.getContext('2d')!.fillRect(0, 0, width, height)
+
+  const stream = canvas.captureStream()
+
+  const [track] = stream.getVideoTracks()
+
+  return track
+}
+

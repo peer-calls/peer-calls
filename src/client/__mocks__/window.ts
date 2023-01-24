@@ -111,3 +111,9 @@ export class AudioWorkletNode {
 
   constructor(readonly context: BaseAudioContext, readonly name: string) {}
 }
+
+export const blackTrack = new MediaStreamTrack()
+
+export const createBlackVideoTrack = (width: number, height: number) => {
+  return blackTrack
+}
