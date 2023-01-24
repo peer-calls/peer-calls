@@ -20,6 +20,7 @@ import { insertableStreamsCodec } from '../insertable-streams'
 import { makeAction } from '../async'
 
 import { MediaConstraint } from '../reducers/media'
+import { blackTrack } from '../__mocks__/window'
 
 interface StreamState {
   cameraStream: LocalStream | null
@@ -432,11 +433,22 @@ describe('components/Toolbar track dropdowns', () => {
         describe('new track', () => {
           it('replaces peer track with new track in same stream', async () => {
             TestUtils.Simulate.click(devices[2])
+
+            // blank track
             await promise
+            ;[promise, resolve] = deferred<void>()
+
+            // new track
+            await promise
+
             const replaceTrack =
               store.getState().peers[peerId].replaceTrack as jest.Mock
-            expect(replaceTrack.mock.calls)
-            .toEqual([[ oldTrack, videoTrack, stream ]])
+
+            expect(JSON.stringify(replaceTrack.mock.calls))
+            .toEqual(JSON.stringify([
+              [ oldTrack, blackTrack, stream ],
+              [ blackTrack, videoTrack, stream ],
+            ]))
           })
         })
 
@@ -473,11 +485,21 @@ describe('components/Toolbar track dropdowns', () => {
             const quality = getQualityButtons()
             expect(quality.length).toBe(4)
             TestUtils.Simulate.click(quality[0])
+
+            // blank track
             await promise
+            ;[promise, resolve] = deferred<void>()
+
+            // new track
+            await promise
+
             const replaceTrack =
               store.getState().peers[peerId].replaceTrack as jest.Mock
-            expect(replaceTrack.mock.calls)
-            .toEqual([[ oldTrack, videoTrack, stream ]])
+            expect(JSON.stringify(replaceTrack.mock.calls))
+            .toEqual(JSON.stringify([
+              [ oldTrack, blackTrack, stream ],
+              [ blackTrack, videoTrack, stream ],
+            ]))
             expect(store.getState().media.video).toEqual({
               constraints: {
                 facingMode: 'user',
