@@ -51,8 +51,8 @@ published on NPM since the server is no longer written in NodeJS.
 
 # Requirements for Development
 
- - [Node.js 16][node]
- - [Go 1.17.6][go]
+ - [Node.js 18.13][node]
+ - [Go 1.19.5][go]
 
 Alternatively, Docker  can be used to run Peer Calls.
 
