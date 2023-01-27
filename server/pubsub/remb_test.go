@@ -13,11 +13,11 @@ func TestBitrateEstimator(t *testing.T) {
 
 	type feed struct {
 		clientID identifiers.ClientID
-		bitrate  uint64
+		bitrate  float32
 	}
 
 	type expect struct {
-		min, max, avg uint64
+		min, max, avg float32
 		empty         bool
 	}
 
@@ -36,9 +36,9 @@ func TestBitrateEstimator(t *testing.T) {
 		{"remove b", nil, "b", &expect{50, 50, 50, false}},
 		{"remove a", nil, "a", &expect{0, 0, 0, true}},
 		{"feed a 45", &feed{"a", 45}, "", &expect{45, 45, 45, false}},
-		{"feed b 50", &feed{"b", 50}, "", &expect{45, 50, 47, false}},
-		{"feed c 30", &feed{"c", 30}, "", &expect{30, 50, 41, false}},
-		{"remove b", nil, "b", &expect{30, 45, 37, false}},
+		{"feed b 50", &feed{"b", 50}, "", &expect{45, 50, 47.5, false}},
+		{"feed c 30", &feed{"c", 30}, "", &expect{30, 50, 41.666668, false}},
+		{"remove b", nil, "b", &expect{30, 45, 37.5, false}},
 		{"remove a", nil, "a", &expect{30, 30, 30, false}},
 		{"remove a again", nil, "a", &expect{30, 30, 30, false}},
 		{"remove c", nil, "c", &expect{0, 0, 0, true}},

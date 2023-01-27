@@ -294,7 +294,9 @@ func TestSFU_PeerConnection_DuplicateClientID(t *testing.T) {
 func TestSFU_OnTrack(t *testing.T) {
 	log := test.NewLogger()
 
-	defer goleak.VerifyNone(t)
+	defer func() {
+		goleak.VerifyNone(t)
+	}()
 	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
 
 	log = log.WithNamespaceAppended("test")

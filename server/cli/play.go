@@ -165,7 +165,10 @@ func (h *playHandler) configure() (err error) {
 		webrtc.WithInterceptorRegistry(interceptorRegistry1),
 	)
 
-	h.interceptor = interceptorRegistry2.Build()
+	h.interceptor, err = interceptorRegistry2.Build(h.clientID.String())
+	if err != nil {
+		return errors.Annotate(err, "building interceptors")
+	}
 
 	return nil
 }

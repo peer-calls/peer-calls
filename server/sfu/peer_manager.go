@@ -180,7 +180,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 						ticker.Stop()
 					}()
 
-					getBitrateEstimate := func() (uint64, bool) {
+					getBitrateEstimate := func() (float32, bool) {
 						t.mu.Lock()
 						defer t.mu.Unlock()
 
@@ -296,7 +296,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 			"sub_client_id": params.SubClientID,
 		}
 
-		feedBitrateEstimate := func(trackID identifiers.TrackID, bitrate uint64) {
+		feedBitrateEstimate := func(trackID identifiers.TrackID, bitrate float32) {
 			t.mu.Lock()
 
 			bitrateEstimator, ok := t.pubsub.BitrateEstimator(trackID)
