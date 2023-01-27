@@ -349,9 +349,6 @@ func (p *WebRTCTransport) WriteRTCP(packets []rtcp.Packet) error {
 	})
 
 	err := p.peerConnection.WriteRTCP(packets)
-	if err == nil {
-		prometheusRTCPPacketsSent.Inc()
-	}
 
 	return errors.Annotate(err, "write rtcp")
 }

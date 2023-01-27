@@ -16,6 +16,8 @@ type Clock interface {
 	NewTimer(time.Duration) Timer
 	// Now returns the current local time.
 	Now() time.Time
+	// Since returns Now().Sub(ts)
+	Since(ts time.Time) time.Duration
 }
 
 // New returns a new instance of unmocked Clock.
@@ -42,6 +44,11 @@ func (c clock) NewTimer(d time.Duration) Timer {
 // Now implements the Clock interface.
 func (c clock) Now() time.Time {
 	return time.Now()
+}
+
+// Since implements the Clock interface.
+func (c clock) Since(ts time.Time) time.Duration {
+	return time.Since(ts)
 }
 
 // A Ticker holds a channel that delivers `ticks' of a clock at intervals. This

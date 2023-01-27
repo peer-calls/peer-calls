@@ -2,8 +2,10 @@ package pubsub
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/v4/server/clock"
 	"github.com/peer-calls/peer-calls/v4/server/identifiers"
 	"github.com/peer-calls/peer-calls/v4/server/logger"
 	"github.com/peer-calls/peer-calls/v4/server/multierr"
@@ -15,7 +17,8 @@ import (
 // The user of this implementation must implement locking if it will be used
 // by multiple goroutines.
 type PubSub struct {
-	log logger.Logger
+	log   logger.Logger
+	clock clock.Clock
 
 	eventsChan chan PubTrackEvent
 
@@ -38,6 +41,7 @@ type publisher struct {
 	clientID         identifiers.ClientID
 	reader           Reader
 	bitrateEstimator *BitrateEstimator
+	timestamp        time.Time
 }
 
 type subscriber struct {
@@ -46,11 +50,12 @@ type subscriber struct {
 }
 
 // New returns a new instance of PubSub.
-func New(log logger.Logger) *PubSub {
+func New(log logger.Logger, cl clock.Clock) *PubSub {
 	eventsChan := make(chan PubTrackEvent)
 
 	return &PubSub{
 		log:                     log.WithNamespaceAppended("pubsub"),
+		clock:                   cl,
 		eventsChan:              eventsChan,
 		events:                  newEvents(eventsChan, 0),
 		publishers:              map[identifiers.TrackID]publisher{},
@@ -75,6 +80,7 @@ func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 		clientID:         pubClientID,
 		reader:           reader,
 		bitrateEstimator: NewBitrateEstimator(),
+		timestamp:        p.clock.Now(),
 	}
 
 	if _, ok := p.publishersByPubClientID[pubClientID]; !ok {
@@ -82,6 +88,9 @@ func (p *PubSub) Pub(pubClientID identifiers.ClientID, reader Reader) {
 	}
 
 	p.publishersByPubClientID[pubClientID][reader] = struct{}{}
+
+	prometheusWebRTCTracksTotal.Inc()
+	prometheusWebRTCTracksActive.Inc()
 
 	p.eventsChan <- PubTrackEvent{
 		PubTrack: newPubTrack(pubClientID, track),
@@ -108,6 +117,12 @@ func (p *PubSub) Unpub(pubClientID identifiers.ClientID, trackID identifiers.Tra
 		}
 
 		delete(p.publishers, trackID)
+
+		prometheusWebRTCTracksActive.Dec()
+
+		prometheusWebRTCTracksDuration.Observe(
+			p.clock.Since(pub.timestamp).Seconds(),
+		)
 
 		p.eventsChan <- PubTrackEvent{
 			PubTrack: newPubTrack(pubClientID, pub.reader.Track()),
