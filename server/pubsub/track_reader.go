@@ -59,17 +59,28 @@ func (t *TrackReader) startReadLoop() {
 
 		t.mu.Lock()
 
-		for key, trackLocal := range t.subs {
-			_ = packet.MarshalSize()
+		numSent := float64(0)
 
+		for key, trackLocal := range t.subs {
 			if err := trackLocal.WriteRTP(packet); err != nil {
 				if multierr.Is(err, io.ErrClosedPipe) {
 					_ = t.unsub(key)
 				}
+
+				continue
 			}
+
+			numSent++
 		}
 
 		t.mu.Unlock()
+
+		packetSize := float64(packet.MarshalSize())
+
+		prometheusRTPPacketsReceived.Inc()
+		prometheusRTPPacketsReceivedBytes.Add(packetSize)
+		prometheusRTPPacketsSent.Add(numSent)
+		prometheusRTPPacketsSentBytes.Add(packetSize * numSent)
 	}
 
 	t.mu.Lock()

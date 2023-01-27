@@ -67,6 +67,11 @@ func (m *Mock) Now() time.Time {
 	return ts
 }
 
+// Since implements the Clock interface.
+func (m *Mock) Since(ts time.Time) time.Duration {
+	return m.Now().Sub(ts)
+}
+
 // NewTicker implements the Clock interface.
 func (m *Mock) NewTicker(d time.Duration) Ticker {
 	return &tickerWrapper{

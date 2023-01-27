@@ -88,13 +88,13 @@ func TestRedisAdapter_add_remove_client(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client1.ID(), "a"})), recv(t, mockWriter1.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client1.ID(), Metadata: "a"})), recv(t, mockWriter1.out))
 
 	adapter2 := server.NewRedisAdapter(test.NewLogger(), pub, sub, "peercalls", room)
 	assert.Nil(t, adapter2.Add(client2))
 	t.Log("waiting for room join message broadcast (2)")
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), "b"})), recv(t, mockWriter1.out))
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), "b"})), recv(t, mockWriter2.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client2.ID(), Metadata: "b"})), recv(t, mockWriter1.out))
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client2.ID(), Metadata: "b"})), recv(t, mockWriter2.out))
 	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter1))
 	assert.Equal(t, map[identifiers.ClientID]string{client1.ID(): "a", client2.ID(): "b"}, getClientIDs(t, adapter2))
 

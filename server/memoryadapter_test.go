@@ -133,9 +133,9 @@ func TestMemoryAdapter_Broadcast(t *testing.T) {
 	})
 	adapter.Broadcast(msg)
 
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client1.ID(), ""})), <-mockWriter1.out)
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), ""})), <-mockWriter1.out)
-	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{client2.ID(), ""})), <-mockWriter2.out)
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client1.ID(), Metadata: ""})), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client2.ID(), Metadata: ""})), <-mockWriter1.out)
+	assert.Equal(t, serialize(t, message.NewRoomJoin(room, message.RoomJoin{ClientID: client2.ID(), Metadata: ""})), <-mockWriter2.out)
 
 	serializedMsg := serialize(t, msg)
 	assert.Equal(t, serializedMsg, <-mockWriter1.out)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/peer-calls/peer-calls/v4/server/clock"
 	"github.com/peer-calls/peer-calls/v4/server/identifiers"
 	"github.com/peer-calls/peer-calls/v4/server/logger"
 	"github.com/peer-calls/peer-calls/v4/server/multierr"
@@ -47,7 +48,7 @@ func NewPeerManager(room identifiers.RoomID, log logger.Logger, jitterHandler Ji
 
 		room: room,
 
-		pubsub: pubsub.New(log),
+		pubsub: pubsub.New(log, clock.New()),
 	}
 }
 
@@ -156,7 +157,7 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 					for {
 						// ReadRTCP ensures interceptors will do their work.
-						_, _, err := rtcpReader.ReadRTCP()
+						packets, _, err := rtcpReader.ReadRTCP()
 						if err != nil {
 							if !multierr.Is(err, io.EOF) {
 								log.Error("ReadRTCP from receiver", errors.Trace(err), nil)
@@ -164,6 +165,8 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 
 							return
 						}
+
+						prometheusRTCPPacketsReceived.Add(float64(len(packets)))
 					}
 				}()
 
@@ -208,6 +211,11 @@ func (t *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent, 
 								SSRCs:      []uint32{ssrc},
 							},
 						})
+
+						if err == nil {
+							prometheusRTCPPacketsSent.Inc()
+						}
+
 						_ = err // FIXME handle error
 
 					case <-done:
@@ -338,6 +346,8 @@ func (t *PeerManager) Sub(params SubParams) error {
 				return errors.Annotatef(err, "sending PLI back to source: %s", props.ClientID)
 			}
 
+			prometheusRTCPPacketsSent.Inc()
+
 			// TODO remove this log.
 			t.log.Info("Sent PLI back to source", logCtx)
 
@@ -354,6 +364,7 @@ func (t *PeerManager) Sub(params SubParams) error {
 			// forwarded, since pion/webrtc/v3 no longer uses the same SSRCs between
 			// different peer connections.
 			case *rtcp.PictureLossIndication:
+				prometheusRTCPPLIPacketsReceived.Inc()
 				err = errors.Trace(forwardPLI(packet))
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				feedBitrateEstimate(params.TrackID, packet.Bitrate)
@@ -372,6 +383,8 @@ func (t *PeerManager) Sub(params SubParams) error {
 
 				return
 			}
+
+			prometheusRTCPPacketsReceived.Add(float64(len(packets)))
 
 			for _, packet := range packets {
 				if err := handlePacket(packet); err != nil {
