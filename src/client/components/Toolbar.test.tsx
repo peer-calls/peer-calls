@@ -520,7 +520,9 @@ describe('components/Toolbar track dropdowns', () => {
           {enabled: true, constraints: {deviceId: 'mic1'}},
         ]
         it('switches microphone', () => {
-          const button = node.querySelector('.dropdown .audio')!
+          const button = node.querySelector(
+            '.dropdown .audio .device-button-dropdown',
+          )!
           const items = getDevices('audio')
           expect(items.length).toBe(3)
           items.forEach((item, i) => {
@@ -540,7 +542,9 @@ describe('components/Toolbar track dropdowns', () => {
           {enabled: true, constraints: {deviceId: 'cam1'}},
         ]
         it('switches camera', () => {
-          const button = node.querySelector('.dropdown .video')!
+          const button = node.querySelector(
+            '.dropdown .video .device-button-dropdown',
+          )!
           const items = getDevices('video')
           expect(items.length).toBe(3)
           items.forEach((item, i) => {

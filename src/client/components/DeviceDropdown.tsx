@@ -3,7 +3,7 @@ import _debug from 'debug'
 import isEqual from 'lodash/isEqual'
 import React, { Context } from 'react'
 import { IconType } from 'react-icons'
-import { MdMic, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked, MdVideocam, MdVideocamOff } from 'react-icons/md'
+import { MdArrowDropUp, MdMic, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked, MdVideocam, MdVideocamOff } from 'react-icons/md'
 import { connect, ReactReduxContext, ReactReduxContextValue } from 'react-redux'
 import { AnyAction } from 'redux'
 import { enableMediaTrack, enumerateDevices, getBlankVideoTrack, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio, GetMediaTrackParams } from '../actions/MediaActions'
@@ -77,6 +77,20 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
   toggleOpen = (e: React.SyntheticEvent) => {
     e.stopPropagation()
     this.setOpen(!this.state.open)
+  }
+  toggleDevice = async (e: React.SyntheticEvent) => {
+    e.stopPropagation()
+
+    const { mediaConstraint } = this.props
+
+    const shouldEnable = !mediaConstraint.enabled
+
+    const deviceId = getDeviceId(
+      shouldEnable,
+      mediaConstraint.constraints,
+    )
+
+    await this.handleDevice(deviceId)
   }
   close = () => {
     this.setOpen(false)
@@ -190,16 +204,29 @@ extends React.PureComponent<DeviceDropdownProps, DeviceDropdownState> {
       mediaConstraint.constraints,
     )
 
+    const buttonsRowClassNames = classnames('buttons-row', this.props.className)
+
     return (
       <div className='dropdown'>
-        <ToolbarButton
-          className={this.props.className}
-          icon={this.props.icon}
-          offIcon={this.props.offIcon}
-          on={!mediaConstraint.enabled}
-          onClick={this.toggleOpen}
-          title={this.props.title}
-        />
+        <div className={buttonsRowClassNames}>
+          <ToolbarButton
+            className='device-button-toggle'
+            icon={this.props.icon}
+            offIcon={this.props.offIcon}
+            on={mediaConstraint.enabled}
+            onClick={this.toggleDevice}
+            title={this.props.title}
+          />
+
+          <ToolbarButton
+            className='device-button-dropdown'
+            icon={MdArrowDropUp}
+            on={mediaConstraint.enabled}
+            onClick={this.toggleOpen}
+            title={this.props.title + ' Settings'}
+          />
+        </div>
+
         <Backdrop visible={this.state.open} onClick={this.close} />
         <ul className={classNames}>
           {this.props.kind === 'video' && (
@@ -316,8 +343,8 @@ function mapVideoStateToProps(state: State) {
 
   return {
     className: 'video',
-    icon: MdVideocamOff,
-    offIcon: MdVideocam,
+    icon: MdVideocam,
+    offIcon: MdVideocamOff,
     title: 'Camera',
     kind: MediaKindVideo,
     devices: state.media.devices.video,
@@ -331,8 +358,8 @@ function mapAudioStateToProps(state: State) {
 
   return {
     className: 'audio',
-    icon: MdMicOff,
-    offIcon: MdMic,
+    icon: MdMic,
+    offIcon: MdMicOff,
     title: 'Microphone',
     kind: MediaKindAudio,
     devices: state.media.devices.audio,
