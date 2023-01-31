@@ -161,30 +161,8 @@ func (c Command) Usage(flags *pflag.FlagSet) {
 }
 
 func (c *Command) Exec(ctx context.Context, args []string) error {
-	doneCh := make(chan struct{})
-	defer func() {
-		<-doneCh
-	}()
-
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-
-	// Register a channel for interrupts so we can cancel the above context.
-	interruptCh := make(chan os.Signal, 1)
-	signal.Notify(interruptCh, syscall.SIGINT, syscall.SIGTERM)
-
-	// Start a goroutine and wait for the termination signals so the context
-	// can be cancelled.
-	go func() {
-		defer close(doneCh)
-		defer signal.Stop(interruptCh)
-
-		select {
-		case <-ctx.Done():
-		case <-interruptCh:
-			cancel()
-		}
-	}()
 
 	flags := pflag.NewFlagSet(c.Name(), pflag.ContinueOnError)
 

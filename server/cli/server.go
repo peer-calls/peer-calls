@@ -18,7 +18,8 @@ import (
 
 type serverHandler struct {
 	args struct {
-		config string
+		config    string
+		pprofAddr string
 	}
 
 	log    logger.Logger
@@ -30,11 +31,25 @@ type serverHandler struct {
 
 func (h *serverHandler) RegisterFlags(c *command.Command, flags *pflag.FlagSet) {
 	flags.StringVarP(&h.args.config, "config", "c", "", "config file to use")
+	flags.StringVar(&h.args.pprofAddr, "pprof-addr", "", "when set, will enable pprof server (example: 127.0.0.1:6060)")
 }
 
 func (h *serverHandler) Handle(ctx context.Context, args []string) error {
 	if err := h.configure(); err != nil {
 		return errors.Trace(err)
+	}
+
+	if pprofAddr := h.args.pprofAddr; pprofAddr != "" {
+		pprofListener, err := net.Listen("tcp", h.args.pprofAddr)
+		if err != nil {
+			return errors.Annotatef(err, "listen pprof: %q", pprofAddr)
+		}
+
+		h.log.Info(fmt.Sprintf("Listen pprof %s", pprofAddr), logger.Ctx{
+			"local_addr": pprofAddr,
+		})
+
+		go server.NewPProf().Start(ctx, pprofListener)
 	}
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(
