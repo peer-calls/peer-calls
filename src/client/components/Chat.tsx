@@ -59,12 +59,12 @@ export default class Chat extends React.PureComponent<ChatProps> {
     chatHistoryRef.scrollTop = chatHistoryRef.scrollHeight
   }
   componentDidMount () {
-    this.scrollToBottom()
     this.focus()
+    this.scrollToBottom()
   }
   componentDidUpdate () {
-    this.scrollToBottom()
     this.focus()
+    this.scrollToBottom()
   }
   focus() {
     if (this.props.visible) {
