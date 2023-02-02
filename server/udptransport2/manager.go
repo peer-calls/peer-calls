@@ -120,7 +120,6 @@ func (m *Manager) start() {
 				Conn:                conn,
 				Clock:               m.params.Clock,
 				PingTimeout:         m.params.PingTimeout,
-				DestroyTimeout:      m.params.DestroyTimeout,
 				InterceptorRegistry: m.params.InterceptorRegistry,
 			})
 

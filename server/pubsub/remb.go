@@ -5,24 +5,24 @@ import "github.com/peer-calls/peer-calls/v4/server/identifiers"
 // BitrateEstimator estimates minimum, maximum and average bitrate. It is not
 // safe for concurrent use.
 type BitrateEstimator struct {
-	min, max, avg uint64
+	min, max, avg float32
 
 	needsMinMaxRecalc bool
 
-	totalBitrate float64
+	totalBitrate float32
 
-	estimatesByClientID map[identifiers.ClientID]uint64
+	estimatesByClientID map[identifiers.ClientID]float32
 }
 
 // NewBitrateEstimator creates a new instance of BitrateEstimator.
 func NewBitrateEstimator() *BitrateEstimator {
 	return &BitrateEstimator{
-		estimatesByClientID: map[identifiers.ClientID]uint64{},
+		estimatesByClientID: map[identifiers.ClientID]float32{},
 	}
 }
 
 // Feed records the estimated bitrate for client.
-func (r *BitrateEstimator) Feed(clientID identifiers.ClientID, estimatedBitrate uint64) {
+func (r *BitrateEstimator) Feed(clientID identifiers.ClientID, estimatedBitrate float32) {
 	oldEstimatedBitrate, ok := r.estimatesByClientID[clientID]
 
 	delete(r.estimatesByClientID, clientID)
@@ -31,7 +31,7 @@ func (r *BitrateEstimator) Feed(clientID identifiers.ClientID, estimatedBitrate 
 		r.needsMinMaxRecalc = true
 	}
 
-	r.totalBitrate += -float64(oldEstimatedBitrate) + float64(estimatedBitrate)
+	r.totalBitrate += -float32(oldEstimatedBitrate) + float32(estimatedBitrate)
 
 	r.estimatesByClientID[clientID] = estimatedBitrate
 
@@ -47,7 +47,7 @@ func (r *BitrateEstimator) Feed(clientID identifiers.ClientID, estimatedBitrate 
 }
 
 func (r *BitrateEstimator) recalculateAvg() {
-	r.avg = uint64(r.totalBitrate) / uint64(len(r.estimatesByClientID))
+	r.avg = r.totalBitrate / float32(len(r.estimatesByClientID))
 }
 
 func (r *BitrateEstimator) maybeRecalculateMinMax() {
@@ -58,8 +58,8 @@ func (r *BitrateEstimator) maybeRecalculateMinMax() {
 
 func (r *BitrateEstimator) recalculateMinMax() {
 	var (
-		min, max uint64
-		total    float64
+		min, max float32
+		total    float32
 	)
 
 	for _, est := range r.estimatesByClientID {
@@ -71,7 +71,7 @@ func (r *BitrateEstimator) recalculateMinMax() {
 			max = est
 		}
 
-		total += float64(est)
+		total += est
 	}
 
 	r.min = min
@@ -85,21 +85,21 @@ func (r *BitrateEstimator) Empty() bool {
 }
 
 // Min returns the minimal bitrate.
-func (r *BitrateEstimator) Min() uint64 {
+func (r *BitrateEstimator) Min() float32 {
 	r.maybeRecalculateMinMax()
 
 	return r.min
 }
 
 // Max returns thet maximum bitrate.
-func (r *BitrateEstimator) Max() uint64 {
+func (r *BitrateEstimator) Max() float32 {
 	r.maybeRecalculateMinMax()
 
 	return r.max
 }
 
 // Avg returns the average bitrate.
-func (r *BitrateEstimator) Avg() uint64 {
+func (r *BitrateEstimator) Avg() float32 {
 	r.maybeRecalculateMinMax()
 
 	return r.avg
@@ -112,14 +112,14 @@ func (r *BitrateEstimator) RemoveClientBitrate(clientID identifiers.ClientID) {
 	}
 
 	delete(r.estimatesByClientID, clientID)
-	r.totalBitrate -= float64(oldEstimate)
+	r.totalBitrate -= float32(oldEstimate)
 
 	if oldEstimate == r.min || oldEstimate == r.max {
 		r.needsMinMaxRecalc = true
 	}
 
 	if size := len(r.estimatesByClientID); size > 0 {
-		r.avg = uint64(r.totalBitrate) / uint64(size)
+		r.avg = r.totalBitrate / float32(size)
 	} else {
 		r.avg = 0
 	}

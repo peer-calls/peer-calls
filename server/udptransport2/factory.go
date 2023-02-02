@@ -1,7 +1,6 @@
 package udptransport2
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"time"
@@ -46,14 +45,6 @@ type FactoryParams struct {
 	Clock clock.Clock
 	// PingTimeout is the timeout after which a Ping event will be sent.
 	PingTimeout time.Duration
-	// DestroyTimeout is the time after which the factory will be destroyed. This
-	// is used because the current implementation of sctp.Association.Close
-	// leaves the other side hanging. I wrote an MR which implements the SCTP
-	// Association shutdown sequence, but it has not yet been merged:
-	// https://github.com/pion/sctp/pull/176.
-	//
-	// When set to zero, there will be no timeout.
-	DestroyTimeout time.Duration
 
 	InterceptorRegistry *interceptor.Registry
 }
@@ -148,7 +139,7 @@ func (f *Factory) init() (*factoryStreams, error) {
 		return nil, errors.Trace(err)
 	}
 
-	closers = append(closers, association)
+	closers = append(closers, associationCloser{association})
 
 	controlStream, err := association.OpenStream(streamIndexControl, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
@@ -460,22 +451,9 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 		return true
 	}
 
-	lastRecvPingTime := f.params.Clock.Now()
-
 	for {
 		select {
 		case <-pingTicker.C():
-			now := f.params.Clock.Now()
-
-			if d := f.params.DestroyTimeout; d > 0 && now.Sub(lastRecvPingTime) > d {
-				f.params.Log.Warn(
-					fmt.Sprintf("No ping within %s, last received at: %s Destroying factory.", d, lastRecvPingTime),
-					nil,
-				)
-
-				return
-			}
-
 			err := f.streams.control.Send(controlEvent{
 				RemoteControlEvent: nil,
 				Ping:               true,
@@ -488,10 +466,6 @@ func (f *Factory) start(pingTicker clock.Ticker) {
 		case event, ok := <-f.streams.control.Events():
 			if !ok {
 				return
-			}
-
-			if event.Ping {
-				lastRecvPingTime = f.params.Clock.Now()
 			}
 
 			if rce := event.RemoteControlEvent; rce != nil && !handleRemoteEvent(*rce) {
@@ -579,4 +553,13 @@ type factoryStreams struct {
 	data     *stringmux.StringMux
 	metadata *stringmux.StringMux
 	media    *stringmux.StringMux
+}
+
+type associationCloser struct {
+	association *sctp.Association
+}
+
+func (a associationCloser) Close() error {
+	a.association.Abort("tearing down")
+	return nil
 }

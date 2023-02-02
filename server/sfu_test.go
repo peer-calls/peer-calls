@@ -6,9 +6,12 @@ import (
 	"io"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/juju/errors"
 	"github.com/peer-calls/peer-calls/v4/server"
 	"github.com/peer-calls/peer-calls/v4/server/codecs"
 	"github.com/peer-calls/peer-calls/v4/server/identifiers"
@@ -294,13 +297,55 @@ func TestSFU_PeerConnection_DuplicateClientID(t *testing.T) {
 func TestSFU_OnTrack(t *testing.T) {
 	log := test.NewLogger()
 
-	defer goleak.VerifyNone(t)
-	newAdapter := server.NewAdapterFactory(log, server.StoreConfig{})
+	defer func() {
+		goleak.VerifyNone(t)
+	}()
+	adapterFactory := server.NewAdapterFactory(log, server.StoreConfig{})
 
 	log = log.WithNamespaceAppended("test")
 
-	defer newAdapter.Close()
-	rooms := server.NewAdapterRoomManager(newAdapter.NewAdapter)
+	defer adapterFactory.Close()
+
+	numHangUps := int64(0)
+
+	// allClientsHungUpCtx will be done after all clients hung up. This means
+	// the server-side goroutines will be cleared up
+	allClientsHungUpCtx, allClientsHungUp := context.WithCancel(context.Background())
+
+	defer func() {
+		log.Info("Waiting for all clients to hang up", nil)
+		<-allClientsHungUpCtx.Done()
+	}()
+
+	// Wrap the adapter factory so we can spy the websocket events. We only want
+	// the test to be done after all the server-side stuff has been cleaned up.
+	// This is done after the HANG_UP events.
+	afWrapper := newAdapterFactoryWrapper(
+		adapterFactory,
+		func(roomID identifiers.RoomID, adapter server.Adapter) {
+			mockClient := newMockClientWriter("SPY", func(msg message.Message) error {
+				if msg.Type == message.TypeHangUp {
+					log.Info("Hang up event", logger.Ctx{
+						"client_id": msg.Payload.HangUp.PeerID,
+					})
+					// We broadcast HANG_UP twice for each socket disconnected, once for
+					// the socket, the other time for peer disconneting. Need see if
+					// there's a way to do it only once. But the client-side can also
+					// send the HANG_UP event without disconnecting.
+					if h := atomic.AddInt64(&numHangUps, 1); h == 4 {
+						allClientsHungUp()
+						go adapter.Remove("SPY")
+					}
+				}
+
+				return nil
+			})
+
+			adapter.Add(mockClient)
+		},
+	)
+
+	rooms := server.NewAdapterRoomManager(afWrapper.NewAdapter)
 	srv, wsBaseURL := setupSFUServer(rooms, false)
 
 	defer srv.Close()
@@ -389,4 +434,65 @@ func TestSFU_OnTrack(t *testing.T) {
 	log.Info("waiting for peer2 negotiation to be done (3)", nil)
 	// server will want to negotiate after track is removed so we wait for negotiation to complete
 	wait(t, ctx, peerCtx2.signaller.NegotiationDone())
+}
+
+type mockClientWriter struct {
+	clientID identifiers.ClientID
+
+	mu        sync.Mutex
+	metadata  string
+	onMessage func(message.Message) error
+}
+
+func newMockClientWriter(
+	clientID identifiers.ClientID,
+	onMessage func(message.Message) error,
+) *mockClientWriter {
+	return &mockClientWriter{
+		clientID:  clientID,
+		onMessage: onMessage,
+	}
+}
+
+func (m *mockClientWriter) ID() identifiers.ClientID {
+	return m.clientID
+}
+
+func (m *mockClientWriter) Write(msg message.Message) error {
+	return errors.Trace(m.onMessage(msg))
+}
+
+func (m *mockClientWriter) Metadata() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.metadata
+}
+
+func (m *mockClientWriter) SetMetadata(metadata string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.metadata = metadata
+}
+
+type adapterFactoryWrapper struct {
+	adapterFactory *server.AdapterFactory
+	onNewAdapter   func(roomID identifiers.RoomID, adapter server.Adapter)
+}
+
+func newAdapterFactoryWrapper(
+	adapterFactory *server.AdapterFactory,
+	onNewAdapter func(roomID identifiers.RoomID, adapter server.Adapter),
+) *adapterFactoryWrapper {
+	return &adapterFactoryWrapper{
+		adapterFactory: adapterFactory,
+		onNewAdapter:   onNewAdapter,
+	}
+}
+
+func (m *adapterFactoryWrapper) NewAdapter(roomID identifiers.RoomID) server.Adapter {
+	adapter := m.adapterFactory.NewAdapter(roomID)
+
+	m.onNewAdapter(roomID, adapter)
+
+	return adapter
 }

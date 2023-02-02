@@ -86,7 +86,7 @@ extends React.PureComponent<SidebarProps, SidebarState> {
               messages={messages}
               sendFile={sendFile}
               sendText={sendText}
-              visible={true}
+              visible={this.props.visible}
             />
           )}
           {panel === panelUsers && (

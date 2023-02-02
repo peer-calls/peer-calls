@@ -17,7 +17,7 @@ import (
 
 const (
 	// TODO reduce this.
-	ReceiveMTU int = 8192
+	ReceiveMTU uint16 = 8192
 )
 
 var (
@@ -28,11 +28,11 @@ var (
 // Transport is used for server to server communication. The underlying
 // transport protocol is SCTP, and the following data is transferred:
 //
-// 1. Ordered Metadata stream on ID 0. This stream will contain track, as well
-//    as application level metadata.
-// 2. Unordered Media (RTP and RTCP) streams will use odd numbered stream IDs,
-//    starting from 1.
-// 3. Ordered DataChannel messages on even stream IDs, starting from 2.
+//  1. Ordered Metadata stream on ID 0. This stream will contain track, as well
+//     as application level metadata.
+//  2. Unordered Media (RTP and RTCP) streams will use odd numbered stream IDs,
+//     starting from 1.
+//  3. Ordered DataChannel messages on even stream IDs, starting from 2.
 //
 // A single Media stream transports all RTP and RTCP packets for a single
 // room, and a single DataChannel stream will transport all datachannel
@@ -69,26 +69,35 @@ type Params struct {
 }
 
 func New(params Params) *Transport {
-	var interceptor interceptor.Interceptor = &interceptor.NoOp{}
-
-	if params.InterceptorRegistry != nil {
-		interceptor = params.InterceptorRegistry.Build()
-	}
+	var interc interceptor.Interceptor = &interceptor.NoOp{}
 
 	if params.CodecRegistry == nil {
 		params.CodecRegistry = codecs.NewRegistryDefault()
 	}
 
 	clientID := identifiers.ClientID(fmt.Sprintf("%s%s", identifiers.ServerNodePrefix, uuid.New()))
+
 	log := params.Log.WithNamespaceAppended("server_transport").WithCtx(logger.Ctx{
 		"client_id": clientID,
 	})
+
 	log.Info("NewTransport", nil)
+
+	if params.InterceptorRegistry != nil {
+		var err error
+
+		interc, err = params.InterceptorRegistry.Build(clientID.String())
+		if err == nil {
+			log.Error("Failed to build new interceptor registry, using no-op", err, nil)
+
+			interc = &interceptor.NoOp{}
+		}
+	}
 
 	mediaStream := NewMediaStream(MediaStreamParams{
 		Log:           log,
 		Conn:          params.MediaConn,
-		Interceptor:   interceptor,
+		Interceptor:   interc,
 		BufferFactory: nil,
 	})
 
@@ -97,7 +106,7 @@ func New(params Params) *Transport {
 		Conn:          params.MetadataConn,
 		MediaStream:   mediaStream,
 		ClientID:      clientID,
-		Interceptor:   interceptor,
+		Interceptor:   interc,
 		CodecRegistry: params.CodecRegistry,
 	}
 
@@ -112,7 +121,7 @@ func New(params Params) *Transport {
 		DataTransport:     NewDataTransport(dataTransportParams),
 		clientID:          clientID,
 		closeChan:         make(chan struct{}),
-		interceptor:       interceptor,
+		interceptor:       interc,
 	}
 }
 
