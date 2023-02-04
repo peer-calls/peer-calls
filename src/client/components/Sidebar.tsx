@@ -1,6 +1,7 @@
 import classnames from 'classnames'
 import React from 'react'
 import { MdClose } from 'react-icons/md'
+import { Panel, sidebarPanelChat, sidebarPanelSettings, sidebarPanelUsers } from '../actions/SidebarActions'
 import { MinimizeTogglePayload } from '../actions/StreamActions'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
@@ -9,8 +10,11 @@ import Settings from './Settings'
 import Users from './Users'
 
 export interface SidebarProps {
+  // Panel state
+  onHide: () => void
+  onShow: (panel: Panel) => void
   visible: boolean
-  onClose: () => void
+  panel: Panel
 
   // Chat
   messages: Message[]
@@ -23,36 +27,16 @@ export interface SidebarProps {
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
 }
 
-export interface SidebarState {
-  panel: Panel
-}
-
-type Panel = 'chat' | 'users' | 'settings'
-
-const panelChat: Panel = 'chat'
-const panelSettings: Panel = 'settings'
-const panelUsers: Panel = 'users'
-
-export default class Sidebar
-extends React.PureComponent<SidebarProps, SidebarState> {
-  state: SidebarState = {
-    panel: 'chat',
-  }
-  focusPanel = (panel: Panel) => {
-    this.setState({
-      panel,
-    })
-  }
+export default class Sidebar extends React.PureComponent<SidebarProps> {
   render () {
-    const { messages, nicknames, sendFile, sendText } = this.props
+    const { messages, nicknames, sendFile, sendText, panel } = this.props
     const { onMinimizeToggle } = this.props
-    const { panel } = this.state
     return (
       <div className={classnames('sidebar', {
         show: this.props.visible,
       })}>
         <div className='sidebar-header'>
-          <div className='sidebar-close' onClick={this.props.onClose}>
+          <div className='sidebar-close' onClick={this.props.onHide}>
             <MdClose />
           </div>
           <ul className='sidebar-menu'>
@@ -60,27 +44,27 @@ extends React.PureComponent<SidebarProps, SidebarState> {
               activePanel={panel}
               className='sidebar-menu-chat'
               label='Chat'
-              onClick={this.focusPanel}
-              panel={panelChat}
+              onClick={this.props.onShow}
+              panel={sidebarPanelChat}
             />
             <SidebarButton
               activePanel={panel}
               className='sidebar-menu-users'
               label='Users'
-              onClick={this.focusPanel}
-              panel={panelUsers}
+              onClick={this.props.onShow}
+              panel={sidebarPanelUsers}
             />
             <SidebarButton
               activePanel={panel}
               className='sidebar-menu-settings'
               label='Settings'
-              onClick={this.focusPanel}
-              panel={panelSettings}
+              onClick={this.props.onShow}
+              panel={sidebarPanelSettings}
             />
           </ul>
         </div>
         <div className='sidebar-content'>
-          {panel === panelChat && (
+          {panel === sidebarPanelChat && (
             <Chat
               nicknames={nicknames}
               messages={messages}
@@ -89,13 +73,13 @@ extends React.PureComponent<SidebarProps, SidebarState> {
               visible={this.props.visible}
             />
           )}
-          {panel === panelUsers && (
+          {panel === sidebarPanelUsers && (
             <Users
               onMinimizeToggle={onMinimizeToggle}
               play={this.props.play}
             />
           )}
-          {panel === panelSettings && (
+          {panel === sidebarPanelSettings && (
             <Settings />
           )}
         </div>

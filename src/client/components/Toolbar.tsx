@@ -3,6 +3,7 @@ import React from 'react'
 import { MdCallEnd, MdContentCopy, MdFullscreen, MdFullscreenExit, MdLock, MdLockOpen, MdQuestionAnswer, MdScreenShare, MdShare, MdStopScreenShare, MdWarning } from 'react-icons/md'
 import screenfull from 'screenfull'
 import { getDesktopStream } from '../actions/MediaActions'
+import { Panel, sidebarPanelChat } from '../actions/SidebarActions'
 import { removeLocalStream } from '../actions/StreamActions'
 import { DialState, DIAL_STATE_IN_CALL } from '../constants'
 import { getBrowserFeatures } from '../features'
@@ -24,7 +25,8 @@ export interface ToolbarProps {
   onGetDesktopStream: typeof getDesktopStream
   onRemoveLocalStream: typeof removeLocalStream
   onHangup: () => void
-  chatVisible: boolean
+  sidebarVisible: boolean
+  sidebarPanel: Panel
 }
 
 export interface ToolbarState {
@@ -153,8 +155,11 @@ export default class Toolbar extends React.PureComponent<
     const isInCall = this.props.dialState === DIAL_STATE_IN_CALL
 
     const className = classnames('toolbar', {
-      'toolbar-hidden': this.props.chatVisible || this.state.hidden,
+      'toolbar-hidden': this.props.sidebarVisible || this.state.hidden,
     })
+
+    const chatVisible = this.props.sidebarVisible &&
+      this.props.sidebarPanel === sidebarPanelChat
 
     const encryptionIcon = this.state.encrypted
       ? MdLock
@@ -177,9 +182,9 @@ export default class Toolbar extends React.PureComponent<
                 className='toolbar-btn-chat'
                 key='chat'
                 icon={MdQuestionAnswer}
-                blink={!this.props.chatVisible && hasUnread}
+                blink={!chatVisible && hasUnread}
                 onClick={this.handleToggleSidebar}
-                on={this.props.chatVisible}
+                on={chatVisible}
                 title='Show Sidebar'
               />
             </React.Fragment>
@@ -263,7 +268,7 @@ export default class Toolbar extends React.PureComponent<
               icon={MdFullscreenExit}
               offIcon={MdFullscreen}
               on={this.state.fullScreenEnabled}
-              title='Toggle Fullscreen'
+              title='Fullscreen'
             />
 
           </div>

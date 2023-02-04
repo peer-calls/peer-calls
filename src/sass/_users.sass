@@ -15,7 +15,17 @@
     overflow-y: auto
 
   li
-    input[type=checkbox]
+    border-bottom: 1px solid #e6e6e6
+
+    h3
+      font-size: 1rem
+      font-weight: normal
+
+    p, h3
+      margin: 1rem
+
+    input[type=checkbox],
+    input[type=radio]
       margin-right: 1rem
 
     label
@@ -23,9 +33,12 @@
       align-items: center
       padding: 1rem
       width: 100%
-      border-bottom: 1px solid #e6e6e6
       user-select: none
       cursor: pointer
 
       overflow: hidden
       text-overflow: ellipsis
+
+    .settings-description
+      font-size: 0.8rem
+      margin-top: 0.5rem

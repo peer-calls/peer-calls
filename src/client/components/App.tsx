@@ -5,7 +5,8 @@ import Peer from 'simple-peer'
 import { hangUp } from '../actions/CallActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
-import { MinimizeTogglePayload, removeLocalStream, StreamTypeDesktop } from '../actions/StreamActions'
+import { Panel, sidebarPanelChat } from '../actions/SidebarActions'
+import { MaximizeParams, MinimizeTogglePayload, removeLocalStream, StreamTypeDesktop } from '../actions/StreamActions'
 import * as constants from '../constants'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
@@ -34,37 +35,24 @@ export interface AppProps {
   removeLocalStream: typeof removeLocalStream
   sendFile: (file: File) => void
   windowStates: WindowStates
+  maximize: (payload: MaximizeParams) => void
   minimizeToggle: (payload: MinimizeTogglePayload) => void
   hangUp: typeof hangUp
   settings: SettingsState
+  sidebarVisible: boolean
+  sidebarPanel: Panel
+  sidebarToggle: () => void
+  sidebarHide: () => void
+  sidebarShow: (panel?: Panel) => void
 }
 
-export interface AppState {
-  chatVisible: boolean
-}
-
-export default class App extends React.PureComponent<AppProps, AppState> {
-  state: AppState = {
-    chatVisible: false,
-  }
-  handleShowChat = () => {
-    this.setState({
-      chatVisible: true,
-    })
-  }
-  handleHideSidebar = () => {
-    this.setState({
-      chatVisible: false,
-    })
-  }
-  handleToggleSidebar = () => {
-    return this.state.chatVisible
-      ? this.handleHideSidebar()
-      : this.handleShowChat()
-  }
+export default class App extends React.PureComponent<AppProps> {
   componentDidMount () {
     const { init } = this.props
     init()
+  }
+  sidebarShowChat = () => {
+    this.props.sidebarShow(sidebarPanelChat)
   }
   onHangup = () => {
     const { localStreams } = this.props.streams
@@ -73,7 +61,7 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     })
     this.props.hangUp()
   }
-  render () {
+  render() {
     const {
       dismissNotification,
       notifications,
@@ -81,13 +69,14 @@ export default class App extends React.PureComponent<AppProps, AppState> {
       messages,
       messagesCount,
       minimizeToggle,
+      maximize,
       sendFile,
       sendText,
       settings,
     } = this.props
 
-    const chatVisibleClassName = classnames({
-      'chat-visible': this.state.chatVisible,
+    const sidebarVisibleClassName = classnames({
+      'sidebar-visible': this.props.sidebarVisible,
     })
 
     const { localStreams } = this.props.streams
@@ -95,34 +84,38 @@ export default class App extends React.PureComponent<AppProps, AppState> {
     return (
       <div className="app">
         <Toolbar
-          chatVisible={this.state.chatVisible}
+          sidebarPanel={this.props.sidebarPanel}
+          sidebarVisible={this.props.sidebarVisible}
           dialState={this.props.dialState}
           messagesCount={messagesCount}
           nickname={nicknames[constants.ME]}
-          onToggleSidebar={this.handleToggleSidebar}
+          onToggleSidebar={this.sidebarShowChat}
           onHangup={this.onHangup}
           desktopStream={localStreams[StreamTypeDesktop]}
           onGetDesktopStream={this.props.getDesktopStream}
           onRemoveLocalStream={this.props.removeLocalStream}
         />
         <Notifications
-          className={chatVisibleClassName}
+          className={sidebarVisibleClassName}
           dismiss={dismissNotification}
           notifications={notifications}
         />
         <Sidebar
+          onHide={this.props.sidebarHide}
+          onShow={this.props.sidebarShow}
+          panel={this.props.sidebarPanel}
+          visible={this.props.sidebarVisible}
           messages={messages}
           nicknames={nicknames}
-          onClose={this.handleHideSidebar}
           onMinimizeToggle={minimizeToggle}
           play={this.props.play}
           sendText={sendText}
           sendFile={sendFile}
-          visible={this.state.chatVisible}
         />
         <Media />
         {this.props.dialState !== constants.DIAL_STATE_HUNG_UP &&
           <Videos
+            onMaximize={maximize}
             onMinimizeToggle={minimizeToggle}
             play={this.props.play}
             showMinimizedToolbar={settings.showMinimizedToolbar}
