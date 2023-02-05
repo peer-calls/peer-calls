@@ -5,13 +5,16 @@ import { connect } from 'react-redux'
 import { dial } from '../actions/CallActions'
 import { enumerateDevices, getDeviceId, getMediaStream, MediaDevice, MediaKind, play, setDeviceIdOrDisable, toggleDevice } from '../actions/MediaActions'
 import { error, info, warning } from '../actions/NotifyActions'
+import { StreamTypeCamera } from '../actions/StreamActions'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, DialState, DIAL_STATE_HUNG_UP, ME } from '../constants'
 import { MediaState } from '../reducers/media'
+import { LocalStream } from '../reducers/streams'
 import { State } from '../store'
 import { config } from '../window'
 import { Alert, Alerts } from './Alerts'
 import { Message } from './Message'
 import { Unsupported } from './Unsupported'
+import VideoSrc from './VideoSrc'
 
 const { network } = config
 
@@ -22,6 +25,7 @@ export type MediaProps = MediaState & {
   visible: boolean
   enumerateDevices: typeof enumerateDevices
   setDeviceId: typeof setDeviceIdOrDisable
+  stream?: LocalStream
   getMediaStream: typeof getMediaStream
   play: typeof play
   logInfo: typeof info
@@ -36,9 +40,12 @@ export interface MediaComponentState {
 }
 
 function mapStateToProps(state: State) {
+  const stream = state.streams.localStreams[StreamTypeCamera]
+
   return {
     ...state.media,
     nickname: state.nicknames[ME],
+    stream: stream,
     joinEnabled:
       state.media.dialState === DIAL_STATE_HUNG_UP &&
       state.media.socketConnected &&
@@ -72,18 +79,41 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
 
   componentDidMount() {
     this.props.enumerateDevices()
+    this.getMediaStream()
   }
-  handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    const { nickname } = this.state
-    localStorage && (localStorage.nickname = nickname)
-    event.preventDefault()
-    const { props } = this
-    const { audio, video } = props
+  async componentDidUpdate(prevProps: MediaProps) {
+    const newConstraints = JSON.stringify({
+      video: this.props.video,
+      audio: this.props.audio,
+    })
+    const prevConstraints = JSON.stringify({
+      video: prevProps.video,
+      audio: prevProps.audio,
+    })
 
+    if (newConstraints === prevConstraints) {
+      return
+    }
+
+    const { stream } = this.props
+
+    if (stream) {
+      stream.stream.getTracks().forEach(t => t.stop())
+    }
+
+    try {
+      await this.getMediaStream()
+    } catch {
+      this.setState({error: true})
+    }
+  }
+  getMediaStream = async () => {
     const constraints: MediaStreamConstraints = {
       audio: false,
       video: false,
     }
+
+    const { audio, video } = this.props
 
     if (audio.enabled) {
       constraints.audio = audio.constraints
@@ -93,13 +123,13 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
       constraints.video = video.constraints
     }
 
-    try {
-      await props.getMediaStream(constraints)
-    } catch (err) {
-      this.setState({ error: true })
-      return
-    }
-    this.setState({ error: false })
+    return this.props.getMediaStream(constraints)
+  }
+  handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    const { nickname } = this.state
+    localStorage && (localStorage.nickname = nickname)
+    event.preventDefault()
+    const { props } = this
 
     props.logInfo('Dialling...')
     try {
@@ -110,11 +140,10 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
       props.logError('Error dialling: {0}', err)
     }
   }
-  handleVideoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  handleVideoChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
     this.handleChange('video', event.target.value)
   }
-
-  handleAudioChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  handleAudioChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
     this.handleChange('audio', event.target.value)
   }
   handleNicknameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,17 +157,22 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
   }
   render() {
     const { props } = this
-    const { audio, video } = props
+    const { audio, video, stream } = props
     const { nickname } = this.state
-    if (!props.visible) {
-      return null
-    }
 
     const videoId = getDeviceId(video.enabled, video.constraints)
     const audioId = getDeviceId(audio.enabled, audio.constraints)
 
     return (
       <form className='media' onSubmit={this.handleSubmit}>
+        <div className='form-item'>
+          <VideoSrc
+            srcObject={stream ? stream.stream : null}
+            autoPlay
+            muted
+            mirrored={stream && stream.mirror}
+          />
+        </div>
         <div className='form-item'>
           <label className={classnames({ 'label-error': !nickname })}>
             Enter your name
@@ -239,7 +273,7 @@ export const Media = c(React.memo(function Media(props: MediaProps) {
         )}
       </Alerts>
 
-      <MediaForm {...props} />
+      {props.visible && <MediaForm {...props} />}
     </div>
   )
 }))
