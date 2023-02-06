@@ -3,11 +3,12 @@ import classnames from 'classnames'
 import { StreamWithURL } from '../reducers/streams'
 import { Dropdown } from './Dropdown'
 import { WindowState } from '../reducers/windowStates'
-import { MaximizeParams, MinimizeTogglePayload } from '../actions/StreamActions'
+import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
 import { MdCrop, MdZoomIn, MdZoomOut, MdMenu } from 'react-icons/md'
 
 import VUMeter from './VUMeter'
 import VideoSrc from './VideoSrc'
+import { Dim } from '../frame'
 
 export interface VideoProps {
   onMaximize: (payload: MaximizeParams) => void
@@ -21,6 +22,7 @@ export interface VideoProps {
   play: () => void
   localUser?: boolean
   style?: React.CSSProperties
+  onDimensions: (payload: StreamDimensionsPayload) => void
 }
 
 export interface VideoState {
@@ -42,25 +44,6 @@ extends React.PureComponent<VideoProps, VideoState> {
   handleClick: ReactEventHandler<HTMLVideoElement> = () => {
     this.props.play()
   }
-  // componentDidMount () {
-  //   this.componentDidUpdate()
-  // }
-  // componentDidUpdate () {
-  //   const { stream } = this.props
-  //   const video = this.videoRef.typescurrent
-  //   if (video) {
-  //     const mediaStream = stream && stream.stream || null
-  //     const url = stream && stream.url
-  //     if ('srcObject' in video as unknown) {
-  //       if (video.srcObject !== mediaStream) {
-  //         video.srcObject = mediaStream
-  //       }
-  //     } else if (video.src !== url) {
-  //       video.src = url || ''
-  //     }
-  //     video.muted = this.props.muted
-  //   }
-  // }
   handleMinimize = () => {
     this.props.onMinimizeToggle({
       peerId: this.props.peerId,
@@ -76,6 +59,21 @@ extends React.PureComponent<VideoProps, VideoState> {
   handleToggleCover = () => {
     this.setState({
       objectFit: this.state.objectFit ? '' : 'contain',
+    })
+  }
+  handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    this.props.play()
+  }
+  handleResize = (dimensions: Dim) => {
+    const { peerId, stream } = this.props
+    if (!stream) {
+      return
+    }
+
+    this.props.onDimensions({
+      peerId,
+      streamId: stream.streamId,
+      dimensions,
     })
   }
   render () {
@@ -94,10 +92,11 @@ extends React.PureComponent<VideoProps, VideoState> {
     return (
       <div className={className} style={this.props.style}>
         <VideoSrc
-          id={`video-${peerId}`}
+          id={`video-${peerId}-${streamId}`}
           autoPlay
           onClick={this.handleClick}
-          onLoadedMetadata={() => this.props.play()}
+          onLoadedMetadata={this.handleLoadedMetadata}
+          onResize={this.handleResize}
           muted={this.props.muted}
           objectFit={objectFit}
           srcObject={mediaStream}

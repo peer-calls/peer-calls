@@ -3,7 +3,7 @@ import React from 'react'
 import { connect } from 'react-redux'
 import ResizeObserver from 'resize-observer-polyfill'
 import { GridKind } from '../actions/SettingsActions'
-import { MaximizeParams, MinimizeTogglePayload } from '../actions/StreamActions'
+import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
 import { SETTINGS_GRID_ASPECT, SETTINGS_GRID_AUTO } from '../constants'
 import { Dim, Frame } from '../frame'
 import { getStreamsByState, StreamProps } from '../selectors'
@@ -16,6 +16,7 @@ export interface VideosProps {
   play: () => void
   onMaximize: (payload: MaximizeParams) => void
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  onDimensions: (payload: StreamDimensionsPayload) => void
   showMinimizedToolbar: boolean
   gridKind: GridKind
   defaultAspectRatio: number
@@ -157,6 +158,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
           <Video
             {...props}
             key={props.key}
+            onDimensions={this.props.onDimensions}
             onMaximize={this.props.onMaximize}
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
@@ -172,6 +174,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       <Video
         {...props}
         key={props.key}
+        onDimensions={this.props.onDimensions}
         onMaximize={this.props.onMaximize}
         onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}

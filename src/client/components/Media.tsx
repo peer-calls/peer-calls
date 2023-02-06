@@ -82,16 +82,12 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
     this.getMediaStream()
   }
   async componentDidUpdate(prevProps: MediaProps) {
-    const newConstraints = JSON.stringify({
-      video: this.props.video,
-      audio: this.props.audio,
-    })
-    const prevConstraints = JSON.stringify({
-      video: prevProps.video,
-      audio: prevProps.audio,
-    })
+    const { video, audio } = this.props
 
-    if (newConstraints === prevConstraints) {
+    const prevVideo = this.props.video
+    const prevAudio = this.props.audio
+
+    if (video === prevVideo && audio === prevAudio) {
       return
     }
 

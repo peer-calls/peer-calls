@@ -5,8 +5,8 @@ import omit from 'lodash/omit'
 import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction, MediaTrackAction, MediaTrackPayload } from '../actions/MediaActions'
 import { RemovePeerAction } from '../actions/PeerActions'
-import { AddLocalStreamPayload, AddTrackPayload, PubTrackEventAction, RemoveLocalStreamPayload, RemoveTrackPayload, StreamAction, StreamType, StreamTypeCamera } from '../actions/StreamActions'
-import { HANG_UP, MEDIA_STREAM, MEDIA_TRACK, PEER_REMOVE, PUB_TRACK_EVENT, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
+import { AddLocalStreamPayload, AddTrackPayload, PubTrackEventAction, RemoveLocalStreamPayload, RemoveTrackPayload, SetStreamDimensionsAction, StreamAction, StreamDimensionsPayload, StreamType, StreamTypeCamera } from '../actions/StreamActions'
+import { HANG_UP, ME, MEDIA_STREAM, MEDIA_TRACK, PEER_REMOVE, PUB_TRACK_EVENT, STREAM_DIMENSIONS_SET, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
 import { PubTrack, PubTrackEvent, TrackEventType, TrackKind } from '../SocketEvent'
 import { createObjectURL, MediaStream, revokeObjectURL, config } from '../window'
 
@@ -14,6 +14,7 @@ import { insertableStreamsCodec } from '../insertable-streams'
 import { audioProcessor } from '../audio'
 
 import { RecordSet, setChild, removeChild } from './recordSet'
+import { Dim } from '../frame'
 
 const debug = _debug('peercalls')
 
@@ -62,6 +63,7 @@ export interface StreamWithURL {
   stream: MediaStream
   streamId: string
   url?: string
+  dimensions?: Dim
 }
 
 export interface LocalStream extends StreamWithURL {
@@ -72,6 +74,30 @@ export interface LocalStream extends StreamWithURL {
 export interface PubTracks {
   streamId: string
   tracksByKind: Record<TrackKind, PubTrack>
+}
+
+function getDimensionsFromStream(stream: MediaStream) {
+  const videos = stream.getVideoTracks()
+
+  if (videos.length === 0) {
+    return undefined
+  }
+
+  return getDimensionsFromTrack(videos[0])
+}
+
+function getDimensionsFromTrack(track: MediaStreamTrack) {
+  const settings = track.getSettings()
+  const { width, height } = settings
+
+  if (!width || !height) {
+    return undefined
+  }
+
+  return {
+    x: width,
+    y: height,
+  }
 }
 
 function addLocalStream (
@@ -87,6 +113,7 @@ function addLocalStream (
     url: safeCreateObjectURL(stream),
     mirror: payload.type === StreamTypeCamera &&
       !!stream.getVideoTracks().find(t => !notMirroredRegexp.test(t.label)),
+    dimensions: getDimensionsFromStream(payload.stream),
   }
 
   const existingStream = state.localStreams[payload.type]
@@ -414,7 +441,6 @@ function setLocalStreamMirror(
   if (
     track &&
     track.kind === 'video' &&
-    type === StreamTypeCamera &&
     existingStream
   ) {
     return {
@@ -423,7 +449,9 @@ function setLocalStreamMirror(
         ...state.localStreams,
         [type]: {
           ...existingStream,
-          mirror: !notMirroredRegexp.test(track.label),
+          mirror: type === StreamTypeCamera &&
+            !notMirroredRegexp.test(track.label),
+          dimensions: getDimensionsFromTrack(track),
         },
       },
     }
@@ -436,6 +464,32 @@ function setLocalStreamMirror(
   return state
 }
 
+function setStreamDimensions(
+  state: StreamsState,
+  payload: StreamDimensionsPayload,
+): StreamsState {
+  const { streamId, dimensions } = payload
+
+  let remoteStream = state.remoteStreams[streamId]
+
+  if (!remoteStream) {
+    return state
+  }
+
+  remoteStream = {
+    ...remoteStream,
+    dimensions,
+  }
+
+  return {
+    ...state,
+    remoteStreams: {
+      ...state.remoteStreams,
+      [streamId]: remoteStream,
+    },
+  }
+}
+
 export default function streams(
   state: StreamsState = defaultState,
   action:
@@ -444,7 +498,8 @@ export default function streams(
     MediaTrackAction |
     HangUpAction |
     PubTrackEventAction |
-    RemovePeerAction,
+    RemovePeerAction |
+    SetStreamDimensionsAction,
 ): StreamsState {
   switch (action.type) {
     case STREAM_REMOVE:
@@ -474,6 +529,8 @@ export default function streams(
       } else {
         return state
       }
+    case STREAM_DIMENSIONS_SET:
+      return setStreamDimensions(state, action.payload)
     default:
       return state
   }

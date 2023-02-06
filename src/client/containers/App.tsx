@@ -4,7 +4,7 @@ import { sendFile, sendText } from '../actions/ChatActions'
 import { getDesktopStream, play } from '../actions/MediaActions'
 import { dismissNotification } from '../actions/NotifyActions'
 import { sidebarHide, sidebarShow, sidebarToggle } from '../actions/SidebarActions'
-import { maximize, minimizeToggle, removeLocalStream } from '../actions/StreamActions'
+import { maximize, minimizeToggle, removeLocalStream, setStreamDimensions } from '../actions/StreamActions'
 import App from '../components/App'
 import { State } from '../store'
 
@@ -38,6 +38,7 @@ const mapDispatchToProps = {
   sidebarToggle,
   sidebarHide,
   sidebarShow,
+  setStreamDimensions,
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(App)
