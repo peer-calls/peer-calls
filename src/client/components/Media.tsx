@@ -84,8 +84,8 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
   async componentDidUpdate(prevProps: MediaProps) {
     const { video, audio } = this.props
 
-    const prevVideo = this.props.video
-    const prevAudio = this.props.audio
+    const prevVideo = prevProps.video
+    const prevAudio = prevProps.audio
 
     if (video === prevVideo && audio === prevAudio) {
       return
