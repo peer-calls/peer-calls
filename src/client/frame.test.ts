@@ -1,4 +1,4 @@
-import { Dim, Frame } from './frame'
+import { Dim, Frame, getPermutations } from './frame'
 
 describe('Frame', () => {
   describe('calc', () => {
@@ -25,5 +25,169 @@ describe('Frame', () => {
       expect(calc(f, 720, 1280, 4)).toEqual({x: 568.89, y: 320})
       expect(calc(f, 720, 1280, 5)).toEqual({x: 455.11, y: 256})
     })
+  })
+})
+
+describe('getPermutations', () => {
+  it('returns [] for nw=0 nr=0', () => {
+    expect(getPermutations({numWindows: 0, numRows: 0})).toEqual([])
+  })
+
+  it('returns [0] for nw=1 nr=1', () => {
+    expect(getPermutations({numWindows: 1, numRows: 1})).toEqual([[0]])
+  })
+
+  it('returns [0,0] for nw=2 nr=1', () => {
+    expect(getPermutations({numWindows: 2, numRows: 1})).toEqual([[0, 0]])
+  })
+
+  it('returns [0,0,0] for nw=3 nr=1', () => {
+    expect(getPermutations({numWindows: 3, numRows: 1})).toEqual([[0, 0, 0]])
+  })
+
+  it('returns permutations for nw=2 nr=2', () => {
+    expect(getPermutations({numWindows: 2, numRows: 2})).toEqual([[0, 1]])
+  })
+
+  it('returns permutations for nw=3 nr=2', () => {
+    expect(getPermutations({numWindows: 3, numRows: 2})).toEqual([
+      [0, 0, 1],
+      [0, 1, 1],
+    ])
+  })
+
+  it('returns permutations for nw=3 nr=3', () => {
+    expect(getPermutations({numWindows: 3, numRows: 3})).toEqual([
+      [0, 1, 2],
+    ])
+  })
+
+  it('returns permutations for nw=4 nr=1', () => {
+    expect(getPermutations({numWindows: 4, numRows: 1})).toEqual([
+      [0, 0, 0, 0],
+    ])
+  })
+
+  it('returns permutations for nw=4 nr=2', () => {
+    expect(getPermutations({numWindows: 4, numRows: 2})).toEqual([
+      [0, 0, 0, 1],
+      [0, 0, 1, 1],
+      [0, 1, 1, 1],
+    ])
+  })
+
+  it('returns permutations for nw=4 nr=3', () => {
+    expect(getPermutations({numWindows: 4, numRows: 3})).toEqual([
+      [0, 0, 1, 2],
+      [0, 1, 1, 2],
+      [0, 1, 2, 2],
+    ])
+  })
+
+  it('returns permutations for nw=4 nr=4', () => {
+    expect(getPermutations({numWindows: 4, numRows: 4})).toEqual([
+      [0, 1, 2, 3],
+    ])
+  })
+
+  it('returns permutations for nw=5 nr=1', () => {
+    expect(getPermutations({numWindows: 5, numRows: 1})).toEqual([
+      [0, 0, 0, 0, 0],
+    ])
+  })
+
+  it('returns permutations for nw=5 nr=2', () => {
+    expect(getPermutations({numWindows: 5, numRows: 2})).toEqual([
+      [0, 0, 0, 0, 1],
+      [0, 0, 0, 1, 1],
+      [0, 0, 1, 1, 1],
+      [0, 1, 1, 1, 1],
+    ])
+  })
+
+  it('returns permutations for nw=5 nr=3', () => {
+    expect(getPermutations({numWindows: 5, numRows: 3})).toEqual([
+      [ 0, 0, 0, 1, 2 ],
+      [ 0, 0, 1, 1, 2 ],
+      [ 0, 0, 1, 2, 2 ],
+      [ 0, 1, 1, 1, 2 ],
+      [ 0, 1, 1, 2, 2 ],
+      [ 0, 1, 2, 2, 2 ],
+    ])
+  })
+
+  it('returns permutations for nw=5 nr=4', () => {
+    expect(getPermutations({numWindows: 5, numRows: 4})).toEqual([
+      [0, 0, 1, 2, 3],
+      [0, 1, 1, 2, 3],
+      [0, 1, 2, 2, 3],
+      [0, 1, 2, 3, 3],
+    ])
+  })
+
+  it('returns permutations for nw=5 nr=5', () => {
+    expect(getPermutations({numWindows: 5, numRows: 5})).toEqual([
+      [0, 1, 2, 3, 4],
+    ])
+  })
+
+  it('returns permutations for nw=6 nr=1', () => {
+    expect(getPermutations({numWindows: 6, numRows: 1})).toEqual([
+      [0, 0, 0, 0, 0, 0],
+    ])
+  })
+
+  it('returns permutations for nw=6 nr=2', () => {
+    expect(getPermutations({numWindows: 6, numRows: 2})).toEqual([
+      [0, 0, 0, 0, 0, 1],
+      [0, 0, 0, 0, 1, 1],
+      [0, 0, 0, 1, 1, 1],
+      [0, 0, 1, 1, 1, 1],
+      [0, 1, 1, 1, 1, 1],
+    ])
+  })
+
+  it('returns permutations for nw=6 nr=3', () => {
+    expect(getPermutations({numWindows: 6, numRows: 3})).toEqual([
+      [ 0, 0, 0, 0, 1, 2 ],
+      [ 0, 0, 0, 1, 1, 2 ],
+      [ 0, 0, 0, 1, 2, 2 ],
+      [ 0, 0, 1, 1, 1, 2 ],
+      [ 0, 0, 1, 1, 2, 2 ],
+      [ 0, 1, 1, 1, 1, 2 ],
+      [ 0, 0, 1, 2, 2, 2 ],
+      [ 0, 1, 1, 1, 2, 2 ],
+      [ 0, 1, 1, 2, 2, 2 ],
+      [ 0, 1, 2, 2, 2, 2 ],
+    ])
+  })
+
+  it('returns permutations for nw=6 nr=4', () => {
+    expect(getPermutations({numWindows: 6, numRows: 4})).toEqual([
+      [ 0, 0, 0, 1, 2, 3 ],
+      [ 0, 0, 1, 1, 2, 3 ],
+      [ 0, 0, 1, 2, 2, 3 ],
+      [ 0, 1, 1, 1, 2, 3 ],
+      [ 0, 0, 1, 2, 3, 3 ],
+      [ 0, 1, 1, 2, 2, 3 ],
+      [ 0, 1, 1, 2, 3, 3 ],
+      [ 0, 1, 2, 2, 2, 3 ],
+      [ 0, 1, 2, 2, 3, 3 ],
+      [ 0, 1, 2, 3, 3, 3 ],
+    ])
+  })
+  it('returns permutations for nw=6 nr=4', () => {
+    expect(getPermutations({numWindows: 6, numRows: 4})).toEqual([
+      [ 0, 0, 0, 1, 2, 3 ],
+      [ 0, 0, 1, 1, 2, 3 ],
+      [ 0, 0, 1, 2, 2, 3 ],
+      [ 0, 1, 1, 1, 2, 3 ],
+      [ 0, 0, 1, 2, 3, 3 ],
+      [ 0, 1, 1, 2, 2, 3 ],
+      [ 0, 1, 1, 2, 3, 3 ],
+      [ 0, 1, 2, 2, 2, 3 ],
+      [ 0, 1, 2, 2, 3, 3 ],
+      [ 0, 1, 2, 3, 3, 3 ],
+    ])
   })
 })
