@@ -1,4 +1,4 @@
-import { Dim, Frame, getPermutations } from './frame'
+import { Dim, Frame, getPermutations, MultiFrame } from './frame'
 
 describe('Frame', () => {
   describe('calc', () => {
@@ -189,5 +189,35 @@ describe('getPermutations', () => {
       [ 0, 1, 2, 2, 3, 3 ],
       [ 0, 1, 2, 3, 3, 3 ],
     ])
+  })
+})
+
+describe('MultiFrame', () => {
+  describe('calc', () => {
+    function calc(f: MultiFrame, x: number, y: number, ratios: number[]) {
+      f.setSize({x, y})
+      f.setRatios(ratios)
+      return f.calc()
+    }
+
+    it('1280x720', () => {
+      const f = new MultiFrame()
+      expect(calc(f, 1280, 720, [16/9])).toEqual({y: 720})
+      expect(calc(f, 1280, 720, [16/9, 16/9])).toEqual({y: 360})
+      expect(calc(f, 1280, 720, [16/9, 16/9, 16/9])).toEqual({y: 360})
+      expect(calc(f, 1280, 720, [16/9, 16/9, 16/9, 16/9])).toEqual({y: 360})
+      expect(calc(f, 1280, 720, [16/9, 16/9, 16/9, 16/9, 16/9]))
+      .toEqual({y: 240})
+    })
+
+    it('720x1280', () => {
+      const f = new MultiFrame()
+      expect(calc(f, 720, 1280, [16/9])).toEqual({y: 405})
+      expect(calc(f, 720, 1280, [16/9, 16/9])).toEqual({y: 405})
+      expect(calc(f, 720, 1280, [16/9, 16/9, 16/9])).toEqual({y: 405})
+      expect(calc(f, 720, 1280, [16/9, 16/9, 16/9, 16/9])).toEqual({y: 320})
+      expect(calc(f, 720, 1280, [16/9, 16/9, 16/9, 16/9, 16/9]))
+      .toEqual({y: 256})
+    })
   })
 })

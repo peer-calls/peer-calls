@@ -151,90 +151,75 @@ export class MultiFrame {
       return
     }
 
-    if (!ratios.length) {
-      return
-    }
-
-    // We decide that all windows will have the same y.
-    // Since we have the dimensions of all videos, we can easily calculate the
-    // areas from just y since we know the aspect ratio:
-    //
-    //     r = x/y => x = r*y
-    //             => y = x/r
-    //
-    // So if we have N windows, each with different ratios:
-    //
-    //     x1*y1 + x2*y2 + ... + xn*yn <= X*Y
-    //
-    //  And we've already said that all ys are the same:
-    //
-    //     x1*y + x2*y + ... + xn*y <= X*Y
-    //
-    //     r1*y^2 + r1*y^2 + ... + rn*y^2 <= X*Y
-    //
-    // Since all numbers are positive, we can easily calculate max y:
-    //
-    //     y <= sqrt(X*Y / (r1 + r2 + ... rn))
-    //
-    // We can also invert this equation by calculating the max x:
-    //
-    //     x*y1 + x*y2 + ... + x*yn <= X*Y
-    //
-    //     x^2/r1 + x^2/r2 + ... + x^2/rn <= X*Y
-    //
-    //     x^2(1/r1 + 1/r2 + ... + 1/rn) <= X*Y
-    //
-    //     x <= sqrt(X*Y / (1/r1 + 1/r2 + ... + 1/rn))
-    //
-    // But this doesn't take into account if a certain window will have to be
-    // split since we only take the areas into account.
-    //
-    // We need to add an additional constraint for x so we don't exceed the
-    // X per row.
-    //
-    // Additional rules:
-    //
-    // The maximum width of any window is X
-    // The maximum height of any window is Y
-    //
-    //
-
-    const XY = size.x * size.y
-    const sumRatios = ratios.reduce((sum, r) => sum + r, 0)
-
-    // We calculate the maximum possible y.
-    const maxY = Math.sqrt(XY / sumRatios)
-
-    // However, we still need to make sure that all the windows fit within
-    // the viewport size.
-    // const minNumRows = Math.floor(size.y / maxY)
-    return maxY
-  }
-}
-
-export class MultiFrame2 {
-  private size?: Dim
-  private ratios: number[] = []
-
-  public setSize(size: Dim) {
-    this.size = size
-    this.calc()
-  }
-
-  public setRatios(ratios: number[]) {
-    this.ratios = ratios
-    this.calc()
-  }
-
-  calc() {
-    // const { ratios, size } = this
-
-    // const numWindows = ratios.length
+    const numWindows = ratios.length
     // const maxRows = numWindows
 
-    // for (let i = 1; i <= maxRows; i++) {
-    //   this.getPermutations(i)
-    // }
+    const maxX = size.x
+    const maxY = size.y
+
+    const choice = {
+      y: 0,
+      area: 0,
+    }
+
+    for (let numRows = 1; numRows <= numWindows; numRows++) {
+      const permutations = getPermutations({
+        numWindows,
+        numRows,
+      })
+
+      const maxYPerRow = maxY / numRows
+
+      permutations.forEach(permutation => {
+        let lastRowIndex = -1
+        let currentRatio = 0
+        const rowRatios = permutation
+        .reduce((rr, rowIndex, windowIndex) => {
+          if (rowIndex !== lastRowIndex && currentRatio > 0 ) {
+              rr.push(currentRatio)
+              currentRatio = 0
+          }
+          currentRatio += ratios[windowIndex]
+          lastRowIndex = rowIndex
+
+          return rr
+        }, [] as number[])
+
+        if (currentRatio > 0) {
+          rowRatios.push(currentRatio)
+        }
+
+        const maxRatio = rowRatios.reduce((cur, ratio) => {
+          if (ratio > cur) {
+            cur = ratio
+          }
+
+          return cur
+        }, 0)
+
+        let y = maxYPerRow
+
+        const x = maxRatio * y
+
+        if (x > maxX) {
+          y = maxX / maxRatio
+        }
+
+        const area = ratios.reduce((total, r) => {
+          // x/y = r
+          // area = x * y
+          // area = r * y * y
+          return total + r * y * y
+        }, 0)
+
+        if (area > choice.area) {
+          choice.y = y
+          choice.area = area
+        }
+      })
+    }
+
+    return { y: choice.y }
   }
 
 }
@@ -293,8 +278,6 @@ export function getPermutations(params: getPermutationsParams) {
     const permutation = p.values
     const maxIndex = p.maxIndex
 
-    console.log('permutation', i, permutation, 'maxIndex', maxIndex)
-
     let last = permutation[permutation.length - 1]
 
     for(let i = permutation.length - 2; i >= 1; i--) {
@@ -306,7 +289,6 @@ export function getPermutations(params: getPermutationsParams) {
       if (vi === vj && vi === last - 1 && i >= maxIndex) {
         const newPerm = permutation.slice()
         newPerm[i]++
-        console.log('  new', newPerm, 'maxIndex', j)
         permutations.push({
           values: newPerm,
           maxIndex: j,
