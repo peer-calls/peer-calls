@@ -10,12 +10,12 @@ import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID, DialState, DIAL_STATE_HUNG_UP, M
 import { MediaState } from '../reducers/media'
 import { LocalStream } from '../reducers/streams'
 import { State } from '../store'
-import { config } from '../window'
-import { MediaStream } from '../window'
+import { config, MediaStream } from '../window'
 import { Alert, Alerts } from './Alerts'
 import { Message } from './Message'
 import { Unsupported } from './Unsupported'
 import VideoSrc from './VideoSrc'
+import VUMeter from './VUMeter'
 
 const { network } = config
 
@@ -179,6 +179,9 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
             muted
             mirrored={stream && stream.mirror}
           />
+          <div className='video-footer'>
+            {stream && <VUMeter streamId={stream && stream.streamId} />}
+          </div>
         </div>
         <div className='form-item'>
           <label className={classnames({ 'label-error': !nickname })}>

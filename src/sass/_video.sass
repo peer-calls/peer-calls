@@ -41,20 +41,6 @@ $shadow-size: 2px
   position: relative
   display: flex
 
-  .video-footer
-    position: absolute
-    left: 0
-    bottom: 0
-    right: 0
-
-    display: flex
-    flex: 1 1 100%
-
-    .vu-meter
-      position: absolute
-      left: 0.5rem
-      bottom: 0.5rem
-
   .nickname
     border: none
     background: transparent
@@ -78,6 +64,20 @@ $shadow-size: 2px
     right: 0
     width: 100%
     height: 100%
+
+.video-footer
+  position: absolute
+  left: 0
+  bottom: 0
+  right: 0
+
+  display: flex
+  flex: 1 1 100%
+
+  .vu-meter
+    position: absolute
+    left: 0.5rem
+    bottom: 0.5rem
 
 .video-container.mirrored video,
 video.mirrored
