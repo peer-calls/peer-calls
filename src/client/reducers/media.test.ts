@@ -68,7 +68,7 @@ describe('media', () => {
     })
 
     it('retrieves a list of audioinput/videoinput devices', async () => {
-      await store.dispatch(MediaActions.enumerateDevices())
+      await store.dispatch(MediaActions.enumerateDevices({getUserMedia: true}))
       expect(store.getState().media.devices).toEqual({
         audio: [{
           id: 'abcdef2',
@@ -88,7 +88,9 @@ describe('media', () => {
         navigator.mediaDevices as {enumerateDevices?: unknown}
       ).enumerateDevices
       try {
-        await store.dispatch(MediaActions.enumerateDevices())
+        await store.dispatch(MediaActions.enumerateDevices({
+          getUserMedia: true,
+        }))
       } catch (err) {
         // do nothing
       }

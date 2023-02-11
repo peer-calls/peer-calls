@@ -53,6 +53,13 @@ export class MediaStreamTrack {
     this.id = String(++count)
     this.stop = jest.fn()
   }
+
+  getSettings(): MediaTrackSettings {
+    return {
+      width: 0,
+      height: 0,
+    }
+  }
 }
 
 export const navigator = window.navigator

@@ -58,7 +58,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       gridKind === SETTINGS_GRID_ASPECT ||
       gridKind === SETTINGS_GRID_AUTO && numWindows > 2
     ) {
-      return defaultAspectRatio
+      return calcAspectRatio(defaultAspectRatio, maximized)
     }
 
     return 0
@@ -138,8 +138,6 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       showMinimizedToolbar,
     } = this.props
 
-    const aspectRatio = this.getAspectRatio()
-
     const windows = maximized
 
     this.maybeUpdateSizeStyle()
@@ -147,6 +145,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     const toolbarClassName = classNames('videos videos-toolbar', {
       'hidden': !showMinimizedToolbar || minimized.length === 0,
     })
+
+    const isAspectRatio = this.videoStyle !== undefined
 
     const videosToolbar = (
       <div
@@ -163,12 +163,11 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
             style={this.state.toolbarVideoStyle}
+            forceContain={isAspectRatio}
           />
         ))}
       </div>
     )
-
-    const isAspectRatio = aspectRatio > 0
 
     const maximizedVideos = windows.map(props => (
       <Video
@@ -179,6 +178,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
         onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}
         style={this.videoStyle}
+        forceContain={isAspectRatio}
       />
     ))
 
@@ -211,6 +211,39 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
 function getSize<T extends HTMLElement>(ref: React.RefObject<T>): Dim {
   const {width: x, height: y} = ref.current!.getBoundingClientRect()
   return {x, y}
+}
+
+function calcAspectRatio(
+  defaultAspectRatio: number,
+  streamProps: StreamProps[],
+): number {
+  let ratio = 0
+
+  for (let i = 0; i < streamProps.length; i++) {
+    const stream = streamProps[i].stream
+    if (!stream) {
+      continue
+    }
+
+    const dim = stream.dimensions
+    if (!dim) {
+      continue
+    }
+
+    const r = dim.x / dim.y
+
+    if (ratio === 0) {
+      ratio = r
+      continue
+    }
+
+    if (ratio !== r) {
+      ratio = defaultAspectRatio
+      break
+    }
+  }
+
+  return ratio || defaultAspectRatio
 }
 
 function mapStateToProps(state: State) {

@@ -11,6 +11,7 @@ import { MediaState } from '../reducers/media'
 import { LocalStream } from '../reducers/streams'
 import { State } from '../store'
 import { config } from '../window'
+import { MediaStream } from '../window'
 import { Alert, Alerts } from './Alerts'
 import { Message } from './Message'
 import { Unsupported } from './Unsupported'
@@ -77,9 +78,19 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
     }
   }
 
-  componentDidMount() {
-    this.props.enumerateDevices()
-    this.getMediaStream()
+  async componentDidMount() {
+    let stream: MediaStream
+
+    try {
+      const res = await this.getMediaStream()
+      stream = res.stream
+    } catch(e) {
+      stream = new MediaStream()
+    }
+
+    await this.props.enumerateDevices({
+      getUserMedia: stream.getTracks().length === 0,
+    })
   }
   async componentDidUpdate(prevProps: MediaProps) {
     const { video, audio } = this.props

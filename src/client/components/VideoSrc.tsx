@@ -2,7 +2,7 @@ import classnames from 'classnames'
 import React, { ReactEventHandler } from 'react'
 import { Dim } from '../frame'
 
-interface VideoSrcProps {
+export interface VideoSrcProps {
   id?: string
   autoPlay: boolean
   onClick?: ReactEventHandler<HTMLVideoElement>

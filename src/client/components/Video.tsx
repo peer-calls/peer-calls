@@ -23,6 +23,7 @@ export interface VideoProps {
   localUser?: boolean
   style?: React.CSSProperties
   onDimensions: (payload: StreamDimensionsPayload) => void
+  forceContain?: boolean
 }
 
 export interface VideoState {
@@ -31,8 +32,6 @@ export interface VideoState {
 
 export default class Video
 extends React.PureComponent<VideoProps, VideoState> {
-  videoRef = React.createRef<HTMLVideoElement>()
-
   state = {
     objectFit: '',
   }
@@ -77,8 +76,7 @@ extends React.PureComponent<VideoProps, VideoState> {
     })
   }
   render () {
-    const { mirrored, peerId, windowState, stream } = this.props
-    const { objectFit } = this.state
+    const { forceContain, mirrored, peerId, windowState, stream } = this.props
     const minimized =  windowState === 'minimized'
     const className = classnames('video-container', {
       minimized,
@@ -89,6 +87,12 @@ extends React.PureComponent<VideoProps, VideoState> {
     const mediaStream = stream && stream.stream || null
     const streamURL = stream && stream.url || ''
 
+    let { objectFit } = this.state
+
+    if (forceContain) {
+      objectFit = 'contain'
+    }
+
     return (
       <div className={className} style={this.props.style}>
         <VideoSrc
@@ -98,6 +102,7 @@ extends React.PureComponent<VideoProps, VideoState> {
           onLoadedMetadata={this.handleLoadedMetadata}
           onResize={this.handleResize}
           muted={this.props.muted}
+          mirrored={this.props.mirrored}
           objectFit={objectFit}
           srcObject={mediaStream}
           src={streamURL}
