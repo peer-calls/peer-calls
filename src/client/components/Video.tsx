@@ -31,6 +31,7 @@ export interface VideoProps {
   getSenderStats: (
     track: MediaStreamTrack,
   ) => Promise<{peerId: string, stats: RTCStatsReport}[]>
+  showStats: boolean
 }
 
 export interface VideoState {
@@ -93,7 +94,7 @@ extends React.PureComponent<VideoProps, VideoState> {
   }
   render () {
     const { forceContain, mirrored, peerId, windowState, stream } = this.props
-    const { showStats } = this.state
+    const showStats = this.state.showStats || this.props.showStats
     const minimized =  windowState === 'minimized'
     const className = classnames('video-container', {
       minimized,
@@ -149,7 +150,7 @@ extends React.PureComponent<VideoProps, VideoState> {
             <li className='action-toggle-fit' onClick={this.handleToggleCover}>
               <MdCrop /> Toggle Fit
             </li>
-            {stream && (<li
+            {stream && !this.props.showStats && (<li
               className='action-toggle-stats' onClick={this.handleToggleStats}
             >
               <MdInfoOutline /> Stats

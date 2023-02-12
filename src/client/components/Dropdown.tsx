@@ -5,7 +5,9 @@ import { Backdrop } from './Backdrop'
 export interface DropdownProps {
   label: string | React.ReactElement
   children: (
-    React.ReactElement<{onClick: ReactEventHandler<Element>}> | undefined
+    React.ReactElement<{onClick: ReactEventHandler<Element>}> |
+      undefined |
+      boolean
   )[]
   // fixed will make the dropdown menu use fixed positioning instead of
   // absolute. The position will be manually calculated using

@@ -27,6 +27,7 @@ export interface VideosProps {
   debug: boolean
   receivers: ReceiversState
   peers: PeersState
+  showAllStats: boolean
 }
 
 export interface VideosState {
@@ -212,6 +213,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
             forceContain={isAspectRatio}
             getReceiverStats={this.getReceiverStats}
             getSenderStats={this.getSenderStats}
+            showStats={this.props.showAllStats}
           />
         ))}
       </div>
@@ -229,6 +231,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
         forceContain={isAspectRatio}
         getReceiverStats={this.getReceiverStats}
         getSenderStats={this.getSenderStats}
+        showStats={this.props.showAllStats}
       />
     ))
 
@@ -298,7 +301,7 @@ function calcAspectRatio(
 
 function mapStateToProps(state: State) {
   const { minimized, maximized } = getStreamsByState(state)
-  const { gridKind } = state.settings
+  const { gridKind, showAllStats } = state.settings
 
   return {
     minimized,
@@ -308,6 +311,7 @@ function mapStateToProps(state: State) {
     debug: true,
     receivers: state.receivers,
     peers: state.peers,
+    showAllStats,
   }
 }
 
