@@ -233,6 +233,8 @@ extends React.PureComponent<MediaProps, MediaComponentState> {
           Join Call
         </button>
 
+        <a className="button-abort" href={config.baseUrl || '/'}>Abort</a>
+
         {this.state.error && (
           <Message className='message-error'>
             <MdError className='icon' />
