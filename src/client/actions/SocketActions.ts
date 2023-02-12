@@ -41,7 +41,7 @@ class SocketHandler {
     const peer = getState().peers[peerId]
     sdpDebug('remote signal: peerId: %s, signal: %o', peerId, signal)
     if (!peer) return debug('user: %s, no peer found', peerId)
-    peer.signal(signal)
+    peer.instance.signal(signal)
   }
   // One user has hung up
   handleHangUp = ({ peerId }: SocketEvent['hangUp']) => {

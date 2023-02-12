@@ -29,30 +29,47 @@ const getUserMediaFail = (
     'are using an old browser, or the application is not using HTTPS'))
 }
 
-export const enumerateDevices = makeAction(MEDIA_ENUMERATE, async () => {
-  let stream: MediaStream
-  try {
-    stream = await getUserMedia({ audio: true, video: true })
-  } catch (err) {
-    stream = new MediaStream()
-  }
+export interface EnumrateDevicesParams {
+  // getUserMedia controls whether a call to enumerateDevices needs to call
+  // getUserMedia. This is needed so that all device names are populated
+  // properly. But if we successfully called getUserMedia before, we don't need
+  // to call it again, since the stream and its tracks will be discarded, so
+  // it's a waste of resources.
+  getUserMedia: boolean
+}
 
-  let devices: MediaDeviceInfo[]
-  try {
-    devices = await navigator.mediaDevices.enumerateDevices()
-  } finally {
-    stream.getTracks().forEach(track => track.stop())
-  }
+export const enumerateDevices = makeAction(
+  MEDIA_ENUMERATE,
+  async (params: EnumrateDevicesParams) => {
+    let stream: MediaStream | undefined
 
-  const mappedDevices = devices
-  .map(device => ({
-    id: device.deviceId,
-    type: device.kind,
-    name: device.label,
-  }) as MediaDevice)
+    if (params.getUserMedia) {
+      try {
+        stream = await getUserMedia({ audio: true, video: true })
+      } catch (err) {
+        // We can continue if this fails, the devices won't have real names.
+      }
+    }
 
-  return mappedDevices
-})
+    let devices: MediaDeviceInfo[]
+    try {
+      devices = await navigator.mediaDevices.enumerateDevices()
+    } finally {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+    }
+
+    const mappedDevices = devices
+    .map(device => ({
+      id: device.deviceId,
+      type: device.kind,
+      name: device.label,
+    }) as MediaDevice)
+
+    return mappedDevices
+  },
+)
 
 declare global {
   interface Navigator {

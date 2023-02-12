@@ -2,6 +2,7 @@ import { PubTrackEvent } from '../SocketEvent'
 import * as constants from '../constants'
 import { getStreamsByState } from '../selectors'
 import { ThunkResult } from '../store'
+import { Dim } from '../frame'
 
 export type StreamType = 'camera' | 'desktop'
 export const StreamTypeCamera: StreamType = 'camera'
@@ -25,6 +26,12 @@ export interface RemoveLocalStreamPayload {
 export interface MinimizeTogglePayload {
   peerId: string
   streamId?: string
+}
+
+export interface StreamDimensionsPayload {
+  peerId: string
+  streamId: string
+  dimensions: Dim
 }
 
 export interface MaximizeParams {
@@ -77,6 +84,11 @@ export interface PeerIdPayload {
 export interface PubTrackEventAction {
   type: 'PUB_TRACK_EVENT'
   payload: PubTrackEvent
+}
+
+export interface SetStreamDimensionsAction {
+  type: 'STREAM_DIMENSIONS_SET'
+  payload: StreamDimensionsPayload
 }
 
 export const removeLocalStream = (
@@ -144,9 +156,17 @@ export const pubTrackEvent = (
   payload,
 })
 
+export const setStreamDimensions = (
+  payload: StreamDimensionsPayload,
+): SetStreamDimensionsAction => ({
+  type: constants.STREAM_DIMENSIONS_SET,
+  payload,
+})
+
 export type StreamAction =
   RemoveLocalStreamAction |
   MinimizeToggleAction |
   MaximizeAction |
   RemoveTrackAction |
-  AddTrackAction
+  AddTrackAction |
+  SetStreamDimensionsAction

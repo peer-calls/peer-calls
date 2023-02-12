@@ -6,7 +6,7 @@ import { IconType } from 'react-icons'
 import { MdArrowDropUp, MdMic, MdMicOff, MdRadioButtonChecked, MdRadioButtonUnchecked, MdVideocam, MdVideocamOff } from 'react-icons/md'
 import { connect, ReactReduxContext, ReactReduxContextValue } from 'react-redux'
 import { AnyAction } from 'redux'
-import { enableMediaTrack, enumerateDevices, getBlankVideoTrack, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio, GetMediaTrackParams } from '../actions/MediaActions'
+import { enableMediaTrack, getBlankVideoTrack, getDeviceId, getMediaTrack, getTracksByKind, MediaDevice, MediaKind, setDeviceIdOrDisable, setSizeConstraint, SizeConstraint, MediaKindVideo, MediaKindAudio, GetMediaTrackParams } from '../actions/MediaActions'
 import { DEVICE_DEFAULT_ID, DEVICE_DISABLED_ID } from '../constants'
 import { MediaConstraint } from '../reducers/media'
 import { LocalStream } from '../reducers/streams'
@@ -28,7 +28,6 @@ export interface DeviceDropdownProps {
 
   mediaConstraint: MediaConstraint
 
-  enumerateDevices: typeof enumerateDevices
   getMediaTrack: typeof getMediaTrack
   getBlankVideoTrack: typeof getBlankVideoTrack
   enableMediaTrack: typeof enableMediaTrack
@@ -372,7 +371,6 @@ function mapAudioStateToProps(state: State) {
 }
 
 const avDispatch = {
-  enumerateDevices,
   getMediaTrack,
   getBlankVideoTrack,
   enableMediaTrack,

@@ -1,7 +1,7 @@
 import uniqueId from 'lodash/uniqueId'
 import React from 'react'
 import { connect } from 'react-redux'
-import { showMinimizedToolbarToggle, setGridKind } from '../actions/SettingsActions'
+import { showMinimizedToolbarToggle, setGridKind, showAllStatsToggle } from '../actions/SettingsActions'
 import { SETTINGS_GRID_ASPECT, SETTINGS_GRID_AUTO, SETTINGS_GRID_LEGACY } from '../constants'
 import { SettingsState } from '../reducers/settings'
 import { State } from '../store'
@@ -9,6 +9,7 @@ import { State } from '../store'
 export interface SettingsProps extends SettingsState {
   showMinimizedToolbarToggle: typeof showMinimizedToolbarToggle
   setGridKind: typeof setGridKind
+  showAllStatsToggle: typeof showAllStatsToggle
 }
 
 interface CheckboxProps {
@@ -88,6 +89,8 @@ class Settings extends React.PureComponent<SettingsProps> {
       showMinimizedToolbarToggle,
       gridKind,
       setGridKind,
+      showAllStats,
+      showAllStatsToggle,
     } = this.props
 
     return (
@@ -148,6 +151,14 @@ class Settings extends React.PureComponent<SettingsProps> {
               )}
             </p>
           </li>
+          <li>
+            <Checkbox
+              className='settings-show-all-stats-toggle'
+              checked={showAllStats}
+              onChange={showAllStatsToggle}
+              label='Show all WebRTC stats'
+            />
+          </li>
         </ul>
         <div></div> {/*necessary for flex to stretch */}
       </div>
@@ -158,6 +169,7 @@ class Settings extends React.PureComponent<SettingsProps> {
 const bind = {
   showMinimizedToolbarToggle,
   setGridKind,
+  showAllStatsToggle,
 }
 
 function mapStateToProps(state: State) {

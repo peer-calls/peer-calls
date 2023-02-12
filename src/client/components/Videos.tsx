@@ -1,11 +1,15 @@
 import classNames from 'classnames'
+import map from 'lodash/map'
 import React from 'react'
 import { connect } from 'react-redux'
 import ResizeObserver from 'resize-observer-polyfill'
 import { GridKind } from '../actions/SettingsActions'
-import { MaximizeParams, MinimizeTogglePayload } from '../actions/StreamActions'
+import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
 import { SETTINGS_GRID_ASPECT, SETTINGS_GRID_AUTO } from '../constants'
 import { Dim, Frame } from '../frame'
+import { PeersState } from '../reducers/peers'
+import { ReceiversState } from '../reducers/receivers'
+import { createReceiverStatsKey, ReceiverStatsParams } from '../reducers/receivers'
 import { getStreamsByState, StreamProps } from '../selectors'
 import { State } from '../store'
 import Video from './Video'
@@ -16,10 +20,14 @@ export interface VideosProps {
   play: () => void
   onMaximize: (payload: MaximizeParams) => void
   onMinimizeToggle: (payload: MinimizeTogglePayload) => void
+  onDimensions: (payload: StreamDimensionsPayload) => void
   showMinimizedToolbar: boolean
   gridKind: GridKind
   defaultAspectRatio: number
   debug: boolean
+  receivers: ReceiversState
+  peers: PeersState
+  showAllStats: boolean
 }
 
 export interface VideosState {
@@ -57,7 +65,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       gridKind === SETTINGS_GRID_ASPECT ||
       gridKind === SETTINGS_GRID_AUTO && numWindows > 2
     ) {
-      return defaultAspectRatio
+      return calcAspectRatio(defaultAspectRatio, maximized)
     }
 
     return 0
@@ -130,14 +138,52 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       }
     }
   }
+  getReceiverStats = async (params: ReceiverStatsParams) => {
+    const key = createReceiverStatsKey(params)
+    const receiver = this.props.receivers[key]
+    if (!receiver) {
+      return
+    }
+
+    return await receiver.getStats()
+  }
+  getSenderStats = async (track: MediaStreamTrack) => {
+    const rp = map(this.props.peers, (peer, peerId) => {
+      const sender = peer.senders[track.id]
+
+      if (!sender) {
+        return
+      }
+
+      return {
+        peerId,
+        promise: sender.getStats(),
+      }
+    })
+
+    const ret = []
+
+    for (const report of rp) {
+      if (!report) {
+        continue
+      }
+
+      const stats = await report.promise
+
+      ret.push({
+        peerId: report.peerId,
+        stats,
+      })
+    }
+
+    return ret
+  }
   render() {
     const {
       minimized,
       maximized,
       showMinimizedToolbar,
     } = this.props
-
-    const aspectRatio = this.getAspectRatio()
 
     const windows = maximized
 
@@ -146,6 +192,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     const toolbarClassName = classNames('videos videos-toolbar', {
       'hidden': !showMinimizedToolbar || minimized.length === 0,
     })
+
+    const isAspectRatio = this.videoStyle !== undefined
 
     const videosToolbar = (
       <div
@@ -157,25 +205,33 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
           <Video
             {...props}
             key={props.key}
+            onDimensions={this.props.onDimensions}
             onMaximize={this.props.onMaximize}
             onMinimizeToggle={this.props.onMinimizeToggle}
             play={this.props.play}
             style={this.state.toolbarVideoStyle}
+            forceContain={isAspectRatio}
+            getReceiverStats={this.getReceiverStats}
+            getSenderStats={this.getSenderStats}
+            showStats={this.props.showAllStats}
           />
         ))}
       </div>
     )
 
-    const isAspectRatio = aspectRatio > 0
-
     const maximizedVideos = windows.map(props => (
       <Video
         {...props}
         key={props.key}
+        onDimensions={this.props.onDimensions}
         onMaximize={this.props.onMaximize}
         onMinimizeToggle={this.props.onMinimizeToggle}
         play={this.props.play}
         style={this.videoStyle}
+        forceContain={isAspectRatio}
+        getReceiverStats={this.getReceiverStats}
+        getSenderStats={this.getSenderStats}
+        showStats={this.props.showAllStats}
       />
     ))
 
@@ -210,9 +266,42 @@ function getSize<T extends HTMLElement>(ref: React.RefObject<T>): Dim {
   return {x, y}
 }
 
+function calcAspectRatio(
+  defaultAspectRatio: number,
+  streamProps: StreamProps[],
+): number {
+  let ratio = 0
+
+  for (let i = 0; i < streamProps.length; i++) {
+    const stream = streamProps[i].stream
+    if (!stream) {
+      continue
+    }
+
+    const dim = stream.dimensions
+    if (!dim) {
+      continue
+    }
+
+    const r = dim.x / dim.y
+
+    if (ratio === 0) {
+      ratio = r
+      continue
+    }
+
+    if (ratio !== r) {
+      ratio = defaultAspectRatio
+      break
+    }
+  }
+
+  return ratio || defaultAspectRatio
+}
+
 function mapStateToProps(state: State) {
   const { minimized, maximized } = getStreamsByState(state)
-  const { gridKind } = state.settings
+  const { gridKind, showAllStats } = state.settings
 
   return {
     minimized,
@@ -220,6 +309,9 @@ function mapStateToProps(state: State) {
     gridKind,
     defaultAspectRatio: 16/9,
     debug: true,
+    receivers: state.receivers,
+    peers: state.peers,
+    showAllStats,
   }
 }
 

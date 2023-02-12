@@ -1,15 +1,15 @@
 import classnames from 'classnames'
 import forEach from 'lodash/forEach'
 import React from 'react'
-import Peer from 'simple-peer'
 import { hangUp } from '../actions/CallActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
 import { Panel, sidebarPanelChat } from '../actions/SidebarActions'
-import { MaximizeParams, MinimizeTogglePayload, removeLocalStream, StreamTypeDesktop } from '../actions/StreamActions'
+import { MaximizeParams, MinimizeTogglePayload, removeLocalStream, setStreamDimensions, StreamTypeDesktop } from '../actions/StreamActions'
 import * as constants from '../constants'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
+import { PeersState } from '../reducers/peers'
 import { SettingsState } from '../reducers/settings'
 import { StreamsState } from '../reducers/streams'
 import { WindowStates } from '../reducers/windowStates'
@@ -27,7 +27,7 @@ export interface AppProps {
   notifications: Record<string, Notification>
   messages: Message[]
   messagesCount: number
-  peers: Record<string, Peer.Instance>
+  peers: PeersState
   play: () => void
   sendText: (message: string) => void
   streams: StreamsState
@@ -38,6 +38,7 @@ export interface AppProps {
   maximize: (payload: MaximizeParams) => void
   minimizeToggle: (payload: MinimizeTogglePayload) => void
   hangUp: typeof hangUp
+  setStreamDimensions: typeof setStreamDimensions
   settings: SettingsState
   sidebarVisible: boolean
   sidebarPanel: Panel
@@ -72,6 +73,7 @@ export default class App extends React.PureComponent<AppProps> {
       maximize,
       sendFile,
       sendText,
+      setStreamDimensions,
       settings,
     } = this.props
 
@@ -117,6 +119,7 @@ export default class App extends React.PureComponent<AppProps> {
           <Videos
             onMaximize={maximize}
             onMinimizeToggle={minimizeToggle}
+            onDimensions={setStreamDimensions}
             play={this.props.play}
             showMinimizedToolbar={settings.showMinimizedToolbar}
           />

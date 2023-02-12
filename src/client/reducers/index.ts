@@ -4,6 +4,7 @@ import messages from './messages'
 import nicknames from './nicknames'
 import notifications from './notifications'
 import peers from './peers'
+import receivers from './receivers'
 import settings from './settings'
 import sidebar from './sidebar'
 import streams from './streams'
@@ -15,6 +16,7 @@ export default combineReducers({
   media,
   nicknames,
   peers,
+  receivers,
   settings,
   sidebar,
   streams,

@@ -24,7 +24,7 @@ export function createMessagingMiddleware(
       forEach(peers, (peer, id) => {
         try {
           debug('Send %d bytes to peer %s', event.chunk.byteLength, id)
-          peer.send(event.chunk)
+          peer.instance.send(event.chunk)
         } catch (err) {
           NotifyActions.error('Error sending message to peer: {0}', err)
         }

@@ -28,12 +28,12 @@ const defaultConstraints = {
   audio: {},
 }
 
-const defaultState: MediaState = {
-  socketConnected: false,
-  devices: {
-    audio: [],
-    video: [],
-  },
+interface PersistedState {
+  audio: MediaConstraint
+  video: MediaConstraint
+}
+
+const defaultPersistedState: PersistedState = {
   video: {
     enabled: true,
     constraints: defaultConstraints.video,
@@ -42,10 +42,44 @@ const defaultState: MediaState = {
     enabled: true,
     constraints: defaultConstraints.audio,
   },
-  dialState: DIAL_STATE_HUNG_UP,
-  loading: false,
-  error: '',
-  autoplayError: false,
+}
+
+function loadConstraints(): PersistedState {
+  let state: PersistedState
+  try {
+    state = JSON.parse(localStorage.constraints)
+  } catch (e) {
+    return defaultPersistedState
+  }
+
+  return {
+    audio: state.audio || defaultPersistedState.audio,
+    video: state.video || defaultPersistedState.video,
+  }
+}
+
+function saveConstraints(state: PersistedState) {
+  localStorage.constraints = JSON.stringify({
+    audio: state.audio,
+    video: state.video,
+  })
+}
+
+function load(): MediaState {
+  const constraints = loadConstraints()
+
+  return {
+    socketConnected: false,
+    devices: {
+      audio: [],
+      video: [],
+    },
+    ...constraints,
+    dialState: DIAL_STATE_HUNG_UP,
+    loading: false,
+    error: '',
+    autoplayError: false,
+  }
 }
 
 function createDevices(devices: MediaDevice[]): MediaState['devices'] {
@@ -224,7 +258,7 @@ export function handleSizeConstraint(
 }
 
 export default function media(
-  state = defaultState,
+  state = load(),
   action:
     MediaAction |
     DialAction |
@@ -236,11 +270,17 @@ export default function media(
     case MEDIA_ENUMERATE:
       return handleEnumerate(state, action)
     case MEDIA_DEVICE_ID:
-      return handleDeviceId(state, action.payload)
+      state = handleDeviceId(state, action.payload)
+      saveConstraints(state)
+      return state
     case MEDIA_DEVICE_TOGGLE:
-      return handleDeviceToggle(state, action.payload)
+      state = handleDeviceToggle(state, action.payload)
+      saveConstraints(state)
+      return state
     case MEDIA_SIZE_CONSTRAINT:
-      return handleSizeConstraint(state, action.payload)
+      state = handleSizeConstraint(state, action.payload)
+      saveConstraints(state)
+      return state
     case MEDIA_STREAM:
       return handleMediaStream(state, action)
     case MEDIA_PLAY:

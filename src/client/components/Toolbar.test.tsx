@@ -413,7 +413,8 @@ describe('components/Toolbar track dropdowns', () => {
           const device = getDevices('video')[2]
           TestUtils.Simulate.click(device)
           await promise
-          const addTrack = store.getState().peers[peerId].addTrack as jest.Mock
+          const addTrack = store.getState()
+          .peers[peerId].instance.addTrack as jest.Mock
           expect(addTrack.mock.calls).toEqual([[ videoTrack, stream ]])
         })
       })
@@ -444,7 +445,7 @@ describe('components/Toolbar track dropdowns', () => {
             await promise
 
             const replaceTrack =
-              store.getState().peers[peerId].replaceTrack as jest.Mock
+              store.getState().peers[peerId].instance.replaceTrack as jest.Mock
 
             expect(JSON.stringify(replaceTrack.mock.calls))
             .toEqual(JSON.stringify([
@@ -496,7 +497,7 @@ describe('components/Toolbar track dropdowns', () => {
             await promise
 
             const replaceTrack =
-              store.getState().peers[peerId].replaceTrack as jest.Mock
+              store.getState().peers[peerId].instance.replaceTrack as jest.Mock
             expect(JSON.stringify(replaceTrack.mock.calls))
             .toEqual(JSON.stringify([
               [ oldTrack, blackTrack, stream ],
@@ -539,9 +540,21 @@ describe('components/Toolbar track dropdowns', () => {
 
       describe('camera', () => {
         const expected: MediaConstraint[] = [
-          {enabled: false, constraints: {facingMode:'user'}},
-          {enabled: true, constraints: {facingMode:'user'}},
-          {enabled: true, constraints: {deviceId: 'cam1'}},
+          {enabled: false, constraints: {
+            facingMode:'user',
+            width: 320,
+            height: 240,
+          }},
+          {enabled: true, constraints: {
+            facingMode:'user',
+            width: 320,
+            height: 240,
+          }},
+          {enabled: true, constraints: {
+            deviceId: 'cam1',
+            width: 320,
+            height: 240,
+          }},
         ]
         it('switches camera', () => {
           const button = node.querySelector(

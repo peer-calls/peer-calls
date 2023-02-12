@@ -42,6 +42,7 @@ export const NICKNAME_REMOVE = 'NICKNAME_REMOVE'
 export const PEER_ADD = 'PEER_ADD'
 export const PEER_REMOVE = 'PEER_REMOVE'
 export const PEER_REMOVE_ALL = 'PEER_REMOVE_ALL'
+export const PEER_CONNECTED = 'PEER_CONNECTED'
 
 // this data channel must have the same name as the one on the server-side,
 // when SFU is used.
@@ -60,6 +61,8 @@ export const SETTINGS_SHOW_MINIMIZED_TOOLBAR_TOGGLE =
   'SETTINGS_SHOW_MINIMIZED_TOOLBAR_TOGGLE'
 export const SETTINGS_GRID_SET =
   'SETTINGS_GRID_SET'
+export const SETTINGS_SHOW_ALL_STATS_TOGGLE =
+  'SETTINGS_SHOW_ALL_STATS_TOGGLE'
 
 export const SETTINGS_GRID_AUTO = 'SETTINGS_GRID_AUTO'
 export const SETTINGS_GRID_LEGACY = 'SETTINGS_GRID_LEGACY'
@@ -82,5 +85,6 @@ export const STREAM_ADD = 'PEER_STREAM_ADD'
 export const STREAM_REMOVE = 'PEER_STREAM_REMOVE'
 export const STREAM_TRACK_ADD = 'PEER_STREAM_TRACK_ADD'
 export const STREAM_TRACK_REMOVE = 'PEER_STREAM_TRACK_REMOVE'
+export const STREAM_DIMENSIONS_SET = 'STREAM_DIMENSIONS_SET'
 
 export const RES_IMG_FIREFOX_SHARE = '/res/ff_share.png'

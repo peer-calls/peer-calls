@@ -1,11 +1,14 @@
-import React, { ReactEventHandler } from 'react'
 import classnames from 'classnames'
+import React, { ReactEventHandler } from 'react'
+import { MdCrop, MdInfoOutline, MdMenu, MdZoomIn, MdZoomOut } from 'react-icons/md'
+import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
+import { Dim } from '../frame'
+import { ReceiverStatsParams } from '../reducers/receivers'
 import { StreamWithURL } from '../reducers/streams'
-import { Dropdown } from './Dropdown'
 import { WindowState } from '../reducers/windowStates'
-import { MaximizeParams, MinimizeTogglePayload } from '../actions/StreamActions'
-import { MdCrop, MdZoomIn, MdZoomOut, MdMenu } from 'react-icons/md'
-
+import { Dropdown } from './Dropdown'
+import Stats from './Stats'
+import VideoSrc from './VideoSrc'
 import VUMeter from './VUMeter'
 
 export interface VideoProps {
@@ -20,10 +23,30 @@ export interface VideoProps {
   play: () => void
   localUser?: boolean
   style?: React.CSSProperties
+  onDimensions: (payload: StreamDimensionsPayload) => void
+  forceContain?: boolean
+  getReceiverStats: (
+    params: ReceiverStatsParams,
+  ) => Promise<RTCStatsReport | undefined>
+  getSenderStats: (
+    track: MediaStreamTrack,
+  ) => Promise<{peerId: string, stats: RTCStatsReport}[]>
+  showStats?: boolean
 }
 
-export default class Video extends React.PureComponent<VideoProps> {
-  videoRef = React.createRef<HTMLVideoElement>()
+export interface VideoState {
+  objectFit: string
+  showStats: boolean
+}
+
+export default class Video
+extends React.PureComponent<VideoProps, VideoState> {
+  state = {
+    objectFit: '',
+    showStats: false,
+  }
+
+  statsTimeout: NodeJS.Timeout | undefined
 
   static defaultProps = {
     muted: false,
@@ -31,25 +54,6 @@ export default class Video extends React.PureComponent<VideoProps> {
   }
   handleClick: ReactEventHandler<HTMLVideoElement> = () => {
     this.props.play()
-  }
-  componentDidMount () {
-    this.componentDidUpdate()
-  }
-  componentDidUpdate () {
-    const { stream } = this.props
-    const video = this.videoRef.current
-    if (video) {
-      const mediaStream = stream && stream.stream || null
-      const url = stream && stream.url
-      if ('srcObject' in video as unknown) {
-        if (video.srcObject !== mediaStream) {
-          video.srcObject = mediaStream
-        }
-      } else if (video.src !== url) {
-        video.src = url || ''
-      }
-      video.muted = this.props.muted
-    }
   }
   handleMinimize = () => {
     this.props.onMinimizeToggle({
@@ -64,31 +68,73 @@ export default class Video extends React.PureComponent<VideoProps> {
     })
   }
   handleToggleCover = () => {
-    const v = this.videoRef.current
-    if (v) {
-      v.style.objectFit = v.style.objectFit ? '' : 'contain'
+    this.setState({
+      objectFit: this.state.objectFit ? '' : 'contain',
+    })
+  }
+  handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    this.props.play()
+  }
+  handleResize = (dimensions: Dim) => {
+    const { peerId, stream } = this.props
+    if (!stream) {
+      return
     }
+
+    this.props.onDimensions({
+      peerId,
+      streamId: stream.streamId,
+      dimensions,
+    })
+  }
+  handleToggleStats = () => {
+    this.setState({
+      showStats: !this.state.showStats,
+    })
   }
   render () {
-    const { mirrored, peerId, windowState } = this.props
+    const { forceContain, mirrored, peerId, windowState, stream } = this.props
+    const showStats = this.state.showStats || this.props.showStats
     const minimized =  windowState === 'minimized'
     const className = classnames('video-container', {
       minimized,
       mirrored,
     })
 
-    const streamId = this.props.stream && this.props.stream.streamId
+    const streamId = stream && stream.streamId
+    const mediaStream = stream && stream.stream || null
+    const streamURL = stream && stream.url || ''
+
+    let { objectFit } = this.state
+
+    if (forceContain) {
+      objectFit = 'contain'
+    }
 
     return (
       <div className={className} style={this.props.style}>
-        <video
-          id={`video-${peerId}`}
+        <VideoSrc
+          id={`video-${peerId}-${streamId}`}
           autoPlay
           onClick={this.handleClick}
-          onLoadedMetadata={() => this.props.play()}
-          playsInline
-          ref={this.videoRef}
+          onLoadedMetadata={this.handleLoadedMetadata}
+          onResize={this.handleResize}
+          muted={this.props.muted}
+          mirrored={this.props.mirrored}
+          objectFit={objectFit}
+          srcObject={mediaStream}
+          src={streamURL}
         />
+        {showStats && (
+          <div className='video-stats'>
+            <Stats
+              stream={stream}
+              peerId={this.props.peerId}
+              getReceiverStats={this.props.getReceiverStats}
+              getSenderStats={this.props.getSenderStats}
+            />
+          </div>
+        )}
         <div className='video-footer'>
           <VUMeter streamId={streamId} />
           <span className='nickname'>{this.props.nickname}</span>
@@ -101,9 +147,19 @@ export default class Video extends React.PureComponent<VideoProps> {
               {minimized ? <MdZoomIn /> : <MdZoomOut /> }&nbsp;
               Toggle Minimize
             </li>
-            <li className='action-toggle-fit' onClick={this.handleToggleCover}>
-              <MdCrop /> Toggle Fit
-            </li>
+            {!forceContain && (
+              <li
+              className='action-toggle-fit'
+              onClick={this.handleToggleCover}
+              >
+                <MdCrop /> Toggle Fit
+              </li>
+            )}
+            {stream && !this.props.showStats && (<li
+              className='action-toggle-stats' onClick={this.handleToggleStats}
+            >
+              <MdInfoOutline /> Stats
+            </li>)}
           </Dropdown>
         </div>
       </div>

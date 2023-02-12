@@ -136,7 +136,7 @@ describe('PeerActions', () => {
         dispatch, getState)
 
       const { peers } = store.getState()
-      expect(peers[peer.id]).toBe(instances[0])
+      expect(peers[peer.id].instance).toBe(instances[0])
     })
   })
 
