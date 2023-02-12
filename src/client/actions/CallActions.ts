@@ -74,6 +74,8 @@ export interface DialParams {
 export const dial = makeAction(
   DIAL,
   (params: DialParams) => new Promise<void>((resolve, reject) => {
+    window.onbeforeunload = () =>
+      'This will abort the current call - are you sure you wish to proceed?'
     SocketActions.handshake({
       nickname: params.nickname,
       socket,
@@ -93,6 +95,7 @@ export type HangUpAction = {
 export const hangUp = (): HangUpAction => {
   socket.emit(SOCKET_EVENT_HANG_UP, { peerId })
   SocketActions.removeEventListeners(socket)
+  window.onbeforeunload = null
   return {
     type: HANG_UP,
   }
