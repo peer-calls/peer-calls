@@ -2,12 +2,12 @@ import classnames from 'classnames'
 import React, { ReactEventHandler } from 'react'
 import { MdCrop, MdInfoOutline, MdMenu, MdZoomIn, MdZoomOut } from 'react-icons/md'
 import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
-import { ME } from '../constants'
 import { Dim } from '../frame'
 import { ReceiverStatsParams } from '../reducers/receivers'
 import { StreamWithURL } from '../reducers/streams'
 import { WindowState } from '../reducers/windowStates'
 import { Dropdown } from './Dropdown'
+import Stats from './Stats'
 import VideoSrc from './VideoSrc'
 import VUMeter from './VUMeter'
 
@@ -36,7 +36,6 @@ export interface VideoProps {
 export interface VideoState {
   objectFit: string
   showStats: boolean
-  statsReport: string
 }
 
 export default class Video
@@ -44,7 +43,6 @@ extends React.PureComponent<VideoProps, VideoState> {
   state = {
     objectFit: '',
     showStats: false,
-    statsReport: '',
   }
 
   statsTimeout: NodeJS.Timeout | undefined
@@ -89,180 +87,9 @@ extends React.PureComponent<VideoProps, VideoState> {
     })
   }
   handleToggleStats = () => {
-    const { peerId } = this.props
-
-    const showStats = !this.state.showStats
-
     this.setState({
-      showStats,
+      showStats: !this.state.showStats,
     })
-
-    if (this.statsTimeout) {
-      clearTimeout(this.statsTimeout)
-      this.statsTimeout = undefined
-    }
-
-    if (!showStats) {
-      return
-    }
-
-    this.statsTimeout = setInterval(async () => {
-      let statsReport = ''
-      if (peerId === ME) {
-        statsReport = await this.fetchSenderStats()
-      } else {
-        statsReport = await this.fetchReceiverStats()
-      }
-
-      this.setState({
-        statsReport,
-      })
-    }, 1000)
-  }
-  buildStatsReport = (stats: RTCStatsReport, sections: string[]): string => {
-    let r = ''
-
-    const set = new Set(sections)
-
-    stats.forEach(v => {
-      if (!set.has(v.type)) {
-        return
-      }
-
-      const i = v as RTCInboundRTPStreamStats
-      const o = v as RTCOutboundRTPStreamStats
-
-      switch (v.type) {
-      case 'codec':
-        r += 'Channels: ' + v.channels + '\n'
-        r += 'Clock rate: ' + v.clockRate + '\n'
-        r += 'MIME Type: ' + v.mimeType + '\n'
-        r += 'Payload Type: ' + v.payloadType + '\n'
-        r += 'SDP FMTP Line: ' + v.sdpFmtpLine + '\n'
-        break
-      case 'inbound-rtp':
-        r += 'SSRC: ' + i.ssrc + '\n'
-        r += 'Bytes received: ' + i.bytesReceived + '\n'
-        r += 'Packets received: ' + i.packetsReceived + '\n'
-        r += 'Packets discarded: ' + v.packetsDiscarded + '\n'
-        r += 'Packets lost: ' + i.packetsLost + '\n'
-        r += 'FIR count: ' + i.firCount + '\n'
-        r += 'PLI count: ' + i.pliCount + '\n'
-        r += 'NACK count: ' + i.nackCount + '\n'
-        r += 'SLI count: ' + i.sliCount + '\n'
-        break
-      case 'outbound-rtp':
-        r += 'SSRC: ' + o.ssrc + '\n'
-        r += 'Bytes sent: ' + o.bytesSent + '\n'
-        r += 'Packets sent: ' + o.packetsSent + '\n'
-        r += 'FIR count: ' + o.firCount + '\n'
-        r += 'PLI count: ' + o.pliCount + '\n'
-        r += 'NACK count: ' + o.nackCount + '\n'
-        r += 'SLI count: ' + o.sliCount + '\n'
-        r += 'Round trip time: ' + o.roundTripTime + '\n'
-      break
-      default:
-          // Do nothing.
-      }
-    })
-
-    return r
-  }
-  fetchReceiverStats = async () => {
-    const { stream, getReceiverStats } = this.props
-
-    if (!stream) {
-      return 'No stream'
-    }
-
-    const streamId = stream.streamId
-
-    const tracks = stream.stream.getTracks()
-
-    const tps = tracks.map(track => {
-      return {
-        track,
-        promise: getReceiverStats({
-          streamId,
-          trackId: track.id,
-        }),
-      }
-    })
-
-    const reports: string[] = []
-    const sections = ['codec', 'inbound-rtp']
-
-    for (const tp of tps) {
-      const { track, promise } = tp
-
-      let r = ''
-
-      r += `${track.kind.toUpperCase()} ${track.id}\n`
-
-      try {
-        const stats = await promise
-        if (stats) {
-          r += this.buildStatsReport(stats, sections)
-        } else {
-          r += 'No report available\n'
-        }
-      } catch (err) {
-        r += 'Error ' + err + '\n'
-      }
-
-      reports.push(r)
-    }
-
-    return reports.join('\n')
-  }
-  fetchSenderStats = async () => {
-    const { stream, getSenderStats } = this.props
-
-    if (!stream) {
-      return 'No stream'
-    }
-
-    const tracks = stream.stream.getTracks()
-
-    const tps = tracks.map(track => {
-      return {
-        track,
-        promise: getSenderStats(track),
-      }
-    })
-
-    const reports: string[] = []
-    const sections = ['codec', 'outbound-rtp']
-
-    for (const tp of tps) {
-      const { track, promise } = tp
-
-      let r = `${track.kind.toUpperCase()} ${track.id}\n`
-      let statsPerPeer = []
-
-      try {
-        statsPerPeer = await promise
-      } catch (err) {
-        r += 'Error ' + err + '\n'
-        continue
-      }
-
-      if (!statsPerPeer.length) {
-        r += 'No report available\n'
-        continue
-      }
-
-      statsPerPeer.forEach(s => {
-        const { peerId, stats } = s
-
-        r += `Peer ID: ${peerId}` + '\n'
-        r += this.buildStatsReport(stats, sections)
-      })
-
-      reports.push(r)
-    }
-
-    return reports.join('\n')
   }
   render () {
     const { forceContain, mirrored, peerId, windowState, stream } = this.props
@@ -299,7 +126,12 @@ extends React.PureComponent<VideoProps, VideoState> {
         />
         {showStats && (
           <div className='video-stats'>
-            {this.state.statsReport}
+            <Stats
+              stream={stream}
+              peerId={this.props.peerId}
+              getReceiverStats={this.props.getReceiverStats}
+              getSenderStats={this.props.getSenderStats}
+            />
           </div>
         )}
         <div className='video-footer'>
