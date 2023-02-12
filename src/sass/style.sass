@@ -91,7 +91,6 @@ body.call
     font-size: 1.2rem
     padding: 1rem 0rem 0.75rem
     width: 100%
-    margin-bottom: 1rem
     background: none
     border: none
     border-bottom: 2px solid rgba($color-warning, 0)
@@ -103,6 +102,11 @@ body.call
     &:focus
       border-bottom: 2px solid $color-warning
       outline: none
+
+  label[for="call"]
+    font-size: 0.9rem
+    display: block
+    margin: 1rem 0
 
   input[type="submit"]
     font-family: $font-monospace
