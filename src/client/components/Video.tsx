@@ -31,7 +31,7 @@ export interface VideoProps {
   getSenderStats: (
     track: MediaStreamTrack,
   ) => Promise<{peerId: string, stats: RTCStatsReport}[]>
-  showStats: boolean
+  showStats?: boolean
 }
 
 export interface VideoState {
