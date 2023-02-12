@@ -147,9 +147,14 @@ extends React.PureComponent<VideoProps, VideoState> {
               {minimized ? <MdZoomIn /> : <MdZoomOut /> }&nbsp;
               Toggle Minimize
             </li>
-            <li className='action-toggle-fit' onClick={this.handleToggleCover}>
-              <MdCrop /> Toggle Fit
-            </li>
+            {!forceContain && (
+              <li
+              className='action-toggle-fit'
+              onClick={this.handleToggleCover}
+              >
+                <MdCrop /> Toggle Fit
+              </li>
+            )}
             {stream && !this.props.showStats && (<li
               className='action-toggle-stats' onClick={this.handleToggleStats}
             >

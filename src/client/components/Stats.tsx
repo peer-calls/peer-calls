@@ -26,18 +26,21 @@ extends React.PureComponent<StatsProps, StatsState> {
   }
 
   componentDidMount() {
-    this.timeout = setInterval(async () => {
-      let report = ''
-      if (this.props.peerId === ME) {
-        report = await this.fetchSenderStats()
-      } else {
-        report = await this.fetchReceiverStats()
-      }
+    this.refresh()
+    this.timeout = setInterval(this.refresh, 1000)
+  }
 
-      this.setState({
-        report,
-      })
-    }, 1000)
+  refresh = async () => {
+    let report = ''
+    if (this.props.peerId === ME) {
+      report = await this.fetchSenderStats()
+    } else {
+      report = await this.fetchReceiverStats()
+    }
+
+    this.setState({
+      report,
+    })
   }
 
   buildStatsReport = (stats: RTCStatsReport, sections: string[]): string => {
@@ -126,7 +129,11 @@ extends React.PureComponent<StatsProps, StatsState> {
 
     const streamId = stream.streamId
 
-    const tracks = stream.stream.getTracks()
+    // Keep video/audio order consistent.
+    const tracks = [
+      ...stream.stream.getVideoTracks(),
+      ...stream.stream.getAudioTracks(),
+    ]
 
     const tps = tracks.map(track => {
       return {
@@ -171,7 +178,11 @@ extends React.PureComponent<StatsProps, StatsState> {
       return 'No stream'
     }
 
-    const tracks = stream.stream.getTracks()
+    // Keep video/audio order consistent.
+    const tracks = [
+      ...stream.stream.getVideoTracks(),
+      ...stream.stream.getAudioTracks(),
+    ]
 
     const tps = tracks.map(track => {
       return {

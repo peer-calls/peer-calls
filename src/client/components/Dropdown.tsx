@@ -4,6 +4,9 @@ import { Backdrop } from './Backdrop'
 
 export interface DropdownProps {
   label: string | React.ReactElement
+  // The undefined/boolean types below are there to allow
+  // conditional rendering of components. The boolean/undefined
+  // children will be ignored.
   children: (
     React.ReactElement<{onClick: ReactEventHandler<Element>}> |
       undefined |
@@ -71,7 +74,7 @@ extends React.PureComponent<DropdownProps, DropdownState> {
     const menu = React.Children.map(
       this.props.children,
       child => {
-        if (!child) {
+        if (!child || typeof child === 'boolean') {
           return
         }
 
