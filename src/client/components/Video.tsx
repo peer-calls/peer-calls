@@ -133,38 +133,36 @@ extends React.PureComponent<VideoProps, VideoState> {
       const o = v as RTCOutboundRTPStreamStats
 
       switch (v.type) {
-        case 'codec':
-          r += 'Channels: ' + v.channels + '\n'
-          r += 'Clock rate: ' + v.clockRate + '\n'
-          r += 'MIME Type: ' + v.mimeType + '\n'
-          r += 'Payload Type: ' + v.payloadType + '\n'
-          r += 'SDP FMTP Line: ' + v.sdpFmtpLine + '\n'
-          break
-        case 'inbound-rtp':
-          r += 'SSRC: ' + i.ssrc + '\n'
-          r += 'Bytes received: ' + i.bytesReceived + '\n'
-          r += 'Packets received: ' + i.packetsReceived + '\n'
-          r += 'Packets discarded: ' + v.packetsDiscarded + '\n'
-          r += 'Packets lost: ' + i.packetsLost + '\n'
-          r += 'FIR count: ' + i.firCount + '\n'
-          r += 'PLI count: ' + i.pliCount + '\n'
-          r += 'NACK count: ' + i.nackCount + '\n'
-          r += 'SLI count: ' + i.sliCount + '\n'
-          break
-        case 'outbound-rtp':
-          r += 'SSRC: ' + o.ssrc + '\n'
-          r += 'Bytes sent: ' + o.bytesSent + '\n'
-          r += 'Packets sent: ' + o.packetsSent + '\n'
-          r += 'FIR count: ' + o.firCount + '\n'
-          r += 'PLI count: ' + o.pliCount + '\n'
-          r += 'NACK count: ' + o.nackCount + '\n'
-          r += 'SLI count: ' + o.sliCount + '\n'
-          r += 'Round trip time: ' + o.roundTripTime + '\n'
+      case 'codec':
+        r += 'Channels: ' + v.channels + '\n'
+        r += 'Clock rate: ' + v.clockRate + '\n'
+        r += 'MIME Type: ' + v.mimeType + '\n'
+        r += 'Payload Type: ' + v.payloadType + '\n'
+        r += 'SDP FMTP Line: ' + v.sdpFmtpLine + '\n'
         break
+      case 'inbound-rtp':
+        r += 'SSRC: ' + i.ssrc + '\n'
+        r += 'Bytes received: ' + i.bytesReceived + '\n'
+        r += 'Packets received: ' + i.packetsReceived + '\n'
+        r += 'Packets discarded: ' + v.packetsDiscarded + '\n'
+        r += 'Packets lost: ' + i.packetsLost + '\n'
+        r += 'FIR count: ' + i.firCount + '\n'
+        r += 'PLI count: ' + i.pliCount + '\n'
+        r += 'NACK count: ' + i.nackCount + '\n'
+        r += 'SLI count: ' + i.sliCount + '\n'
+        break
+      case 'outbound-rtp':
+        r += 'SSRC: ' + o.ssrc + '\n'
+        r += 'Bytes sent: ' + o.bytesSent + '\n'
+        r += 'Packets sent: ' + o.packetsSent + '\n'
+        r += 'FIR count: ' + o.firCount + '\n'
+        r += 'PLI count: ' + o.pliCount + '\n'
+        r += 'NACK count: ' + o.nackCount + '\n'
+        r += 'SLI count: ' + o.sliCount + '\n'
+        r += 'Round trip time: ' + o.roundTripTime + '\n'
+      break
       default:
-        if (!/candidate/.test(v.type)) {
-          console.log('stats report', v.type, v)
-        }
+          // Do nothing.
       }
     })
 

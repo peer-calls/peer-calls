@@ -232,7 +232,12 @@ describe('SocketActions', () => {
       })
 
       it('removes stream & peer from store', () => {
-        expect(store.getState().peers).toEqual({ [peerB]: peer })
+        expect(store.getState().peers).toEqual({
+          [peerB]: {
+            instance: peer,
+            senders: {},
+          },
+        })
         peer.emit('close')
         expect(store.getState().streams).toEqual({
           localStreams: {},

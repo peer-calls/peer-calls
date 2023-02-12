@@ -35,6 +35,8 @@ describe('components/Video', () => {
         mirrored={this.props.mirrored}
         nickname={this.props.nickname}
         windowState={this.props.windowState}
+        getSenderStats={this.props.getSenderStats}
+        getReceiverStats={this.props.getReceiverStats}
       />
     }
   }
@@ -87,6 +89,8 @@ describe('components/Video', () => {
           onMaximize={onMaximize}
           nickname={nickname}
           windowState={flags.windowState}
+          getSenderStats={undefined as any}
+          getReceiverStats={undefined as any}
         />,
         div,
       )

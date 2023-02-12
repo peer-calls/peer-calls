@@ -1,7 +1,6 @@
 import classnames from 'classnames'
 import forEach from 'lodash/forEach'
 import React from 'react'
-import Peer from 'simple-peer'
 import { hangUp } from '../actions/CallActions'
 import { getDesktopStream } from '../actions/MediaActions'
 import { dismissNotification, Notification } from '../actions/NotifyActions'
@@ -10,6 +9,7 @@ import { MaximizeParams, MinimizeTogglePayload, removeLocalStream, setStreamDime
 import * as constants from '../constants'
 import { Message } from '../reducers/messages'
 import { Nicknames } from '../reducers/nicknames'
+import { PeersState } from '../reducers/peers'
 import { SettingsState } from '../reducers/settings'
 import { StreamsState } from '../reducers/streams'
 import { WindowStates } from '../reducers/windowStates'
@@ -27,7 +27,7 @@ export interface AppProps {
   notifications: Record<string, Notification>
   messages: Message[]
   messagesCount: number
-  peers: Record<string, Peer.Instance>
+  peers: PeersState
   play: () => void
   sendText: (message: string) => void
   streams: StreamsState

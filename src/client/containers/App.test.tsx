@@ -107,8 +107,12 @@ describe('App', () => {
           },
         },
       }
+      state.media!.dialState = constants.DIAL_STATE_IN_CALL
       state.peers = {
-        'other-user': {} as any,
+        'other-user': {
+          instance: {} as any,
+          senders: {} as any,
+        },
       }
       state.nicknames = {
         [constants.ME]: 'local user',
@@ -130,7 +134,8 @@ describe('App', () => {
       })
 
       it('forces play on click', () => {
-        const video = node.querySelector('video')!
+        const video = node.querySelector('.video-container video')!
+        expect(video).toBeTruthy()
         TestUtils.Simulate.mouseDown(video)
         TestUtils.Simulate.mouseUp(video)
         TestUtils.Simulate.click(video)
