@@ -6,15 +6,13 @@ import { HangUpAction } from '../actions/CallActions'
 import { MediaStreamAction, MediaTrackAction, MediaTrackPayload } from '../actions/MediaActions'
 import { RemovePeerAction } from '../actions/PeerActions'
 import { AddLocalStreamPayload, AddTrackPayload, PubTrackEventAction, RemoveLocalStreamPayload, RemoveTrackPayload, SetStreamDimensionsAction, StreamAction, StreamDimensionsPayload, StreamType, StreamTypeCamera } from '../actions/StreamActions'
-import { HANG_UP, ME, MEDIA_STREAM, MEDIA_TRACK, PEER_REMOVE, PUB_TRACK_EVENT, STREAM_DIMENSIONS_SET, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
-import { PubTrack, PubTrackEvent, TrackEventType, TrackKind } from '../SocketEvent'
-import { createObjectURL, MediaStream, revokeObjectURL, config } from '../window'
-
-import { insertableStreamsCodec } from '../insertable-streams'
 import { audioProcessor } from '../audio'
-
-import { RecordSet, setChild, removeChild } from './recordSet'
+import { HANG_UP, MEDIA_STREAM, MEDIA_TRACK, PEER_REMOVE, PUB_TRACK_EVENT, STREAM_DIMENSIONS_SET, STREAM_REMOVE, STREAM_TRACK_ADD, STREAM_TRACK_REMOVE } from '../constants'
 import { Dim } from '../frame'
+import { insertableStreamsCodec } from '../insertable-streams'
+import { PubTrack, PubTrackEvent, TrackEventType, TrackKind } from '../SocketEvent'
+import { config, createObjectURL, MediaStream, revokeObjectURL } from '../window'
+import { RecordSet, removeChild, setChild } from './recordSet'
 
 const debug = _debug('peercalls')
 
