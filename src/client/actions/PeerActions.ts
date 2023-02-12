@@ -48,7 +48,7 @@ class PeerHandler {
     debug('peer: %s, error %s', peer.id, err.stack)
     dispatch(NotifyActions.error('A peer connection error occurred'))
     const pc = getState().peers[peer.id]
-    pc && pc.destroy()
+    pc && pc.instance.destroy()
     dispatch(removePeer(peer.id))
   }
   handleSignal = (signal: SignalData) => {
@@ -59,21 +59,14 @@ class PeerHandler {
     socket.emit('signal', payload)
   }
   handleConnect = () => {
-    const { dispatch, peer, getState } = this
+    const { dispatch, peer } = this
     debug('peer: %s, connect', peer.id)
     dispatch(NotifyActions.warning('Peer connection established'))
 
-    const state = getState()
-    const pc = state.peers[peer.id]
-    forEach(state.streams.localStreams, s => {
-      // If the local user pressed join call before this peer has joined the
-      // call, now is the time to share local media stream with the peer since
-      // we no longer automatically send the stream to the peer.
-      s!.stream.getTracks().forEach(track => {
-        const sender = pc.addTrack(track, s!.stream)
-        insertableStreamsCodec.encrypt(sender)
-      })
-    })
+
+    dispatch(peerConnected({
+      peerId: peer.id,
+    }))
   }
   handleTrack = (
     track: MediaStreamTrack,
@@ -156,7 +149,7 @@ export function createPeer (options: CreatePeerOptions) {
     const oldPeer = getState().peers[peerId]
     if (oldPeer) {
       dispatch(NotifyActions.info('Cleaning up old connection...'))
-      oldPeer.destroy()
+      oldPeer.instance.destroy()
       dispatch(removePeer(peerId))
     }
 
@@ -218,6 +211,22 @@ export const addPeer = (payload: AddPeerParams): AddPeerAction => ({
   payload,
 })
 
+export interface PeerConnectedParams {
+  peerId: string
+}
+
+export interface PeerConnectedAction {
+  type: 'PEER_CONNECTED'
+  payload: PeerConnectedParams
+}
+
+export const peerConnected = (
+  payload: PeerConnectedParams,
+): PeerConnectedAction => ({
+  type: constants.PEER_CONNECTED,
+  payload,
+})
+
 export interface RemovePeerAction {
   type: 'PEER_REMOVE'
   payload: { peerId: string }
@@ -239,4 +248,5 @@ export const removeAllPeers = (): RemoveAllPeersAction => ({
 export type PeerAction =
   AddPeerAction |
   RemovePeerAction |
-  RemoveAllPeersAction
+  RemoveAllPeersAction |
+  PeerConnectedAction

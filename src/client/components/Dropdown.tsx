@@ -4,7 +4,9 @@ import { Backdrop } from './Backdrop'
 
 export interface DropdownProps {
   label: string | React.ReactElement
-  children: React.ReactElement<{onClick: ReactEventHandler<Element>}>[]
+  children: (
+    React.ReactElement<{onClick: ReactEventHandler<Element>}> | undefined
+  )[]
   // fixed will make the dropdown menu use fixed positioning instead of
   // absolute. The position will be manually calculated using
   // getBoundingClientRect relative to the dropdown button.
@@ -67,6 +69,10 @@ extends React.PureComponent<DropdownProps, DropdownState> {
     const menu = React.Children.map(
       this.props.children,
       child => {
+        if (!child) {
+          return
+        }
+
         const onClick = child.props.onClick
         return React.cloneElement(child, {
           ...child.props,

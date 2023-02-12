@@ -1,5 +1,6 @@
 import _debug from 'debug'
 import forEach from 'lodash/forEach'
+import mapValues from 'lodash/mapValues'
 import omit from 'lodash/omit'
 import Peer from 'simple-peer'
 import { PeerAction } from '../actions/PeerActions'
@@ -11,7 +12,13 @@ import { insertableStreamsCodec } from '../insertable-streams'
 
 const debug = _debug('peercalls')
 
-export type PeersState = Record<string, Peer.Instance>
+export interface PeerState {
+  instance: Peer.Instance
+  // senders are indexed by MediaStreamTrack.id
+  senders: Record<string, RTCRtpSender>
+}
+
+export type PeersState = Record<string, PeerState>
 
 const defaultState: PeersState = {}
 
@@ -21,16 +28,47 @@ let localStreams: Record<StreamType, MediaStream | undefined> = {
 }
 
 function removeTrackFromPeer(
-  peer: Peer.Instance,
+  peer: PeerState,
   track: MediaStreamTrack,
   stream: MediaStream,
-) {
+): PeerState {
   try {
-    peer.removeTrack(track, stream)
+    peer.instance.removeTrack(track, stream)
+    const senders = omit(peer.senders, track.id)
+
+    return {
+      ...peer,
+      senders,
+    }
   } catch (err) {
     debug('peer.removeTrack: %s', err)
+
+    return peer
   }
 }
+
+function addTrackToPeer(
+  peer: PeerState,
+  track: MediaStreamTrack,
+  stream: MediaStream,
+): PeerState {
+  debug(
+    'Add track to peer, id: %s, kind: %s, label: %s',
+    track.id, track.kind, track.label,
+  )
+
+  const sender = peer.instance.addTrack(track, stream)
+  insertableStreamsCodec.encrypt(sender)
+
+  return {
+    ...peer,
+    senders: {
+      ...peer.senders,
+      [track.id]: sender,
+    },
+  }
+}
+
 
 function handleRemoveLocalStream(
   state: PeersState,
@@ -38,13 +76,13 @@ function handleRemoveLocalStream(
 ): PeersState {
   const stream = action.payload.stream
 
-  forEach(state, peer => {
+  return mapValues(state, peer => {
     stream.getTracks().forEach(track => {
-      removeTrackFromPeer(peer, track, stream)
+      peer = removeTrackFromPeer(peer, track, stream)
     })
-  })
 
-  return state
+    return peer
+  })
 }
 
 function handleLocalMediaStream(
@@ -56,24 +94,22 @@ function handleLocalMediaStream(
   }
   const streamType = action.payload.type
 
-  forEach(state, peer => {
+  const newState = mapValues(state, peer => {
     const localStream = localStreams[streamType]
     localStream && localStream.getTracks().forEach(track => {
       removeTrackFromPeer(peer, track, localStream)
     })
     const stream = action.payload.stream
     stream.getTracks().forEach(track => {
-      debug(
-        'Add track to peer, id: %s, kind: %s, label: %s',
-        track.id, track.kind, track.label,
-      )
-      const sender = peer.addTrack(track, stream)
-      insertableStreamsCodec.encrypt(sender)
+      peer = addTrackToPeer(peer, track, stream)
     })
+
+    return peer
   })
+
   localStreams[streamType] = action.payload.stream
 
-  return state
+  return newState
 }
 
 export function handleLocalMediaTrack(
@@ -106,13 +142,25 @@ export function handleLocalMediaTrack(
 
   if (oldTrack) {
     if (newTrack) {
-      forEach(state, peer => {
-        peer.replaceTrack(oldTrack, newTrack, localStream)
+      const newState = mapValues(state, peer => {
+        peer.instance.replaceTrack(oldTrack, newTrack, localStream)
+
+        const sender = peer.senders[oldTrack.id]
+        const senders = omit(peer.senders, oldTrack.id)
+
+        return {
+          ...peer,
+          senders: {
+            ...senders,
+            [newTrack.id]: sender,
+          },
+        }
       })
       localStream.removeTrack(oldTrack)
       localStream.addTrack(newTrack)
       oldTrack.stop()
-      return state
+
+      return newState
     }
 
     // old track and no new track, mute the current track
@@ -121,12 +169,12 @@ export function handleLocalMediaTrack(
   }
 
   if (newTrack) {
-    forEach(state, peer => {
-      const sender = peer.addTrack(newTrack, localStream)
-      insertableStreamsCodec.encrypt(sender)
+    const newState = mapValues(state, peer => {
+      return addTrackToPeer(peer, newTrack, localStream)
     })
     localStream.addTrack(newTrack)
-    return state
+
+    return newState
   }
 
   // no old track and no new track, do nothing
@@ -150,9 +198,31 @@ export function handleLocalMediaTrackEnable(
 }
 
 export function removeAllPeers(state: PeersState): PeersState {
-  forEach(state, peer => peer.destroy())
+  forEach(state, peer => peer.instance.destroy())
 
   return defaultState
+}
+
+export function peerConnected(state: PeersState, peerId: string): PeersState {
+  let peer = state[peerId]
+
+  forEach(localStreams, stream => {
+    if (!stream) {
+      return
+    }
+
+    // If the local user pressed join call before this peer has joined the
+    // call, now is the time to share local media stream with the peer since
+    // we no longer automatically send the stream to the peer.
+    stream.getTracks().forEach(track => {
+      peer = addTrackToPeer(peer, track, stream)
+    })
+  })
+
+  return {
+    ...state,
+    [peerId]: peer,
+  }
 }
 
 export default function peers(
@@ -169,10 +239,15 @@ export default function peers(
     case constants.PEER_ADD:
       return {
         ...state,
-        [action.payload.peerId]: action.payload.peer,
+        [action.payload.peerId]: {
+          instance: action.payload.peer,
+          senders: {},
+        },
       }
     case constants.PEER_REMOVE:
       return omit(state, [action.payload.peerId])
+    case constants.PEER_CONNECTED:
+      return peerConnected(state, action.payload.peerId)
     case constants.HANG_UP:
       localStreams = {
         camera: undefined,

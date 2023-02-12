@@ -1,4 +1,5 @@
 import classNames from 'classnames'
+import map from 'lodash/map'
 import React from 'react'
 import { connect } from 'react-redux'
 import ResizeObserver from 'resize-observer-polyfill'
@@ -6,6 +7,9 @@ import { GridKind } from '../actions/SettingsActions'
 import { MaximizeParams, MinimizeTogglePayload, StreamDimensionsPayload } from '../actions/StreamActions'
 import { SETTINGS_GRID_ASPECT, SETTINGS_GRID_AUTO } from '../constants'
 import { Dim, Frame } from '../frame'
+import { PeersState } from '../reducers/peers'
+import { ReceiversState } from '../reducers/receivers'
+import { createReceiverStatsKey, ReceiverStatsParams } from '../reducers/receivers'
 import { getStreamsByState, StreamProps } from '../selectors'
 import { State } from '../store'
 import Video from './Video'
@@ -21,6 +25,8 @@ export interface VideosProps {
   gridKind: GridKind
   defaultAspectRatio: number
   debug: boolean
+  receivers: ReceiversState
+  peers: PeersState
 }
 
 export interface VideosState {
@@ -131,6 +137,46 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       }
     }
   }
+  getReceiverStats = async (params: ReceiverStatsParams) => {
+    const key = createReceiverStatsKey(params)
+    const receiver = this.props.receivers[key]
+    if (!receiver) {
+      return
+    }
+
+    return await receiver.getStats()
+  }
+  getSenderStats = async (track: MediaStreamTrack) => {
+    const rp = map(this.props.peers, (peer, peerId) => {
+      const sender = peer.senders[track.id]
+
+      if (!sender) {
+        return
+      }
+
+      return {
+        peerId,
+        promise: sender.getStats(),
+      }
+    })
+
+    const ret = []
+
+    for (const report of rp) {
+      if (!report) {
+        continue
+      }
+
+      const stats = await report.promise
+
+      ret.push({
+        peerId: report.peerId,
+        stats,
+      })
+    }
+
+    return ret
+  }
   render() {
     const {
       minimized,
@@ -164,6 +210,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
             play={this.props.play}
             style={this.state.toolbarVideoStyle}
             forceContain={isAspectRatio}
+            getReceiverStats={this.getReceiverStats}
+            getSenderStats={this.getSenderStats}
           />
         ))}
       </div>
@@ -179,6 +227,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
         play={this.props.play}
         style={this.videoStyle}
         forceContain={isAspectRatio}
+        getReceiverStats={this.getReceiverStats}
+        getSenderStats={this.getSenderStats}
       />
     ))
 
@@ -256,6 +306,8 @@ function mapStateToProps(state: State) {
     gridKind,
     defaultAspectRatio: 16/9,
     debug: true,
+    receivers: state.receivers,
+    peers: state.peers,
   }
 }
 
