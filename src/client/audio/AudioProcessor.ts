@@ -40,6 +40,19 @@ export class AudioProcessor {
     await this.ctx.audioWorklet.addModule(workletURL)
   }
 
+  state() {
+    if (this.ctx) {
+      return this.ctx.state
+    }
+  }
+
+  async resume() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      console.log('resuming, state was suspended')
+      return this.ctx.resume()
+    }
+  }
+
   // addTrack adds a MediaStreamTrack and initiates audio processing.
   addTrack(streamId: string, track: MediaStreamTrack) {
     try {

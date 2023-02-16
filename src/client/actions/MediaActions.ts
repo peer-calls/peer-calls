@@ -188,6 +188,16 @@ export const play = makeAction('MEDIA_PLAY', async () => {
   .from(document.querySelectorAll('video'))
   .filter(video => video.paused)
   .map(video => video.play())
+
+  // Also resume audioProcessor if it was initialized before user action.
+  // FIXME we now getUserMedia immediatelly after opening the page. This
+  // results with the audio context being paused. We should prompt the user
+  // to click somewhere, or react to touch/mouse events to allow the VUMeter
+  // to work properly, otherwise the initial page won't show the audio level.
+  promises.push(
+    audioProcessor.resume(),
+  )
+
   await Promise.all(promises)
 })
 
