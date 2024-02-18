@@ -124,7 +124,7 @@ func (s *Signaller) onSignal(payload message.Signal) {
 
 		ch := s.signalChannel
 		if s.closed {
-			// read from nil channel blocks indefinitely
+			// write to nil channel blocks indefinitely
 			ch = nil
 		}
 
@@ -143,10 +143,17 @@ func (s *Signaller) Close() (err error) {
 		close(s.closeChannel)
 
 		s.signalMu.Lock()
-		defer s.signalMu.Unlock()
 
 		close(s.signalChannel)
 		s.closed = true
+
+		// It is important that we unlock this mutex before closing calling
+		// peerConnection.Close below because if our local peer connection starts
+		// sending ICE candidates it will eventually call onSignal, which also
+		// tries to acquire the same mutex, which will result in a deadlock,
+		// because peerConnection.Close will wait until the ICE transport to close,
+		// which will never finish if this lock is held.
+		s.signalMu.Unlock()
 
 		err = errors.Annotate(s.peerConnection.Close(), "close")
 	})
