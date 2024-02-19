@@ -213,16 +213,20 @@ describe('Media', () => {
     it('calls setAudioConstraint', async () => {
       const node = await render()
       const select = node.querySelector('select[name=audio-input]')!
+      const constraints = { echoCancellation: true }
 
       const tests: {value: string, expected: MediaConstraint}[] = [{
         value: 'disabled',
-        expected: {enabled: false, constraints: {}},
+        expected: {enabled: false, constraints},
       }, {
         value: '',
-        expected: {enabled: true, constraints: {}},
+        expected: {enabled: true, constraints},
       }, {
         value: 'abcd',
-        expected: {enabled: true, constraints: {deviceId: 'abcd'}},
+        expected: {enabled: true, constraints: {
+          deviceId: 'abcd',
+          ...constraints,
+        }},
       }]
 
       tests.forEach(test => {
