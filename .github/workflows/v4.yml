@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ["18.13"]
+        node-version: ["20.11"]
     steps:
     - uses: actions/checkout@v3
     - name: Use Node.js ${{ matrix.node-version }}
@@ -111,7 +111,7 @@ jobs:
         if [[ $git_describe =~ alpha|beta ]]; then
           args+=("--prerelease")
         fi
-        gh release create "${args[@]}" --target $GITHUB_SHA --generate-notes --title "PeerCalls $git_describe" "${assets[@]}"
+        gh release create "${args[@]}" --target $GITHUB_SHA --generate-notes --title "PeerCalls $git_describe" "$git_describe" "${assets[@]}"
   docker:
     runs-on: ubuntu-latest
     needs:
