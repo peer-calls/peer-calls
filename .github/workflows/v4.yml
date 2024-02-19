@@ -45,7 +45,7 @@ jobs:
     - lint
     strategy:
       matrix:
-        go-version: ["1.19.5"]
+        go-version: ["1.21.6"]
     services:
       redis:
         # Docker Hub image
@@ -74,7 +74,7 @@ jobs:
       - go
     strategy:
       matrix:
-        go-version: ["1.18.4"]
+        go-version: ["1.21.6"]
     steps:
     - name: Use Go ${{ matrix.go-version }}
       uses: actions/setup-go@v3
@@ -105,13 +105,13 @@ jobs:
         for asset in ./*; do
           archive=$asset.$git_describe.tar.gz
           tar czvf $archive $asset
-          assets+=("-a" "$archive")
+          assets+=("$archive")
         done
         args=()
         if [[ $git_describe =~ alpha|beta ]]; then
           args+=("--prerelease")
         fi
-        hub release create "${args[@]}" "${assets[@]}" -t $GITHUB_SHA -m "PeerCalls $git_describe" "$git_describe"
+        gh release create "${args[@]}" --target $GITHUB_SHA --generate-notes --title "PeerCalls $git_describe" "${assets[@]}"
   docker:
     runs-on: ubuntu-latest
     needs:
