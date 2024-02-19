@@ -17,7 +17,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make lint
   nodejs:
     needs:
@@ -27,15 +27,15 @@ jobs:
       matrix:
         node-version: ["20.11"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
     - run: npm run ci
     - name: Upload client-side artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: build
         path: build
@@ -59,9 +59,9 @@ jobs:
         ports:
           - 6379:6379
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Use Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
     - run: touch build/index.js build/style.css
@@ -77,14 +77,15 @@ jobs:
         go-version: ["1.21.6"]
     steps:
     - name: Use Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Download client-side artifacts
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v4
       with:
         name: build
+        path: build
     - run: find build/
     - run: mkdir -p build/release
     - run: echo "git_describe=$(git describe --always --tags)" >> $GITHUB_ENV
@@ -118,7 +119,7 @@ jobs:
       - nodejs
       - go
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Build image
       run: docker build . --build-arg VERSION="$(git describe --always --tags --dirty)" --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
     - name: Log in to registry
