@@ -134,7 +134,7 @@ func TestReadFromEnv(t *testing.T) {
 			},
 			{
 				URLs: []string{
-					"stun:global.stun.twilio.com:3478?transport=udp",
+					"stun:global.stun.twilio.com:3478",
 				},
 			},
 		}, c.ICEServers)
