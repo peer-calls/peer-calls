@@ -41,7 +41,7 @@ func InitConfig(c *Config) {
 	c.ICEServers = []ICEServer{{
 		URLs: []string{"stun:stun.l.google.com:19302"},
 	}, {
-		URLs: []string{"stun:global.stun.twilio.com:3478?transport=udp"},
+		URLs: []string{"stun:global.stun.twilio.com:3478"},
 	}}
 }
 
